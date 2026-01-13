@@ -2,5 +2,8 @@
   "name": "@astrale/typegraph-adapter-memory",
   "version": "0.2.1",
   "license": "MIT",
-  "exports": "./src/index.ts"
+  "exports": "./src/index.ts",
+  "imports": {
+    "@astrale/typegraph": "jsr:@astrale/typegraph@^0.2.0"
+  }
 }
