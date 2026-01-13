@@ -5,9 +5,9 @@
  * Allows plugging different query languages (Cypher, Gremlin, SQL, etc.)
  */
 
-import type { QueryAST } from "../ast"
-import type { SchemaDefinition } from "../schema"
-import type { CompiledQuery, CompilerOptions } from "./types"
+import type { QueryAST } from '../ast'
+import type { SchemaDefinition } from '../schema'
+import type { CompiledQuery, CompilerOptions } from './types'
 
 // =============================================================================
 // COMPILER PROVIDER INTERFACE
@@ -35,4 +35,7 @@ export interface QueryCompilerProvider {
 /**
  * Factory function type for creating compiler instances.
  */
-export type QueryCompilerFactory = (schema: SchemaDefinition, options?: CompilerOptions) => QueryCompilerProvider
+export type QueryCompilerFactory = (
+  schema: SchemaDefinition,
+  options?: CompilerOptions,
+) => QueryCompilerProvider

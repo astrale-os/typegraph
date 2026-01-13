@@ -33,10 +33,10 @@ interface Neo4jNode {
  */
 function isNeo4jInteger(value: unknown): value is Neo4jInteger {
   return (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    "toNumber" in value &&
-    typeof (value as Neo4jInteger).toNumber === "function"
+    'toNumber' in value &&
+    typeof (value as Neo4jInteger).toNumber === 'function'
   )
 }
 
@@ -45,10 +45,10 @@ function isNeo4jInteger(value: unknown): value is Neo4jInteger {
  */
 function isNeo4jDateTime(value: unknown): value is Neo4jDateTime {
   return (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    "toStandardDate" in value &&
-    typeof (value as Neo4jDateTime).toStandardDate === "function"
+    'toStandardDate' in value &&
+    typeof (value as Neo4jDateTime).toStandardDate === 'function'
   )
 }
 
@@ -57,10 +57,10 @@ function isNeo4jDateTime(value: unknown): value is Neo4jDateTime {
  */
 function isNeo4jNode(value: unknown): value is Neo4jNode {
   return (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    "properties" in value &&
-    typeof (value as Neo4jNode).properties === "object"
+    'properties' in value &&
+    typeof (value as Neo4jNode).properties === 'object'
   )
 }
 
@@ -116,7 +116,7 @@ export function convertNeo4jProperties(props: Record<string, unknown>): Record<s
  * @returns Plain JavaScript object with converted properties
  */
 export function extractProperties(data: unknown): Record<string, unknown> {
-  if (!data || typeof data !== "object") {
+  if (!data || typeof data !== 'object') {
     return {}
   }
 
@@ -142,7 +142,7 @@ export function extractValue(data: unknown): unknown {
     return null
   }
 
-  if (!data || typeof data !== "object") {
+  if (!data || typeof data !== 'object') {
     return {}
   }
 

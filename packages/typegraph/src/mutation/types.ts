@@ -4,7 +4,7 @@
  * Types for the mutation API - create, update, delete, link, hierarchy operations.
  */
 
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from "../schema"
+import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
 
 // =============================================================================
 // INPUT TYPES (What user provides)
@@ -13,12 +13,12 @@ import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from "../
 /**
  * Node input - excludes 'id' which is generated.
  */
-export type NodeInput<S extends AnySchema, N extends NodeLabels<S>> = Omit<NodeProps<S, N>, "id">
+export type NodeInput<S extends AnySchema, N extends NodeLabels<S>> = Omit<NodeProps<S, N>, 'id'>
 
 /**
  * Edge input - excludes 'id' which is generated.
  */
-export type EdgeInput<S extends AnySchema, E extends EdgeTypes<S>> = Omit<EdgeProps<S, E>, "id">
+export type EdgeInput<S extends AnySchema, E extends EdgeTypes<S>> = Omit<EdgeProps<S, E>, 'id'>
 
 /**
  * Input for batch link operations.
@@ -319,10 +319,7 @@ export interface GraphMutations<S extends AnySchema> {
   ): Promise<DeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(
-    edge: E,
-    links: LinkInput<S, E>[],
-  ): Promise<EdgeResult<S, E>[]>
+  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E>[]): Promise<EdgeResult<S, E>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(
@@ -400,10 +397,7 @@ export interface MutationTransaction<S extends AnySchema> {
   unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(
-    edge: E,
-    links: LinkInput<S, E>[],
-  ): Promise<EdgeResult<S, E>[]>
+  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E>[]): Promise<EdgeResult<S, E>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(

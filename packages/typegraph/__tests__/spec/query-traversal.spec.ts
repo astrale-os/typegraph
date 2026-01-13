@@ -4,16 +4,16 @@
  * Tests for edge traversal operations: to(), from(), via()
  */
 
-import { describe, it, expect } from "vitest"
-import { normalizeCypher } from "./fixtures/test-schema"
+import { describe, it, expect } from 'vitest'
+import { normalizeCypher } from './fixtures/test-schema'
 
-describe("Query Compilation: Traversal", () => {
+describe('Query Compilation: Traversal', () => {
   // ===========================================================================
   // BASIC TRAVERSAL
   // ===========================================================================
 
-  describe("Basic Edge Traversal", () => {
-    it("compiles outgoing traversal with to()", () => {
+  describe('Basic Edge Traversal', () => {
+    it('compiles outgoing traversal with to()', () => {
       // graph.node('user').byId('u1').to('authored').compile()
       const expected = `
         MATCH (n0:user {id: $p0})
@@ -21,10 +21,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("(n0)-[e0:authored]->(n1:post)")
+      expect(normalizeCypher(expected)).toContain('(n0)-[e0:authored]->(n1:post)')
     })
 
-    it("compiles incoming traversal with from()", () => {
+    it('compiles incoming traversal with from()', () => {
       // graph.node('post').byId('p1').from('authored').compile()
       const expected = `
         MATCH (n0:post {id: $p0})
@@ -32,10 +32,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("(n0)<-[e0:authored]-(n1:user)")
+      expect(normalizeCypher(expected)).toContain('(n0)<-[e0:authored]-(n1:user)')
     })
 
-    it("compiles bidirectional traversal with via()", () => {
+    it('compiles bidirectional traversal with via()', () => {
       // graph.node('user').byId('u1').via('follows').compile()
       const expected = `
         MATCH (n0:user {id: $p0})
@@ -43,10 +43,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("(n0)-[e0:follows]-(n1:user)")
+      expect(normalizeCypher(expected)).toContain('(n0)-[e0:follows]-(n1:user)')
     })
 
-    it("compiles chained traversals", () => {
+    it('compiles chained traversals', () => {
       // graph.node('user').byId('u1')
       //   .to('authored')
       //   .from('commentedOn')
@@ -58,8 +58,8 @@ describe("Query Compilation: Traversal", () => {
         RETURN n2
       `
 
-      expect(normalizeCypher(expected)).toContain("(n0)-[e0:authored]->(n1:post)")
-      expect(normalizeCypher(expected)).toContain("(n1)<-[e1:commentedOn]-(n2:comment)")
+      expect(normalizeCypher(expected)).toContain('(n0)-[e0:authored]->(n1:post)')
+      expect(normalizeCypher(expected)).toContain('(n1)<-[e1:commentedOn]-(n2:comment)')
     })
   })
 
@@ -67,8 +67,8 @@ describe("Query Compilation: Traversal", () => {
   // OPTIONAL TRAVERSAL
   // ===========================================================================
 
-  describe("Optional Traversal", () => {
-    it("compiles optional outgoing traversal", () => {
+  describe('Optional Traversal', () => {
+    it('compiles optional outgoing traversal', () => {
       // graph.node('user').byId('u1').toOptional('authored').compile()
       const expected = `
         MATCH (n0:user {id: $p0})
@@ -76,10 +76,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("OPTIONAL MATCH")
+      expect(normalizeCypher(expected)).toContain('OPTIONAL MATCH')
     })
 
-    it("compiles optional incoming traversal", () => {
+    it('compiles optional incoming traversal', () => {
       // graph.node('post').byId('p1').fromOptional('likes').compile()
       const expected = `
         MATCH (n0:post {id: $p0})
@@ -87,7 +87,7 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("OPTIONAL MATCH")
+      expect(normalizeCypher(expected)).toContain('OPTIONAL MATCH')
     })
   })
 
@@ -95,8 +95,8 @@ describe("Query Compilation: Traversal", () => {
   // EDGE PROPERTY FILTERING
   // ===========================================================================
 
-  describe("Edge Property Filtering", () => {
-    it("compiles traversal with edge property filter", () => {
+  describe('Edge Property Filtering', () => {
+    it('compiles traversal with edge property filter', () => {
       // graph.node('user').byId('u1')
       //   .to('authored', { where: { role: { eq: 'author' } } })
       //   .compile()
@@ -107,10 +107,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("WHERE e0.role = $p1")
+      expect(normalizeCypher(expected)).toContain('WHERE e0.role = $p1')
     })
 
-    it("compiles traversal with multiple edge property filters", () => {
+    it('compiles traversal with multiple edge property filters', () => {
       // graph.node('user').byId('u1')
       //   .to('memberOf', {
       //     where: {
@@ -126,10 +126,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("e0.role = $p1 AND e0.joinedAt >= $p2")
+      expect(normalizeCypher(expected)).toContain('e0.role = $p1 AND e0.joinedAt >= $p2')
     })
 
-    it("compiles traversal with edge IN filter", () => {
+    it('compiles traversal with edge IN filter', () => {
       // graph.node('user').byId('u1')
       //   .to('authored', { where: { role: { in: ['author', 'coauthor'] } } })
       //   .compile()
@@ -140,7 +140,7 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("WHERE e0.role IN $p1")
+      expect(normalizeCypher(expected)).toContain('WHERE e0.role IN $p1')
     })
   })
 
@@ -148,8 +148,8 @@ describe("Query Compilation: Traversal", () => {
   // VARIABLE LENGTH PATHS
   // ===========================================================================
 
-  describe("Variable Length Paths", () => {
-    it("compiles unbounded variable length path", () => {
+  describe('Variable Length Paths', () => {
+    it('compiles unbounded variable length path', () => {
       // graph.node('folder').byId('f1')
       //   .to('hasParent', { depth: { min: 1 } })
       //   .compile()
@@ -159,10 +159,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("hasParent*1..]")
+      expect(normalizeCypher(expected)).toContain('hasParent*1..]')
     })
 
-    it("compiles bounded variable length path", () => {
+    it('compiles bounded variable length path', () => {
       // graph.node('folder').byId('f1')
       //   .to('hasParent', { depth: { min: 1, max: 5 } })
       //   .compile()
@@ -172,10 +172,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("hasParent*1..5]")
+      expect(normalizeCypher(expected)).toContain('hasParent*1..5]')
     })
 
-    it("compiles exact depth path", () => {
+    it('compiles exact depth path', () => {
       // graph.node('folder').byId('f1')
       //   .to('hasParent', { depth: { min: 2, max: 2 } })
       //   .compile()
@@ -185,10 +185,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("hasParent*2]")
+      expect(normalizeCypher(expected)).toContain('hasParent*2]')
     })
 
-    it("compiles zero-or-more path", () => {
+    it('compiles zero-or-more path', () => {
       // graph.node('folder').byId('f1')
       //   .to('hasParent', { depth: { min: 0 } })
       //   .compile()
@@ -198,7 +198,7 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("hasParent*0..]")
+      expect(normalizeCypher(expected)).toContain('hasParent*0..]')
     })
   })
 
@@ -206,8 +206,8 @@ describe("Query Compilation: Traversal", () => {
   // MULTI-EDGE TRAVERSAL
   // ===========================================================================
 
-  describe("Multi-Edge Traversal", () => {
-    it("compiles toAny with multiple edges", () => {
+  describe('Multi-Edge Traversal', () => {
+    it('compiles toAny with multiple edges', () => {
       // graph.node('user').byId('u1')
       //   .toAny(['authored', 'likes'])
       //   .compile()
@@ -217,10 +217,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("authored|likes]")
+      expect(normalizeCypher(expected)).toContain('authored|likes]')
     })
 
-    it("compiles fromAny with multiple edges", () => {
+    it('compiles fromAny with multiple edges', () => {
       // graph.node('post').byId('p1')
       //   .fromAny(['authored', 'likes'])
       //   .compile()
@@ -230,7 +230,7 @@ describe("Query Compilation: Traversal", () => {
         RETURN n1
       `
 
-      expect(normalizeCypher(expected)).toContain("<-[e0:authored|likes]-")
+      expect(normalizeCypher(expected)).toContain('<-[e0:authored|likes]-')
     })
   })
 
@@ -238,8 +238,8 @@ describe("Query Compilation: Traversal", () => {
   // EDGE ALIAS CAPTURE
   // ===========================================================================
 
-  describe("Edge Alias Capture", () => {
-    it("captures edge with edgeAs option", () => {
+  describe('Edge Alias Capture', () => {
+    it('captures edge with edgeAs option', () => {
       // graph.node('user').byId('u1')
       //   .to('authored', { edgeAs: 'authorship' })
       //   .returning('authorship')
@@ -250,10 +250,10 @@ describe("Query Compilation: Traversal", () => {
         RETURN e0 AS authorship
       `
 
-      expect(normalizeCypher(expected)).toContain("RETURN e0 AS authorship")
+      expect(normalizeCypher(expected)).toContain('RETURN e0 AS authorship')
     })
 
-    it("returns both node and edge properties", () => {
+    it('returns both node and edge properties', () => {
       // graph.node('user').byId('u1')
       //   .as('user')
       //   .to('authored', { edgeAs: 'authorship' })
@@ -266,7 +266,7 @@ describe("Query Compilation: Traversal", () => {
         RETURN n0 AS user, n1 AS post, e0 AS authorship
       `
 
-      expect(normalizeCypher(expected)).toContain("n0 AS user, n1 AS post, e0 AS authorship")
+      expect(normalizeCypher(expected)).toContain('n0 AS user, n1 AS post, e0 AS authorship')
     })
   })
 })

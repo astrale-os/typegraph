@@ -5,7 +5,7 @@
  * The schema is the single source of truth for all type information.
  */
 
-export { node, edge, defineSchema } from "./builders"
+export { node, edge, defineSchema } from './builders'
 export type {
   SchemaDefinition,
   AnySchema,
@@ -19,7 +19,7 @@ export type {
   HierarchyEdge,
   HierarchyDirection,
   ResolveHierarchyEdge,
-} from "./types"
+} from './types'
 export type {
   NodeLabels,
   EdgeTypes,
@@ -41,4 +41,4 @@ export type {
   HierarchyChildren,
   HierarchyParent,
   ResolveHierarchyEdgeType,
-} from "./inference"
+} from './inference'

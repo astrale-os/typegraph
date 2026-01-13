@@ -12,9 +12,9 @@
  * to ensure unique aliases across all branches.
  */
 
-import { describe, it, expect } from "vitest"
-import { defineSchema, node, edge, createGraph } from "../../src"
-import { z } from "zod"
+import { describe, it, expect } from 'vitest'
+import { defineSchema, node, edge, createGraph } from '../../src'
+import { z } from 'zod'
 
 const testSchema = defineSchema({
   nodes: {
@@ -31,34 +31,34 @@ const testSchema = defineSchema({
   },
   edges: {
     replyTo: edge({
-      from: "message",
-      to: "message",
-      cardinality: { outbound: "optional", inbound: "many" },
+      from: 'message',
+      to: 'message',
+      cardinality: { outbound: 'optional', inbound: 'many' },
     }),
     hasReaction: edge({
-      from: "message",
-      to: "reaction",
-      cardinality: { outbound: "many", inbound: "one" },
+      from: 'message',
+      to: 'reaction',
+      cardinality: { outbound: 'many', inbound: 'one' },
     }),
   },
 })
 
-describe("Fork Alias Collision Regression", () => {
-  const graph = createGraph(testSchema, { uri: "bolt://localhost:7687" })
+describe('Fork Alias Collision Regression', () => {
+  const graph = createGraph(testSchema, { uri: 'bolt://localhost:7687' })
 
-  it("should assign unique internal aliases to each fork branch", () => {
+  it('should assign unique internal aliases to each fork branch', () => {
     const query = graph
-      .nodeByIdWithLabel("message", "msg-1")
-      .as("msg")
+      .nodeByIdWithLabel('message', 'msg-1')
+      .as('msg')
       .fork(
-        (q) => q.toOptional("replyTo").as("replyTo"),
-        (q) => q.to("hasReaction").as("reaction"),
+        (q) => q.toOptional('replyTo').as('replyTo'),
+        (q) => q.to('hasReaction').as('reaction'),
       )
-      .returning("msg", "replyTo", { reactions: { collect: "reaction" } })
+      .returning('msg', 'replyTo', { reactions: { collect: 'reaction' } })
 
     const ast = (query as any)._ast
-    const replyToInternal = ast.resolveUserAlias("replyTo")
-    const reactionInternal = ast.resolveUserAlias("reaction")
+    const replyToInternal = ast.resolveUserAlias('replyTo')
+    const reactionInternal = ast.resolveUserAlias('reaction')
 
     // Each branch should have a unique internal alias
     expect(replyToInternal).not.toBe(reactionInternal)
@@ -66,57 +66,57 @@ describe("Fork Alias Collision Regression", () => {
 
   it("should have unique toAlias in each branch's traversal step", () => {
     const query = graph
-      .nodeByIdWithLabel("message", "msg-1")
-      .as("msg")
+      .nodeByIdWithLabel('message', 'msg-1')
+      .as('msg')
       .fork(
-        (q) => q.toOptional("replyTo").as("replyTo"),
-        (q) => q.to("hasReaction").as("reaction"),
+        (q) => q.toOptional('replyTo').as('replyTo'),
+        (q) => q.to('hasReaction').as('reaction'),
       )
-      .returning("msg", "replyTo", { reactions: { collect: "reaction" } })
+      .returning('msg', 'replyTo', { reactions: { collect: 'reaction' } })
 
     const ast = (query as any)._ast
-    const forkStep = ast.steps.find((s: any) => s.type === "fork")
+    const forkStep = ast.steps.find((s: any) => s.type === 'fork')
     expect(forkStep).toBeDefined()
 
-    const branch1Traversal = forkStep.branches[0].steps.find((s: any) => s.type === "traversal")
-    const branch2Traversal = forkStep.branches[1].steps.find((s: any) => s.type === "traversal")
+    const branch1Traversal = forkStep.branches[0].steps.find((s: any) => s.type === 'traversal')
+    const branch2Traversal = forkStep.branches[1].steps.find((s: any) => s.type === 'traversal')
 
     // Each branch should have a unique toAlias
     expect(branch1Traversal?.toAlias).not.toBe(branch2Traversal?.toAlias)
   })
 
-  it("should have unique userAliases mappings in each branch", () => {
+  it('should have unique userAliases mappings in each branch', () => {
     const query = graph
-      .nodeByIdWithLabel("message", "msg-1")
-      .as("msg")
+      .nodeByIdWithLabel('message', 'msg-1')
+      .as('msg')
       .fork(
-        (q) => q.toOptional("replyTo").as("replyTo"),
-        (q) => q.to("hasReaction").as("reaction"),
+        (q) => q.toOptional('replyTo').as('replyTo'),
+        (q) => q.to('hasReaction').as('reaction'),
       )
-      .returning("msg", "replyTo", { reactions: { collect: "reaction" } })
+      .returning('msg', 'replyTo', { reactions: { collect: 'reaction' } })
 
     const ast = (query as any)._ast
-    const forkStep = ast.steps.find((s: any) => s.type === "fork")
+    const forkStep = ast.steps.find((s: any) => s.type === 'fork')
     expect(forkStep).toBeDefined()
 
     const branch1UserAliases = forkStep.branches[0].userAliases
     const branch2UserAliases = forkStep.branches[1].userAliases
 
-    const replyToInternal = branch1UserAliases["replyTo"]
-    const reactionInternal = branch2UserAliases["reaction"]
+    const replyToInternal = branch1UserAliases['replyTo']
+    const reactionInternal = branch2UserAliases['reaction']
 
     // Each branch should map to a unique internal alias
     expect(replyToInternal).not.toBe(reactionInternal)
   })
 
-  it("should use offset alias counters for branches", () => {
-    const query = graph.nodeByIdWithLabel("message", "msg-1").as("msg")
+  it('should use offset alias counters for branches', () => {
+    const query = graph.nodeByIdWithLabel('message', 'msg-1').as('msg')
     const astBeforeFork = (query as any)._ast
     const counterBeforeFork = astBeforeFork._aliasCounter
 
     const forkedQuery = query.fork(
-      (q) => q.toOptional("replyTo").as("replyTo"),
-      (q) => q.to("hasReaction").as("reaction"),
+      (q) => q.toOptional('replyTo').as('replyTo'),
+      (q) => q.to('hasReaction').as('reaction'),
     )
 
     const astAfterFork = (forkedQuery as any)._ast

@@ -55,31 +55,31 @@
 // MAIN API
 // =============================================================================
 
-export { createInMemoryGraph } from "./graph"
-export type { InMemoryGraph, InMemoryGraphConfig } from "./graph"
+export { createInMemoryGraph } from './graph'
+export type { InMemoryGraph, InMemoryGraphConfig } from './graph'
 
 // =============================================================================
 // STORE
 // =============================================================================
 
-export { GraphStore } from "./store"
-export type { StoredNode, StoredEdge, TransactionSnapshot, IndexConfig, IndexEntry } from "./store"
+export { GraphStore } from './store'
+export type { StoredNode, StoredEdge, TransactionSnapshot, IndexConfig, IndexEntry } from './store'
 
 // =============================================================================
 // ENGINE
 // =============================================================================
 
-export { QueryEngine } from "./engine"
-export type { QueryEngineConfig } from "./engine"
+export { QueryEngine } from './engine'
+export type { QueryEngineConfig } from './engine'
 
 // =============================================================================
 // DRIVER (for advanced use cases)
 // =============================================================================
 
-export { InMemoryDriver, createInMemoryDriver } from "./driver"
+export { InMemoryDriver, createInMemoryDriver } from './driver'
 
 // =============================================================================
 // TEMPLATES (for advanced use cases)
 // =============================================================================
 
-export { InMemoryTemplates, createInMemoryTemplates } from "./templates"
+export { InMemoryTemplates, createInMemoryTemplates } from './templates'

@@ -11,7 +11,7 @@ import type {
   HierarchyTemplateProvider,
   BatchTemplateProvider,
   TemplateUtils,
-} from "../template-provider"
+} from '../template-provider'
 
 // =============================================================================
 // NODE OPERATIONS
@@ -301,7 +301,7 @@ const utils: TemplateUtils = {
  * Cypher template provider for Neo4j/Memgraph.
  */
 export const CypherTemplates: MutationTemplateProvider = {
-  name: "cypher",
+  name: 'cypher',
   node: nodeTemplates,
   edge: edgeTemplates,
   hierarchy: hierarchyTemplates,

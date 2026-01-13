@@ -5,8 +5,8 @@
  * Allows intercepting and modifying mutations at various stages.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"
-import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from "./types"
+import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from './types'
 
 // =============================================================================
 // HOOK CONTEXT
@@ -27,17 +27,17 @@ export interface MutationContext<S extends AnySchema> {
 }
 
 export type MutationOperation =
-  | "create"
-  | "update"
-  | "delete"
-  | "link"
-  | "patchLink"
-  | "unlink"
-  | "createChild"
-  | "move"
-  | "clone"
-  | "cloneSubtree"
-  | "deleteSubtree"
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'link'
+  | 'patchLink'
+  | 'unlink'
+  | 'createChild'
+  | 'move'
+  | 'clone'
+  | 'cloneSubtree'
+  | 'deleteSubtree'
 
 // =============================================================================
 // HOOK TYPES
@@ -173,7 +173,10 @@ export class HooksRunner<S extends AnySchema> {
     this.hooks = hooks
   }
 
-  private createContext(operation: MutationOperation, meta?: Record<string, unknown>): MutationContext<S> {
+  private createContext(
+    operation: MutationOperation,
+    meta?: Record<string, unknown>,
+  ): MutationContext<S> {
     return {
       schema: this.schema,
       operation,
@@ -194,7 +197,7 @@ export class HooksRunner<S extends AnySchema> {
     data: NodeInput<S, N>,
     meta?: Record<string, unknown>,
   ): Promise<NodeInput<S, N>> {
-    const ctx = this.createContext("create", meta)
+    const ctx = this.createContext('create', meta)
     let result = data
 
     for (const hook of this.toArray(this.hooks.beforeCreate)) {
@@ -211,7 +214,7 @@ export class HooksRunner<S extends AnySchema> {
     result: NodeResult<S, N>,
     meta?: Record<string, unknown>,
   ): Promise<void> {
-    const ctx = this.createContext("create", meta)
+    const ctx = this.createContext('create', meta)
     for (const hook of this.toArray(this.hooks.afterCreate)) {
       await hook(result, ctx)
     }
@@ -223,7 +226,7 @@ export class HooksRunner<S extends AnySchema> {
     data: Partial<NodeInput<S, N>>,
     meta?: Record<string, unknown>,
   ): Promise<Partial<NodeInput<S, N>>> {
-    const ctx = this.createContext("update", meta)
+    const ctx = this.createContext('update', meta)
     let result = data
 
     for (const hook of this.toArray(this.hooks.beforeUpdate)) {
@@ -240,21 +243,25 @@ export class HooksRunner<S extends AnySchema> {
     result: NodeResult<S, N>,
     meta?: Record<string, unknown>,
   ): Promise<void> {
-    const ctx = this.createContext("update", meta)
+    const ctx = this.createContext('update', meta)
     for (const hook of this.toArray(this.hooks.afterUpdate)) {
       await hook(result, ctx)
     }
   }
 
-  async runBeforeDelete<N extends NodeLabels<S>>(label: N, id: string, meta?: Record<string, unknown>): Promise<void> {
-    const ctx = this.createContext("delete", meta)
+  async runBeforeDelete<N extends NodeLabels<S>>(
+    label: N,
+    id: string,
+    meta?: Record<string, unknown>,
+  ): Promise<void> {
+    const ctx = this.createContext('delete', meta)
     for (const hook of this.toArray(this.hooks.beforeDelete)) {
       await hook(label, id, ctx)
     }
   }
 
   async runAfterDelete(result: DeleteResult, meta?: Record<string, unknown>): Promise<void> {
-    const ctx = this.createContext("delete", meta)
+    const ctx = this.createContext('delete', meta)
     for (const hook of this.toArray(this.hooks.afterDelete)) {
       await hook(result, ctx)
     }
@@ -269,7 +276,7 @@ export class HooksRunner<S extends AnySchema> {
     data: EdgeInput<S, E> | undefined,
     meta?: Record<string, unknown>,
   ): Promise<EdgeInput<S, E> | undefined> {
-    const ctx = this.createContext("link", meta)
+    const ctx = this.createContext('link', meta)
     let result = data
 
     for (const hook of this.toArray(this.hooks.beforeLink)) {
@@ -282,8 +289,11 @@ export class HooksRunner<S extends AnySchema> {
     return result
   }
 
-  async runAfterLink<E extends EdgeTypes<S>>(result: EdgeResult<S, E>, meta?: Record<string, unknown>): Promise<void> {
-    const ctx = this.createContext("link", meta)
+  async runAfterLink<E extends EdgeTypes<S>>(
+    result: EdgeResult<S, E>,
+    meta?: Record<string, unknown>,
+  ): Promise<void> {
+    const ctx = this.createContext('link', meta)
     for (const hook of this.toArray(this.hooks.afterLink)) {
       await hook(result, ctx)
     }
@@ -295,14 +305,14 @@ export class HooksRunner<S extends AnySchema> {
     to: string,
     meta?: Record<string, unknown>,
   ): Promise<void> {
-    const ctx = this.createContext("unlink", meta)
+    const ctx = this.createContext('unlink', meta)
     for (const hook of this.toArray(this.hooks.beforeUnlink)) {
       await hook(edge, from, to, ctx)
     }
   }
 
   async runAfterUnlink(result: DeleteResult, meta?: Record<string, unknown>): Promise<void> {
-    const ctx = this.createContext("unlink", meta)
+    const ctx = this.createContext('unlink', meta)
     for (const hook of this.toArray(this.hooks.afterUnlink)) {
       await hook(result, ctx)
     }

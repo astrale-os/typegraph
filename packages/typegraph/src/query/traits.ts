@@ -5,10 +5,10 @@
  * Uses TypeScript mixins to avoid code duplication.
  */
 
-import type { QueryAST } from "../ast"
-import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from "../ast"
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from "../schema"
-import type { AliasMap, EdgeAliasMap } from "../schema/inference"
+import type { QueryAST } from '../ast'
+import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '../ast'
+import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
+import type { AliasMap, EdgeAliasMap } from '../schema/inference'
 
 // =============================================================================
 // CONSTRUCTOR TYPE FOR MIXINS
@@ -112,7 +112,7 @@ export interface HierarchyTraversalOptions {
  */
 export interface ReachableOptions {
   /** Direction of traversal */
-  direction?: "out" | "in" | "both"
+  direction?: 'out' | 'in' | 'both'
   /** Minimum depth (default: 1) */
   minDepth?: number
   /** Maximum depth (recommended to set) */
@@ -122,7 +122,7 @@ export interface ReachableOptions {
   /** Alias for the depth value */
   depthAlias?: string
   /** Uniqueness constraint for cycle prevention */
-  uniqueness?: "nodes" | "edges" | "none"
+  uniqueness?: 'nodes' | 'edges' | 'none'
 }
 
 // =============================================================================
@@ -168,7 +168,7 @@ export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: Edge
   if (edge) return edge as string
   const hierarchy = schema.hierarchy
   if (!hierarchy?.defaultEdge) {
-    throw new Error("No hierarchy edge specified and schema has no default hierarchy configuration")
+    throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
   }
   return hierarchy.defaultEdge
 }
@@ -176,9 +176,9 @@ export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: Edge
 /**
  * Get hierarchy direction from schema.
  */
-export function getHierarchyDirection<S extends AnySchema>(schema: S): "up" | "down" {
+export function getHierarchyDirection<S extends AnySchema>(schema: S): 'up' | 'down' {
   const hierarchy = schema.hierarchy
-  return hierarchy?.direction ?? "up"
+  return hierarchy?.direction ?? 'up'
 }
 
 /**
@@ -188,7 +188,7 @@ export function parseHierarchyArgs<S extends AnySchema>(
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
   options?: HierarchyTraversalOptions,
 ): [EdgeTypes<S> | undefined, HierarchyTraversalOptions | undefined] {
-  if (typeof edgeOrOptions === "string") {
+  if (typeof edgeOrOptions === 'string') {
     return [edgeOrOptions as EdgeTypes<S>, options]
   }
   return [undefined, edgeOrOptions as HierarchyTraversalOptions | undefined]
@@ -204,7 +204,7 @@ export function buildEdgeWhere<S extends AnySchema, E extends EdgeTypes<S>>(
 
   const conditions: EdgeWhereCondition[] = []
   for (const [field, condition] of Object.entries(options.where)) {
-    if (condition && typeof condition === "object") {
+    if (condition && typeof condition === 'object') {
       const op = Object.keys(condition)[0] as ComparisonOperator
       const value = (condition as Record<string, unknown>)[op]
       conditions.push({ field, operator: op, value })

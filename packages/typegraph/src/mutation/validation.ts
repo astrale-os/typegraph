@@ -5,9 +5,9 @@
  * Validates node/edge data and schema constraints.
  */
 
-import { type z } from "zod"
-import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"
-import { ValidationError } from "./errors"
+import { type z } from 'zod'
+import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import { ValidationError } from './errors'
 
 // =============================================================================
 // VALIDATION RESULT
@@ -43,7 +43,12 @@ export class MutationValidator<S extends AnySchema> {
   validateNode<N extends NodeLabels<S>>(label: N, data: unknown, partial = false): void {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) {
-      throw new ValidationError(`Unknown node label: ${label as string}`, "label", "valid node label", label)
+      throw new ValidationError(
+        `Unknown node label: ${label as string}`,
+        'label',
+        'valid node label',
+        label,
+      )
     }
 
     const zodSchema = partial ? nodeDef.properties.partial() : nodeDef.properties
@@ -52,8 +57,8 @@ export class MutationValidator<S extends AnySchema> {
     if (!result.success) {
       const firstError = result.error.errors[0]
       throw new ValidationError(
-        `Invalid ${label as string} data: ${firstError?.message ?? "validation failed"}`,
-        firstError?.path.join("."),
+        `Invalid ${label as string} data: ${firstError?.message ?? 'validation failed'}`,
+        firstError?.path.join('.'),
         undefined,
         firstError?.received,
       )
@@ -67,7 +72,12 @@ export class MutationValidator<S extends AnySchema> {
   validateEdge<E extends EdgeTypes<S>>(edgeType: E, data: unknown, partial = false): void {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) {
-      throw new ValidationError(`Unknown edge type: ${edgeType as string}`, "edgeType", "valid edge type", edgeType)
+      throw new ValidationError(
+        `Unknown edge type: ${edgeType as string}`,
+        'edgeType',
+        'valid edge type',
+        edgeType,
+      )
     }
 
     // Edge properties are optional by default
@@ -81,8 +91,8 @@ export class MutationValidator<S extends AnySchema> {
     if (!result.success) {
       const firstError = result.error.errors[0]
       throw new ValidationError(
-        `Invalid ${edgeType as string} data: ${firstError?.message ?? "validation failed"}`,
-        firstError?.path.join("."),
+        `Invalid ${edgeType as string} data: ${firstError?.message ?? 'validation failed'}`,
+        firstError?.path.join('.'),
         undefined,
         firstError?.received,
       )
@@ -92,10 +102,19 @@ export class MutationValidator<S extends AnySchema> {
   /**
    * Validate edge endpoint types match schema.
    */
-  validateEdgeEndpoints<E extends EdgeTypes<S>>(edgeType: E, fromLabel?: string, toLabel?: string): void {
+  validateEdgeEndpoints<E extends EdgeTypes<S>>(
+    edgeType: E,
+    fromLabel?: string,
+    toLabel?: string,
+  ): void {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) {
-      throw new ValidationError(`Unknown edge type: ${edgeType as string}`, "edgeType", "valid edge type", edgeType)
+      throw new ValidationError(
+        `Unknown edge type: ${edgeType as string}`,
+        'edgeType',
+        'valid edge type',
+        edgeType,
+      )
     }
 
     if (fromLabel) {
@@ -103,8 +122,8 @@ export class MutationValidator<S extends AnySchema> {
       if (!allowedFrom.includes(fromLabel)) {
         throw new ValidationError(
           `Invalid source for ${edgeType as string}: '${fromLabel}' not allowed`,
-          "from",
-          allowedFrom.join(" | "),
+          'from',
+          allowedFrom.join(' | '),
           fromLabel,
         )
       }
@@ -115,8 +134,8 @@ export class MutationValidator<S extends AnySchema> {
       if (!allowedTo.includes(toLabel)) {
         throw new ValidationError(
           `Invalid target for ${edgeType as string}: '${toLabel}' not allowed`,
-          "to",
-          allowedTo.join(" | "),
+          'to',
+          allowedTo.join(' | '),
           toLabel,
         )
       }
@@ -130,9 +149,9 @@ export class MutationValidator<S extends AnySchema> {
     label: N,
     data: unknown,
     partial = false,
-  ): z.infer<(typeof this.schema.nodes)[N]["properties"]> {
+  ): z.infer<(typeof this.schema.nodes)[N]['properties']> {
     this.validateNode(label, data, partial)
-    return data as z.infer<(typeof this.schema.nodes)[N]["properties"]>
+    return data as z.infer<(typeof this.schema.nodes)[N]['properties']>
   }
 
   /**
@@ -142,9 +161,9 @@ export class MutationValidator<S extends AnySchema> {
     edgeType: E,
     data: unknown,
     partial = false,
-  ): z.infer<(typeof this.schema.edges)[E]["properties"]> {
+  ): z.infer<(typeof this.schema.edges)[E]['properties']> {
     this.validateEdge(edgeType, data, partial)
-    return data as z.infer<(typeof this.schema.edges)[E]["properties"]>
+    return data as z.infer<(typeof this.schema.edges)[E]['properties']>
   }
 
   /**

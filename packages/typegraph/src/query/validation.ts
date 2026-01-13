@@ -5,7 +5,7 @@
  * Catches invalid node labels, edge types, and property names before execution.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"
+import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
 
 // =============================================================================
 // VALIDATION ERRORS
@@ -18,16 +18,16 @@ export class QueryValidationError extends Error {
     public readonly details?: Record<string, unknown>,
   ) {
     super(message)
-    this.name = "QueryValidationError"
+    this.name = 'QueryValidationError'
   }
 }
 
 export type QueryValidationErrorCode =
-  | "INVALID_NODE_LABEL"
-  | "INVALID_EDGE_TYPE"
-  | "INVALID_PROPERTY"
-  | "INVALID_TRAVERSAL"
-  | "INVALID_HIERARCHY_EDGE"
+  | 'INVALID_NODE_LABEL'
+  | 'INVALID_EDGE_TYPE'
+  | 'INVALID_PROPERTY'
+  | 'INVALID_TRAVERSAL'
+  | 'INVALID_HIERARCHY_EDGE'
 
 // =============================================================================
 // SCHEMA VALIDATOR
@@ -46,8 +46,8 @@ export class SchemaValidator<S extends AnySchema> {
     if (!(label in this.schema.nodes)) {
       const validLabels = Object.keys(this.schema.nodes)
       throw new QueryValidationError(
-        `Invalid node label: "${label}". Valid labels are: ${validLabels.join(", ")}`,
-        "INVALID_NODE_LABEL",
+        `Invalid node label: "${label}". Valid labels are: ${validLabels.join(', ')}`,
+        'INVALID_NODE_LABEL',
         { label, validLabels },
       )
     }
@@ -60,8 +60,8 @@ export class SchemaValidator<S extends AnySchema> {
     if (!(edgeType in this.schema.edges)) {
       const validEdges = Object.keys(this.schema.edges)
       throw new QueryValidationError(
-        `Invalid edge type: "${edgeType}". Valid edge types are: ${validEdges.join(", ")}`,
-        "INVALID_EDGE_TYPE",
+        `Invalid edge type: "${edgeType}". Valid edge types are: ${validEdges.join(', ')}`,
+        'INVALID_EDGE_TYPE',
         { edgeType, validEdges },
       )
     }
@@ -78,14 +78,14 @@ export class SchemaValidator<S extends AnySchema> {
 
     // properties is a ZodObject - access its shape to get property keys
     const zodSchema = nodeDef.properties
-    if (zodSchema && "shape" in zodSchema) {
+    if (zodSchema && 'shape' in zodSchema) {
       const shape = (zodSchema as { shape: Record<string, unknown> }).shape
-      if (!(property in shape) && property !== "id") {
+      if (!(property in shape) && property !== 'id') {
         const validProps = Object.keys(shape)
         throw new QueryValidationError(
-          `Invalid property "${property}" on node "${label as string}". Valid properties are: id, ${validProps.join(", ")}`,
-          "INVALID_PROPERTY",
-          { label, property, validProperties: ["id", ...validProps] },
+          `Invalid property "${property}" on node "${label as string}". Valid properties are: id, ${validProps.join(', ')}`,
+          'INVALID_PROPERTY',
+          { label, property, validProperties: ['id', ...validProps] },
         )
       }
     }
@@ -102,14 +102,14 @@ export class SchemaValidator<S extends AnySchema> {
 
     // properties is a ZodObject - access its shape to get property keys
     const zodSchema = edgeDef.properties
-    if (zodSchema && "shape" in zodSchema) {
+    if (zodSchema && 'shape' in zodSchema) {
       const shape = (zodSchema as { shape: Record<string, unknown> }).shape
-      if (!(property in shape) && property !== "id") {
+      if (!(property in shape) && property !== 'id') {
         const validProps = Object.keys(shape)
         throw new QueryValidationError(
-          `Invalid property "${property}" on edge "${edgeType as string}". Valid properties are: id, ${validProps.join(", ")}`,
-          "INVALID_PROPERTY",
-          { edgeType, property, validProperties: ["id", ...validProps] },
+          `Invalid property "${property}" on edge "${edgeType as string}". Valid properties are: id, ${validProps.join(', ')}`,
+          'INVALID_PROPERTY',
+          { edgeType, property, validProperties: ['id', ...validProps] },
         )
       }
     }
@@ -121,7 +121,7 @@ export class SchemaValidator<S extends AnySchema> {
   validateTraversal<N extends NodeLabels<S>, E extends EdgeTypes<S>>(
     fromLabel: N,
     edgeType: E,
-    direction: "out" | "in" | "both",
+    direction: 'out' | 'in' | 'both',
   ): void {
     this.validateNodeLabel(fromLabel as string)
     this.validateEdgeType(edgeType as string)
@@ -129,14 +129,14 @@ export class SchemaValidator<S extends AnySchema> {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) return
 
-    const isValidOutbound = direction !== "in" && edgeDef.from === fromLabel
-    const isValidInbound = direction !== "out" && edgeDef.to === fromLabel
+    const isValidOutbound = direction !== 'in' && edgeDef.from === fromLabel
+    const isValidInbound = direction !== 'out' && edgeDef.to === fromLabel
 
     if (!isValidOutbound && !isValidInbound) {
       throw new QueryValidationError(
-        `Invalid traversal: cannot traverse "${edgeType as string}" ${direction === "out" ? "outbound" : direction === "in" ? "inbound" : "in any direction"} from "${fromLabel as string}". ` +
+        `Invalid traversal: cannot traverse "${edgeType as string}" ${direction === 'out' ? 'outbound' : direction === 'in' ? 'inbound' : 'in any direction'} from "${fromLabel as string}". ` +
           `Edge "${edgeType as string}" connects ${edgeDef.from} -> ${edgeDef.to}`,
-        "INVALID_TRAVERSAL",
+        'INVALID_TRAVERSAL',
         {
           fromLabel,
           edgeType,
@@ -156,8 +156,8 @@ export class SchemaValidator<S extends AnySchema> {
 
     if (!hierarchyEdge) {
       throw new QueryValidationError(
-        "No hierarchy edge specified and schema has no default hierarchy configuration",
-        "INVALID_HIERARCHY_EDGE",
+        'No hierarchy edge specified and schema has no default hierarchy configuration',
+        'INVALID_HIERARCHY_EDGE',
         {},
       )
     }
@@ -184,12 +184,12 @@ export class SchemaValidator<S extends AnySchema> {
    */
   getNodeProperties<N extends NodeLabels<S>>(label: N): string[] {
     const nodeDef = this.schema.nodes[label as string]
-    if (!nodeDef?.properties) return ["id"]
+    if (!nodeDef?.properties) return ['id']
     const zodSchema = nodeDef.properties
-    if (zodSchema && "shape" in zodSchema) {
-      return ["id", ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
+    if (zodSchema && 'shape' in zodSchema) {
+      return ['id', ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
     }
-    return ["id"]
+    return ['id']
   }
 
   /**
@@ -197,12 +197,12 @@ export class SchemaValidator<S extends AnySchema> {
    */
   getEdgeProperties<E extends EdgeTypes<S>>(edgeType: E): string[] {
     const edgeDef = this.schema.edges[edgeType as string]
-    if (!edgeDef?.properties) return ["id"]
+    if (!edgeDef?.properties) return ['id']
     const zodSchema = edgeDef.properties
-    if (zodSchema && "shape" in zodSchema) {
-      return ["id", ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
+    if (zodSchema && 'shape' in zodSchema) {
+      return ['id', ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
     }
-    return ["id"]
+    return ['id']
   }
 }
 

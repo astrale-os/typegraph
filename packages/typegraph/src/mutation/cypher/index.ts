@@ -4,4 +4,4 @@
  * Neo4j/Memgraph Cypher implementation for mutations.
  */
 
-export { CypherTemplates } from "./templates"
+export { CypherTemplates } from './templates'

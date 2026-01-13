@@ -23,8 +23,8 @@ pnpm add neo4j-driver
 ## Quick Start
 
 ```typescript
-import { defineSchema, node, edge, createGraph } from 'typegraph';
-import { z } from 'zod';
+import { defineSchema, node, edge, createGraph } from 'typegraph'
+import { z } from 'zod'
 
 // Define your graph schema
 const schema = defineSchema({
@@ -63,24 +63,24 @@ const schema = defineSchema({
       },
     }),
   },
-});
+})
 
 // Create a graph instance
 const graph = createGraph(schema, {
   uri: 'bolt://localhost:7687',
   auth: { username: 'neo4j', password: 'password' },
-});
+})
 
 // Simple queries
-const users = await graph.node('user').execute();
-const user = await graph.node('user').byId('user_123').execute();
+const users = await graph.node('user').execute()
+const user = await graph.node('user').byId('user_123').execute()
 
 // Traversal with edge filtering
 const authoredPosts = await graph
   .node('user')
   .byId('user_123')
   .follow('authored', { where: { role: { eq: 'author' } } })
-  .execute();
+  .execute()
 
 // Multi-node returns with aliases
 const results = await graph
@@ -89,25 +89,16 @@ const results = await graph
   .follow('authored')
   .as('author')
   .returning('post', 'author')
-  .execute();
+  .execute()
 // Type: Array<{ post: Post, author: User }>
 
 // Bidirectional traversal
-const friends = await graph
-  .node('user')
-  .byId('user_123')
-  .followBoth('friendOf')
-  .execute();
+const friends = await graph.node('user').byId('user_123').followBoth('friendOf').execute()
 
 // Query composition
-const activeUsers = (builder) => 
-  builder.where('status', 'eq', 'active');
+const activeUsers = (builder) => builder.where('status', 'eq', 'active')
 
-const activeUserPosts = await graph
-  .node('user')
-  .pipe(activeUsers)
-  .follow('authored')
-  .execute();
+const activeUserPosts = await graph.node('user').pipe(activeUsers).follow('authored').execute()
 ```
 
 ## API Overview
@@ -120,7 +111,9 @@ All nodes and edges implicitly have an `id: string` field. Do not declare it in 
 const schema = defineSchema({
   nodes: {
     user: node({
-      properties: { /* Zod schemas */ },
+      properties: {
+        /* Zod schemas */
+      },
       indexes: ['email'],
     }),
   },
@@ -129,10 +122,12 @@ const schema = defineSchema({
       from: 'user',
       to: 'user',
       cardinality: { from: 'many', to: 'many' },
-      properties: { /* Optional edge properties */ },
+      properties: {
+        /* Optional edge properties */
+      },
     }),
   },
-});
+})
 ```
 
 ### Builders
@@ -186,13 +181,13 @@ const schema = defineSchema({
 ```typescript
 const results = await graph
   .node('thread')
-  .as('thread')              // Bookmark the thread node
+  .as('thread') // Bookmark the thread node
   .follow('createdBy')
-  .as('author')              // Bookmark the author node
+  .as('author') // Bookmark the author node
   .follow('department')
-  .as('dept')                // Bookmark the department node
-  .returning('thread', 'author', 'dept')  // Return all three
-  .execute();
+  .as('dept') // Bookmark the department node
+  .returning('thread', 'author', 'dept') // Return all three
+  .execute()
 
 // Type: Array<{ thread: Thread, author: User, dept: Department }>
 ```
@@ -206,27 +201,19 @@ const stats = await graph
   .groupBy('threadId')
   .count()
   .avg('wordCount', { alias: 'avgWords' })
-  .execute();
+  .execute()
 
 // Count shorthand
-const count = await graph.node('user').count();
+const count = await graph.node('user').count()
 ```
 
 ### Pagination & Ordering
 
 ```typescript
-await graph
-  .node('post')
-  .orderBy('publishedAt', 'DESC')
-  .limit(10)
-  .skip(20)
-  .execute();
+await graph.node('post').orderBy('publishedAt', 'DESC').limit(10).skip(20).execute()
 
 // Or use paginate helper
-await graph
-  .node('post')
-  .paginate({ page: 3, pageSize: 10 })
-  .execute();
+await graph.node('post').paginate({ page: 3, pageSize: 10 }).execute()
 ```
 
 ## Development
@@ -271,6 +258,7 @@ npm run memgraph:down
 The Memgraph Lab UI is available at http://localhost:3000 for debugging.
 
 **Environment variables:**
+
 - `MEMGRAPH_URI` - Bolt URI (default: `bolt://localhost:7687`)
 - `MEMGRAPH_USER` - Username (optional)
 - `MEMGRAPH_PASSWORD` - Password (optional)
@@ -294,4 +282,3 @@ Types  Query   Cypher    Neo4j
 ## License
 
 MIT
-

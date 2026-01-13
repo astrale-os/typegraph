@@ -6,10 +6,10 @@ Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB).
 
 ## Packages
 
-| Package                                              | Description                              |
-| ---------------------------------------------------- | ---------------------------------------- |
-| [`@astrale/typegraph`](./packages/typegraph)         | Core query builder and mutation DSL      |
-| [`@astrale/typegraph-memory`](./packages/memory)     | In-memory adapter for testing            |
+| Package                                          | Description                         |
+| ------------------------------------------------ | ----------------------------------- |
+| [`@astrale/typegraph`](./packages/typegraph)     | Core query builder and mutation DSL |
+| [`@astrale/typegraph-memory`](./packages/memory) | In-memory adapter for testing       |
 
 ## Installation
 
@@ -71,21 +71,13 @@ const users = await graph.node('user').execute()
 const user = await graph.node('user').byId(userId).execute()
 
 // Users with filter
-const activeUsers = await graph.node('user')
-  .where('status', 'eq', 'active')
-  .execute()
+const activeUsers = await graph.node('user').where('status', 'eq', 'active').execute()
 
 // Traverse edges
-const posts = await graph.node('user')
-  .byId(userId)
-  .to('authored')
-  .execute()
+const posts = await graph.node('user').byId(userId).to('authored').execute()
 
 // Hierarchy traversal
-const ancestors = await graph.node('post')
-  .byId(postId)
-  .ancestors()
-  .execute()
+const ancestors = await graph.node('post').byId(postId).ancestors().execute()
 ```
 
 ### Mutations
@@ -125,10 +117,10 @@ const user = await graph.mutate.create('user', { name: 'Test' })
 const users = await graph.node('user').execute()
 
 // In-memory specific
-graph.clear()                    // Clear all data
-const data = graph.export()      // Export for serialization
-graph.import(data)               // Import from serialization
-const stats = graph.stats()      // Get statistics
+graph.clear() // Clear all data
+const data = graph.export() // Export for serialization
+graph.import(data) // Import from serialization
+const stats = graph.stats() // Get statistics
 ```
 
 ## Development

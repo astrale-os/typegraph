@@ -5,7 +5,7 @@
  * Provides basic CRUD operations and index management.
  */
 
-import type { StoredNode, StoredEdge, TransactionSnapshot } from "./types"
+import type { StoredNode, StoredEdge, TransactionSnapshot } from './types'
 
 /**
  * Deep clone a value (JSON-safe).
@@ -344,7 +344,7 @@ export class GraphStore {
 
   private indexNodeProperties(node: StoredNode): void {
     for (const [key, index] of this.propertyIndexes) {
-      const parts = key.split(".")
+      const parts = key.split('.')
       const label = parts[0]
       const property = parts[1]
       if (label !== node.label || !property) continue
@@ -361,7 +361,7 @@ export class GraphStore {
 
   private removeNodeFromIndexes(node: StoredNode): void {
     for (const [key, index] of this.propertyIndexes) {
-      const parts = key.split(".")
+      const parts = key.split('.')
       const label = parts[0]
       const property = parts[1]
       if (label !== node.label || !property) continue
@@ -382,7 +382,7 @@ export class GraphStore {
    */
   beginTransaction(): void {
     if (this.transactionSnapshot) {
-      throw new Error("Transaction already in progress")
+      throw new Error('Transaction already in progress')
     }
 
     this.transactionSnapshot = {
@@ -398,7 +398,7 @@ export class GraphStore {
    */
   commit(): void {
     if (!this.transactionSnapshot) {
-      throw new Error("No transaction in progress")
+      throw new Error('No transaction in progress')
     }
     this.transactionSnapshot = null
   }
@@ -408,7 +408,7 @@ export class GraphStore {
    */
   rollback(): void {
     if (!this.transactionSnapshot) {
-      throw new Error("No transaction in progress")
+      throw new Error('No transaction in progress')
     }
 
     this.nodes = this.transactionSnapshot.nodes
@@ -456,7 +456,7 @@ export class GraphStore {
     this.propertyIndexes.clear()
 
     for (const key of existingIndexKeys) {
-      const parts = key.split(".")
+      const parts = key.split('.')
       const label = parts[0]
       const property = parts[1]
       if (label && property) {

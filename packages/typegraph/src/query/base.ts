@@ -4,10 +4,10 @@
  * Shared foundation for all builder types.
  */
 
-import { type QueryAST } from "../ast"
-import { CypherCompiler } from "../compiler"
-import type { CompiledQuery } from "../compiler"
-import type { AnySchema, NodeLabels } from "../schema"
+import { type QueryAST } from '../ast'
+import { CypherCompiler } from '../compiler'
+import type { CompiledQuery } from '../compiler'
+import type { AnySchema, NodeLabels } from '../schema'
 
 // Re-export shared types from traits
 export type {
@@ -17,7 +17,7 @@ export type {
   ReachableOptions,
   WhereBuilder,
   EdgePropertyCondition,
-} from "./traits"
+} from './traits'
 
 // =============================================================================
 // QUERY FRAGMENT (For composition/reuse)

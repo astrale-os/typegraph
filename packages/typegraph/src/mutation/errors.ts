@@ -4,7 +4,7 @@
  * Specific error types for mutation operations.
  */
 
-import { GraphQueryError } from "../errors"
+import { GraphQueryError } from '../errors'
 
 /**
  * Base error for mutation operations.
@@ -18,7 +18,7 @@ export class MutationError extends GraphQueryError {
     cause?: Error,
   ) {
     super(message, cause)
-    this.name = "MutationError"
+    this.name = 'MutationError'
   }
 }
 
@@ -27,8 +27,8 @@ export class MutationError extends GraphQueryError {
  */
 export class NodeNotFoundError extends MutationError {
   constructor(label: string, id: string) {
-    super(`Node not found: ${label} with id '${id}'`, "query", label, id)
-    this.name = "NodeNotFoundError"
+    super(`Node not found: ${label} with id '${id}'`, 'query', label, id)
+    this.name = 'NodeNotFoundError'
   }
 }
 
@@ -41,8 +41,8 @@ export class EdgeExistsError extends MutationError {
     public readonly fromId: string,
     public readonly toId: string,
   ) {
-    super(`Edge already exists: ${edgeType} from '${fromId}' to '${toId}'`, "link")
-    this.name = "EdgeExistsError"
+    super(`Edge already exists: ${edgeType} from '${fromId}' to '${toId}'`, 'link')
+    this.name = 'EdgeExistsError'
   }
 }
 
@@ -57,8 +57,8 @@ export class EdgeNotFoundError extends MutationError {
     public readonly edgeId?: string,
   ) {
     const details = edgeId ? `id '${edgeId}'` : `from '${fromId}' to '${toId}'`
-    super(`Edge not found: ${edgeType} ${details}`, "unlink")
-    this.name = "EdgeNotFoundError"
+    super(`Edge not found: ${edgeType} ${details}`, 'unlink')
+    this.name = 'EdgeNotFoundError'
   }
 }
 
@@ -70,8 +70,8 @@ export class CycleDetectedError extends MutationError {
     nodeId: string,
     public readonly targetId: string,
   ) {
-    super(`Cannot move: would create cycle (${nodeId} -> ${targetId})`, "move", undefined, nodeId)
-    this.name = "CycleDetectedError"
+    super(`Cannot move: would create cycle (${nodeId} -> ${targetId})`, 'move', undefined, nodeId)
+    this.name = 'CycleDetectedError'
   }
 }
 
@@ -80,8 +80,8 @@ export class CycleDetectedError extends MutationError {
  */
 export class ParentNotFoundError extends MutationError {
   constructor(parentId: string) {
-    super(`Parent node not found: '${parentId}'`, "createChild", undefined, parentId)
-    this.name = "ParentNotFoundError"
+    super(`Parent node not found: '${parentId}'`, 'createChild', undefined, parentId)
+    this.name = 'ParentNotFoundError'
   }
 }
 
@@ -90,8 +90,13 @@ export class ParentNotFoundError extends MutationError {
  */
 export class SourceNotFoundError extends MutationError {
   constructor(label: string, sourceId: string) {
-    super(`Source node not found for clone: ${label} with id '${sourceId}'`, "clone", label, sourceId)
-    this.name = "SourceNotFoundError"
+    super(
+      `Source node not found for clone: ${label} with id '${sourceId}'`,
+      'clone',
+      label,
+      sourceId,
+    )
+    this.name = 'SourceNotFoundError'
   }
 }
 
@@ -104,8 +109,8 @@ export class TransactionError extends MutationError {
     public readonly operations: string[],
     cause?: Error,
   ) {
-    super(message, "transaction", undefined, undefined, cause)
-    this.name = "TransactionError"
+    super(message, 'transaction', undefined, undefined, cause)
+    this.name = 'TransactionError'
   }
 }
 
@@ -119,7 +124,7 @@ export class ValidationError extends MutationError {
     public readonly expected?: string,
     public readonly received?: unknown,
   ) {
-    super(message, "validation")
-    this.name = "ValidationError"
+    super(message, 'validation')
+    this.name = 'ValidationError'
   }
 }

@@ -11,7 +11,7 @@ import type {
   TransactionContext,
   ConnectionMetrics,
   DriverConfig,
-} from "../provider"
+} from '../provider'
 
 // Neo4j driver types (dynamically imported)
 type Driver = {
@@ -60,11 +60,11 @@ type ResultSummary = {
  * Neo4j/Bolt database driver implementation.
  */
 export class Neo4jDriver implements DatabaseDriverProvider {
-  readonly name = "neo4j"
+  readonly name = 'neo4j'
 
   private readonly config: DriverConfig
   private driver: Driver | null = null
-  private neo4jModule: typeof import("neo4j-driver") | null = null
+  private neo4jModule: typeof import('neo4j-driver') | null = null
 
   constructor(config: DriverConfig) {
     this.config = config
@@ -75,15 +75,19 @@ export class Neo4jDriver implements DatabaseDriverProvider {
 
     // Dynamically import neo4j-driver
     try {
-      this.neo4jModule = await import("neo4j-driver")
+      this.neo4jModule = await import('neo4j-driver')
     } catch {
-      throw new Error("neo4j-driver is required for database connections. Install it with: npm install neo4j-driver")
+      throw new Error(
+        'neo4j-driver is required for database connections. Install it with: npm install neo4j-driver',
+      )
     }
 
     const neo4j = this.neo4jModule
 
     // Build auth
-    const auth = this.config.auth ? neo4j.auth.basic(this.config.auth.username, this.config.auth.password) : undefined
+    const auth = this.config.auth
+      ? neo4j.auth.basic(this.config.auth.username, this.config.auth.password)
+      : undefined
 
     // Build driver config
     const driverConfig: Record<string, unknown> = {}
@@ -130,7 +134,7 @@ export class Neo4jDriver implements DatabaseDriverProvider {
   }
 
   async run<T>(query: string, params?: Record<string, unknown>): Promise<QueryResult<T>> {
-    const session = this.getSession("write")
+    const session = this.getSession('write')
 
     try {
       const result = await session.run(query, params)
@@ -143,7 +147,10 @@ export class Neo4jDriver implements DatabaseDriverProvider {
     }
   }
 
-  async transaction<T>(work: (tx: TransactionContext) => Promise<T>, mode: "read" | "write" = "write"): Promise<T> {
+  async transaction<T>(
+    work: (tx: TransactionContext) => Promise<T>,
+    mode: 'read' | 'write' = 'write',
+  ): Promise<T> {
     const session = this.getSession(mode)
 
     try {
@@ -157,14 +164,14 @@ export class Neo4jDriver implements DatabaseDriverProvider {
             // Transaction auto-commits on success
           },
           rollback: async () => {
-            throw new Error("Rollback requested")
+            throw new Error('Rollback requested')
           },
         }
 
         return work(context)
       }
 
-      if (mode === "read") {
+      if (mode === 'read') {
         return await session.executeRead(txWork)
       } else {
         return await session.executeWrite(txWork)
@@ -182,13 +189,13 @@ export class Neo4jDriver implements DatabaseDriverProvider {
     }
   }
 
-  private getSession(mode: "read" | "write"): Session {
+  private getSession(mode: 'read' | 'write'): Session {
     if (!this.driver) {
-      throw new Error("Not connected. Call connect() first.")
+      throw new Error('Not connected. Call connect() first.')
     }
 
     const neo4j = this.neo4jModule!
-    const accessMode = mode === "read" ? neo4j.session.READ : neo4j.session.WRITE
+    const accessMode = mode === 'read' ? neo4j.session.READ : neo4j.session.WRITE
 
     return this.driver.session({
       database: this.config.database,

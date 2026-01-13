@@ -30,7 +30,7 @@ export interface DatabaseDriverProvider {
   run<T>(query: string, params?: Record<string, unknown>): Promise<QueryResult<T>>
 
   /** Execute within a transaction */
-  transaction<T>(work: (tx: TransactionContext) => Promise<T>, mode?: "read" | "write"): Promise<T>
+  transaction<T>(work: (tx: TransactionContext) => Promise<T>, mode?: 'read' | 'write'): Promise<T>
 
   /** Get connection metrics */
   getMetrics(): ConnectionMetrics

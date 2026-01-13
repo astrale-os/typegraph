@@ -8,7 +8,7 @@
  * This is not declared in properties but is always present and indexed.
  */
 
-import { type z } from "zod"
+import { type z } from 'zod'
 
 // =============================================================================
 // PROPERTY TYPES
@@ -19,20 +19,20 @@ import { type z } from "zod"
  * Maps to both Zod types and Cypher types.
  */
 export type PropertyType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "datetime"
-  | "string[]"
-  | "number[]"
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'string[]'
+  | 'number[]'
 
 /**
  * Index configuration for a property.
  */
 export interface IndexConfig {
   /** Index type: btree for range queries, fulltext for search */
-  type: "btree" | "fulltext" | "unique"
+  type: 'btree' | 'fulltext' | 'unique'
   /** Optional index name (auto-generated if not provided) */
   name?: string
 }
@@ -50,7 +50,7 @@ export interface IndexConfig {
  * @template TProps - Zod shape defining additional node properties
  */
 export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
-  readonly _type: "node"
+  readonly _type: 'node'
 
   /**
    * Zod schema for node properties.
@@ -75,7 +75,7 @@ export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
  * - 'many': Zero or more connected nodes
  * - 'optional': Zero or one connected node
  */
-export type Cardinality = "one" | "many" | "optional"
+export type Cardinality = 'one' | 'many' | 'optional'
 
 /**
  * Definition of an edge in the graph schema.
@@ -96,7 +96,7 @@ export interface EdgeDefinition<
   TOutbound extends Cardinality = Cardinality,
   TInbound extends Cardinality = Cardinality,
 > {
-  readonly _type: "edge"
+  readonly _type: 'edge'
 
   /** Source node label(s) - can be single label or array for polymorphic edges */
   readonly from: TFrom
@@ -193,7 +193,7 @@ export interface HierarchyConfig<TEdge extends string = string> {
    * - 'up': Edge points from child to parent (e.g., 'hasParent' edge)
    * - 'down': Edge points from parent to child (e.g., 'hasChildren' edge)
    */
-  readonly direction: "up" | "down"
+  readonly direction: 'up' | 'down'
 }
 
 // =============================================================================
@@ -213,14 +213,14 @@ export interface SchemaDefinition<
     EdgeDefinition<
       string | readonly string[],
       string | readonly string[],
-      import("zod").ZodRawShape
+      import('zod').ZodRawShape
     >
   > = Record<
     string,
     EdgeDefinition<
       string | readonly string[],
       string | readonly string[],
-      import("zod").ZodRawShape
+      import('zod').ZodRawShape
     >
   >,
 > {

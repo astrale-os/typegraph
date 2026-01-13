@@ -26,8 +26,8 @@ import type {
   HierarchyStep,
   ReachableStep,
   ForkStep,
-} from "./types"
-import { createDefaultProjection } from "./types"
+} from './types'
+import { createDefaultProjection } from './types'
 
 /**
  * Immutable query AST representation.
@@ -45,13 +45,13 @@ export class QueryAST {
 
   constructor(
     steps: ASTNode[] = [],
-    projection: Projection = { type: "collection", nodeAliases: ["n0"], edgeAliases: [] },
+    projection: Projection = { type: 'collection', nodeAliases: ['n0'], edgeAliases: [] },
     aliases: AliasRegistry = new Map(),
     userAliases: Map<string, string> = new Map(),
     edgeUserAliases: Map<string, string> = new Map(),
     aliasCounter: number = 0,
-    currentNodeAlias: string = "n0",
-    currentNodeLabel: string = "",
+    currentNodeAlias: string = 'n0',
+    currentNodeLabel: string = '',
   ) {
     this._steps = Object.freeze([...steps])
     this._projection = projection
@@ -109,7 +109,7 @@ export class QueryAST {
     return Array.from(this._edgeUserAliases.keys())
   }
 
-  private nextAlias(prefix: "n" | "e" | "p" = "n"): [string, number] {
+  private nextAlias(prefix: 'n' | 'e' | 'p' = 'n'): [string, number] {
     const alias = `${prefix}${this._aliasCounter}`
     return [alias, this._aliasCounter + 1]
   }
@@ -137,9 +137,9 @@ export class QueryAST {
   }
 
   addMatch(label: string): QueryAST {
-    const [alias, newCounter] = this.nextAlias("n")
+    const [alias, newCounter] = this.nextAlias('n')
     const step: MatchStep = {
-      type: "match",
+      type: 'match',
       label,
       alias,
     }
@@ -147,7 +147,7 @@ export class QueryAST {
     const newAliases = new Map(this._aliases)
     newAliases.set(alias, {
       internalAlias: alias,
-      type: "node",
+      type: 'node',
       label,
       sourceStep: this._steps.length,
     })
@@ -169,9 +169,9 @@ export class QueryAST {
    * Used when the node type is unknown or for polymorphic queries.
    */
   addMatchById(id: string): QueryAST {
-    const [alias, newCounter] = this.nextAlias("n")
+    const [alias, newCounter] = this.nextAlias('n')
     const step: MatchByIdStep = {
-      type: "matchById",
+      type: 'matchById',
       id,
       alias,
     }
@@ -179,8 +179,8 @@ export class QueryAST {
     const newAliases = new Map(this._aliases)
     newAliases.set(alias, {
       internalAlias: alias,
-      type: "node",
-      label: "", // Unknown label for polymorphic queries
+      type: 'node',
+      label: '', // Unknown label for polymorphic queries
       sourceStep: this._steps.length,
     })
 
@@ -192,25 +192,25 @@ export class QueryAST {
       new Map(this._edgeUserAliases),
       newCounter,
       alias,
-      "", // Unknown label
+      '', // Unknown label
     )
   }
 
   addTraversal(config: {
     edges: string[]
-    direction: "out" | "in" | "both"
+    direction: 'out' | 'in' | 'both'
     toLabels: string[]
     variableLength?: VariableLengthConfig
     optional?: boolean
-    cardinality: "one" | "many" | "optional" | "mixed"
+    cardinality: 'one' | 'many' | 'optional' | 'mixed'
     edgeWhere?: EdgeWhereCondition[]
     edgeUserAlias?: string
   }): QueryAST {
-    const [nodeAlias, counter1] = this.nextAlias("n")
+    const [nodeAlias, counter1] = this.nextAlias('n')
     const [edgeAlias, counter2] = [`e${counter1}`, counter1 + 1]
 
     const step: TraversalStep = {
-      type: "traversal",
+      type: 'traversal',
       edges: config.edges,
       direction: config.direction,
       fromAlias: this._currentNodeAlias,
@@ -227,14 +227,14 @@ export class QueryAST {
     const newAliases = new Map(this._aliases)
     newAliases.set(nodeAlias, {
       internalAlias: nodeAlias,
-      type: "node",
-      label: config.toLabels[0] ?? "",
+      type: 'node',
+      label: config.toLabels[0] ?? '',
       sourceStep: this._steps.length,
     })
     newAliases.set(edgeAlias, {
       internalAlias: edgeAlias,
-      type: "edge",
-      label: config.edges[0] ?? "",
+      type: 'edge',
+      label: config.edges[0] ?? '',
       sourceStep: this._steps.length,
     })
 
@@ -251,13 +251,13 @@ export class QueryAST {
       newEdgeUserAliases,
       counter2,
       nodeAlias,
-      config.toLabels[0] ?? "",
+      config.toLabels[0] ?? '',
     )
   }
 
   addWhere(conditions: WhereCondition[]): QueryAST {
     const step: WhereStep = {
-      type: "where",
+      type: 'where',
       conditions,
     }
     return this.createNew([...this._steps, step])
@@ -265,7 +265,7 @@ export class QueryAST {
 
   addUserAlias(userAlias: string): QueryAST {
     const step: AliasStep = {
-      type: "alias",
+      type: 'alias',
       internalAlias: this._currentNodeAlias,
       userAlias,
       label: this._currentNodeLabel,
@@ -309,9 +309,9 @@ export class QueryAST {
   }
 
   addHierarchy(config: {
-    operation: HierarchyStep["operation"]
+    operation: HierarchyStep['operation']
     edge: string
-    hierarchyDirection: "up" | "down"
+    hierarchyDirection: 'up' | 'down'
     minDepth?: number
     maxDepth?: number
     includeDepth?: boolean
@@ -319,10 +319,10 @@ export class QueryAST {
     includeSelf?: boolean
     untilKind?: string
   }): QueryAST {
-    const [nodeAlias, newCounter] = this.nextAlias("n")
+    const [nodeAlias, newCounter] = this.nextAlias('n')
 
     const step: HierarchyStep = {
-      type: "hierarchy",
+      type: 'hierarchy',
       operation: config.operation,
       edge: config.edge,
       fromAlias: this._currentNodeAlias,
@@ -339,7 +339,7 @@ export class QueryAST {
     const newAliases = new Map(this._aliases)
     newAliases.set(nodeAlias, {
       internalAlias: nodeAlias,
-      type: "node",
+      type: 'node',
       label: this._currentNodeLabel,
       sourceStep: this._steps.length,
     })
@@ -357,12 +357,12 @@ export class QueryAST {
   }
 
   addBranch(config: {
-    operator: "union" | "intersect"
+    operator: 'union' | 'intersect'
     branches: QueryAST[]
     distinct?: boolean
   }): QueryAST {
     const step: BranchStep = {
-      type: "branch",
+      type: 'branch',
       operator: config.operator,
       branches: config.branches.map((b) => [...b.steps]),
       distinct: config.distinct ?? true,
@@ -377,7 +377,7 @@ export class QueryAST {
    */
   addFork(branches: QueryAST[]): QueryAST {
     const step: ForkStep = {
-      type: "fork",
+      type: 'fork',
       sourceAlias: this._currentNodeAlias,
       branches: branches.map((b) => ({
         steps: [...b.steps],
@@ -428,18 +428,18 @@ export class QueryAST {
 
   addReachable(config: {
     edges: string[]
-    direction: "out" | "in" | "both"
+    direction: 'out' | 'in' | 'both'
     minDepth?: number
     maxDepth?: number
     includeDepth?: boolean
     depthAlias?: string
-    uniqueness?: "nodes" | "edges" | "none"
+    uniqueness?: 'nodes' | 'edges' | 'none'
     includeSelf?: boolean
   }): QueryAST {
-    const [nodeAlias, newCounter] = this.nextAlias("n")
+    const [nodeAlias, newCounter] = this.nextAlias('n')
 
     const step: ReachableStep = {
-      type: "reachable",
+      type: 'reachable',
       edges: config.edges,
       direction: config.direction,
       fromAlias: this._currentNodeAlias,
@@ -448,14 +448,14 @@ export class QueryAST {
       maxDepth: config.maxDepth,
       includeDepth: config.includeDepth,
       depthAlias: config.depthAlias,
-      uniqueness: config.uniqueness ?? "nodes",
+      uniqueness: config.uniqueness ?? 'nodes',
       includeSelf: config.includeSelf,
     }
 
     const newAliases = new Map(this._aliases)
     newAliases.set(nodeAlias, {
       internalAlias: nodeAlias,
-      type: "node",
+      type: 'node',
       label: this._currentNodeLabel,
       sourceStep: this._steps.length,
     })
@@ -473,16 +473,16 @@ export class QueryAST {
   }
 
   addPath(config: {
-    algorithm: PathStep["algorithm"]
+    algorithm: PathStep['algorithm']
     toAlias: string
     edge: string
-    direction: "out" | "in" | "both"
+    direction: 'out' | 'in' | 'both'
     maxHops?: number
   }): QueryAST {
-    const [pathAlias, newCounter] = this.nextAlias("p")
+    const [pathAlias, newCounter] = this.nextAlias('p')
 
     const step: PathStep = {
-      type: "path",
+      type: 'path',
       algorithm: config.algorithm,
       fromAlias: this._currentNodeAlias,
       toAlias: config.toAlias,
@@ -495,7 +495,7 @@ export class QueryAST {
     const newAliases = new Map(this._aliases)
     newAliases.set(pathAlias, {
       internalAlias: pathAlias,
-      type: "path",
+      type: 'path',
       label: config.edge,
       sourceStep: this._steps.length,
     })
@@ -512,10 +512,10 @@ export class QueryAST {
 
   addAggregate(config: {
     groupBy?: Array<{ alias: string; field: string }>
-    aggregations: AggregateStep["aggregations"]
+    aggregations: AggregateStep['aggregations']
   }): QueryAST {
     const step: AggregateStep = {
-      type: "aggregate",
+      type: 'aggregate',
       groupBy: config.groupBy ?? [],
       aggregations: config.aggregations,
     }
@@ -529,26 +529,26 @@ export class QueryAST {
     })
   }
 
-  addOrderBy(fields: OrderByStep["fields"]): QueryAST {
+  addOrderBy(fields: OrderByStep['fields']): QueryAST {
     const step: OrderByStep = {
-      type: "orderBy",
+      type: 'orderBy',
       fields,
     }
     return this.createNew([...this._steps, step])
   }
 
   addLimit(count: number): QueryAST {
-    const step = { type: "limit" as const, count }
+    const step = { type: 'limit' as const, count }
     return this.createNew([...this._steps, step])
   }
 
   addSkip(count: number): QueryAST {
-    const step = { type: "skip" as const, count }
+    const step = { type: 'skip' as const, count }
     return this.createNew([...this._steps, step])
   }
 
   addDistinct(): QueryAST {
-    const step = { type: "distinct" as const }
+    const step = { type: 'distinct' as const }
     return this.createNew([...this._steps, step])
   }
 
@@ -591,7 +591,7 @@ export class QueryAST {
     }
 
     const projection: Projection = {
-      type: "multiNode",
+      type: 'multiNode',
       nodeAliases,
       edgeAliases,
       collectAliases,
@@ -601,13 +601,13 @@ export class QueryAST {
   }
 
   setCountProjection(): QueryAST {
-    return this.createNew([...this._steps], { ...this._projection, type: "count", countOnly: true })
+    return this.createNew([...this._steps], { ...this._projection, type: 'count', countOnly: true })
   }
 
   setExistsProjection(): QueryAST {
     return this.createNew([...this._steps], {
       ...this._projection,
-      type: "exists",
+      type: 'exists',
       existsOnly: true,
     })
   }
@@ -621,7 +621,7 @@ export class QueryAST {
     return this.createNew([...this._steps], { ...this._projection, fields: newFields })
   }
 
-  setIncludeDepth(_depthAlias: string = "depth"): QueryAST {
+  setIncludeDepth(_depthAlias: string = 'depth'): QueryAST {
     return this.createNew([...this._steps], { ...this._projection, includeDepth: true })
   }
 
@@ -656,14 +656,14 @@ export class QueryAST {
   validate(): void {
     // Validate that all referenced aliases exist
     for (const step of this._steps) {
-      if (step.type === "traversal") {
+      if (step.type === 'traversal') {
         if (!this._aliases.has(step.fromAlias)) {
           throw new Error(`Invalid AST: traversal references unknown alias '${step.fromAlias}'`)
         }
       }
-      if (step.type === "where") {
+      if (step.type === 'where') {
         for (const condition of step.conditions) {
-          if (condition.type === "comparison" && !this._aliases.has(condition.target)) {
+          if (condition.type === 'comparison' && !this._aliases.has(condition.target)) {
             throw new Error(
               `Invalid AST: where condition references unknown alias '${condition.target}'`,
             )

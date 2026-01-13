@@ -4,7 +4,7 @@
  * Fluent API for defining graph schemas with full type inference.
  */
 
-import { z } from "zod"
+import { z } from 'zod'
 import type {
   SchemaDefinition,
   NodeDefinition,
@@ -12,7 +12,7 @@ import type {
   Cardinality,
   IndexConfig,
   HierarchyConfig,
-} from "./types"
+} from './types'
 
 // =============================================================================
 // NODE BUILDER
@@ -57,9 +57,9 @@ export function node<TProps extends z.ZodRawShape>(
   config: NodeConfig<TProps>,
 ): NodeDefinition<TProps> {
   return {
-    _type: "node",
+    _type: 'node',
     properties: z.object(config.properties),
-    indexes: (config.indexes ?? []) as NodeDefinition<TProps>["indexes"],
+    indexes: (config.indexes ?? []) as NodeDefinition<TProps>['indexes'],
     description: config.description,
   }
 }
@@ -157,12 +157,12 @@ export function edge<
   config: EdgeConfig<TFrom, TTo, TProps, TOutbound, TInbound>,
 ): EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound> {
   return {
-    _type: "edge",
+    _type: 'edge',
     from: config.from,
     to: config.to,
     cardinality: config.cardinality,
     properties: z.object(config.properties ?? ({} as TProps)),
-    indexes: config.indexes as EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound>["indexes"],
+    indexes: config.indexes as EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound>['indexes'],
     description: config.description,
   }
 }

@@ -13,19 +13,19 @@
 // =============================================================================
 
 export type ComparisonOperator =
-  | "eq" // =
-  | "neq" // !=
-  | "gt" // >
-  | "gte" // >=
-  | "lt" // <
-  | "lte" // <=
-  | "in" // IN [...]
-  | "notIn" // NOT IN [...]
-  | "contains" // String contains
-  | "startsWith" // String starts with
-  | "endsWith" // String ends with
-  | "isNull" // IS NULL
-  | "isNotNull" // IS NOT NULL
+  | 'eq' // =
+  | 'neq' // !=
+  | 'gt' // >
+  | 'gte' // >=
+  | 'lt' // <
+  | 'lte' // <=
+  | 'in' // IN [...]
+  | 'notIn' // NOT IN [...]
+  | 'contains' // String contains
+  | 'startsWith' // String starts with
+  | 'endsWith' // String ends with
+  | 'isNull' // IS NULL
+  | 'isNotNull' // IS NOT NULL
 
 // =============================================================================
 // WHERE CONDITIONS
@@ -35,7 +35,7 @@ export type ComparisonOperator =
  * A single comparison condition on a node or edge property.
  */
 export interface ComparisonCondition {
-  type: "comparison"
+  type: 'comparison'
   /** The property name */
   field: string
   /** The comparison operator */
@@ -50,8 +50,8 @@ export interface ComparisonCondition {
  * Logical combination of conditions.
  */
 export interface LogicalCondition {
-  type: "logical"
-  operator: "AND" | "OR" | "NOT"
+  type: 'logical'
+  operator: 'AND' | 'OR' | 'NOT'
   conditions: WhereCondition[]
 }
 
@@ -59,9 +59,9 @@ export interface LogicalCondition {
  * Existence check for edges.
  */
 export interface ExistsCondition {
-  type: "exists"
+  type: 'exists'
   edge: string
-  direction: "out" | "in" | "both"
+  direction: 'out' | 'in' | 'both'
   target: string
   negated: boolean
 }
@@ -71,11 +71,11 @@ export interface ExistsCondition {
  * Example: "nodes where edge X points to node with id Y"
  */
 export interface ConnectedToCondition {
-  type: "connectedTo"
+  type: 'connectedTo'
   /** The edge type to check */
   edge: string
   /** Direction of the edge: 'out' = outgoing, 'in' = incoming */
-  direction: "out" | "in"
+  direction: 'out' | 'in'
   /** The ID of the target/source node */
   nodeId: string
   /** The alias of the node this condition applies to */
@@ -117,7 +117,7 @@ export interface VariableLengthConfig {
    * - 'edges': No edge can be traversed twice
    * - 'none': No constraint (use with caution!)
    */
-  uniqueness: "nodes" | "edges" | "none"
+  uniqueness: 'nodes' | 'edges' | 'none'
 }
 
 // =============================================================================
@@ -128,7 +128,7 @@ export interface VariableLengthConfig {
  * Match a node by label.
  */
 export interface MatchStep {
-  type: "match"
+  type: 'match'
   /** Node label to match */
   label: string
   /** Variable name for this node in the query */
@@ -140,7 +140,7 @@ export interface MatchStep {
  * Useful for polymorphic queries where the node type is unknown.
  */
 export interface MatchByIdStep {
-  type: "matchById"
+  type: 'matchById'
   /** The node ID to match */
   id: string
   /** Variable name for this node in the query */
@@ -152,11 +152,11 @@ export interface MatchByIdStep {
  * Supports single edge or multiple edges (for toAny/fromAny/viaAny).
  */
 export interface TraversalStep {
-  type: "traversal"
+  type: 'traversal'
   /** Edge type(s) to traverse - single string or array for multi-edge */
   edges: string[]
   /** Direction of traversal */
-  direction: "out" | "in" | "both"
+  direction: 'out' | 'in' | 'both'
   /** Source node alias */
   fromAlias: string
   /** Target node alias */
@@ -172,7 +172,7 @@ export interface TraversalStep {
   /** Whether this is an OPTIONAL MATCH */
   optional: boolean
   /** Cardinality hint (for optimization) - 'mixed' when multi-edge with different cardinalities */
-  cardinality: "one" | "many" | "optional" | "mixed"
+  cardinality: 'one' | 'many' | 'optional' | 'mixed'
   /** Conditions on edge properties */
   edgeWhere?: EdgeWhereCondition[]
 }
@@ -181,7 +181,7 @@ export interface TraversalStep {
  * Filter nodes/edges by conditions.
  */
 export interface WhereStep {
-  type: "where"
+  type: 'where'
   conditions: WhereCondition[]
 }
 
@@ -189,7 +189,7 @@ export interface WhereStep {
  * Register a user-facing alias for a node.
  */
 export interface AliasStep {
-  type: "alias"
+  type: 'alias'
   /** The internal alias being registered */
   internalAlias: string
   /** The user-facing alias name */
@@ -202,8 +202,8 @@ export interface AliasStep {
  * Branch operations (UNION, INTERSECT).
  */
 export interface BranchStep {
-  type: "branch"
-  operator: "union" | "intersect"
+  type: 'branch'
+  operator: 'union' | 'intersect'
   branches: ASTNode[][]
   /** Whether to remove duplicates (UNION vs UNION ALL) */
   distinct: boolean
@@ -213,12 +213,12 @@ export interface BranchStep {
  * Shortest path or all paths between nodes.
  */
 export interface PathStep {
-  type: "path"
-  algorithm: "shortestPath" | "allShortestPaths" | "allPaths"
+  type: 'path'
+  algorithm: 'shortestPath' | 'allShortestPaths' | 'allPaths'
   fromAlias: string
   toAlias: string
   edge: string
-  direction: "out" | "in" | "both"
+  direction: 'out' | 'in' | 'both'
   maxHops?: number
   /** Alias for the path variable */
   pathAlias: string
@@ -228,12 +228,12 @@ export interface PathStep {
  * Aggregation operation.
  */
 export interface AggregateStep {
-  type: "aggregate"
+  type: 'aggregate'
   /** Fields to group by (empty = aggregate all) */
   groupBy: Array<{ alias: string; field: string }>
   /** Aggregation functions to apply */
   aggregations: Array<{
-    function: "count" | "sum" | "avg" | "min" | "max" | "collect"
+    function: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'collect'
     field?: string
     sourceAlias?: string
     resultAlias: string
@@ -245,10 +245,10 @@ export interface AggregateStep {
  * Order results.
  */
 export interface OrderByStep {
-  type: "orderBy"
+  type: 'orderBy'
   fields: Array<{
     field: string
-    direction: "ASC" | "DESC"
+    direction: 'ASC' | 'DESC'
     /** Alias of the node this field belongs to */
     target: string
   }>
@@ -258,7 +258,7 @@ export interface OrderByStep {
  * Limit result count.
  */
 export interface LimitStep {
-  type: "limit"
+  type: 'limit'
   count: number
 }
 
@@ -266,7 +266,7 @@ export interface LimitStep {
  * Skip results (for pagination).
  */
 export interface SkipStep {
-  type: "skip"
+  type: 'skip'
   count: number
 }
 
@@ -274,7 +274,7 @@ export interface SkipStep {
  * Distinct results.
  */
 export interface DistinctStep {
-  type: "distinct"
+  type: 'distinct'
 }
 
 /**
@@ -282,9 +282,9 @@ export interface DistinctStep {
  * Used for tree-specific traversals like ancestors, descendants, siblings.
  */
 export interface HierarchyStep {
-  type: "hierarchy"
+  type: 'hierarchy'
   /** The type of hierarchical operation */
-  operation: "ancestors" | "descendants" | "siblings" | "root" | "parent" | "children"
+  operation: 'ancestors' | 'descendants' | 'siblings' | 'root' | 'parent' | 'children'
   /** Edge type that defines the hierarchy */
   edge: string
   /** Source node alias */
@@ -296,7 +296,7 @@ export interface HierarchyStep {
   /** Maximum depth for ancestors/descendants (undefined = unlimited) */
   maxDepth?: number
   /** Direction of the hierarchy edge ('up' = to parent, 'down' = to children) */
-  hierarchyDirection: "up" | "down"
+  hierarchyDirection: 'up' | 'down'
   /** Whether to include depth in results */
   includeDepth?: boolean
   /** Alias for the depth value in results */
@@ -312,13 +312,13 @@ export interface HierarchyStep {
  * Encodes position using ordered fields for efficient pagination.
  */
 export interface CursorStep {
-  type: "cursor"
+  type: 'cursor'
   /** Direction of pagination */
-  direction: "after" | "before"
+  direction: 'after' | 'before'
   /** Encoded cursor string */
   cursor: string
   /** Fields used for ordering (needed to decode cursor) */
-  orderFields: Array<{ field: string; direction: "ASC" | "DESC" }>
+  orderFields: Array<{ field: string; direction: 'ASC' | 'DESC' }>
 }
 
 /**
@@ -326,11 +326,11 @@ export interface CursorStep {
  * Finds all nodes reachable via any path through specified edges.
  */
 export interface ReachableStep {
-  type: "reachable"
+  type: 'reachable'
   /** Edge types to traverse (can be multiple for multi-edge reachability) */
   edges: string[]
   /** Direction of traversal */
-  direction: "out" | "in" | "both"
+  direction: 'out' | 'in' | 'both'
   /** Source node alias */
   fromAlias: string
   /** Target node alias */
@@ -344,7 +344,7 @@ export interface ReachableStep {
   /** Alias for depth value */
   depthAlias?: string
   /** Uniqueness constraint */
-  uniqueness: "nodes" | "edges" | "none"
+  uniqueness: 'nodes' | 'edges' | 'none'
   /** Include the starting node itself at depth 0 (for selfAndReachable) */
   includeSelf?: boolean
 }
@@ -354,7 +354,7 @@ export interface ReachableStep {
  * Used with cursor pagination to limit result count.
  */
 export interface FirstStep {
-  type: "first"
+  type: 'first'
   /** Number of results to return */
   count: number
 }
@@ -364,7 +364,7 @@ export interface FirstStep {
  * Enables multiple independent traversals from the same source node.
  */
 export interface ForkStep {
-  type: "fork"
+  type: 'fork'
   /** The alias to fork from (source node) */
   sourceAlias: string
   /** Each branch is a sequence of AST steps starting from sourceAlias */
@@ -385,15 +385,15 @@ export interface ForkStep {
  * Projection result type - determines how results are shaped.
  */
 export type ProjectionType =
-  | "node" // Single node
-  | "collection" // Multiple nodes of same type
-  | "multiNode" // Multiple aliased nodes/edges
-  | "path" // Path result
-  | "aggregate" // Aggregation result
-  | "count" // Count only
-  | "exists" // Boolean existence check
-  | "edge" // Edge-centric query
-  | "edgeCollection" // Multiple edges
+  | 'node' // Single node
+  | 'collection' // Multiple nodes of same type
+  | 'multiNode' // Multiple aliased nodes/edges
+  | 'path' // Path result
+  | 'aggregate' // Aggregation result
+  | 'count' // Count only
+  | 'exists' // Boolean existence check
+  | 'edge' // Edge-centric query
+  | 'edgeCollection' // Multiple edges
 
 /**
  * Unified projection configuration.
@@ -421,7 +421,7 @@ export interface Projection {
   /** Aggregation configuration */
   aggregate?: {
     groupBy: Array<{ alias: string; field: string }>
-    aggregations: AggregateStep["aggregations"]
+    aggregations: AggregateStep['aggregations']
   }
 
   /** Return only existence check (boolean) */
@@ -450,7 +450,7 @@ export interface Projection {
  */
 export function createDefaultProjection(
   alias: string,
-  type: ProjectionType = "collection",
+  type: ProjectionType = 'collection',
 ): Projection {
   return {
     type,
@@ -464,7 +464,7 @@ export function createDefaultProjection(
  */
 export function createEdgeProjection(
   alias: string,
-  type: ProjectionType = "edgeCollection",
+  type: ProjectionType = 'edgeCollection',
 ): Projection {
   return {
     type,
@@ -509,7 +509,7 @@ export interface AliasInfo {
   /** User-facing alias (if set via .as()) */
   userAlias?: string
   /** Whether it's a node or edge */
-  type: "node" | "edge" | "path"
+  type: 'node' | 'edge' | 'path'
   /** Label (for nodes) or edge type (for edges) */
   label: string
   /** Source step index in the AST */

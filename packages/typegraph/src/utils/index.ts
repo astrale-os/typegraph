@@ -2,7 +2,7 @@
  * Utilities Module
  */
 
-export type { DeepReadonly, Prettify, UnionToIntersection, IsNever, IsAny } from "./types"
+export type { DeepReadonly, Prettify, UnionToIntersection, IsNever, IsAny } from './types'
 
 export {
   convertNeo4jValue,
@@ -12,4 +12,4 @@ export {
   extractNodeFromRecord,
   transformResults,
   transformMultiAliasResults,
-} from "./neo4j"
+} from './neo4j'

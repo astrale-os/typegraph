@@ -7,17 +7,17 @@
  * - defineSchema() - creates complete schema definitions
  */
 
-import { describe, it, expect } from "vitest"
-import { z } from "zod"
-import { node, edge, defineSchema, testSchema } from "./fixtures/test-schema"
+import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
+import { node, edge, defineSchema, testSchema } from './fixtures/test-schema'
 
-describe("Schema Builder Specification", () => {
+describe('Schema Builder Specification', () => {
   // ===========================================================================
   // NODE DEFINITION
   // ===========================================================================
 
-  describe("node()", () => {
-    it("creates a node definition with properties", () => {
+  describe('node()', () => {
+    it('creates a node definition with properties', () => {
       const userNode = node({
         properties: {
           name: z.string(),
@@ -25,33 +25,33 @@ describe("Schema Builder Specification", () => {
         },
       })
 
-      expect(userNode._type).toBe("node")
+      expect(userNode._type).toBe('node')
       expect(userNode.properties).toBeDefined()
       expect(userNode.indexes).toEqual([])
     })
 
-    it("accepts index configuration", () => {
+    it('accepts index configuration', () => {
       const userNode = node({
         properties: {
           email: z.string().email(),
           name: z.string(),
         },
-        indexes: ["email"],
+        indexes: ['email'],
       })
 
-      expect(userNode.indexes).toContain("email")
+      expect(userNode.indexes).toContain('email')
     })
 
-    it("accepts description", () => {
+    it('accepts description', () => {
       const userNode = node({
         properties: { name: z.string() },
-        description: "A user in the system",
+        description: 'A user in the system',
       })
 
-      expect(userNode.description).toBe("A user in the system")
+      expect(userNode.description).toBe('A user in the system')
     })
 
-    it("supports optional properties via Zod", () => {
+    it('supports optional properties via Zod', () => {
       const userNode = node({
         properties: {
           name: z.string(),
@@ -62,14 +62,14 @@ describe("Schema Builder Specification", () => {
 
       // Properties schema should parse correctly
       const result = userNode.properties.safeParse({
-        name: "John",
+        name: 'John',
         // bio and age are optional/nullable - not required
       })
 
       expect(result.success).toBe(true)
     })
 
-    it("supports array properties", () => {
+    it('supports array properties', () => {
       const postNode = node({
         properties: {
           title: z.string(),
@@ -78,22 +78,22 @@ describe("Schema Builder Specification", () => {
       })
 
       const result = postNode.properties.safeParse({
-        title: "Hello",
-        tags: ["tech", "news"],
+        title: 'Hello',
+        tags: ['tech', 'news'],
       })
 
       expect(result.success).toBe(true)
     })
 
-    it("supports enum properties", () => {
+    it('supports enum properties', () => {
       const userNode = node({
         properties: {
-          status: z.enum(["active", "inactive", "banned"]),
+          status: z.enum(['active', 'inactive', 'banned']),
         },
       })
 
-      expect(userNode.properties.safeParse({ status: "active" }).success).toBe(true)
-      expect(userNode.properties.safeParse({ status: "invalid" }).success).toBe(false)
+      expect(userNode.properties.safeParse({ status: 'active' }).success).toBe(true)
+      expect(userNode.properties.safeParse({ status: 'invalid' }).success).toBe(false)
     })
   })
 
@@ -101,54 +101,54 @@ describe("Schema Builder Specification", () => {
   // EDGE DEFINITION
   // ===========================================================================
 
-  describe("edge()", () => {
-    it("creates an edge definition with from/to", () => {
+  describe('edge()', () => {
+    it('creates an edge definition with from/to', () => {
       const authoredEdge = edge({
-        from: "user",
-        to: "post",
-        cardinality: { outbound: "many", inbound: "one" },
+        from: 'user',
+        to: 'post',
+        cardinality: { outbound: 'many', inbound: 'one' },
       })
 
-      expect(authoredEdge._type).toBe("edge")
-      expect(authoredEdge.from).toBe("user")
-      expect(authoredEdge.to).toBe("post")
+      expect(authoredEdge._type).toBe('edge')
+      expect(authoredEdge.from).toBe('user')
+      expect(authoredEdge.to).toBe('post')
     })
 
-    it("captures cardinality correctly", () => {
+    it('captures cardinality correctly', () => {
       const authoredEdge = edge({
-        from: "user",
-        to: "post",
-        cardinality: { outbound: "many", inbound: "one" },
+        from: 'user',
+        to: 'post',
+        cardinality: { outbound: 'many', inbound: 'one' },
       })
 
-      expect(authoredEdge.cardinality.outbound).toBe("many")
-      expect(authoredEdge.cardinality.inbound).toBe("one")
+      expect(authoredEdge.cardinality.outbound).toBe('many')
+      expect(authoredEdge.cardinality.inbound).toBe('one')
     })
 
-    it("supports edge properties", () => {
+    it('supports edge properties', () => {
       const followsEdge = edge({
-        from: "user",
-        to: "user",
-        cardinality: { outbound: "many", inbound: "many" },
+        from: 'user',
+        to: 'user',
+        cardinality: { outbound: 'many', inbound: 'many' },
         properties: {
           since: z.date(),
-          closeness: z.enum(["close", "acquaintance"]),
+          closeness: z.enum(['close', 'acquaintance']),
         },
       })
 
       expect(followsEdge.properties).toBeDefined()
       const result = followsEdge.properties.safeParse({
         since: new Date(),
-        closeness: "close",
+        closeness: 'close',
       })
       expect(result.success).toBe(true)
     })
 
-    it("creates edge with no properties", () => {
+    it('creates edge with no properties', () => {
       const likesEdge = edge({
-        from: "user",
-        to: "post",
-        cardinality: { outbound: "many", inbound: "many" },
+        from: 'user',
+        to: 'post',
+        cardinality: { outbound: 'many', inbound: 'many' },
       })
 
       // Should have empty properties schema
@@ -156,36 +156,36 @@ describe("Schema Builder Specification", () => {
       expect(result.success).toBe(true)
     })
 
-    it("supports self-referential edges", () => {
+    it('supports self-referential edges', () => {
       const parentEdge = edge({
-        from: "folder",
-        to: "folder",
-        cardinality: { outbound: "optional", inbound: "many" },
+        from: 'folder',
+        to: 'folder',
+        cardinality: { outbound: 'optional', inbound: 'many' },
       })
 
-      expect(parentEdge.from).toBe("folder")
-      expect(parentEdge.to).toBe("folder")
+      expect(parentEdge.from).toBe('folder')
+      expect(parentEdge.to).toBe('folder')
     })
 
-    it("supports optional outbound cardinality", () => {
+    it('supports optional outbound cardinality', () => {
       const parentEdge = edge({
-        from: "node",
-        to: "node",
-        cardinality: { outbound: "optional", inbound: "many" },
+        from: 'node',
+        to: 'node',
+        cardinality: { outbound: 'optional', inbound: 'many' },
       })
 
-      expect(parentEdge.cardinality.outbound).toBe("optional")
+      expect(parentEdge.cardinality.outbound).toBe('optional')
     })
 
-    it("accepts description", () => {
+    it('accepts description', () => {
       const authoredEdge = edge({
-        from: "user",
-        to: "post",
-        cardinality: { outbound: "many", inbound: "one" },
-        description: "User authored a post",
+        from: 'user',
+        to: 'post',
+        cardinality: { outbound: 'many', inbound: 'one' },
+        description: 'User authored a post',
       })
 
-      expect(authoredEdge.description).toBe("User authored a post")
+      expect(authoredEdge.description).toBe('User authored a post')
     })
   })
 
@@ -193,8 +193,8 @@ describe("Schema Builder Specification", () => {
   // SCHEMA DEFINITION
   // ===========================================================================
 
-  describe("defineSchema()", () => {
-    it("creates a schema with nodes and edges", () => {
+  describe('defineSchema()', () => {
+    it('creates a schema with nodes and edges', () => {
       const schema = defineSchema({
         nodes: {
           user: node({ properties: { name: z.string() } }),
@@ -202,9 +202,9 @@ describe("Schema Builder Specification", () => {
         },
         edges: {
           authored: edge({
-            from: "user",
-            to: "post",
-            cardinality: { outbound: "many", inbound: "one" },
+            from: 'user',
+            to: 'post',
+            cardinality: { outbound: 'many', inbound: 'one' },
           }),
         },
       })
@@ -214,38 +214,38 @@ describe("Schema Builder Specification", () => {
       expect(schema.edges.authored).toBeDefined()
     })
 
-    it("supports hierarchy configuration", () => {
+    it('supports hierarchy configuration', () => {
       const schema = defineSchema({
         nodes: {
           folder: node({ properties: { name: z.string() } }),
         },
         edges: {
           hasParent: edge({
-            from: "folder",
-            to: "folder",
-            cardinality: { outbound: "optional", inbound: "many" },
+            from: 'folder',
+            to: 'folder',
+            cardinality: { outbound: 'optional', inbound: 'many' },
           }),
         },
         hierarchy: {
-          defaultEdge: "hasParent",
-          direction: "up",
+          defaultEdge: 'hasParent',
+          direction: 'up',
         },
       })
 
-      expect(schema.hierarchy?.defaultEdge).toBe("hasParent")
-      expect(schema.hierarchy?.direction).toBe("up")
+      expect(schema.hierarchy?.defaultEdge).toBe('hasParent')
+      expect(schema.hierarchy?.direction).toBe('up')
     })
 
-    it("supports version", () => {
+    it('supports version', () => {
       const schema = defineSchema({
         nodes: {
           user: node({ properties: { name: z.string() } }),
         },
         edges: {},
-        version: "1.0.0",
+        version: '1.0.0',
       })
 
-      expect(schema.version).toBe("1.0.0")
+      expect(schema.version).toBe('1.0.0')
     })
   })
 
@@ -253,8 +253,8 @@ describe("Schema Builder Specification", () => {
   // TEST SCHEMA INTEGRITY
   // ===========================================================================
 
-  describe("Test Schema Fixture", () => {
-    it("has all expected node types", () => {
+  describe('Test Schema Fixture', () => {
+    it('has all expected node types', () => {
       expect(testSchema.nodes.user).toBeDefined()
       expect(testSchema.nodes.post).toBeDefined()
       expect(testSchema.nodes.comment).toBeDefined()
@@ -263,7 +263,7 @@ describe("Schema Builder Specification", () => {
       expect(testSchema.nodes.folder).toBeDefined()
     })
 
-    it("has all expected edge types", () => {
+    it('has all expected edge types', () => {
       expect(testSchema.edges.authored).toBeDefined()
       expect(testSchema.edges.likes).toBeDefined()
       expect(testSchema.edges.follows).toBeDefined()
@@ -276,17 +276,17 @@ describe("Schema Builder Specification", () => {
       expect(testSchema.edges.owns).toBeDefined()
     })
 
-    it("has hierarchy configuration", () => {
+    it('has hierarchy configuration', () => {
       expect(testSchema.hierarchy).toBeDefined()
-      expect(testSchema.hierarchy?.defaultEdge).toBe("hasParent")
-      expect(testSchema.hierarchy?.direction).toBe("up")
+      expect(testSchema.hierarchy?.defaultEdge).toBe('hasParent')
+      expect(testSchema.hierarchy?.direction).toBe('up')
     })
 
-    it("user node validates correctly", () => {
+    it('user node validates correctly', () => {
       const validUser = {
-        email: "john@example.com",
-        name: "John Doe",
-        status: "active",
+        email: 'john@example.com',
+        name: 'John Doe',
+        status: 'active',
         createdAt: new Date(),
       }
 
@@ -294,35 +294,35 @@ describe("Schema Builder Specification", () => {
       expect(result.success).toBe(true)
     })
 
-    it("user node rejects invalid data", () => {
+    it('user node rejects invalid data', () => {
       const invalidUser = {
-        email: "not-an-email",
-        name: "John",
-        status: "invalid-status",
-        createdAt: "not-a-date",
+        email: 'not-an-email',
+        name: 'John',
+        status: 'invalid-status',
+        createdAt: 'not-a-date',
       }
 
       const result = testSchema.nodes.user.properties.safeParse(invalidUser)
       expect(result.success).toBe(false)
     })
 
-    it("authored edge has correct cardinality", () => {
+    it('authored edge has correct cardinality', () => {
       // One user can author many posts (outbound: many)
       // One post has one author (inbound: one)
-      expect(testSchema.edges.authored.cardinality.outbound).toBe("many")
-      expect(testSchema.edges.authored.cardinality.inbound).toBe("one")
+      expect(testSchema.edges.authored.cardinality.outbound).toBe('many')
+      expect(testSchema.edges.authored.cardinality.inbound).toBe('one')
     })
 
-    it("follows edge is self-referential", () => {
-      expect(testSchema.edges.follows.from).toBe("user")
-      expect(testSchema.edges.follows.to).toBe("user")
+    it('follows edge is self-referential', () => {
+      expect(testSchema.edges.follows.from).toBe('user')
+      expect(testSchema.edges.follows.to).toBe('user')
     })
 
-    it("hasParent edge has optional outbound", () => {
+    it('hasParent edge has optional outbound', () => {
       // A folder can have 0 or 1 parent
-      expect(testSchema.edges.hasParent.cardinality.outbound).toBe("optional")
+      expect(testSchema.edges.hasParent.cardinality.outbound).toBe('optional')
       // A folder can have many children
-      expect(testSchema.edges.hasParent.cardinality.inbound).toBe("many")
+      expect(testSchema.edges.hasParent.cardinality.inbound).toBe('many')
     })
   })
 })

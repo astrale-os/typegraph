@@ -5,7 +5,7 @@
  * Covers various edge cardinalities, polymorphic edges, and hierarchy.
  */
 
-import { z } from "zod"
+import { z } from 'zod'
 
 // =============================================================================
 // MOCK IMPLEMENTATIONS FOR TESTING
@@ -21,7 +21,7 @@ export function node<TProps extends z.ZodRawShape>(config: {
   description?: string
 }) {
   return {
-    _type: "node" as const,
+    _type: 'node' as const,
     properties: z.object(config.properties),
     indexes: config.indexes ?? [],
     description: config.description,
@@ -38,12 +38,12 @@ export function edge<
 >(config: {
   from: TFrom
   to: TTo
-  cardinality: { outbound: "one" | "many" | "optional"; inbound: "one" | "many" | "optional" }
+  cardinality: { outbound: 'one' | 'many' | 'optional'; inbound: 'one' | 'many' | 'optional' }
   properties?: TProps
   description?: string
 }) {
   return {
-    _type: "edge" as const,
+    _type: 'edge' as const,
     from: config.from,
     to: config.to,
     cardinality: config.cardinality,
@@ -61,7 +61,7 @@ export function defineSchema<
 >(config: {
   nodes: TNodes
   edges: TEdges
-  hierarchy?: { defaultEdge: keyof TEdges & string; direction: "up" | "down" }
+  hierarchy?: { defaultEdge: keyof TEdges & string; direction: 'up' | 'down' }
   version?: string
 }) {
   return config
@@ -86,12 +86,12 @@ export const testSchema = defineSchema({
       properties: {
         email: z.string().email(),
         name: z.string(),
-        status: z.enum(["active", "inactive", "banned"]),
+        status: z.enum(['active', 'inactive', 'banned']),
         createdAt: z.date(),
         score: z.number().optional(),
       },
-      indexes: ["email"],
-      description: "A user account",
+      indexes: ['email'],
+      description: 'A user account',
     }),
 
     post: node({
@@ -102,7 +102,7 @@ export const testSchema = defineSchema({
         viewCount: z.number().default(0),
         tags: z.array(z.string()).default([]),
       },
-      description: "A blog post",
+      description: 'A blog post',
     }),
 
     comment: node({
@@ -119,7 +119,7 @@ export const testSchema = defineSchema({
         slug: z.string(),
         description: z.string().optional(),
       },
-      indexes: ["slug"],
+      indexes: ['slug'],
     }),
 
     organization: node({
@@ -134,27 +134,27 @@ export const testSchema = defineSchema({
         name: z.string(),
         color: z.string().optional(),
       },
-      description: "A folder in a hierarchical file system",
+      description: 'A folder in a hierarchical file system',
     }),
   },
 
   edges: {
     // One-to-many: one user authors many posts, each post has one author
     authored: edge({
-      from: "user",
-      to: "post",
-      cardinality: { outbound: "many", inbound: "one" },
+      from: 'user',
+      to: 'post',
+      cardinality: { outbound: 'many', inbound: 'one' },
       properties: {
-        role: z.enum(["author", "coauthor", "editor"]),
+        role: z.enum(['author', 'coauthor', 'editor']),
         contributedAt: z.date(),
       },
     }),
 
     // Many-to-many: users can like many posts, posts can be liked by many users
     likes: edge({
-      from: "user",
-      to: "post",
-      cardinality: { outbound: "many", inbound: "many" },
+      from: 'user',
+      to: 'post',
+      cardinality: { outbound: 'many', inbound: 'many' },
       properties: {
         likedAt: z.date(),
       },
@@ -162,9 +162,9 @@ export const testSchema = defineSchema({
 
     // Self-referential many-to-many: users can follow each other
     follows: edge({
-      from: "user",
-      to: "user",
-      cardinality: { outbound: "many", inbound: "many" },
+      from: 'user',
+      to: 'user',
+      cardinality: { outbound: 'many', inbound: 'many' },
       properties: {
         since: z.date(),
         notifications: z.boolean().default(true),
@@ -173,65 +173,65 @@ export const testSchema = defineSchema({
 
     // One-to-many: one post has many comments
     commentedOn: edge({
-      from: "comment",
-      to: "post",
-      cardinality: { outbound: "one", inbound: "many" },
+      from: 'comment',
+      to: 'post',
+      cardinality: { outbound: 'one', inbound: 'many' },
     }),
 
     // One-to-one: each comment has exactly one author
     writtenBy: edge({
-      from: "comment",
-      to: "user",
-      cardinality: { outbound: "one", inbound: "many" },
+      from: 'comment',
+      to: 'user',
+      cardinality: { outbound: 'one', inbound: 'many' },
     }),
 
     // Many-to-many: posts can belong to many categories
     categorizedAs: edge({
-      from: "post",
-      to: "category",
-      cardinality: { outbound: "many", inbound: "many" },
+      from: 'post',
+      to: 'category',
+      cardinality: { outbound: 'many', inbound: 'many' },
     }),
 
     // Self-referential hierarchy: category parent-child
     categoryParent: edge({
-      from: "category",
-      to: "category",
-      cardinality: { outbound: "optional", inbound: "many" },
+      from: 'category',
+      to: 'category',
+      cardinality: { outbound: 'optional', inbound: 'many' },
     }),
 
     // Organization membership
     memberOf: edge({
-      from: "user",
-      to: "organization",
-      cardinality: { outbound: "many", inbound: "many" },
+      from: 'user',
+      to: 'organization',
+      cardinality: { outbound: 'many', inbound: 'many' },
       properties: {
-        role: z.enum(["member", "admin", "owner"]),
+        role: z.enum(['member', 'admin', 'owner']),
         joinedAt: z.date(),
       },
     }),
 
     // Folder hierarchy (default hierarchy edge)
     hasParent: edge({
-      from: "folder",
-      to: "folder",
-      cardinality: { outbound: "optional", inbound: "many" },
-      description: "Folder parent-child relationship",
+      from: 'folder',
+      to: 'folder',
+      cardinality: { outbound: 'optional', inbound: 'many' },
+      description: 'Folder parent-child relationship',
     }),
 
     // Folder ownership
     owns: edge({
-      from: "user",
-      to: "folder",
-      cardinality: { outbound: "many", inbound: "one" },
+      from: 'user',
+      to: 'folder',
+      cardinality: { outbound: 'many', inbound: 'one' },
     }),
   },
 
   hierarchy: {
-    defaultEdge: "hasParent",
-    direction: "up",
+    defaultEdge: 'hasParent',
+    direction: 'up',
   },
 
-  version: "1.0.0",
+  version: '1.0.0',
 })
 
 export type TestSchema = typeof testSchema
@@ -246,14 +246,14 @@ export type TestSchema = typeof testSchema
 export function normalizeCypher(cypher: string): string {
   return cypher
     .trim()
-    .replace(/\s+/g, " ")
-    .replace(/\(\s+/g, "(")
-    .replace(/\s+\)/g, ")")
-    .replace(/\[\s+/g, "[")
-    .replace(/\s+\]/g, "]")
-    .replace(/{\s+/g, "{")
-    .replace(/\s+}/g, "}")
-    .replace(/,\s+/g, ", ")
+    .replace(/\s+/g, ' ')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+\)/g, ')')
+    .replace(/\[\s+/g, '[')
+    .replace(/\s+\]/g, ']')
+    .replace(/{\s+/g, '{')
+    .replace(/\s+}/g, '}')
+    .replace(/,\s+/g, ', ')
 }
 
 /**

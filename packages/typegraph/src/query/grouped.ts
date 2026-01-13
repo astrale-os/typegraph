@@ -5,13 +5,13 @@
  * Created by CollectionBuilder.groupBy().
  */
 
-import type { QueryAST, ComparisonOperator } from "../ast"
-import type { CompiledQuery } from "../compiler"
-import { CypherCompiler } from "../compiler"
-import type { AnySchema, NodeLabels, NodeProps } from "../schema"
-import type { QueryExecutor } from "./entry"
-import { ExecutionError } from "../errors"
-import { convertNeo4jValue } from "../utils"
+import type { QueryAST, ComparisonOperator } from '../ast'
+import type { CompiledQuery } from '../compiler'
+import { CypherCompiler } from '../compiler'
+import type { AnySchema, NodeLabels, NodeProps } from '../schema'
+import type { QueryExecutor } from './entry'
+import { ExecutionError } from '../errors'
+import { convertNeo4jValue } from '../utils'
 
 /**
  * Infer the result type of a grouped aggregation.
@@ -30,18 +30,22 @@ export type GroupedResult<
  * @template N - Node label being aggregated
  * @template K - Fields being grouped by
  */
-export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K extends keyof NodeProps<S, N> & string> {
+export class GroupedBuilder<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  K extends keyof NodeProps<S, N> & string,
+> {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
   protected readonly _groupFields: K[]
   protected readonly _aggregations: Array<{
-    function: "count" | "sum" | "avg" | "min" | "max" | "collect"
+    function: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'collect'
     field?: string
     alias: string
     distinct?: boolean
   }>
   protected readonly _executor: QueryExecutor | null
-  protected readonly _orderBy: Array<{ field: string; direction: "ASC" | "DESC" }> | null
+  protected readonly _orderBy: Array<{ field: string; direction: 'ASC' | 'DESC' }> | null
   protected readonly _limit: number | null
   protected readonly _skip: number | null
 
@@ -51,7 +55,7 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
     groupFields: K[],
     aggregations: typeof GroupedBuilder.prototype._aggregations = [],
     executor: QueryExecutor | null = null,
-    orderBy: Array<{ field: string; direction: "ASC" | "DESC" }> | null = null,
+    orderBy: Array<{ field: string; direction: 'ASC' | 'DESC' }> | null = null,
     limit: number | null = null,
     skip: number | null = null,
   ) {
@@ -67,7 +71,7 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
 
   private _clone(updates: {
     aggregations?: typeof GroupedBuilder.prototype._aggregations
-    orderBy?: Array<{ field: string; direction: "ASC" | "DESC" }> | null
+    orderBy?: Array<{ field: string; direction: 'ASC' | 'DESC' }> | null
     limit?: number | null
     skip?: number | null
   }): GroupedBuilder<S, N, K> {
@@ -84,37 +88,52 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
   }
 
   count(options?: { distinct?: boolean; alias?: string }): GroupedBuilder<S, N, K> {
-    const alias = options?.alias ?? "count"
+    const alias = options?.alias ?? 'count'
     return this._clone({
-      aggregations: [...this._aggregations, { function: "count", alias, distinct: options?.distinct }],
+      aggregations: [
+        ...this._aggregations,
+        { function: 'count', alias, distinct: options?.distinct },
+      ],
     })
   }
 
-  sum<F extends keyof NodeProps<S, N> & string>(field: F, options?: { alias?: string }): GroupedBuilder<S, N, K> {
+  sum<F extends keyof NodeProps<S, N> & string>(
+    field: F,
+    options?: { alias?: string },
+  ): GroupedBuilder<S, N, K> {
     const alias = options?.alias ?? `sum_${field}`
     return this._clone({
-      aggregations: [...this._aggregations, { function: "sum", field, alias }],
+      aggregations: [...this._aggregations, { function: 'sum', field, alias }],
     })
   }
 
-  avg<F extends keyof NodeProps<S, N> & string>(field: F, options?: { alias?: string }): GroupedBuilder<S, N, K> {
+  avg<F extends keyof NodeProps<S, N> & string>(
+    field: F,
+    options?: { alias?: string },
+  ): GroupedBuilder<S, N, K> {
     const alias = options?.alias ?? `avg_${field}`
     return this._clone({
-      aggregations: [...this._aggregations, { function: "avg", field, alias }],
+      aggregations: [...this._aggregations, { function: 'avg', field, alias }],
     })
   }
 
-  min<F extends keyof NodeProps<S, N> & string>(field: F, options?: { alias?: string }): GroupedBuilder<S, N, K> {
+  min<F extends keyof NodeProps<S, N> & string>(
+    field: F,
+    options?: { alias?: string },
+  ): GroupedBuilder<S, N, K> {
     const alias = options?.alias ?? `min_${field}`
     return this._clone({
-      aggregations: [...this._aggregations, { function: "min", field, alias }],
+      aggregations: [...this._aggregations, { function: 'min', field, alias }],
     })
   }
 
-  max<F extends keyof NodeProps<S, N> & string>(field: F, options?: { alias?: string }): GroupedBuilder<S, N, K> {
+  max<F extends keyof NodeProps<S, N> & string>(
+    field: F,
+    options?: { alias?: string },
+  ): GroupedBuilder<S, N, K> {
     const alias = options?.alias ?? `max_${field}`
     return this._clone({
-      aggregations: [...this._aggregations, { function: "max", field, alias }],
+      aggregations: [...this._aggregations, { function: 'max', field, alias }],
     })
   }
 
@@ -124,7 +143,10 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
   ): GroupedBuilder<S, N, K> {
     const alias = options?.alias ?? `${field}s`
     return this._clone({
-      aggregations: [...this._aggregations, { function: "collect", field, alias, distinct: options?.distinct }],
+      aggregations: [
+        ...this._aggregations,
+        { function: 'collect', field, alias, distinct: options?.distinct },
+      ],
     })
   }
 
@@ -142,7 +164,7 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
   ): GroupedBuilder<S, N, K> {
     // HAVING is complex - requires post-aggregation filtering
     // Cypher doesn't have HAVING, would need WITH + WHERE pattern
-    throw new Error("HAVING not yet implemented - use WHERE on a subquery instead")
+    throw new Error('HAVING not yet implemented - use WHERE on a subquery instead')
   }
 
   /**
@@ -156,7 +178,7 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
    * .orderBy('cnt', 'DESC')  // Order by count descending
    * ```
    */
-  orderBy(field: K | string, direction: "ASC" | "DESC" = "ASC"): GroupedBuilder<S, N, K> {
+  orderBy(field: K | string, direction: 'ASC' | 'DESC' = 'ASC'): GroupedBuilder<S, N, K> {
     const newOrderBy = [...(this._orderBy ?? []), { field: field as string, direction }]
     return this._clone({ orderBy: newOrderBy })
   }
@@ -243,7 +265,7 @@ export class GroupedBuilder<S extends AnySchema, N extends NodeLabels<S>, K exte
    */
   async execute(): Promise<Array<Pick<NodeProps<S, N>, K> & Record<string, number | unknown[]>>> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()

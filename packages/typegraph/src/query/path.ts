@@ -5,10 +5,10 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST } from "../ast"
-import type { CompiledQuery } from "../compiler"
-import { CypherCompiler } from "../compiler"
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps } from "../schema"
+import type { QueryAST } from '../ast'
+import type { CompiledQuery } from '../compiler'
+import { CypherCompiler } from '../compiler'
+import type { AnySchema, NodeLabels, EdgeTypes, NodeProps } from '../schema'
 
 /**
  * A single node in a path.
@@ -44,7 +44,11 @@ export interface PathResult<S extends AnySchema> {
  * @template NStart - Starting node label
  * @template NEnd - Ending node label
  */
-export class PathBuilder<S extends AnySchema, NStart extends NodeLabels<S>, NEnd extends NodeLabels<S>> {
+export class PathBuilder<
+  S extends AnySchema,
+  NStart extends NodeLabels<S>,
+  NEnd extends NodeLabels<S>,
+> {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
 
@@ -54,23 +58,23 @@ export class PathBuilder<S extends AnySchema, NStart extends NodeLabels<S>, NEnd
   }
 
   maxHops(_count: number): PathBuilder<S, NStart, NEnd> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   whereEdge<K extends string>(
     _field: K,
-    _operator: import("../ast").ComparisonOperator,
+    _operator: import('../ast').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   whereIntermediateNode<K extends string>(
     _field: K,
-    _operator: import("../ast").ComparisonOperator,
+    _operator: import('../ast').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   compile(): CompiledQuery {
@@ -83,18 +87,18 @@ export class PathBuilder<S extends AnySchema, NStart extends NodeLabels<S>, NEnd
   }
 
   async execute(): Promise<PathResult<S> | PathResult<S>[] | null> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   async endNodes(): Promise<NodeProps<S, NEnd>[]> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   async exists(): Promise<boolean> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   async length(): Promise<number | null> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 }

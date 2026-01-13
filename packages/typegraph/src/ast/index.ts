@@ -4,7 +4,7 @@
  * Abstract Syntax Tree representation of graph queries.
  */
 
-export { QueryAST } from "./builder"
+export { QueryAST } from './builder'
 export type {
   ASTNode,
   MatchStep,
@@ -34,6 +34,6 @@ export type {
   EdgeWhereCondition,
   ComparisonOperator,
   VariableLengthConfig,
-} from "./types"
-export { createDefaultProjection, createEdgeProjection } from "./types"
-export { ASTVisitor } from "./visitor"
+} from './types'
+export { createDefaultProjection, createEdgeProjection } from './types'
+export { ASTVisitor } from './visitor'

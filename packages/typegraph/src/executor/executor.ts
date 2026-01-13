@@ -4,9 +4,9 @@
  * Executes compiled queries against Memgraph/Neo4j.
  */
 
-import type { CompiledQuery } from "../compiler"
-import type { ConnectionManager } from "./connection"
-import type { ExecutionResult, QueryMetadata } from "./types"
+import type { CompiledQuery } from '../compiler'
+import type { ConnectionManager } from './connection'
+import type { ExecutionResult, QueryMetadata } from './types'
 
 /**
  * Options for query execution.
@@ -14,7 +14,7 @@ import type { ExecutionResult, QueryMetadata } from "./types"
 export interface ExecutionOptions {
   timeout?: number
   collectMetadata?: boolean
-  mode?: "read" | "write"
+  mode?: 'read' | 'write'
 }
 
 /**
@@ -27,7 +27,10 @@ export class QueryExecutor {
     this.connection = connection
   }
 
-  async execute<T>(query: CompiledQuery, options?: ExecutionOptions): Promise<ExecutionResult<T[]>> {
+  async execute<T>(
+    query: CompiledQuery,
+    options?: ExecutionOptions,
+  ): Promise<ExecutionResult<T[]>> {
     const startTime = Date.now()
     const { records, summary } = await this.connection.run<T>(query.cypher, query.params)
 
@@ -37,11 +40,14 @@ export class QueryExecutor {
     }
   }
 
-  async executeSingle<T>(query: CompiledQuery, options?: ExecutionOptions): Promise<ExecutionResult<T>> {
+  async executeSingle<T>(
+    query: CompiledQuery,
+    options?: ExecutionOptions,
+  ): Promise<ExecutionResult<T>> {
     const result = await this.execute<T>(query, options)
 
     if (result.data.length === 0) {
-      throw new Error("Expected single result but got none")
+      throw new Error('Expected single result but got none')
     }
 
     if (result.data.length > 1) {
@@ -54,7 +60,10 @@ export class QueryExecutor {
     }
   }
 
-  async executeOptional<T>(query: CompiledQuery, options?: ExecutionOptions): Promise<ExecutionResult<T | null>> {
+  async executeOptional<T>(
+    query: CompiledQuery,
+    options?: ExecutionOptions,
+  ): Promise<ExecutionResult<T | null>> {
     const result = await this.execute<T>(query, options)
 
     return {
@@ -79,8 +88,14 @@ export class QueryExecutor {
     }
   }
 
-  async *stream<T>(query: CompiledQuery, _options?: ExecutionOptions): AsyncGenerator<T, void, unknown> {
-    const { records } = await this.connection.run<Record<string, unknown>>(query.cypher, query.params)
+  async *stream<T>(
+    query: CompiledQuery,
+    _options?: ExecutionOptions,
+  ): AsyncGenerator<T, void, unknown> {
+    const { records } = await this.connection.run<Record<string, unknown>>(
+      query.cypher,
+      query.params,
+    )
 
     for (const record of records) {
       yield this.transformRecord<T>(record, query)
@@ -105,7 +120,9 @@ export class QueryExecutor {
   }
 
   private transformResults<T>(records: unknown[], query: CompiledQuery): T[] {
-    return records.map((record) => this.transformRecord<T>(record as Record<string, unknown>, query))
+    return records.map((record) =>
+      this.transformRecord<T>(record as Record<string, unknown>, query),
+    )
   }
 
   private transformRecord<T>(record: Record<string, unknown>, query: CompiledQuery): T {
@@ -117,18 +134,18 @@ export class QueryExecutor {
     }
 
     // For single node queries, extract the node properties
-    if (query.resultType === "single" || query.resultType === "collection") {
+    if (query.resultType === 'single' || query.resultType === 'collection') {
       const nodeData = record[keys[0]!]
       return this.extractNodeProperties(nodeData) as T
     }
 
     // For scalar results (count, exists), return as-is
-    if (query.resultType === "scalar") {
+    if (query.resultType === 'scalar') {
       return record as T
     }
 
     // For aggregate results, convert Neo4j integers
-    if (query.resultType === "aggregate") {
+    if (query.resultType === 'aggregate') {
       const result: Record<string, unknown> = {}
       for (const [key, value] of Object.entries(record)) {
         result[key] = this.convertValue(value)
@@ -139,7 +156,10 @@ export class QueryExecutor {
     return record as T
   }
 
-  private transformMultiNodeResults<T extends Record<string, unknown>>(records: unknown[], aliases: string[]): T[] {
+  private transformMultiNodeResults<T extends Record<string, unknown>>(
+    records: unknown[],
+    aliases: string[],
+  ): T[] {
     return records.map((record) => {
       const rec = record as Record<string, unknown>
       const result: Record<string, unknown> = {}
@@ -154,7 +174,7 @@ export class QueryExecutor {
   }
 
   private extractNodeProperties(nodeData: unknown): Record<string, unknown> {
-    if (!nodeData || typeof nodeData !== "object") {
+    if (!nodeData || typeof nodeData !== 'object') {
       return {}
     }
 
@@ -186,18 +206,18 @@ export class QueryExecutor {
 
     // Handle Neo4j Integer
     if (
-      typeof value === "object" &&
-      "toNumber" in value &&
-      typeof (value as { toNumber: () => number }).toNumber === "function"
+      typeof value === 'object' &&
+      'toNumber' in value &&
+      typeof (value as { toNumber: () => number }).toNumber === 'function'
     ) {
       return (value as { toNumber: () => number }).toNumber()
     }
 
     // Handle Neo4j Date/DateTime
     if (
-      typeof value === "object" &&
-      "toStandardDate" in value &&
-      typeof (value as { toStandardDate: () => Date }).toStandardDate === "function"
+      typeof value === 'object' &&
+      'toStandardDate' in value &&
+      typeof (value as { toStandardDate: () => Date }).toStandardDate === 'function'
     ) {
       return (value as { toStandardDate: () => Date }).toStandardDate()
     }
@@ -211,8 +231,8 @@ export class QueryExecutor {
   }
 
   private toNumber(value: unknown): number {
-    if (typeof value === "number") return value
-    if (typeof value === "object" && value && "toNumber" in value) {
+    if (typeof value === 'number') return value
+    if (typeof value === 'object' && value && 'toNumber' in value) {
       return (value as { toNumber: () => number }).toNumber()
     }
     return Number(value)
@@ -231,7 +251,7 @@ export class QueryExecutor {
       resultCount,
     }
 
-    if (collectMetadata && summary && typeof summary === "object") {
+    if (collectMetadata && summary && typeof summary === 'object') {
       const s = summary as {
         resultAvailableAfter?: { toNumber: () => number }
         server?: { version: string }
