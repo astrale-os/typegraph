@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.0...typegraph-adapter-memory-v0.2.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* **memory:** correct exports field order for TypeScript resolution ([e2a8e00](https://github.com/astrale-os/typegraph/commit/e2a8e000724c342975dbfed574eabed2c3ffc4b9))
+
 ## [0.2.0](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.1.1...typegraph-adapter-memory-v0.2.0) (2026-01-13)
 
 
