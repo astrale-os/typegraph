@@ -1,6 +1,6 @@
 {
   "name": "@astrale/typegraph-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "In-memory adapter for typegraph - zero infrastructure graph database",
   "type": "module",
   "main": "./dist/index.js",
