@@ -1,0 +1,52 @@
+{
+  "name": "@astrale/typegraph-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astrale-os/typegraph.git"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "clean": "pnpm -r run clean",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm -r run test:watch",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@astrale/commitlint-config": "jsr:@astrale/commitlint-config@^1.0.0",
+    "@astrale/eslint-config": "jsr:@astrale/eslint-config@^1.0.0",
+    "@astrale/prettier-config": "jsr:@astrale/prettier-config@^1.0.0",
+    "@astrale/typescript-config": "jsr:@astrale/typescript-config@^1.0.0",
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.1",
+    "prettier": "^3.4.2",
+    "typescript": "5.8.3",
+    "typescript-eslint": "^8.21.0"
+  },
+  "prettier": "@astrale/prettier-config",
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

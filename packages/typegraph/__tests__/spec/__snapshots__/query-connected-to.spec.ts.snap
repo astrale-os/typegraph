@@ -1,0 +1,60 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Compilation Snapshots > snapshot: chained whereConnectedTo 1`] = `
+{
+  "cypher": "MATCH (n0:folder)
+MATCH (n0)-[:hasParent]->(ct1 {id: $p0})
+WHERE n0.name = $p1
+RETURN n0",
+  "meta": {
+    "complexity": 1,
+    "hasAggregation": false,
+    "hasVariableLengthPath": false,
+    "matchCount": 1,
+    "returnAliases": undefined,
+  },
+  "params": {
+    "p0": "parent_123",
+    "p1": "test",
+  },
+  "resultType": "collection",
+}
+`;
+
+exports[`Compilation Snapshots > snapshot: simple whereConnectedTo 1`] = `
+{
+  "cypher": "MATCH (n0:post)
+MATCH (n0)-[:categorizedAs]->(ct1 {id: $p0})
+RETURN n0",
+  "meta": {
+    "complexity": 1,
+    "hasAggregation": false,
+    "hasVariableLengthPath": false,
+    "matchCount": 1,
+    "returnAliases": undefined,
+  },
+  "params": {
+    "p0": "cat_123",
+  },
+  "resultType": "collection",
+}
+`;
+
+exports[`Compilation Snapshots > snapshot: whereConnectedFrom 1`] = `
+{
+  "cypher": "MATCH (n0:category)
+MATCH (n0)<-[:categorizedAs]-(ct1 {id: $p0})
+RETURN n0",
+  "meta": {
+    "complexity": 1,
+    "hasAggregation": false,
+    "hasVariableLengthPath": false,
+    "matchCount": 1,
+    "returnAliases": undefined,
+  },
+  "params": {
+    "p0": "post_123",
+  },
+  "resultType": "collection",
+}
+`;

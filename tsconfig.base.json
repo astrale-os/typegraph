@@ -1,0 +1,6 @@
+{
+  "extends": "@astrale/typescript-config/base",
+  "compilerOptions": {
+    "lib": ["ES2022"]
+  }
+}

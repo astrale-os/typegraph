@@ -1,0 +1,74 @@
+{
+  "name": "@astrale/typegraph",
+  "version": "0.1.0",
+  "description": "Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:spec": "vitest run __tests__/spec",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
+  },
+  "keywords": [
+    "graph",
+    "database",
+    "cypher",
+    "neo4j",
+    "memgraph",
+    "falkordb",
+    "query-builder",
+    "typescript",
+    "type-safe",
+    "dsl"
+  ],
+  "author": "Astrale",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astrale-os/typegraph.git",
+    "directory": "packages/typegraph"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "falkordb": "^6.4.1",
+    "neo4j-driver": "^5.27.0",
+    "tsup": "^8.3.5",
+    "typescript": "5.8.3",
+    "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "neo4j-driver": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "neo4j-driver": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
