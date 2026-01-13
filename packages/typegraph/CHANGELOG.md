@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3](https://github.com/astrale-os/typegraph/compare/typegraph-v0.2.2...typegraph-v0.2.3) (2026-01-13)
+
+
+### Bug Fixes
+
+* sync jsr.json versions with package.json ([fb9e3ff](https://github.com/astrale-os/typegraph/commit/fb9e3fff56ce8a7e5b06a42f9735a22d8ff19c3a))
+
 ## [0.2.2](https://github.com/astrale-os/typegraph/compare/typegraph-v0.2.1...typegraph-v0.2.2) (2026-01-13)
 
 
