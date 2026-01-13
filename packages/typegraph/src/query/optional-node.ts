@@ -5,10 +5,10 @@
  * Used for optional relationships (cardinality: 'optional').
  */
 
-import { BaseBuilder, type QueryFragment } from "./base"
-import type { TraversalOptions, WhereBuilder } from "./traits"
-import type { QueryAST } from "../ast"
-import type { ComparisonOperator, WhereCondition } from "../ast"
+import { BaseBuilder, type QueryFragment } from './base'
+import type { TraversalOptions, WhereBuilder } from './traits'
+import type { QueryAST } from '../ast'
+import type { ComparisonOperator, WhereCondition } from '../ast'
 import type {
   AnySchema,
   NodeLabels,
@@ -17,7 +17,7 @@ import type {
   IncomingEdges,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from "../schema"
+} from '../schema'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -26,15 +26,15 @@ import type {
   MultiEdgeBidirectional,
   EdgeOutboundCardinality,
   EdgeInboundCardinality,
-} from "../schema/inference"
+} from '../schema/inference'
 
 // Forward declarations
-import type { SingleNodeBuilder } from "./single-node"
-import type { CollectionBuilder, ExtractCollectSpecs } from "./collection"
-import type { ReturningBuilder } from "./returning"
-import type { QueryExecutor } from "./entry"
-import { extractNodeFromRecord } from "../utils"
-import { ExecutionError } from "../errors"
+import type { SingleNodeBuilder } from './single-node'
+import type { CollectionBuilder, ExtractCollectSpecs } from './collection'
+import type { ReturningBuilder } from './returning'
+import type { QueryExecutor } from './entry'
+import { extractNodeFromRecord } from '../utils'
+import { ExecutionError } from '../errors'
 
 /**
  * Builder for queries that return zero or one node.
@@ -90,23 +90,23 @@ export class OptionalNodeBuilder<
   /**
    * Specify which aliased nodes and edges to return.
    */
-  returning<
+  async returning<
     const Args extends Array<string | Record<string, { collect: string; distinct?: boolean }>>,
   >(
     ...aliasesOrSpecs: Args
-  ): ReturningBuilder<S, Aliases, EdgeAliases, ExtractCollectSpecs<Args>> {
+  ): Promise<ReturningBuilder<S, Aliases, EdgeAliases, ExtractCollectSpecs<Args>>> {
     const nodeAliases: string[] = []
     const edgeAliases: string[] = []
     let collectSpecs: Record<string, { collect: string; distinct?: boolean }> = {}
 
     for (const item of aliasesOrSpecs) {
-      if (typeof item === "string") {
+      if (typeof item === 'string') {
         if (item in this._aliases) {
           nodeAliases.push(item)
         } else if (item in this._edgeAliases) {
           edgeAliases.push(item)
         }
-      } else if (typeof item === "object" && item !== null) {
+      } else if (typeof item === 'object' && item !== null) {
         collectSpecs = { ...collectSpecs, ...item }
       }
     }
@@ -123,7 +123,8 @@ export class OptionalNodeBuilder<
 
     const newAst = this._ast.setMultiNodeProjection(nodeAliases, edgeAliases, collectAliases)
 
-    const { ReturningBuilder } = require("./returning")
+    // Dynamic import to avoid circular dependency
+    const { ReturningBuilder } = await import('./returning')
     return new ReturningBuilder(
       newAst,
       this._schema,
@@ -142,8 +143,9 @@ export class OptionalNodeBuilder<
    * Assert that this optional node exists, converting to SingleNodeBuilder.
    * Will throw at runtime if the node doesn't exist.
    */
-  required(): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
-    const { SingleNodeBuilder } = require("./single-node")
+  async required(): Promise<SingleNodeBuilder<S, N, Aliases, EdgeAliases>> {
+    // Dynamic import to avoid circular dependency
+    const { SingleNodeBuilder } = await import('./single-node')
     return new SingleNodeBuilder(
       this._ast,
       this._schema,
@@ -165,7 +167,7 @@ export class OptionalNodeBuilder<
    * Provide a default value if the node doesn't exist.
    */
   orElse(_defaultValue: NodeProps<S, N>): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -179,14 +181,14 @@ export class OptionalNodeBuilder<
   to<E extends OutgoingEdges<S, N>, EA extends string | undefined = undefined>(
     _edge: E,
     _options?: TraversalOptions<S, E> & { edgeAs?: EA },
-  ): EdgeOutboundCardinality<S, E> extends "one"
+  ): EdgeOutboundCardinality<S, E> extends 'one'
     ? OptionalNodeBuilder<
         S,
         EdgeTargetsFrom<S, E, N>,
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeOutboundCardinality<S, E> extends "optional"
+    : EdgeOutboundCardinality<S, E> extends 'optional'
       ? OptionalNodeBuilder<
           S,
           EdgeTargetsFrom<S, E, N>,
@@ -199,7 +201,7 @@ export class OptionalNodeBuilder<
           Aliases,
           EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
         > {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -209,14 +211,14 @@ export class OptionalNodeBuilder<
   from<E extends IncomingEdges<S, N>, EA extends string | undefined = undefined>(
     _edge: E,
     _options?: TraversalOptions<S, E> & { edgeAs?: EA },
-  ): EdgeInboundCardinality<S, E> extends "one"
+  ): EdgeInboundCardinality<S, E> extends 'one'
     ? OptionalNodeBuilder<
         S,
         EdgeSourcesTo<S, E, N>,
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeInboundCardinality<S, E> extends "optional"
+    : EdgeInboundCardinality<S, E> extends 'optional'
       ? OptionalNodeBuilder<
           S,
           EdgeSourcesTo<S, E, N>,
@@ -229,7 +231,7 @@ export class OptionalNodeBuilder<
           Aliases,
           EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
         > {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -239,7 +241,7 @@ export class OptionalNodeBuilder<
     _edge: E,
     _options?: TraversalOptions<S, E>,
   ): CollectionBuilder<S, EdgeTargetsFrom<S, E, N> | EdgeSourcesTo<S, E, N>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -253,7 +255,7 @@ export class OptionalNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -263,7 +265,7 @@ export class OptionalNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -273,7 +275,7 @@ export class OptionalNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -288,7 +290,7 @@ export class OptionalNodeBuilder<
     _operator: ComparisonOperator,
     _value?: NodeProps<S, N>[K] | NodeProps<S, N>[K][],
   ): OptionalNodeBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -297,7 +299,7 @@ export class OptionalNodeBuilder<
   whereComplex(
     _builder: (w: WhereBuilder<S, N>) => WhereCondition,
   ): OptionalNodeBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -321,7 +323,7 @@ export class OptionalNodeBuilder<
    * Select specific fields to return.
    */
   select<K extends keyof NodeProps<S, N> & string>(..._fields: K[]): OptionalNodeSelector<S, N, K> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -330,7 +332,7 @@ export class OptionalNodeBuilder<
 
   async execute(): Promise<NodeProps<S, N> | null> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -349,7 +351,7 @@ export class OptionalNodeBuilder<
 
   async exists(): Promise<boolean> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -374,6 +376,6 @@ export interface OptionalNodeSelector<
 > {
   execute(): Promise<Pick<NodeProps<S, N>, K> | null>
   exists(): Promise<boolean>
-  compile(): import("../compiler").CompiledQuery
+  compile(): import('../compiler').CompiledQuery
   toCypher(): string
 }

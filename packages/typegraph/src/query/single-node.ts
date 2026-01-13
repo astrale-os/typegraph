@@ -2,24 +2,31 @@
  * Single Node Builder
  *
  * Represents a query that resolves to exactly ONE node.
+ *
+ * Note: This file uses `as any` casts in traversal methods that return different
+ * builder types based on edge cardinality. TypeScript cannot narrow conditional
+ * return types within method bodies, requiring explicit casts. The type safety
+ * is preserved at the API level through the conditional return type signatures.
  */
 
-import { BaseBuilder, type QueryFragment } from "./base"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { BaseBuilder, type QueryFragment } from './base'
 import type {
   TraversalOptions,
   ReachableOptions,
   WhereBuilder,
   HierarchyTraversalOptions,
-} from "./traits"
-import * as shared from "./shared"
-import type { QueryAST } from "../ast"
+} from './traits'
+import * as shared from './shared'
+import type { QueryAST } from '../ast'
 import type {
   ComparisonOperator,
   WhereCondition,
   ComparisonCondition,
   ExistsCondition,
   ConnectedToCondition,
-} from "../ast"
+} from '../ast'
 import type {
   AnySchema,
   NodeLabels,
@@ -29,7 +36,7 @@ import type {
   EdgeTypes,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from "../schema"
+} from '../schema'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -41,15 +48,15 @@ import type {
   HierarchyChildren,
   HierarchyParent,
   AncestorResult,
-} from "../schema/inference"
+} from '../schema/inference'
 
 // Direct imports
-import { CollectionBuilder, type ExtractCollectSpecs } from "./collection"
-import { OptionalNodeBuilder } from "./optional-node"
-import { ReturningBuilder } from "./returning"
-import type { QueryExecutor } from "./entry"
-import { extractNodeFromRecord } from "../utils"
-import { CardinalityError, ExecutionError } from "../errors"
+import { CollectionBuilder, type ExtractCollectSpecs } from './collection'
+import { OptionalNodeBuilder } from './optional-node'
+import { ReturningBuilder } from './returning'
+import type { QueryExecutor } from './entry'
+import { extractNodeFromRecord } from '../utils'
+import { CardinalityError, ExecutionError } from '../errors'
 
 /**
  * Builder for queries that return exactly one node.
@@ -117,22 +124,20 @@ export class SingleNodeBuilder<
    */
   returning<
     const Args extends Array<string | Record<string, { collect: string; distinct?: boolean }>>,
-  >(
-    ...aliasesOrSpecs: Args
-  ): ReturningBuilder<S, Aliases, EdgeAliases, ExtractCollectSpecs<Args>> {
+  >(...aliasesOrSpecs: Args): ReturningBuilder<S, Aliases, EdgeAliases, ExtractCollectSpecs<Args>> {
     // Separate aliases from collect specs
     const nodeAliases: string[] = []
     const edgeAliases: string[] = []
     let collectSpecs: Record<string, { collect: string; distinct?: boolean }> = {}
 
     for (const item of aliasesOrSpecs) {
-      if (typeof item === "string") {
+      if (typeof item === 'string') {
         if (item in this._aliases) {
           nodeAliases.push(item)
         } else if (item in this._edgeAliases) {
           edgeAliases.push(item)
         }
-      } else if (typeof item === "object" && item !== null) {
+      } else if (typeof item === 'object' && item !== null) {
         // This is a collect spec object
         collectSpecs = { ...collectSpecs, ...item }
       }
@@ -232,7 +237,9 @@ export class SingleNodeBuilder<
       )
 
     // Execute each branch callback - use BaseBuilder to avoid deep type instantiation
-    const branches: BaseBuilder<S, NodeLabels<S>>[] = [branch1(createBranchBuilder(0)) as BaseBuilder<S, NodeLabels<S>>]
+    const branches: BaseBuilder<S, NodeLabels<S>>[] = [
+      branch1(createBranchBuilder(0)) as BaseBuilder<S, NodeLabels<S>>,
+    ]
     if (branch2) branches.push(branch2(createBranchBuilder(1)) as BaseBuilder<S, NodeLabels<S>>)
     if (branch3) branches.push(branch3(createBranchBuilder(2)) as BaseBuilder<S, NodeLabels<S>>)
     if (branch4) branches.push(branch4(createBranchBuilder(3)) as BaseBuilder<S, NodeLabels<S>>)
@@ -289,14 +296,14 @@ export class SingleNodeBuilder<
   to<E extends OutgoingEdges<S, N>, EA extends string | undefined = undefined>(
     edge: E,
     options?: TraversalOptions<S, E> & { edgeAs?: EA },
-  ): EdgeOutboundCardinality<S, E> extends "one"
+  ): EdgeOutboundCardinality<S, E> extends 'one'
     ? SingleNodeBuilder<
         S,
         EdgeTargetsFrom<S, E, N>,
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeOutboundCardinality<S, E> extends "optional"
+    : EdgeOutboundCardinality<S, E> extends 'optional'
       ? OptionalNodeBuilder<
           S,
           EdgeTargetsFrom<S, E, N>,
@@ -317,14 +324,14 @@ export class SingleNodeBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "out",
+      direction: 'out',
       toLabels,
       optional: false,
       cardinality,
       edgeWhere: this.buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
       variableLength: opts?.depth
-        ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: "nodes" }
+        ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: 'nodes' }
         : undefined,
     })
 
@@ -332,7 +339,7 @@ export class SingleNodeBuilder<
       ? { ...this._edgeAliases, [opts.edgeAs]: edge }
       : this._edgeAliases
 
-    if (cardinality === "one") {
+    if (cardinality === 'one') {
       return new SingleNodeBuilder(
         newAst,
         this._schema,
@@ -341,7 +348,7 @@ export class SingleNodeBuilder<
         this._executor,
       ) as any
     }
-    if (cardinality === "optional") {
+    if (cardinality === 'optional') {
       // Use OptionalNodeBuilder directly
       return new OptionalNodeBuilder(
         newAst,
@@ -375,10 +382,10 @@ export class SingleNodeBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "out",
+      direction: 'out',
       toLabels,
       optional: true,
-      cardinality: "optional",
+      cardinality: 'optional',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -401,14 +408,14 @@ export class SingleNodeBuilder<
   from<E extends IncomingEdges<S, N>, EA extends string | undefined = undefined>(
     edge: E,
     options?: TraversalOptions<S, E> & { edgeAs?: EA },
-  ): EdgeInboundCardinality<S, E> extends "one"
+  ): EdgeInboundCardinality<S, E> extends 'one'
     ? SingleNodeBuilder<
         S,
         EdgeSourcesTo<S, E, N>,
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeInboundCardinality<S, E> extends "optional"
+    : EdgeInboundCardinality<S, E> extends 'optional'
       ? OptionalNodeBuilder<
           S,
           EdgeSourcesTo<S, E, N>,
@@ -429,7 +436,7 @@ export class SingleNodeBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "in",
+      direction: 'in',
       toLabels: fromLabels,
       optional: false,
       cardinality,
@@ -441,7 +448,7 @@ export class SingleNodeBuilder<
       ? { ...this._edgeAliases, [opts.edgeAs]: edge }
       : this._edgeAliases
 
-    if (cardinality === "one") {
+    if (cardinality === 'one') {
       return new SingleNodeBuilder(
         newAst,
         this._schema,
@@ -450,7 +457,7 @@ export class SingleNodeBuilder<
         this._executor,
       ) as any
     }
-    if (cardinality === "optional") {
+    if (cardinality === 'optional') {
       // Use OptionalNodeBuilder directly
       return new OptionalNodeBuilder(
         newAst,
@@ -483,10 +490,10 @@ export class SingleNodeBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "in",
+      direction: 'in',
       toLabels: fromLabels,
       optional: true,
-      cardinality: "optional",
+      cardinality: 'optional',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -515,10 +522,10 @@ export class SingleNodeBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "both",
+      direction: 'both',
       toLabels: allLabels,
       optional: false,
-      cardinality: "many",
+      cardinality: 'many',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -543,7 +550,7 @@ export class SingleNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -553,7 +560,7 @@ export class SingleNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -563,7 +570,7 @@ export class SingleNodeBuilder<
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
   ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -716,7 +723,7 @@ export class SingleNodeBuilder<
     | OptionalNodeBuilder<S, HierarchyParent<S, N, E>, Aliases, EdgeAliases> {
     const { ast: newAst, cardinality } = shared.addParent(this._ast, this._schema, edge)
 
-    if (cardinality === "optional") {
+    if (cardinality === 'optional') {
       return new OptionalNodeBuilder(
         newAst,
         this._schema,
@@ -755,7 +762,7 @@ export class SingleNodeBuilder<
    * Get the depth of this node in the hierarchy tree.
    */
   depth(_edge?: EdgeTypes<S>): Promise<number> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -771,7 +778,7 @@ export class SingleNodeBuilder<
     value?: NodeProps<S, N>[K] | NodeProps<S, N>[K][],
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ComparisonCondition = {
-      type: "comparison",
+      type: 'comparison',
       field,
       operator,
       value,
@@ -810,10 +817,10 @@ export class SingleNodeBuilder<
    */
   hasEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
-    direction: "out" | "in" | "both" = "out",
+    direction: 'out' | 'in' | 'both' = 'out',
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ExistsCondition = {
-      type: "exists",
+      type: 'exists',
       edge: edge as string,
       direction,
       target: this._ast.currentAlias,
@@ -834,10 +841,10 @@ export class SingleNodeBuilder<
    */
   hasNoEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
-    direction: "out" | "in" | "both" = "out",
+    direction: 'out' | 'in' | 'both' = 'out',
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ExistsCondition = {
-      type: "exists",
+      type: 'exists',
       edge: edge as string,
       direction,
       target: this._ast.currentAlias,
@@ -870,9 +877,9 @@ export class SingleNodeBuilder<
     targetId: string,
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ConnectedToCondition = {
-      type: "connectedTo",
+      type: 'connectedTo',
       edge: edge as string,
-      direction: "out",
+      direction: 'out',
       nodeId: targetId,
       target: this._ast.currentAlias,
     }
@@ -900,9 +907,9 @@ export class SingleNodeBuilder<
     sourceId: string,
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ConnectedToCondition = {
-      type: "connectedTo",
+      type: 'connectedTo',
       edge: edge as string,
-      direction: "in",
+      direction: 'in',
       nodeId: sourceId,
       target: this._ast.currentAlias,
     }
@@ -937,7 +944,7 @@ export class SingleNodeBuilder<
    * Select specific fields to return.
    */
   select<K extends keyof NodeProps<S, N> & string>(..._fields: K[]): SingleNodeSelector<S, N, K> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   // ===========================================================================
@@ -946,7 +953,7 @@ export class SingleNodeBuilder<
 
   async execute(): Promise<NodeProps<S, N>> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -957,11 +964,11 @@ export class SingleNodeBuilder<
     )
 
     if (results.length === 0) {
-      throw new CardinalityError("one", 0)
+      throw new CardinalityError('one', 0)
     }
 
     if (results.length > 1) {
-      throw new CardinalityError("one", results.length)
+      throw new CardinalityError('one', results.length)
     }
 
     return extractNodeFromRecord(results[0]!) as NodeProps<S, N>
@@ -969,7 +976,7 @@ export class SingleNodeBuilder<
 
   async executeOrNull(): Promise<NodeProps<S, N> | null> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -988,7 +995,7 @@ export class SingleNodeBuilder<
 
   async exists(): Promise<boolean> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -1007,12 +1014,12 @@ export class SingleNodeBuilder<
 
   private buildEdgeWhere(
     where?: Record<string, unknown>,
-  ): import("../ast").EdgeWhereCondition[] | undefined {
+  ): import('../ast').EdgeWhereCondition[] | undefined {
     if (!where) return undefined
 
-    const conditions: import("../ast").EdgeWhereCondition[] = []
+    const conditions: import('../ast').EdgeWhereCondition[] = []
     for (const [field, ops] of Object.entries(where)) {
-      if (typeof ops === "object" && ops !== null) {
+      if (typeof ops === 'object' && ops !== null) {
         for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
           conditions.push({ field, operator: operator as ComparisonOperator, value })
         }
@@ -1025,35 +1032,35 @@ export class SingleNodeBuilder<
     const target = this._ast.currentAlias
     return {
       eq: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "eq", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'eq', value, target }) as ComparisonCondition,
       neq: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "neq", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'neq', value, target }) as ComparisonCondition,
       gt: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "gt", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'gt', value, target }) as ComparisonCondition,
       gte: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "gte", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'gte', value, target }) as ComparisonCondition,
       lt: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "lt", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'lt', value, target }) as ComparisonCondition,
       lte: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "lte", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'lte', value, target }) as ComparisonCondition,
       in: (field: string, values: unknown[]) =>
         ({
-          type: "comparison",
+          type: 'comparison',
           field,
-          operator: "in",
+          operator: 'in',
           value: values,
           target,
         }) as ComparisonCondition,
       and: (...conditions: WhereCondition[]) =>
-        ({ type: "logical", operator: "AND", conditions }) as import("../ast").LogicalCondition,
+        ({ type: 'logical', operator: 'AND', conditions }) as import('../ast').LogicalCondition,
       or: (...conditions: WhereCondition[]) =>
-        ({ type: "logical", operator: "OR", conditions }) as import("../ast").LogicalCondition,
+        ({ type: 'logical', operator: 'OR', conditions }) as import('../ast').LogicalCondition,
       not: (condition: WhereCondition) =>
         ({
-          type: "logical",
-          operator: "NOT",
+          type: 'logical',
+          operator: 'NOT',
           conditions: [condition],
-        }) as import("../ast").LogicalCondition,
+        }) as import('../ast').LogicalCondition,
     } as WhereBuilder<S, N>
   }
 }
@@ -1069,6 +1076,6 @@ export interface SingleNodeSelector<
 > {
   execute(): Promise<Pick<NodeProps<S, N>, K>>
   executeOrNull(): Promise<Pick<NodeProps<S, N>, K> | null>
-  compile(): import("../compiler").CompiledQuery
+  compile(): import('../compiler').CompiledQuery
   toCypher(): string
 }

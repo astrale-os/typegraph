@@ -191,6 +191,8 @@ export class GraphQuery<S extends AnySchema> {
    * ```
    */
   intersect<N extends NodeLabels<S>>(
+    // Alias map type is discarded in set operations - using any is intentional
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {
@@ -224,6 +226,7 @@ export class GraphQuery<S extends AnySchema> {
    * ```
    */
   union<N extends NodeLabels<S>>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {
@@ -251,6 +254,7 @@ export class GraphQuery<S extends AnySchema> {
    * ```
    */
   unionAll<N extends NodeLabels<S>>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {

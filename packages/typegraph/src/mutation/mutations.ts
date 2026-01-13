@@ -1124,7 +1124,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
   private resolveHierarchyEdge(edge?: EdgeTypes<S>): string {
     if (edge) return this.sanitize(edge as string)
 
-    const hierarchy = (this.schema as any).hierarchy
+    const hierarchy = (this.schema as { hierarchy?: { defaultEdge?: string } }).hierarchy
     if (!hierarchy?.defaultEdge) {
       throw new Error(
         'No hierarchy edge specified and schema has no default hierarchy configuration',

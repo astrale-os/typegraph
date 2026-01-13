@@ -5,7 +5,7 @@
  * generating intermediate query strings (like Cypher).
  */
 
-import type { GraphStore, StoredNode, StoredEdge } from "../store"
+import type { GraphStore, StoredNode, StoredEdge } from '../store'
 import type {
   QueryAST,
   ASTNode,
@@ -26,7 +26,7 @@ import type {
   ForkStep,
   Projection,
   ComparisonOperator,
-} from "@astrale/typegraph"
+} from '@astrale/typegraph'
 
 /**
  * Execution context tracks bound variables during query execution.
@@ -109,32 +109,32 @@ export class QueryEngine {
 
   private executeStep(step: ASTNode, rows: ResultRow[]): ResultRow[] {
     switch (step.type) {
-      case "match":
+      case 'match':
         return this.executeMatch(step, rows)
-      case "matchById":
+      case 'matchById':
         return this.executeMatchById(step, rows)
-      case "traversal":
+      case 'traversal':
         return this.executeTraversal(step, rows)
-      case "where":
+      case 'where':
         return this.executeWhere(step, rows)
-      case "hierarchy":
+      case 'hierarchy':
         return this.executeHierarchy(step, rows)
-      case "reachable":
+      case 'reachable':
         return this.executeReachable(step, rows)
-      case "orderBy":
+      case 'orderBy':
         return this.executeOrderBy(step, rows)
-      case "limit":
+      case 'limit':
         return this.executeLimit(step, rows)
-      case "skip":
+      case 'skip':
         return this.executeSkip(step, rows)
-      case "distinct":
+      case 'distinct':
         return this.executeDistinct(rows)
-      case "aggregate":
+      case 'aggregate':
         return this.executeAggregate(step, rows)
-      case "alias":
+      case 'alias':
         // Alias steps just register names, no row transformation needed
         return rows
-      case "fork":
+      case 'fork':
         return this.executeFork(step, rows)
       default:
         // Unsupported step types pass through
@@ -215,13 +215,13 @@ export class QueryEngine {
     // Get edges based on direction
     let edges: StoredEdge[] = []
 
-    if (step.direction === "out" || step.direction === "both") {
+    if (step.direction === 'out' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         edges.push(...this.store.getOutgoingEdges(sourceNode.id, edgeType))
       }
     }
 
-    if (step.direction === "in" || step.direction === "both") {
+    if (step.direction === 'in' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         edges.push(...this.store.getIncomingEdges(sourceNode.id, edgeType))
       }
@@ -239,7 +239,7 @@ export class QueryEngine {
 
     // Regular single-hop traversal
     for (const edge of edges) {
-      const targetId = step.direction === "in" ? edge.fromId : edge.toId
+      const targetId = step.direction === 'in' ? edge.fromId : edge.toId
       const targetNode = this.store.getNode(targetId)
 
       if (!targetNode) continue
@@ -275,37 +275,37 @@ export class QueryEngine {
       if (depth > this.config.maxRecursionDepth) return
 
       // Uniqueness constraint
-      if (config.uniqueness === "nodes" && visited.has(currentNode.id)) return
+      if (config.uniqueness === 'nodes' && visited.has(currentNode.id)) return
       visited.add(currentNode.id)
 
       // If within valid range, add to results
       if (depth >= config.min) {
         const newRow = this.cloneContext(row)
         newRow.nodes.set(step.toAlias, currentNode)
-        newRow.computed.set("depth", depth)
+        newRow.computed.set('depth', depth)
         results.push(newRow)
       }
 
       // Continue traversal
       const edges: StoredEdge[] = []
 
-      if (step.direction === "out" || step.direction === "both") {
+      if (step.direction === 'out' || step.direction === 'both') {
         for (const edgeType of step.edges) {
           edges.push(...this.store.getOutgoingEdges(currentNode.id, edgeType))
         }
       }
 
-      if (step.direction === "in" || step.direction === "both") {
+      if (step.direction === 'in' || step.direction === 'both') {
         for (const edgeType of step.edges) {
           edges.push(...this.store.getIncomingEdges(currentNode.id, edgeType))
         }
       }
 
       for (const edge of edges) {
-        if (config.uniqueness === "edges" && visited.has(edge.id)) continue
-        if (config.uniqueness === "edges") visited.add(edge.id)
+        if (config.uniqueness === 'edges' && visited.has(edge.id)) continue
+        if (config.uniqueness === 'edges') visited.add(edge.id)
 
-        const nextId = step.direction === "in" ? edge.fromId : edge.toId
+        const nextId = step.direction === 'in' ? edge.fromId : edge.toId
         const nextNode = this.store.getNode(nextId)
 
         if (!nextNode) continue
@@ -318,20 +318,20 @@ export class QueryEngine {
     // Start traversal from source (depth 0 doesn't count as a hop)
     const initialEdges: StoredEdge[] = []
 
-    if (step.direction === "out" || step.direction === "both") {
+    if (step.direction === 'out' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         initialEdges.push(...this.store.getOutgoingEdges(sourceNode.id, edgeType))
       }
     }
 
-    if (step.direction === "in" || step.direction === "both") {
+    if (step.direction === 'in' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         initialEdges.push(...this.store.getIncomingEdges(sourceNode.id, edgeType))
       }
     }
 
     for (const edge of initialEdges) {
-      const nextId = step.direction === "in" ? edge.fromId : edge.toId
+      const nextId = step.direction === 'in' ? edge.fromId : edge.toId
       const nextNode = this.store.getNode(nextId)
 
       if (!nextNode) continue
@@ -375,13 +375,13 @@ export class QueryEngine {
 
   private evaluateCondition(condition: WhereCondition, row: ResultRow): boolean {
     switch (condition.type) {
-      case "comparison":
+      case 'comparison':
         return this.evaluateComparisonCondition(condition, row)
-      case "logical":
+      case 'logical':
         return this.evaluateLogicalCondition(condition, row)
-      case "exists":
+      case 'exists':
         return this.evaluateExistsCondition(condition, row)
-      case "connectedTo":
+      case 'connectedTo':
         return this.evaluateConnectedToCondition(condition, row)
       default:
         return true
@@ -392,7 +392,7 @@ export class QueryEngine {
     const node = row.nodes.get(condition.target)
     if (!node) return false
 
-    const value = condition.field === "id" ? node.id : node.properties[condition.field]
+    const value = condition.field === 'id' ? node.id : node.properties[condition.field]
 
     return this.evaluateComparison(value, condition.operator, condition.value)
   }
@@ -403,47 +403,47 @@ export class QueryEngine {
     compareValue?: unknown,
   ): boolean {
     switch (operator) {
-      case "eq":
+      case 'eq':
         return value === compareValue
-      case "neq":
+      case 'neq':
         return value !== compareValue
-      case "gt":
-        return typeof value === "number" && typeof compareValue === "number" && value > compareValue
-      case "gte":
+      case 'gt':
+        return typeof value === 'number' && typeof compareValue === 'number' && value > compareValue
+      case 'gte':
         return (
-          typeof value === "number" && typeof compareValue === "number" && value >= compareValue
+          typeof value === 'number' && typeof compareValue === 'number' && value >= compareValue
         )
-      case "lt":
-        return typeof value === "number" && typeof compareValue === "number" && value < compareValue
-      case "lte":
+      case 'lt':
+        return typeof value === 'number' && typeof compareValue === 'number' && value < compareValue
+      case 'lte':
         return (
-          typeof value === "number" && typeof compareValue === "number" && value <= compareValue
+          typeof value === 'number' && typeof compareValue === 'number' && value <= compareValue
         )
-      case "in":
+      case 'in':
         return Array.isArray(compareValue) && compareValue.includes(value)
-      case "notIn":
+      case 'notIn':
         return Array.isArray(compareValue) && !compareValue.includes(value)
-      case "contains":
+      case 'contains':
         return (
-          typeof value === "string" &&
-          typeof compareValue === "string" &&
+          typeof value === 'string' &&
+          typeof compareValue === 'string' &&
           value.includes(compareValue)
         )
-      case "startsWith":
+      case 'startsWith':
         return (
-          typeof value === "string" &&
-          typeof compareValue === "string" &&
+          typeof value === 'string' &&
+          typeof compareValue === 'string' &&
           value.startsWith(compareValue)
         )
-      case "endsWith":
+      case 'endsWith':
         return (
-          typeof value === "string" &&
-          typeof compareValue === "string" &&
+          typeof value === 'string' &&
+          typeof compareValue === 'string' &&
           value.endsWith(compareValue)
         )
-      case "isNull":
+      case 'isNull':
         return value === null || value === undefined
-      case "isNotNull":
+      case 'isNotNull':
         return value !== null && value !== undefined
       default:
         return false
@@ -452,11 +452,11 @@ export class QueryEngine {
 
   private evaluateLogicalCondition(condition: LogicalCondition, row: ResultRow): boolean {
     switch (condition.operator) {
-      case "AND":
+      case 'AND':
         return condition.conditions.every((c) => this.evaluateCondition(c, row))
-      case "OR":
+      case 'OR':
         return condition.conditions.some((c) => this.evaluateCondition(c, row))
-      case "NOT":
+      case 'NOT':
         return !condition.conditions.every((c) => this.evaluateCondition(c, row))
       default:
         return true
@@ -465,7 +465,7 @@ export class QueryEngine {
 
   private evaluateExistsCondition(
     condition: {
-      type: "exists"
+      type: 'exists'
       edge: string
       direction: string
       target: string
@@ -478,11 +478,11 @@ export class QueryEngine {
 
     const edges: StoredEdge[] = []
 
-    if (condition.direction === "out" || condition.direction === "both") {
+    if (condition.direction === 'out' || condition.direction === 'both') {
       edges.push(...this.store.getOutgoingEdges(node.id, condition.edge))
     }
 
-    if (condition.direction === "in" || condition.direction === "both") {
+    if (condition.direction === 'in' || condition.direction === 'both') {
       edges.push(...this.store.getIncomingEdges(node.id, condition.edge))
     }
 
@@ -494,7 +494,7 @@ export class QueryEngine {
     const node = row.nodes.get(condition.target)
     if (!node) return false
 
-    if (condition.direction === "out") {
+    if (condition.direction === 'out') {
       // Check if there's an outgoing edge to the specified node
       const edges = this.store.getOutgoingEdges(node.id, condition.edge)
       return edges.some((edge) => edge.toId === condition.nodeId)
@@ -534,55 +534,55 @@ export class QueryEngine {
     const maxDepth = step.maxDepth ?? this.config.maxRecursionDepth
 
     switch (step.operation) {
-      case "parent": {
+      case 'parent': {
         const parent = this.getParent(sourceNode.id, step.edge, step.hierarchyDirection)
         if (parent) {
           const newRow = this.cloneContext(row)
           newRow.nodes.set(step.toAlias, parent)
-          if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", 1)
+          if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', 1)
           results.push(newRow)
         }
         break
       }
 
-      case "children": {
+      case 'children': {
         const children = this.getChildren(sourceNode.id, step.edge, step.hierarchyDirection)
         for (const child of children) {
           const newRow = this.cloneContext(row)
           newRow.nodes.set(step.toAlias, child)
-          if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", 1)
+          if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', 1)
           results.push(newRow)
         }
         break
       }
 
-      case "ancestors": {
+      case 'ancestors': {
         const visited = new Set<string>()
         // If includeSelf, add the source node at depth 0 first
         if (step.includeSelf) {
           const newRow = this.cloneContext(row)
           newRow.nodes.set(step.toAlias, sourceNode)
-          newRow.computed.set(step.depthAlias ?? "_depth", 0)
+          newRow.computed.set(step.depthAlias ?? '_depth', 0)
           results.push(newRow)
         }
         this.collectAncestors(sourceNode.id, step, row, results, visited, 1, minDepth, maxDepth)
         break
       }
 
-      case "descendants": {
+      case 'descendants': {
         const visited = new Set<string>()
         // If includeSelf, add the source node at depth 0 first
         if (step.includeSelf) {
           const newRow = this.cloneContext(row)
           newRow.nodes.set(step.toAlias, sourceNode)
-          newRow.computed.set(step.depthAlias ?? "_depth", 0)
+          newRow.computed.set(step.depthAlias ?? '_depth', 0)
           results.push(newRow)
         }
         this.collectDescendants(sourceNode.id, step, row, results, visited, 1, minDepth, maxDepth)
         break
       }
 
-      case "siblings": {
+      case 'siblings': {
         const parent = this.getParent(sourceNode.id, step.edge, step.hierarchyDirection)
         if (parent) {
           const siblings = this.getChildren(parent.id, step.edge, step.hierarchyDirection)
@@ -596,7 +596,7 @@ export class QueryEngine {
         break
       }
 
-      case "root": {
+      case 'root': {
         let current = sourceNode
         let depth = 0
         while (depth < maxDepth) {
@@ -607,7 +607,7 @@ export class QueryEngine {
         }
         const newRow = this.cloneContext(row)
         newRow.nodes.set(step.toAlias, current)
-        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", depth)
+        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', depth)
         results.push(newRow)
         break
       }
@@ -619,30 +619,30 @@ export class QueryEngine {
   private getParent(
     nodeId: string,
     edgeType: string,
-    direction: "up" | "down",
+    direction: 'up' | 'down',
   ): StoredNode | undefined {
     // direction 'up' means edge points from child to parent
     const edges =
-      direction === "up"
+      direction === 'up'
         ? this.store.getOutgoingEdges(nodeId, edgeType)
         : this.store.getIncomingEdges(nodeId, edgeType)
 
     const firstEdge = edges[0]
     if (!firstEdge) return undefined
 
-    const parentId = direction === "up" ? firstEdge.toId : firstEdge.fromId
+    const parentId = direction === 'up' ? firstEdge.toId : firstEdge.fromId
     return this.store.getNode(parentId)
   }
 
-  private getChildren(nodeId: string, edgeType: string, direction: "up" | "down"): StoredNode[] {
+  private getChildren(nodeId: string, edgeType: string, direction: 'up' | 'down'): StoredNode[] {
     // direction 'up' means edge points from child to parent, so children have incoming edges
     const edges =
-      direction === "up"
+      direction === 'up'
         ? this.store.getIncomingEdges(nodeId, edgeType)
         : this.store.getOutgoingEdges(nodeId, edgeType)
 
     return edges
-      .map((e) => this.store.getNode(direction === "up" ? e.fromId : e.toId))
+      .map((e) => this.store.getNode(direction === 'up' ? e.fromId : e.toId))
       .filter((n): n is StoredNode => n !== undefined)
   }
 
@@ -669,7 +669,7 @@ export class QueryEngine {
     if (depth >= minDepth && matchesKind) {
       const newRow = this.cloneContext(row)
       newRow.nodes.set(step.toAlias, parent)
-      if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", depth)
+      if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', depth)
       results.push(newRow)
 
       // If untilKind is specified and we found a match, stop traversing
@@ -699,7 +699,7 @@ export class QueryEngine {
       if (depth >= minDepth) {
         const newRow = this.cloneContext(row)
         newRow.nodes.set(step.toAlias, child)
-        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", depth)
+        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', depth)
         results.push(newRow)
       }
 
@@ -722,7 +722,7 @@ export class QueryEngine {
       if (step.includeSelf) {
         const newRow = this.cloneContext(row)
         newRow.nodes.set(step.toAlias, sourceNode)
-        newRow.computed.set(step.depthAlias ?? "_depth", 0)
+        newRow.computed.set(step.depthAlias ?? '_depth', 0)
         results.push(newRow)
       }
 
@@ -749,28 +749,28 @@ export class QueryEngine {
   ): void {
     if (depth > maxDepth) return
 
-    if (step.uniqueness === "nodes" && visited.has(nodeId)) return
+    if (step.uniqueness === 'nodes' && visited.has(nodeId)) return
     visited.add(nodeId)
 
     const edges: StoredEdge[] = []
 
-    if (step.direction === "out" || step.direction === "both") {
+    if (step.direction === 'out' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         edges.push(...this.store.getOutgoingEdges(nodeId, edgeType))
       }
     }
 
-    if (step.direction === "in" || step.direction === "both") {
+    if (step.direction === 'in' || step.direction === 'both') {
       for (const edgeType of step.edges) {
         edges.push(...this.store.getIncomingEdges(nodeId, edgeType))
       }
     }
 
     for (const edge of edges) {
-      if (step.uniqueness === "edges" && visited.has(edge.id)) continue
-      if (step.uniqueness === "edges") visited.add(edge.id)
+      if (step.uniqueness === 'edges' && visited.has(edge.id)) continue
+      if (step.uniqueness === 'edges') visited.add(edge.id)
 
-      const nextId = step.direction === "in" ? edge.fromId : edge.toId
+      const nextId = step.direction === 'in' ? edge.fromId : edge.toId
       const nextNode = this.store.getNode(nextId)
 
       if (!nextNode) continue
@@ -778,7 +778,7 @@ export class QueryEngine {
       if (depth >= minDepth) {
         const newRow = this.cloneContext(row)
         newRow.nodes.set(step.toAlias, nextNode)
-        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? "_depth", depth)
+        if (step.includeDepth) newRow.computed.set(step.depthAlias ?? '_depth', depth)
         results.push(newRow)
       }
 
@@ -797,19 +797,19 @@ export class QueryEngine {
         const nodeB = b.nodes.get(field.target)
 
         const valueA = nodeA
-          ? field.field === "id"
+          ? field.field === 'id'
             ? nodeA.id
             : nodeA.properties[field.field]
           : undefined
         const valueB = nodeB
-          ? field.field === "id"
+          ? field.field === 'id'
             ? nodeB.id
             : nodeB.properties[field.field]
           : undefined
 
         const comparison = this.compareValues(valueA, valueB)
         if (comparison !== 0) {
-          return field.direction === "DESC" ? -comparison : comparison
+          return field.direction === 'DESC' ? -comparison : comparison
         }
       }
       return 0
@@ -821,11 +821,11 @@ export class QueryEngine {
     if (a === undefined || a === null) return -1
     if (b === undefined || b === null) return 1
 
-    if (typeof a === "string" && typeof b === "string") {
+    if (typeof a === 'string' && typeof b === 'string') {
       return a.localeCompare(b)
     }
 
-    if (typeof a === "number" && typeof b === "number") {
+    if (typeof a === 'number' && typeof b === 'number') {
       return a - b
     }
 
@@ -853,7 +853,7 @@ export class QueryEngine {
       const key = Array.from(row.nodes.values())
         .map((n) => n.id)
         .sort()
-        .join("|")
+        .join('|')
 
       if (!seen.has(key)) {
         seen.add(key)
@@ -888,9 +888,9 @@ export class QueryEngine {
       const key = step.groupBy
         .map((g) => {
           const node = row.nodes.get(g.alias)
-          return node ? String(node.properties[g.field] ?? node.id) : ""
+          return node ? String(node.properties[g.field] ?? node.id) : ''
         })
-        .join("|")
+        .join('|')
 
       if (!groups.has(key)) {
         groups.set(key, [])
@@ -917,11 +917,11 @@ export class QueryEngine {
   }
 
   private computeAggregation(
-    agg: AggregateStep["aggregations"][number],
+    agg: AggregateStep['aggregations'][number],
     rows: ResultRow[],
   ): unknown {
     switch (agg.function) {
-      case "count": {
+      case 'count': {
         if (agg.distinct) {
           const values = new Set<unknown>()
           for (const row of rows) {
@@ -937,26 +937,26 @@ export class QueryEngine {
         return rows.length
       }
 
-      case "sum": {
+      case 'sum': {
         let sum = 0
         for (const row of rows) {
           if (agg.sourceAlias && agg.field) {
             const node = row.nodes.get(agg.sourceAlias)
             const value = node?.properties[agg.field]
-            if (typeof value === "number") sum += value
+            if (typeof value === 'number') sum += value
           }
         }
         return sum
       }
 
-      case "avg": {
+      case 'avg': {
         let sum = 0
         let count = 0
         for (const row of rows) {
           if (agg.sourceAlias && agg.field) {
             const node = row.nodes.get(agg.sourceAlias)
             const value = node?.properties[agg.field]
-            if (typeof value === "number") {
+            if (typeof value === 'number') {
               sum += value
               count++
             }
@@ -965,13 +965,13 @@ export class QueryEngine {
         return count > 0 ? sum / count : null
       }
 
-      case "min": {
+      case 'min': {
         let min: number | null = null
         for (const row of rows) {
           if (agg.sourceAlias && agg.field) {
             const node = row.nodes.get(agg.sourceAlias)
             const value = node?.properties[agg.field]
-            if (typeof value === "number" && (min === null || value < min)) {
+            if (typeof value === 'number' && (min === null || value < min)) {
               min = value
             }
           }
@@ -979,13 +979,13 @@ export class QueryEngine {
         return min
       }
 
-      case "max": {
+      case 'max': {
         let max: number | null = null
         for (const row of rows) {
           if (agg.sourceAlias && agg.field) {
             const node = row.nodes.get(agg.sourceAlias)
             const value = node?.properties[agg.field]
-            if (typeof value === "number" && (max === null || value > max)) {
+            if (typeof value === 'number' && (max === null || value > max)) {
               max = value
             }
           }
@@ -993,7 +993,7 @@ export class QueryEngine {
         return max
       }
 
-      case "collect": {
+      case 'collect': {
         const values: unknown[] = []
         for (const row of rows) {
           if (agg.sourceAlias && agg.field) {
@@ -1045,35 +1045,35 @@ export class QueryEngine {
 
         for (const branchStep of branch.steps) {
           // Skip the initial match step (it's the same as the source node)
-          if (branchStep.type === "match" || branchStep.type === "matchById") {
+          if (branchStep.type === 'match' || branchStep.type === 'matchById') {
             continue
           }
 
           // Skip alias steps that just register the source alias
-          if (branchStep.type === "alias" && branchStep.internalAlias === step.sourceAlias) {
+          if (branchStep.type === 'alias' && branchStep.internalAlias === step.sourceAlias) {
             continue
           }
 
           // Skip where steps that filter on the source node (already filtered)
-          if (branchStep.type === "where") {
+          if (branchStep.type === 'where') {
             const allConditionsOnSource = branchStep.conditions.every(
-              (c) => c.type === "comparison" && c.target === step.sourceAlias,
+              (c) => c.type === 'comparison' && c.target === step.sourceAlias,
             )
             if (allConditionsOnSource) continue
           }
 
           // Skip steps that were already executed before the fork (hierarchy, orderBy, limit, skip)
           if (
-            branchStep.type === "hierarchy" ||
-            branchStep.type === "orderBy" ||
-            branchStep.type === "limit" ||
-            branchStep.type === "skip"
+            branchStep.type === 'hierarchy' ||
+            branchStep.type === 'orderBy' ||
+            branchStep.type === 'limit' ||
+            branchStep.type === 'skip'
           ) {
             continue
           }
 
           // For traversals in fork branches, treat them as optional
-          if (branchStep.type === "traversal") {
+          if (branchStep.type === 'traversal') {
             const optionalStep = { ...branchStep, optional: true }
             branchRows = this.executeStep(optionalStep, branchRows)
           } else {
@@ -1153,12 +1153,12 @@ export class QueryEngine {
    */
   private resolveUserAlias(ast: QueryAST, userAlias: string): string | undefined {
     // If ast has the method (class instance), use it
-    if (typeof ast.resolveUserAlias === "function") {
+    if (typeof ast.resolveUserAlias === 'function') {
       return ast.resolveUserAlias(userAlias)
     }
-    // Otherwise, treat as plain JSON object
-    const userAliases = (ast as any).userAliases
-    if (userAliases && typeof userAliases === "object") {
+    // Otherwise, treat as plain JSON object (serialized AST)
+    const userAliases = (ast as unknown as { userAliases?: Record<string, string> }).userAliases
+    if (userAliases && typeof userAliases === 'object') {
       return userAliases[userAlias]
     }
     return undefined
@@ -1170,12 +1170,13 @@ export class QueryEngine {
    */
   private resolveEdgeUserAlias(ast: QueryAST, userAlias: string): string | undefined {
     // If ast has the method (class instance), use it
-    if (typeof ast.resolveEdgeUserAlias === "function") {
+    if (typeof ast.resolveEdgeUserAlias === 'function') {
       return ast.resolveEdgeUserAlias(userAlias)
     }
-    // Otherwise, treat as plain JSON object
-    const edgeUserAliases = (ast as any).edgeUserAliases
-    if (edgeUserAliases && typeof edgeUserAliases === "object") {
+    // Otherwise, treat as plain JSON object (serialized AST)
+    const edgeUserAliases = (ast as unknown as { edgeUserAliases?: Record<string, string> })
+      .edgeUserAliases
+    if (edgeUserAliases && typeof edgeUserAliases === 'object') {
       return edgeUserAliases[userAlias]
     }
     return undefined
@@ -1193,12 +1194,12 @@ export class QueryEngine {
     }
 
     // Handle aggregate results
-    if (projection.type === "aggregate") {
+    if (projection.type === 'aggregate') {
       return rows.map((row) => Object.fromEntries(row.computed))
     }
 
     // Handle multi-node projection (including fork with collect)
-    if (projection.type === "multiNode") {
+    if (projection.type === 'multiNode') {
       const hasCollect =
         projection.collectAliases && Object.keys(projection.collectAliases).length > 0
 
@@ -1215,7 +1216,7 @@ export class QueryEngine {
 
         for (const row of rows) {
           const primaryNode = primaryInternalAlias ? row.nodes.get(primaryInternalAlias) : undefined
-          const groupKey = primaryNode?.id ?? "_no_primary"
+          const groupKey = primaryNode?.id ?? '_no_primary'
 
           if (!groupedRows.has(groupKey)) {
             groupedRows.set(groupKey, [])
@@ -1310,7 +1311,7 @@ export class QueryEngine {
               const nodeData = this.nodeToResult(node, projection.fields?.[userAlias])
               // Include computed values (like _depth) in node results
               for (const [key, value] of row.computed) {
-                if (key.startsWith("_")) {
+                if (key.startsWith('_')) {
                   ;(nodeData as Record<string, unknown>)[key] = value
                 }
               }
@@ -1350,7 +1351,7 @@ export class QueryEngine {
 
       // Include depth if requested
       if (projection.includeDepth) {
-        const depth = row.computed.get("depth")
+        const depth = row.computed.get('depth')
         if (depth !== undefined) {
           ;(nodeData as Record<string, unknown>).depth = depth
         }
@@ -1371,7 +1372,7 @@ export class QueryEngine {
 
     const result: Record<string, unknown> = {}
     for (const field of fields) {
-      if (field === "id") {
+      if (field === 'id') {
         result.id = node.id
       } else if (field in node.properties) {
         result[field] = node.properties[field]

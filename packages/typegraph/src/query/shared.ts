@@ -5,9 +5,9 @@
  * This avoids code duplication while keeping types simple.
  */
 
-import type { QueryAST } from "../ast"
-import type { AnySchema, EdgeTypes } from "../schema"
-import type { HierarchyTraversalOptions, ReachableOptions } from "./traits"
+import type { QueryAST } from '../ast'
+import type { AnySchema, EdgeTypes } from '../schema'
+import type { HierarchyTraversalOptions, ReachableOptions } from './traits'
 
 // =============================================================================
 // HIERARCHY HELPERS
@@ -17,21 +17,21 @@ export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: Edge
   if (edge) return edge as string
   const hierarchy = schema.hierarchy
   if (!hierarchy?.defaultEdge) {
-    throw new Error("No hierarchy edge specified and schema has no default hierarchy configuration")
+    throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
   }
   return hierarchy.defaultEdge
 }
 
-export function getHierarchyDirection<S extends AnySchema>(schema: S): "up" | "down" {
+export function getHierarchyDirection<S extends AnySchema>(schema: S): 'up' | 'down' {
   const hierarchy = schema.hierarchy
-  return hierarchy?.direction ?? "up"
+  return hierarchy?.direction ?? 'up'
 }
 
 export function parseHierarchyArgs<S extends AnySchema>(
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
   options?: HierarchyTraversalOptions,
 ): [EdgeTypes<S> | undefined, HierarchyTraversalOptions | undefined] {
-  if (typeof edgeOrOptions === "string") {
+  if (typeof edgeOrOptions === 'string') {
     return [edgeOrOptions as EdgeTypes<S>, options]
   }
   return [undefined, edgeOrOptions as HierarchyTraversalOptions | undefined]
@@ -52,7 +52,7 @@ export function addAncestors<S extends AnySchema>(
   const direction = getHierarchyDirection(schema)
 
   return ast.addHierarchy({
-    operation: "ancestors",
+    operation: 'ancestors',
     edge: resolvedEdge,
     hierarchyDirection: direction,
     minDepth: opts?.minDepth,
@@ -74,13 +74,13 @@ export function addSelfAndAncestors<S extends AnySchema>(
   const direction = getHierarchyDirection(schema)
 
   return ast.addHierarchy({
-    operation: "ancestors",
+    operation: 'ancestors',
     edge: resolvedEdge,
     hierarchyDirection: direction,
     minDepth: opts?.minDepth ?? 0, // Start from 0 to include self
     maxDepth: opts?.maxDepth,
     includeDepth: true, // Always include depth for selfAndAncestors
-    depthAlias: opts?.depthAlias ?? "_depth",
+    depthAlias: opts?.depthAlias ?? '_depth',
     includeSelf: true,
     untilKind: opts?.untilKind,
   })
@@ -98,7 +98,7 @@ export function addDescendants<S extends AnySchema>(
 
   // Pass the actual schema direction - the compiler handles the traversal logic
   return ast.addHierarchy({
-    operation: "descendants",
+    operation: 'descendants',
     edge: resolvedEdge,
     hierarchyDirection: direction,
     minDepth: opts?.minDepth,
@@ -108,35 +108,47 @@ export function addDescendants<S extends AnySchema>(
   })
 }
 
-export function addSiblings<S extends AnySchema>(ast: QueryAST, schema: S, edge?: EdgeTypes<S>): QueryAST {
+export function addSiblings<S extends AnySchema>(
+  ast: QueryAST,
+  schema: S,
+  edge?: EdgeTypes<S>,
+): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
 
   return ast.addHierarchy({
-    operation: "siblings",
+    operation: 'siblings',
     edge: resolvedEdge,
     hierarchyDirection: direction,
   })
 }
 
-export function addChildren<S extends AnySchema>(ast: QueryAST, schema: S, edge?: EdgeTypes<S>): QueryAST {
+export function addChildren<S extends AnySchema>(
+  ast: QueryAST,
+  schema: S,
+  edge?: EdgeTypes<S>,
+): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
 
   // Pass the actual schema direction - the compiler handles the traversal logic
   return ast.addHierarchy({
-    operation: "children",
+    operation: 'children',
     edge: resolvedEdge,
     hierarchyDirection: direction,
   })
 }
 
-export function addRoot<S extends AnySchema>(ast: QueryAST, schema: S, edge?: EdgeTypes<S>): QueryAST {
+export function addRoot<S extends AnySchema>(
+  ast: QueryAST,
+  schema: S,
+  edge?: EdgeTypes<S>,
+): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
 
   return ast.addHierarchy({
-    operation: "root",
+    operation: 'root',
     edge: resolvedEdge,
     hierarchyDirection: direction,
   })
@@ -146,20 +158,23 @@ export function addParent<S extends AnySchema>(
   ast: QueryAST,
   schema: S,
   edge?: EdgeTypes<S>,
-): { ast: QueryAST; cardinality: "one" | "optional" | "many" } {
+): { ast: QueryAST; cardinality: 'one' | 'optional' | 'many' } {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
 
   const newAst = ast.addHierarchy({
-    operation: "parent",
+    operation: 'parent',
     edge: resolvedEdge,
     hierarchyDirection: direction,
   })
 
-  const edgeDef = (schema.edges as any)[resolvedEdge]
-  const cardinality = direction === "up" ? edgeDef?.cardinality?.outbound : edgeDef?.cardinality?.inbound
+  const edgeDef = (
+    schema.edges as Record<string, { cardinality?: { outbound?: string; inbound?: string } }>
+  )[resolvedEdge]
+  const cardinality =
+    direction === 'up' ? edgeDef?.cardinality?.outbound : edgeDef?.cardinality?.inbound
 
-  return { ast: newAst, cardinality: cardinality ?? "optional" }
+  return { ast: newAst, cardinality: cardinality ?? 'optional' }
 }
 
 // =============================================================================
@@ -175,7 +190,7 @@ export function addReachable<S extends AnySchema>(
 
   return ast.addReachable({
     edges: edgeArray as string[],
-    direction: options?.direction ?? "out",
+    direction: options?.direction ?? 'out',
     minDepth: options?.minDepth,
     maxDepth: options?.maxDepth,
     includeDepth: options?.includeDepth,
@@ -193,12 +208,12 @@ export function addSelfAndReachable<S extends AnySchema>(
 
   return ast.addReachable({
     edges: edgeArray as string[],
-    direction: options?.direction ?? "out",
+    direction: options?.direction ?? 'out',
     minDepth: 0, // Start from 0 to include self
     maxDepth: options?.maxDepth,
     includeDepth: true, // Always include depth for selfAndReachable
-    depthAlias: options?.depthAlias ?? "_depth",
-    uniqueness: options?.uniqueness ?? "nodes",
+    depthAlias: options?.depthAlias ?? '_depth',
+    uniqueness: options?.uniqueness ?? 'nodes',
     includeSelf: true,
   })
 }

@@ -6,15 +6,19 @@
  * Base error for all graph query errors.
  */
 export class GraphQueryError extends Error {
-  public override readonly cause?: Error;
+  public override readonly cause?: Error
 
   constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = 'GraphQueryError';
-    this.cause = cause;
+    super(message)
+    this.name = 'GraphQueryError'
+    this.cause = cause
 
-    if (typeof (Error as any).captureStackTrace === 'function') {
-      (Error as any).captureStackTrace(this, this.constructor);
+    // V8-specific stack trace capture (not in TypeScript's lib)
+    if (typeof (Error as { captureStackTrace?: unknown }).captureStackTrace === 'function') {
+      ;(Error as { captureStackTrace: (target: Error, ctor: unknown) => void }).captureStackTrace(
+        this,
+        this.constructor,
+      )
     }
   }
 }
@@ -28,10 +32,10 @@ export class SchemaValidationError extends GraphQueryError {
     message: string,
     public readonly field?: string,
     public readonly expected?: string,
-    public readonly received?: unknown
+    public readonly received?: unknown,
   ) {
-    super(message);
-    this.name = 'SchemaValidationError';
+    super(message)
+    this.name = 'SchemaValidationError'
   }
 }
 
@@ -42,12 +46,12 @@ export class SchemaValidationError extends GraphQueryError {
 export class CardinalityError extends GraphQueryError {
   constructor(
     public readonly expected: 'one' | 'optional',
-    public readonly actual: number
+    public readonly actual: number,
   ) {
     super(
-      `Cardinality error: expected ${expected === 'one' ? 'exactly one' : 'at most one'} result, got ${actual}`
-    );
-    this.name = 'CardinalityError';
+      `Cardinality error: expected ${expected === 'one' ? 'exactly one' : 'at most one'} result, got ${actual}`,
+    )
+    this.name = 'CardinalityError'
   }
 }
 
@@ -58,15 +62,12 @@ export class CardinalityError extends GraphQueryError {
 export class NotFoundError extends GraphQueryError {
   constructor(
     public readonly nodeLabel?: string,
-    public readonly nodeId?: string
+    public readonly nodeId?: string,
   ) {
-    const details = nodeLabel && nodeId
-      ? ` (${nodeLabel} with id ${nodeId})`
-      : nodeLabel
-        ? ` (${nodeLabel})`
-        : '';
-    super(`Node not found${details}`);
-    this.name = 'NotFoundError';
+    const details =
+      nodeLabel && nodeId ? ` (${nodeLabel} with id ${nodeId})` : nodeLabel ? ` (${nodeLabel})` : ''
+    super(`Node not found${details}`)
+    this.name = 'NotFoundError'
   }
 }
 
@@ -78,10 +79,10 @@ export class ConnectionError extends GraphQueryError {
   constructor(
     message: string,
     public readonly uri?: string,
-    cause?: Error
+    cause?: Error,
   ) {
-    super(message, cause);
-    this.name = 'ConnectionError';
+    super(message, cause)
+    this.name = 'ConnectionError'
   }
 }
 
@@ -93,10 +94,10 @@ export class CompilationError extends GraphQueryError {
   constructor(
     message: string,
     public readonly step?: string,
-    cause?: Error
+    cause?: Error,
   ) {
-    super(message, cause);
-    this.name = 'CompilationError';
+    super(message, cause)
+    this.name = 'CompilationError'
   }
 }
 
@@ -109,10 +110,10 @@ export class ExecutionError extends GraphQueryError {
     message: string,
     public readonly cypher?: string,
     public readonly params?: Record<string, unknown>,
-    cause?: Error
+    cause?: Error,
   ) {
-    super(message, cause);
-    this.name = 'ExecutionError';
+    super(message, cause)
+    this.name = 'ExecutionError'
   }
 }
 
@@ -123,10 +124,10 @@ export class ExecutionError extends GraphQueryError {
 export class TimeoutError extends GraphQueryError {
   constructor(
     public readonly timeoutMs: number,
-    public readonly cypher?: string
+    public readonly cypher?: string,
   ) {
-    super(`Query timed out after ${timeoutMs}ms`);
-    this.name = 'TimeoutError';
+    super(`Query timed out after ${timeoutMs}ms`)
+    this.name = 'TimeoutError'
   }
 }
 
@@ -138,10 +139,9 @@ export class AliasError extends GraphQueryError {
   constructor(
     message: string,
     public readonly alias: string,
-    public readonly availableAliases?: string[]
+    public readonly availableAliases?: string[],
   ) {
-    super(message);
-    this.name = 'AliasError';
+    super(message)
+    this.name = 'AliasError'
   }
 }
-

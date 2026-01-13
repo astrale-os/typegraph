@@ -7,7 +7,6 @@
  */
 
 import type {
-  SchemaDefinition,
   AnySchema,
   ExecutorConfig,
   QueryExecutor,
@@ -15,11 +14,11 @@ import type {
   TransactionRunner,
   IdGenerator,
   QueryAST,
-} from "@astrale/typegraph"
-import { type GraphQuery, createGraphWithExecutors, defaultIdGenerator } from "@astrale/typegraph"
-import { GraphStore, type StoredNode, type StoredEdge } from "./store"
-import { QueryEngine, type QueryEngineConfig } from "./engine"
-import { InMemoryTemplates } from "./templates"
+} from '@astrale/typegraph'
+import { type GraphQuery, createGraphWithExecutors, defaultIdGenerator } from '@astrale/typegraph'
+import { GraphStore, type StoredNode, type StoredEdge } from './store'
+import { QueryEngine, type QueryEngineConfig } from './engine'
+import { InMemoryTemplates } from './templates'
 
 /**
  * Configuration for in-memory graph.
@@ -96,7 +95,7 @@ class InMemoryQueryExecutor implements QueryExecutor {
     // This path is for backwards compatibility and simple queries
 
     // Check if this is a simple node-by-id query we can handle directly
-    if (params?.id && query.includes("WHERE") && query.includes(".id =")) {
+    if (params?.id && query.includes('WHERE') && query.includes('.id =')) {
       const id = params.id as string
       const node = this.store.getNode(id)
       if (node) {
@@ -115,7 +114,7 @@ class InMemoryQueryExecutor implements QueryExecutor {
       let filteredNodes = nodes
 
       // Handle simple WHERE id = $p0 or WHERE n.id = $p0
-      if (params && query.includes("WHERE")) {
+      if (params && query.includes('WHERE')) {
         const paramKeys = Object.keys(params)
         for (const key of paramKeys) {
           if (query.includes(`.id = $${key}`) || query.includes(`id = $${key}`)) {
@@ -128,7 +127,7 @@ class InMemoryQueryExecutor implements QueryExecutor {
       // Handle LIMIT
       const limitMatch = query.match(/LIMIT\s+(\d+)/i)
       if (limitMatch) {
-        const limit = parseInt(limitMatch[1] ?? "0", 10)
+        const limit = parseInt(limitMatch[1] ?? '0', 10)
         filteredNodes = filteredNodes.slice(0, limit)
       }
 
@@ -150,10 +149,10 @@ class InMemoryQueryExecutor implements QueryExecutor {
     const operation = params.operation as string
 
     switch (operation) {
-      case "getAncestorPath": {
+      case 'getAncestorPath': {
         // Get the path from a node to root via hierarchy edge (label-agnostic)
         const nodeId = params.nodeId as string
-        const edgeType = (params.edgeType as string) ?? "hasParent"
+        const edgeType = (params.edgeType as string) ?? 'hasParent'
 
         const path: Array<{ id: string }> = []
         const visited = new Set<string>()
@@ -191,7 +190,7 @@ class InMemoryMutationExecutor implements MutationExecutor {
 
   async run<T>(query: string, params: Record<string, unknown>): Promise<T[]> {
     // Parse the INMEM command
-    if (!query.startsWith("INMEM:")) {
+    if (!query.startsWith('INMEM:')) {
       throw new Error(`In-memory mutation executor expects INMEM commands, got: ${query}`)
     }
 
@@ -211,41 +210,41 @@ class InMemoryMutationExecutor implements MutationExecutor {
     const allParams = { ...command.params, ...params }
 
     switch (command.type) {
-      case "createNode": {
-        if (command.hierarchy === "createChild") {
+      case 'createNode': {
+        if (command.hierarchy === 'createChild') {
           return this.createChild<T>(command.label!, command.edgeType!, allParams)
         }
         return this.createNode<T>(command.label!, allParams, command.upsert)
       }
 
-      case "updateNode":
+      case 'updateNode':
         return this.updateNode<T>(allParams)
 
-      case "deleteNode": {
-        if (command.hierarchy === "deleteSubtree") {
+      case 'deleteNode': {
+        if (command.hierarchy === 'deleteSubtree') {
           return this.deleteSubtree<T>(allParams, command.edgeType!)
         }
         return this.deleteNode<T>(allParams)
       }
 
-      case "createEdge":
+      case 'createEdge':
         return this.createEdge<T>(command.edgeType!, allParams)
 
-      case "updateEdge": {
-        if (command.hierarchy === "move") {
+      case 'updateEdge': {
+        if (command.hierarchy === 'move') {
           return this.moveNode<T>(allParams, command.edgeType!)
         }
         return this.updateEdge<T>(command.edgeType!, allParams)
       }
 
-      case "deleteEdge": {
+      case 'deleteEdge': {
         if (command.byEndpoints) {
           return this.deleteEdgeByEndpoints<T>(command.edgeType!, allParams)
         }
         return this.deleteEdgeById<T>(allParams)
       }
 
-      case "query":
+      case 'query':
         return this.executeQuery<T>(command, allParams)
 
       default:
@@ -458,19 +457,19 @@ class InMemoryMutationExecutor implements MutationExecutor {
     const operation = params.operation ?? command.params.operation
 
     switch (operation) {
-      case "getById": {
+      case 'getById': {
         const id = params.id as string
         const node = this.store.getNode(id)
         return node ? [{ id: node.id, ...node.properties } as T] : []
       }
 
-      case "edgeExists": {
+      case 'edgeExists': {
         const fromId = params.fromId as string
         const toId = params.toId as string
         return [this.store.hasEdge(fromId, toId, command.edgeType) as unknown as T]
       }
 
-      case "getParent": {
+      case 'getParent': {
         const nodeId = params.nodeId as string
         const edges = this.store.getOutgoingEdges(nodeId, command.edgeType)
         if (edges.length === 0 || edges[0]?.toId === undefined) return []
@@ -478,7 +477,7 @@ class InMemoryMutationExecutor implements MutationExecutor {
         return parent ? [{ id: parent.id, ...parent.properties } as T] : []
       }
 
-      case "getChildren": {
+      case 'getChildren': {
         const nodeId = params.nodeId as string
         const edges = this.store.getIncomingEdges(nodeId, command.edgeType)
         return edges
@@ -487,7 +486,7 @@ class InMemoryMutationExecutor implements MutationExecutor {
           .map((n) => ({ id: n.id, ...n.properties }) as T)
       }
 
-      case "wouldCreateCycle": {
+      case 'wouldCreateCycle': {
         // Check if moving nodeId under newParentId would create a cycle
         const nodeId = params.nodeId as string
         const newParentId = params.newParentId as string
@@ -510,7 +509,7 @@ class InMemoryMutationExecutor implements MutationExecutor {
         return [{ wouldCycle: false } as T]
       }
 
-      case "getSubtree": {
+      case 'getSubtree': {
         // Get all nodes in a subtree starting from rootId, following hierarchy edge
         // Returns nodes with their depth from root and labels, ordered by depth (root first)
         const rootId = params.rootId as string
@@ -555,7 +554,7 @@ class InMemoryMutationExecutor implements MutationExecutor {
         return results as T[]
       }
 
-      case "getAncestorPath": {
+      case 'getAncestorPath': {
         // Get the path from a node to root via hierarchy edge (label-agnostic)
         // Returns array of node IDs: [nodeId, parentId, grandparentId, ...]
         const nodeId = params.nodeId as string
@@ -658,33 +657,34 @@ export function createInMemoryGraph<S extends AnySchema>(
 
   const graph = createGraphWithExecutors(schema, graphConfig) as unknown as InMemoryGraph<S>
 
-  // Add in-memory specific methods
-  ;(graph as any).getStore = () => store
-  ;(graph as any).clear = () => store.clear()
-  ;(graph as any).export = () => store.export()
-  ;(graph as any).import = (data: { nodes: StoredNode[]; edges: StoredEdge[] }) =>
-    store.import(data)
-  ;(graph as any).stats = () => store.stats()
-  ;(graph as any).getAncestorPathSync = (nodeId: string, edgeType?: string): string[] => {
-    const edge = edgeType ?? schema.hierarchy?.defaultEdge ?? "hasParent"
-    const path: string[] = []
-    const visited = new Set<string>()
-    let current: string | undefined = nodeId
+  // Add in-memory specific methods via type-safe extension
+  const inMemoryExtensions = {
+    getStore: () => store,
+    clear: () => store.clear(),
+    export: () => store.export(),
+    import: (data: { nodes: StoredNode[]; edges: StoredEdge[] }) => store.import(data),
+    stats: () => store.stats(),
+    getAncestorPathSync: (nodeId: string, edgeType?: string): string[] => {
+      const edge = edgeType ?? schema.hierarchy?.defaultEdge ?? 'hasParent'
+      const path: string[] = []
+      const visited = new Set<string>()
+      let current: string | undefined = nodeId
 
-    while (current && !visited.has(current)) {
-      const node = store.getNode(current)
-      if (!node) break
+      while (current && !visited.has(current)) {
+        const node = store.getNode(current)
+        if (!node) break
 
-      path.push(current)
-      visited.add(current)
+        path.push(current)
+        visited.add(current)
 
-      // Get parent via outgoing hierarchy edge
-      const parentEdges = store.getOutgoingEdges(current, edge)
-      current = parentEdges[0]?.toId
-    }
+        // Get parent via outgoing hierarchy edge
+        const parentEdges = store.getOutgoingEdges(current, edge)
+        current = parentEdges[0]?.toId
+      }
 
-    return path
+      return path
+    },
   }
 
-  return graph
+  return Object.assign(graph, inMemoryExtensions)
 }

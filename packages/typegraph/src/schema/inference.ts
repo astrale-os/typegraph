@@ -5,8 +5,8 @@
  * These enable the fluent API to provide full type safety.
  */
 
-import { type z } from "zod"
-import type { AnySchema, NodeDefinition, EdgeDefinition, Cardinality } from "./types"
+import { type z } from 'zod'
+import type { AnySchema, NodeDefinition, EdgeDefinition, Cardinality } from './types'
 
 // =============================================================================
 // BASE ENTITY TYPE (Implicit ID)
@@ -38,7 +38,7 @@ export interface BaseEdgeProps {
  * @example
  * NodeLabels<typeof schema> // 'user' | 'post' | 'comment'
  */
-export type NodeLabels<S extends AnySchema> = keyof S["nodes"] & string
+export type NodeLabels<S extends AnySchema> = keyof S['nodes'] & string
 
 /**
  * Extract all edge types from a schema.
@@ -46,7 +46,7 @@ export type NodeLabels<S extends AnySchema> = keyof S["nodes"] & string
  * @example
  * EdgeTypes<typeof schema> // 'authored' | 'likes' | 'commentedOn'
  */
-export type EdgeTypes<S extends AnySchema> = keyof S["edges"] & string
+export type EdgeTypes<S extends AnySchema> = keyof S['edges'] & string
 
 // =============================================================================
 // PROPERTY EXTRACTION
@@ -60,7 +60,7 @@ export type EdgeTypes<S extends AnySchema> = keyof S["edges"] & string
  * NodeProps<typeof schema, 'user'> // { id: string; email: string; name: string; }
  */
 export type NodeProps<S extends AnySchema, N extends NodeLabels<S>> =
-  S["nodes"][N] extends NodeDefinition<infer TProps>
+  S['nodes'][N] extends NodeDefinition<infer TProps>
     ? BaseNodeProps & z.infer<z.ZodObject<TProps>>
     : never
 
@@ -72,7 +72,8 @@ export type NodeProps<S extends AnySchema, N extends NodeLabels<S>> =
  * EdgeProps<typeof schema, 'friendOf'> // { id: string; since: Date; closeness: 'close' | 'acquaintance'; }
  */
 export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>> =
-  S["edges"][E] extends EdgeDefinition<any, any, infer TProps>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? BaseEdgeProps & z.infer<z.ZodObject<TProps>>
     : never
 
@@ -80,13 +81,14 @@ export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>> =
  * Extract only the user-defined properties (excluding implicit `id`).
  */
 export type NodeUserProps<S extends AnySchema, N extends NodeLabels<S>> =
-  S["nodes"][N] extends NodeDefinition<infer TProps> ? z.infer<z.ZodObject<TProps>> : never
+  S['nodes'][N] extends NodeDefinition<infer TProps> ? z.infer<z.ZodObject<TProps>> : never
 
 /**
  * Extract only the user-defined edge properties (excluding implicit `id`).
  */
 export type EdgeUserProps<S extends AnySchema, E extends EdgeTypes<S>> =
-  S["edges"][E] extends EdgeDefinition<any, any, infer TProps>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? z.infer<z.ZodObject<TProps>>
     : never
 
@@ -116,7 +118,7 @@ export type NormalizeEdgeEndpoint<T> = T extends readonly (infer U)[] ? U : T
  * OutgoingEdges<typeof schema, 'user'> // 'authored' | 'likes' | 'friendOf'
  */
 export type OutgoingEdges<S extends AnySchema, N extends NodeLabels<S>> = {
-  [E in EdgeTypes<S>]: N extends NormalizeEdgeEndpoint<S["edges"][E]["from"]> ? E : never
+  [E in EdgeTypes<S>]: N extends NormalizeEdgeEndpoint<S['edges'][E]['from']> ? E : never
 }[EdgeTypes<S>]
 
 /**
@@ -127,7 +129,7 @@ export type OutgoingEdges<S extends AnySchema, N extends NodeLabels<S>> = {
  * IncomingEdges<typeof schema, 'post'> // 'authored' | 'likes'
  */
 export type IncomingEdges<S extends AnySchema, N extends NodeLabels<S>> = {
-  [E in EdgeTypes<S>]: N extends NormalizeEdgeEndpoint<S["edges"][E]["to"]> ? E : never
+  [E in EdgeTypes<S>]: N extends NormalizeEdgeEndpoint<S['edges'][E]['to']> ? E : never
 }[EdgeTypes<S>]
 
 /**
@@ -146,7 +148,7 @@ export type ConnectedEdges<S extends AnySchema, N extends NodeLabels<S>> =
  * EdgeTarget<typeof schema, 'created'> // 'post' | 'comment' (polymorphic)
  */
 export type EdgeTarget<S extends AnySchema, E extends EdgeTypes<S>> = NormalizeEdgeEndpoint<
-  S["edges"][E]["to"]
+  S['edges'][E]['to']
 > &
   NodeLabels<S>
 
@@ -158,7 +160,7 @@ export type EdgeTarget<S extends AnySchema, E extends EdgeTypes<S>> = NormalizeE
  * EdgeSource<typeof schema, 'authored'> // 'user'
  */
 export type EdgeSource<S extends AnySchema, E extends EdgeTypes<S>> = NormalizeEdgeEndpoint<
-  S["edges"][E]["from"]
+  S['edges'][E]['from']
 > &
   NodeLabels<S>
 
@@ -171,8 +173,8 @@ export type EdgeSource<S extends AnySchema, E extends EdgeTypes<S>> = NormalizeE
  * EdgeTargetsFrom<Schema, 'created', 'user'> // 'post' | 'comment'
  */
 export type EdgeTargetsFrom<S extends AnySchema, E extends EdgeTypes<S>, N extends NodeLabels<S>> =
-  N extends NormalizeEdgeEndpoint<S["edges"][E]["from"]>
-    ? NormalizeEdgeEndpoint<S["edges"][E]["to"]> & NodeLabels<S>
+  N extends NormalizeEdgeEndpoint<S['edges'][E]['from']>
+    ? NormalizeEdgeEndpoint<S['edges'][E]['to']> & NodeLabels<S>
     : never
 
 /**
@@ -184,8 +186,8 @@ export type EdgeTargetsFrom<S extends AnySchema, E extends EdgeTypes<S>, N exten
  * EdgeSourcesTo<Schema, 'created', 'post'> // 'user' | 'admin'
  */
 export type EdgeSourcesTo<S extends AnySchema, E extends EdgeTypes<S>, N extends NodeLabels<S>> =
-  N extends NormalizeEdgeEndpoint<S["edges"][E]["to"]>
-    ? NormalizeEdgeEndpoint<S["edges"][E]["from"]> & NodeLabels<S>
+  N extends NormalizeEdgeEndpoint<S['edges'][E]['to']>
+    ? NormalizeEdgeEndpoint<S['edges'][E]['from']> & NodeLabels<S>
     : never
 
 /**
@@ -198,7 +200,7 @@ export type EdgeSourcesTo<S extends AnySchema, E extends EdgeTypes<S>, N extends
 export type EdgeOutboundCardinality<
   S extends AnySchema,
   E extends EdgeTypes<S>,
-> = S["edges"][E]["cardinality"]["outbound"]
+> = S['edges'][E]['cardinality']['outbound']
 
 /**
  * Get the inbound cardinality of an edge (affects .from() return type).
@@ -210,7 +212,7 @@ export type EdgeOutboundCardinality<
 export type EdgeInboundCardinality<
   S extends AnySchema,
   E extends EdgeTypes<S>,
-> = S["edges"][E]["cardinality"]["inbound"]
+> = S['edges'][E]['cardinality']['inbound']
 
 /**
  * @deprecated Use EdgeOutboundCardinality instead
@@ -299,7 +301,7 @@ export type CardinalityToBuilder<
   SingleType,
   OptionalType,
   CollectionType,
-> = C extends "one" ? SingleType : C extends "optional" ? OptionalType : CollectionType
+> = C extends 'one' ? SingleType : C extends 'optional' ? OptionalType : CollectionType
 
 // =============================================================================
 // FULL SCHEMA INFERENCE
@@ -388,9 +390,9 @@ export type HierarchyChildren<
 > =
   ResolveHierarchyEdgeType<S, E> extends infer RE
     ? RE extends EdgeTypes<S>
-      ? S extends { hierarchy: { direction: "up" } }
+      ? S extends { hierarchy: { direction: 'up' } }
         ? EdgeSourcesTo<S, RE, N> // Children have edge FROM them TO parent
-        : S extends { hierarchy: { direction: "down" } }
+        : S extends { hierarchy: { direction: 'down' } }
           ? EdgeTargetsFrom<S, RE, N> // Children have edge FROM parent TO them
           : EdgeSourcesTo<S, RE, N> // Default to 'up' direction
       : never
@@ -408,9 +410,9 @@ export type HierarchyParent<
 > =
   ResolveHierarchyEdgeType<S, E> extends infer RE
     ? RE extends EdgeTypes<S>
-      ? S extends { hierarchy: { direction: "up" } }
+      ? S extends { hierarchy: { direction: 'up' } }
         ? EdgeTargetsFrom<S, RE, N> // Parent is target of edge FROM child
-        : S extends { hierarchy: { direction: "down" } }
+        : S extends { hierarchy: { direction: 'down' } }
           ? EdgeSourcesTo<S, RE, N> // Parent is source of edge TO child
           : EdgeTargetsFrom<S, RE, N> // Default to 'up' direction
       : never
