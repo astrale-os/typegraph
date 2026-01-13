@@ -586,7 +586,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
         const nodeLabel = labelMapping[node.id]
         if (!newId || !nodeLabel) continue
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         
         const { id: _id, ...nodeData } = node
 
         // Apply transform if provided

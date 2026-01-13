@@ -4,9 +4,9 @@
  * Represents edge-centric queries where edges are the primary focus.
  */
 
-import { CollectionBuilder } from "./collection"
+import { type CollectionBuilder } from "./collection"
 import { ReturningBuilder } from "./returning"
-import { QueryAST } from "../ast"
+import { type QueryAST } from "../ast"
 import { CypherCompiler } from "../compiler"
 import type { ComparisonOperator, WhereCondition } from "../ast"
 import type { AnySchema, EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from "../schema"

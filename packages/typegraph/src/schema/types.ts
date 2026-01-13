@@ -8,7 +8,7 @@
  * This is not declared in properties but is always present and indexed.
  */
 
-import { z } from "zod"
+import { type z } from "zod"
 
 // =============================================================================
 // PROPERTY TYPES

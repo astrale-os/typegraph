@@ -8,7 +8,7 @@ import { z } from "zod"
 import { defineSchema, node, edge } from "../../src/schema/builders"
 import { ConnectionManager } from "../../src/executor/connection"
 import { QueryExecutor } from "../../src/executor/executor"
-import { GraphQuery, createGraph } from "../../src/query/entry"
+import { type GraphQuery, createGraph } from "../../src/query/entry"
 import type { MutationExecutor, TransactionRunner } from "../../src/mutation/mutations"
 
 // =============================================================================

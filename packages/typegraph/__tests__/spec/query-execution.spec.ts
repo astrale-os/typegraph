@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { testSchema } from "./fixtures/test-schema"
-import { createGraph, QueryExecutor, CardinalityError, ExecutionError } from "../../src"
+import { createGraph, type QueryExecutor, CardinalityError, ExecutionError } from "../../src"
 
 describe("Query Execution", () => {
   let mockExecutor: QueryExecutor

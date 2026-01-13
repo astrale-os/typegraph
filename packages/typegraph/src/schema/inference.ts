@@ -5,7 +5,7 @@
  * These enable the fluent API to provide full type safety.
  */
 
-import { z } from "zod"
+import { type z } from "zod"
 import type { AnySchema, NodeDefinition, EdgeDefinition, Cardinality } from "./types"
 
 // =============================================================================

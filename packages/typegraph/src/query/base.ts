@@ -4,7 +4,7 @@
  * Shared foundation for all builder types.
  */
 
-import { QueryAST } from "../ast"
+import { type QueryAST } from "../ast"
 import { CypherCompiler } from "../compiler"
 import type { CompiledQuery } from "../compiler"
 import type { AnySchema, NodeLabels } from "../schema"

@@ -5,7 +5,7 @@
  * Validates node/edge data and schema constraints.
  */
 
-import { z } from "zod"
+import { type z } from "zod"
 import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"
 import { ValidationError } from "./errors"
 

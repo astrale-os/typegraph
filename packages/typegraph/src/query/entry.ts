@@ -6,7 +6,7 @@
 
 import { CollectionBuilder } from "./collection"
 import { SingleNodeBuilder } from "./single-node"
-import { PathBuilder } from "./path"
+import { type PathBuilder } from "./path"
 import { EdgeBuilder } from "./edge"
 import { QueryAST, createEdgeProjection } from "../ast"
 import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"

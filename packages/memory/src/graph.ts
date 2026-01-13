@@ -16,7 +16,7 @@ import type {
   IdGenerator,
   QueryAST,
 } from "@astrale/typegraph"
-import { GraphQuery, createGraphWithExecutors, defaultIdGenerator } from "@astrale/typegraph"
+import { type GraphQuery, createGraphWithExecutors, defaultIdGenerator } from "@astrale/typegraph"
 import { GraphStore, type StoredNode, type StoredEdge } from "./store"
 import { QueryEngine, type QueryEngineConfig } from "./engine"
 import { InMemoryTemplates } from "./templates"

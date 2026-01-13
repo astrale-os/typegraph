@@ -4,7 +4,7 @@
  * Applies optimization passes to the AST before compilation.
  */
 
-import { QueryAST } from '../ast';
+import { type QueryAST } from '../ast';
 import { ASTTransformer } from '../ast/visitor';
 import type { SchemaDefinition } from '../schema';
 import type { ASTNode } from '../ast';

@@ -65,7 +65,7 @@ export type ExtractCollectSpecs<T extends Array<unknown>> = T extends [infer Fir
 
 // Direct imports - using index to avoid circular dependency issues at runtime
 import { SingleNodeBuilder } from "./single-node"
-import { OptionalNodeBuilder } from "./optional-node"
+import { type OptionalNodeBuilder } from "./optional-node"
 import { ReturningBuilder } from "./returning"
 
 /**

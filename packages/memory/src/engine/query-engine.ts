@@ -287,7 +287,7 @@ export class QueryEngine {
       }
 
       // Continue traversal
-      let edges: StoredEdge[] = []
+      const edges: StoredEdge[] = []
 
       if (step.direction === "out" || step.direction === "both") {
         for (const edgeType of step.edges) {
@@ -316,7 +316,7 @@ export class QueryEngine {
     }
 
     // Start traversal from source (depth 0 doesn't count as a hop)
-    let initialEdges: StoredEdge[] = []
+    const initialEdges: StoredEdge[] = []
 
     if (step.direction === "out" || step.direction === "both") {
       for (const edgeType of step.edges) {
@@ -476,7 +476,7 @@ export class QueryEngine {
     const node = row.nodes.get(condition.target)
     if (!node) return condition.negated
 
-    let edges: StoredEdge[] = []
+    const edges: StoredEdge[] = []
 
     if (condition.direction === "out" || condition.direction === "both") {
       edges.push(...this.store.getOutgoingEdges(node.id, condition.edge))
@@ -752,7 +752,7 @@ export class QueryEngine {
     if (step.uniqueness === "nodes" && visited.has(nodeId)) return
     visited.add(nodeId)
 
-    let edges: StoredEdge[] = []
+    const edges: StoredEdge[] = []
 
     if (step.direction === "out" || step.direction === "both") {
       for (const edgeType of step.edges) {
