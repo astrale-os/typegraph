@@ -50,8 +50,9 @@ export interface QueryCompilerConfig {
 
 /**
  * Extended connection config with mutation options.
+ * URI is optional when executors are provided directly.
  */
-export interface GraphConfig extends ConnectionConfig {
+export interface GraphConfig extends Partial<ConnectionConfig> {
   /** Custom ID generator for mutations */
   idGenerator?: IdGenerator
   /** Query executor (provided by database adapter) */

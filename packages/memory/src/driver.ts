@@ -16,8 +16,8 @@ import type {
   QuerySummary,
   TransactionContext,
   ConnectionMetrics,
-} from "@astrale/typegraph"
-import { GraphStore } from "./store"
+} from '@astrale/typegraph'
+import { GraphStore } from './store'
 
 /**
  * In-memory command types for mutations.
@@ -25,13 +25,13 @@ import { GraphStore } from "./store"
  */
 export interface InMemoryCommand {
   type:
-    | "createNode"
-    | "updateNode"
-    | "deleteNode"
-    | "createEdge"
-    | "updateEdge"
-    | "deleteEdge"
-    | "query"
+    | 'createNode'
+    | 'updateNode'
+    | 'deleteNode'
+    | 'createEdge'
+    | 'updateEdge'
+    | 'deleteEdge'
+    | 'query'
   label?: string
   edgeType?: string
   params: Record<string, unknown>
@@ -43,7 +43,7 @@ export interface InMemoryCommand {
 function parseCommand(query: string): InMemoryCommand | null {
   try {
     // Our template provider returns JSON commands prefixed with "INMEM:"
-    if (query.startsWith("INMEM:")) {
+    if (query.startsWith('INMEM:')) {
       return JSON.parse(query.slice(6)) as InMemoryCommand
     }
     return null
@@ -58,7 +58,7 @@ function parseCommand(query: string): InMemoryCommand | null {
  * Executes commands directly against a GraphStore instance.
  */
 export class InMemoryDriver implements DatabaseDriverProvider {
-  readonly name = "in-memory"
+  readonly name = 'in-memory'
   private connected = false
 
   constructor(private readonly store: GraphStore) {}
@@ -95,8 +95,8 @@ export class InMemoryDriver implements DatabaseDriverProvider {
       resultAvailableAfter: endTime - startTime,
       resultConsumedAfter: endTime - startTime,
       server: {
-        version: "in-memory-1.0.0",
-        address: "memory://localhost",
+        version: 'in-memory-1.0.0',
+        address: 'memory://localhost',
       },
     }
 
@@ -105,7 +105,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
 
   async transaction<T>(
     work: (tx: TransactionContext) => Promise<T>,
-    _mode?: "read" | "write",
+    _mode?: 'read' | 'write',
   ): Promise<T> {
     this.store.beginTransaction()
 
@@ -149,19 +149,19 @@ export class InMemoryDriver implements DatabaseDriverProvider {
    */
   private executeCommand<T>(command: InMemoryCommand, params: Record<string, unknown>): T[] {
     switch (command.type) {
-      case "createNode":
+      case 'createNode':
         return this.executeCreateNode<T>(command, params)
-      case "updateNode":
+      case 'updateNode':
         return this.executeUpdateNode<T>(command, params)
-      case "deleteNode":
+      case 'deleteNode':
         return this.executeDeleteNode<T>(command, params)
-      case "createEdge":
+      case 'createEdge':
         return this.executeCreateEdge<T>(command, params)
-      case "updateEdge":
+      case 'updateEdge':
         return this.executeUpdateEdge<T>(command, params)
-      case "deleteEdge":
+      case 'deleteEdge':
         return this.executeDeleteEdge<T>(command, params)
-      case "query":
+      case 'query':
         return this.executeQuery<T>(command, params)
       default:
         throw new Error(`Unknown command type: ${(command as InMemoryCommand).type}`)
@@ -185,7 +185,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
     return [{ id, ...props } as T]
   }
 
-  private executeUpdateNode<T>(command: InMemoryCommand, params: Record<string, unknown>): T[] {
+  private executeUpdateNode<T>(_command: unknown, params: Record<string, unknown>): T[] {
     const id = params.id as string
     const props = params.props as Record<string, unknown>
 
@@ -277,7 +277,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
     // Handle batch operations
     const batch = (command as InMemoryCommand & { batch?: string | boolean }).batch
 
-    if (batch === "unlinkAllFrom") {
+    if (batch === 'unlinkAllFrom') {
       const fromId = params.from as string
       const edgeType = command.edgeType!
       const edges = this.store.getOutgoingEdges(fromId, edgeType)
@@ -289,7 +289,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
       return [{ deleted } as T]
     }
 
-    if (batch === "unlinkAllTo") {
+    if (batch === 'unlinkAllTo') {
       const toId = params.to as string
       const edgeType = command.edgeType!
       const edges = this.store.getIncomingEdges(toId, edgeType)
@@ -328,32 +328,32 @@ export class InMemoryDriver implements DatabaseDriverProvider {
     const operation = params.operation as string
 
     switch (operation) {
-      case "getById": {
+      case 'getById': {
         const id = params.id as string
         const node = this.store.getNode(id)
         if (!node) return []
         return [{ id: node.id, ...node.properties } as T]
       }
 
-      case "getByLabel": {
+      case 'getByLabel': {
         const label = command.label!
         const nodes = this.store.getNodesByLabel(label)
         return nodes.map((n) => ({ id: n.id, ...n.properties }) as T)
       }
 
-      case "exists": {
+      case 'exists': {
         const id = params.id as string
         return [this.store.hasNode(id) as unknown as T]
       }
 
-      case "edgeExists": {
+      case 'edgeExists': {
         const fromId = params.fromId as string
         const toId = params.toId as string
         const type = command.edgeType
         return [this.store.hasEdge(fromId, toId, type) as unknown as T]
       }
 
-      case "getParent": {
+      case 'getParent': {
         const nodeId = params.nodeId as string
         const edgeType = command.edgeType!
         const edges = this.store.getOutgoingEdges(nodeId, edgeType)
@@ -364,7 +364,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
         return [{ parentId: parent.id } as T]
       }
 
-      case "getChildren": {
+      case 'getChildren': {
         const nodeId = params.nodeId as string
         const edgeType = command.edgeType!
         const edges = this.store.getIncomingEdges(nodeId, edgeType)
@@ -374,7 +374,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
           .map((n) => ({ id: n.id, ...n.properties }) as T)
       }
 
-      case "getSubtree": {
+      case 'getSubtree': {
         const rootId = params.rootId as string
         const edgeType = command.edgeType!
         const results: T[] = []
@@ -408,7 +408,7 @@ export class InMemoryDriver implements DatabaseDriverProvider {
         )
       }
 
-      case "wouldCreateCycle": {
+      case 'wouldCreateCycle': {
         const nodeId = params.nodeId as string
         const newParentId = params.newParentId as string
         const edgeType = command.edgeType!

@@ -174,7 +174,7 @@ export function addParent<S extends AnySchema>(
   const cardinality =
     direction === 'up' ? edgeDef?.cardinality?.outbound : edgeDef?.cardinality?.inbound
 
-  return { ast: newAst, cardinality: cardinality ?? 'optional' }
+  return { ast: newAst, cardinality: (cardinality ?? 'optional') as 'one' | 'many' | 'optional' }
 }
 
 // =============================================================================
