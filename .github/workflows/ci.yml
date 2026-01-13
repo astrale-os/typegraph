@@ -15,7 +15,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astrale-os/config/.github/actions/ci@main
+      - uses: astrale-os/config/.github/actions/setup@main
+
+      # Build packages first (required for inter-package dependencies)
+      - name: Build packages
+        run: pnpm build
+
+      # Now run checks
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
 
   commitlint:
     runs-on: ubuntu-latest
