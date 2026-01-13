@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.3...typegraph-adapter-memory-v0.2.4) (2026-01-13)
+
+
+### Bug Fixes
+
+* **memory:** use ^0 version constraint for typegraph dependency ([7399ca3](https://github.com/astrale-os/typegraph/commit/7399ca32cb9650846a847443f56c7d67f0e7fb1d))
+* sync jsr.json versions with package.json ([fb9e3ff](https://github.com/astrale-os/typegraph/commit/fb9e3fff56ce8a7e5b06a42f9735a22d8ff19c3a))
+
 ## [0.2.3](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.2...typegraph-adapter-memory-v0.2.3) (2026-01-13)
 
 
