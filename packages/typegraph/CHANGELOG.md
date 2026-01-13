@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/astrale-os/typegraph/compare/typegraph-v0.2.0...typegraph-v0.2.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* add license field to jsr.json files ([b658a49](https://github.com/astrale-os/typegraph/commit/b658a496a44c6bdf385984ba04c431bed5d25a08))
+
 ## [0.2.0](https://github.com/astrale-os/typegraph/compare/typegraph-v0.1.1...typegraph-v0.2.0) (2026-01-13)
 
 
