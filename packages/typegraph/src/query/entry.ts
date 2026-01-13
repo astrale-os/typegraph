@@ -4,21 +4,21 @@
  * Main entry class for building graph queries and mutations.
  */
 
-import { CollectionBuilder } from "./collection"
-import { SingleNodeBuilder } from "./single-node"
-import { type PathBuilder } from "./path"
-import { EdgeBuilder } from "./edge"
-import { QueryAST, createEdgeProjection } from "../ast"
-import type { AnySchema, NodeLabels, EdgeTypes } from "../schema"
-import type { ConnectionConfig } from "../executor"
+import { CollectionBuilder } from './collection'
+import { SingleNodeBuilder } from './single-node'
+import { type PathBuilder } from './path'
+import { EdgeBuilder } from './edge'
+import { QueryAST, createEdgeProjection } from '../ast'
+import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import type { ConnectionConfig } from '../executor'
 import type {
   GraphMutations,
   IdGenerator,
   MutationTemplateProvider,
   MutationExecutor,
-} from "../mutation"
-import { GraphMutationsImpl } from "../mutation"
-import type { QueryCompilerProvider } from "../compiler"
+} from '../mutation'
+import { GraphMutationsImpl } from '../mutation'
+import type { QueryCompilerProvider } from '../compiler'
 
 /**
  * Interface for executing raw queries.
@@ -103,14 +103,12 @@ export interface ExecutorConfig {
  */
 export class GraphQuery<S extends AnySchema> {
   private readonly _schema: S
-  private readonly _config: GraphConfig
   private readonly _mutate: GraphMutations<S> | null
   private readonly _rawExecutor: RawQueryExecutor | null
   private readonly _queryExecutor: QueryExecutor | null
 
   constructor(schema: S, config: GraphConfig) {
     this._schema = schema
-    this._config = config
 
     // Initialize query executor
     this._queryExecutor = config.queryExecutor ?? null
@@ -174,7 +172,7 @@ export class GraphQuery<S extends AnySchema> {
     edgeType: E,
   ): EdgeBuilder<S, E, Record<string, never>, Record<string, never>> {
     const ast = new QueryAST()
-    const projection = createEdgeProjection("e0", "edgeCollection")
+    const projection = createEdgeProjection('e0', 'edgeCollection')
     const newAst = ast.setProjection(projection)
     return new EdgeBuilder(newAst, this._schema, edgeType, {}, {}, this._queryExecutor)
   }
@@ -196,13 +194,13 @@ export class GraphQuery<S extends AnySchema> {
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {
-      throw new Error("intersect() requires at least 2 queries")
+      throw new Error('intersect() requires at least 2 queries')
     }
 
     // Create a branch AST with all queries
     const baseAst = new QueryAST()
     const branchAst = baseAst.addBranch({
-      operator: "intersect",
+      operator: 'intersect',
       branches: queries.map((q) => q.ast),
       distinct: true,
     })
@@ -229,13 +227,13 @@ export class GraphQuery<S extends AnySchema> {
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {
-      throw new Error("union() requires at least 2 queries")
+      throw new Error('union() requires at least 2 queries')
     }
 
     // Create a branch AST with all queries
     const baseAst = new QueryAST()
     const branchAst = baseAst.addBranch({
-      operator: "union",
+      operator: 'union',
       branches: queries.map((q) => q.ast),
       distinct: true,
     })
@@ -256,12 +254,12 @@ export class GraphQuery<S extends AnySchema> {
     ...queries: CollectionBuilder<S, N, any>[]
   ): CollectionBuilder<S, N, Record<string, never>> {
     if (queries.length < 2) {
-      throw new Error("unionAll() requires at least 2 queries")
+      throw new Error('unionAll() requires at least 2 queries')
     }
 
     const baseAst = new QueryAST()
     const branchAst = baseAst.addBranch({
-      operator: "union",
+      operator: 'union',
       branches: queries.map((q) => q.ast),
       distinct: false, // UNION ALL
     })
@@ -280,9 +278,9 @@ export class GraphQuery<S extends AnySchema> {
     from: { label: NFrom; id: string }
     to: { label: NTo; id: string }
     via: E
-    direction?: "out" | "in" | "both"
+    direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -296,9 +294,9 @@ export class GraphQuery<S extends AnySchema> {
     from: { label: NFrom; id: string }
     to: { label: NTo; id: string }
     via: E
-    direction?: "out" | "in" | "both"
+    direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -313,9 +311,9 @@ export class GraphQuery<S extends AnySchema> {
     to: { label: NTo; id: string }
     via: E
     maxHops: number
-    direction?: "out" | "in" | "both"
+    direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   /**
@@ -335,7 +333,7 @@ export class GraphQuery<S extends AnySchema> {
    */
   async raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
     if (!this._rawExecutor) {
-      throw new Error("Raw queries not available: no rawExecutor provided in config")
+      throw new Error('Raw queries not available: no rawExecutor provided in config')
     }
     return this._rawExecutor.run<T>(cypher, params)
   }
@@ -364,7 +362,7 @@ export class GraphQuery<S extends AnySchema> {
    */
   get mutate(): GraphMutations<S> {
     if (!this._mutate) {
-      throw new Error("Mutations not available: no mutationExecutor provided in config")
+      throw new Error('Mutations not available: no mutationExecutor provided in config')
     }
     return this._mutate
   }
@@ -386,8 +384,8 @@ export class GraphQuery<S extends AnySchema> {
   validateNode<N extends NodeLabels<S>>(
     _label: N,
     _data: unknown,
-  ): import("zod").SafeParseReturnType<unknown, import("../schema").NodeProps<S, N>> {
-    throw new Error("Not implemented")
+  ): import('zod').SafeParseReturnType<unknown, import('../schema').NodeProps<S, N>> {
+    throw new Error('Not implemented')
   }
 }
 
@@ -464,6 +462,6 @@ export function createGraphWithExecutors<S extends AnySchema>(
 ): GraphQuery<S> {
   return new GraphQuery(schema, {
     ...config,
-    uri: "", // Not used when executors are provided directly
+    uri: '', // Not used when executors are provided directly
   })
 }

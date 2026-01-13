@@ -5,7 +5,7 @@
  * Uses pluggable template providers for query generation.
  */
 
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from "../schema"
+import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -27,17 +27,17 @@ import type {
   LinkInput,
   BatchDeleteResult,
   UpsertResult,
-} from "./types"
-import { defaultIdGenerator } from "./types"
-import type { MutationTemplateProvider } from "./template-provider"
-import { CypherTemplates } from "./cypher"
+} from './types'
+import { defaultIdGenerator } from './types'
+import type { MutationTemplateProvider } from './template-provider'
+import { CypherTemplates } from './cypher'
 import {
   NodeNotFoundError,
   ParentNotFoundError,
   CycleDetectedError,
   SourceNotFoundError,
   EdgeNotFoundError,
-} from "./errors"
+} from './errors'
 
 // =============================================================================
 // EXECUTOR INTERFACE (to be implemented by adapter)
@@ -60,12 +60,12 @@ export interface TransactionRunner {
 // MUTATION CONFIG
 // =============================================================================
 
-import type { MutationHooks } from "./hooks"
-import { HooksRunner } from "./hooks"
-import type { ValidationOptions } from "./validation"
-import { MutationValidator, defaultValidationOptions } from "./validation"
-import type { DryRunOptions } from "./dry-run"
-import { DryRunBuilder } from "./dry-run"
+import type { MutationHooks } from './hooks'
+import { HooksRunner } from './hooks'
+import type { ValidationOptions } from './validation'
+import { MutationValidator, defaultValidationOptions } from './validation'
+import type { DryRunOptions } from './dry-run'
+import { DryRunBuilder } from './dry-run'
 
 export interface MutationConfig<S extends AnySchema = AnySchema> {
   /** ID generator (defaults to UUID-based) */
@@ -96,7 +96,6 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
   private readonly validator: MutationValidator<S>
   private readonly validationOptions: Required<ValidationOptions>
   private readonly dryRunMode: boolean
-  private readonly dryRunOptions: DryRunOptions
   private readonly dryRunBuilder: DryRunBuilder<S>
 
   constructor(schema: S, executor: MutationExecutor, config: MutationConfig<S> = {}) {
@@ -107,8 +106,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     this.hooksRunner = new HooksRunner(schema, config.hooks)
     this.validator = new MutationValidator(schema)
     this.validationOptions = { ...defaultValidationOptions, ...config.validation }
-    this.dryRunMode = typeof config.dryRun === "boolean" ? config.dryRun : !!config.dryRun
-    this.dryRunOptions = typeof config.dryRun === "object" ? config.dryRun : {}
+    this.dryRunMode = typeof config.dryRun === 'boolean' ? config.dryRun : !!config.dryRun
     this.dryRunBuilder = new DryRunBuilder(schema, this.idGenerator)
   }
 
@@ -458,7 +456,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     const result = results[0]
     if (!result) {
-      throw new NodeNotFoundError("node", nodeId)
+      throw new NodeNotFoundError('node', nodeId)
     }
 
     return {
@@ -558,7 +556,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     }>(getSubtreeQuery, { rootId: sourceRootId })
 
     if (subtreeNodes.length === 0) {
-      throw new SourceNotFoundError("node", sourceRootId)
+      throw new SourceNotFoundError('node', sourceRootId)
     }
 
     // Filter by maxDepth if specified
@@ -586,7 +584,6 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
         const nodeLabel = labelMapping[node.id]
         if (!newId || !nodeLabel) continue
 
-         
         const { id: _id, ...nodeData } = node
 
         // Apply transform if provided
@@ -650,7 +647,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     })
 
     if (!rootResult) {
-      throw new Error("Failed to clone subtree: no root created")
+      throw new Error('Failed to clone subtree: no root created')
     }
 
     return {
@@ -661,7 +658,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
   }
 
   async deleteSubtree<N extends NodeLabels<S>>(
-    label: N,
+    _label: N,
     rootId: string,
     options?: HierarchyOptions<S>,
   ): Promise<DeleteSubtreeResult> {
@@ -697,7 +694,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { items: itemsWithIds })
 
     return results.map((r, i) => ({
-      id: itemsWithIds[i]?.id ?? "",
+      id: itemsWithIds[i]?.id ?? '',
       data: r.n,
     }))
   }
@@ -734,7 +731,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     return {
       deleted: (results[0]?.deletedCount ?? 0) > 0,
-      id: ids.join(","),
+      id: ids.join(','),
     }
   }
 
@@ -760,7 +757,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     )
 
     return results.map((r, i) => ({
-      id: linksWithIds[i]?.id ?? "",
+      id: linksWithIds[i]?.id ?? '',
       from: r.fromId,
       to: r.toId,
       data: r.r,
@@ -833,7 +830,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const hierarchy = this.schema.hierarchy
     if (!hierarchy?.defaultEdge) {
       throw new Error(
-        "No hierarchy edge specified and schema has no default hierarchy configuration",
+        'No hierarchy edge specified and schema has no default hierarchy configuration',
       )
     }
     return this.sanitize(hierarchy.defaultEdge)
@@ -1038,7 +1035,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     )
 
     return results.map((r, i) => ({
-      id: linksWithIds[i]?.id ?? "",
+      id: linksWithIds[i]?.id ?? '',
       from: r.fromId,
       to: r.toId,
       data: r.r,
@@ -1109,7 +1106,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
 
     const result = results[0]
     if (!result) {
-      throw new NodeNotFoundError("node", nodeId)
+      throw new NodeNotFoundError('node', nodeId)
     }
 
     return {
@@ -1130,7 +1127,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     const hierarchy = (this.schema as any).hierarchy
     if (!hierarchy?.defaultEdge) {
       throw new Error(
-        "No hierarchy edge specified and schema has no default hierarchy configuration",
+        'No hierarchy edge specified and schema has no default hierarchy configuration',
       )
     }
     return this.sanitize(hierarchy.defaultEdge)

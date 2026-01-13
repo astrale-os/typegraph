@@ -22,8 +22,8 @@ import type {
   CursorStep,
   FirstStep,
   ReachableStep,
-} from './types';
-import type { QueryAST } from './builder';
+} from './types'
+import type { QueryAST } from './builder'
 
 /**
  * Visitor interface with a method for each AST node type.
@@ -32,21 +32,21 @@ import type { QueryAST } from './builder';
  * @template TResult - Return type of visit methods
  */
 export interface ASTVisitorInterface<TContext = void, TResult = void> {
-  visitMatch?(node: MatchStep, context: TContext): TResult;
-  visitTraversal?(node: TraversalStep, context: TContext): TResult;
-  visitWhere?(node: WhereStep, context: TContext): TResult;
-  visitAlias?(node: AliasStep, context: TContext): TResult;
-  visitBranch?(node: BranchStep, context: TContext): TResult;
-  visitPath?(node: PathStep, context: TContext): TResult;
-  visitAggregate?(node: AggregateStep, context: TContext): TResult;
-  visitOrderBy?(node: OrderByStep, context: TContext): TResult;
-  visitLimit?(node: LimitStep, context: TContext): TResult;
-  visitSkip?(node: SkipStep, context: TContext): TResult;
-  visitDistinct?(node: DistinctStep, context: TContext): TResult;
-  visitHierarchy?(node: HierarchyStep, context: TContext): TResult;
-  visitCursor?(node: CursorStep, context: TContext): TResult;
-  visitFirst?(node: FirstStep, context: TContext): TResult;
-  visitReachable?(node: ReachableStep, context: TContext): TResult;
+  visitMatch?(node: MatchStep, context: TContext): TResult
+  visitTraversal?(node: TraversalStep, context: TContext): TResult
+  visitWhere?(node: WhereStep, context: TContext): TResult
+  visitAlias?(node: AliasStep, context: TContext): TResult
+  visitBranch?(node: BranchStep, context: TContext): TResult
+  visitPath?(node: PathStep, context: TContext): TResult
+  visitAggregate?(node: AggregateStep, context: TContext): TResult
+  visitOrderBy?(node: OrderByStep, context: TContext): TResult
+  visitLimit?(node: LimitStep, context: TContext): TResult
+  visitSkip?(node: SkipStep, context: TContext): TResult
+  visitDistinct?(node: DistinctStep, context: TContext): TResult
+  visitHierarchy?(node: HierarchyStep, context: TContext): TResult
+  visitCursor?(node: CursorStep, context: TContext): TResult
+  visitFirst?(node: FirstStep, context: TContext): TResult
+  visitReachable?(node: ReachableStep, context: TContext): TResult
 }
 
 /**
@@ -54,76 +54,76 @@ export interface ASTVisitorInterface<TContext = void, TResult = void> {
  *
  * Provides default traversal behavior that can be overridden.
  */
-export abstract class ASTVisitor<TContext = void, TResult = void>
-  implements ASTVisitorInterface<TContext, TResult>
-{
-  visitMatch?(node: MatchStep, context: TContext): TResult;
-  visitTraversal?(node: TraversalStep, context: TContext): TResult;
-  visitWhere?(node: WhereStep, context: TContext): TResult;
-  visitAlias?(node: AliasStep, context: TContext): TResult;
-  visitBranch?(node: BranchStep, context: TContext): TResult;
-  visitPath?(node: PathStep, context: TContext): TResult;
-  visitAggregate?(node: AggregateStep, context: TContext): TResult;
-  visitOrderBy?(node: OrderByStep, context: TContext): TResult;
-  visitLimit?(node: LimitStep, context: TContext): TResult;
-  visitSkip?(node: SkipStep, context: TContext): TResult;
-  visitDistinct?(node: DistinctStep, context: TContext): TResult;
-  visitHierarchy?(node: HierarchyStep, context: TContext): TResult;
-  visitCursor?(node: CursorStep, context: TContext): TResult;
-  visitFirst?(node: FirstStep, context: TContext): TResult;
-  visitReachable?(node: ReachableStep, context: TContext): TResult;
+export abstract class ASTVisitor<TContext = void, TResult = void> implements ASTVisitorInterface<
+  TContext,
+  TResult
+> {
+  visitMatch?(node: MatchStep, context: TContext): TResult
+  visitTraversal?(node: TraversalStep, context: TContext): TResult
+  visitWhere?(node: WhereStep, context: TContext): TResult
+  visitAlias?(node: AliasStep, context: TContext): TResult
+  visitBranch?(node: BranchStep, context: TContext): TResult
+  visitPath?(node: PathStep, context: TContext): TResult
+  visitAggregate?(node: AggregateStep, context: TContext): TResult
+  visitOrderBy?(node: OrderByStep, context: TContext): TResult
+  visitLimit?(node: LimitStep, context: TContext): TResult
+  visitSkip?(node: SkipStep, context: TContext): TResult
+  visitDistinct?(node: DistinctStep, context: TContext): TResult
+  visitHierarchy?(node: HierarchyStep, context: TContext): TResult
+  visitCursor?(node: CursorStep, context: TContext): TResult
+  visitFirst?(node: FirstStep, context: TContext): TResult
+  visitReachable?(node: ReachableStep, context: TContext): TResult
 
   visit(node: ASTNode, context: TContext): TResult | undefined {
     switch (node.type) {
       case 'match':
-        return this.visitMatch?.(node, context);
+        return this.visitMatch?.(node, context)
       case 'traversal':
-        return this.visitTraversal?.(node, context);
+        return this.visitTraversal?.(node, context)
       case 'where':
-        return this.visitWhere?.(node, context);
+        return this.visitWhere?.(node, context)
       case 'alias':
-        return this.visitAlias?.(node, context);
+        return this.visitAlias?.(node, context)
       case 'branch':
-        return this.visitBranch?.(node, context);
+        return this.visitBranch?.(node, context)
       case 'path':
-        return this.visitPath?.(node, context);
+        return this.visitPath?.(node, context)
       case 'aggregate':
-        return this.visitAggregate?.(node, context);
+        return this.visitAggregate?.(node, context)
       case 'orderBy':
-        return this.visitOrderBy?.(node, context);
+        return this.visitOrderBy?.(node, context)
       case 'limit':
-        return this.visitLimit?.(node, context);
+        return this.visitLimit?.(node, context)
       case 'skip':
-        return this.visitSkip?.(node, context);
+        return this.visitSkip?.(node, context)
       case 'distinct':
-        return this.visitDistinct?.(node, context);
+        return this.visitDistinct?.(node, context)
       case 'hierarchy':
-        return this.visitHierarchy?.(node, context);
+        return this.visitHierarchy?.(node, context)
       case 'cursor':
-        return this.visitCursor?.(node, context);
+        return this.visitCursor?.(node, context)
       case 'first':
-        return this.visitFirst?.(node, context);
+        return this.visitFirst?.(node, context)
       case 'reachable':
-        return this.visitReachable?.(node, context);
+        return this.visitReachable?.(node, context)
+      default:
+        return undefined
     }
   }
 
   visitAll(ast: QueryAST, context: TContext): TResult[] {
-    const results: TResult[] = [];
+    const results: TResult[] = []
     for (const node of ast.steps) {
-      const result = this.visit(node, context);
+      const result = this.visit(node, context)
       if (result !== undefined) {
-        results.push(result);
+        results.push(result)
       }
     }
-    return results;
+    return results
   }
 
-  protected visitBranchChildren(
-    _node: BranchStep,
-    _context: TContext
-  ): TResult[][] {
-    throw new Error('Not implemented');
+  protected visitBranchChildren(_node: BranchStep, _context: TContext): TResult[][] {
+    throw new Error('Not implemented')
   }
 }
 
@@ -135,7 +135,6 @@ export abstract class ASTVisitor<TContext = void, TResult = void>
  */
 export abstract class ASTTransformer extends ASTVisitor<void, ASTNode | ASTNode[] | null> {
   transform(_ast: QueryAST): QueryAST {
-    throw new Error('Not implemented');
+    throw new Error('Not implemented')
   }
 }
-

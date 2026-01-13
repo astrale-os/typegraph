@@ -4,16 +4,16 @@
  * Represents a query that resolves to MULTIPLE nodes.
  */
 
-import { BaseBuilder, type QueryFragment } from "./base"
+import { BaseBuilder, type QueryFragment } from './base'
 import type {
   TraversalOptions,
   ReachableOptions,
   WhereBuilder,
   HierarchyTraversalOptions,
-} from "./traits"
-import * as shared from "./shared"
-import type { QueryAST } from "../ast"
-import { CypherCompiler } from "../compiler"
+} from './traits'
+import * as shared from './shared'
+import type { QueryAST } from '../ast'
+import { CypherCompiler } from '../compiler'
 import type {
   ComparisonOperator,
   WhereCondition,
@@ -21,7 +21,7 @@ import type {
   ExistsCondition,
   ConnectedToCondition,
   EdgeWhereCondition,
-} from "../ast"
+} from '../ast'
 import type {
   AnySchema,
   NodeLabels,
@@ -31,7 +31,7 @@ import type {
   EdgeTypes,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from "../schema"
+} from '../schema'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -39,15 +39,14 @@ import type {
   MultiEdgeSources,
   MultiEdgeBidirectional,
   HierarchyChildren,
-  HierarchyParent,
   AncestorResult,
-} from "../schema/inference"
+} from '../schema/inference'
 
 // Forward declarations
-import { GroupedBuilder } from "./grouped"
-import type { QueryExecutor } from "./entry"
-import { extractNodeFromRecord, convertNeo4jValue } from "../utils"
-import { ExecutionError } from "../errors"
+import { GroupedBuilder } from './grouped'
+import type { QueryExecutor } from './entry'
+import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
+import { ExecutionError } from '../errors'
 
 // =============================================================================
 // Type Helpers
@@ -64,9 +63,9 @@ export type ExtractCollectSpecs<T extends Array<unknown>> = T extends [infer Fir
   : Record<string, never>
 
 // Direct imports - using index to avoid circular dependency issues at runtime
-import { SingleNodeBuilder } from "./single-node"
-import { type OptionalNodeBuilder } from "./optional-node"
-import { ReturningBuilder } from "./returning"
+import { SingleNodeBuilder } from './single-node'
+import { type OptionalNodeBuilder } from './optional-node'
+import { ReturningBuilder } from './returning'
 
 /**
  * Builder for queries that return multiple nodes.
@@ -137,13 +136,13 @@ export class CollectionBuilder<
     let collectSpecs: Record<string, { collect: string; distinct?: boolean }> = {}
 
     for (const item of aliasesOrSpecs) {
-      if (typeof item === "string") {
+      if (typeof item === 'string') {
         if (item in this._aliases) {
           nodeAliases.push(item)
         } else if (item in this._edgeAliases) {
           edgeAliases.push(item)
         }
-      } else if (typeof item === "object" && item !== null) {
+      } else if (typeof item === 'object' && item !== null) {
         // This is a collect spec object
         collectSpecs = { ...collectSpecs, ...item }
       }
@@ -288,13 +287,13 @@ export class CollectionBuilder<
 
   byId(id: string): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ComparisonCondition = {
-      type: "comparison",
-      field: "id",
-      operator: "eq",
+      type: 'comparison',
+      field: 'id',
+      operator: 'eq',
       value: id,
       target: this._ast.currentAlias,
     }
-    const newAst = this._ast.addWhere([condition]).setProjectionType("node")
+    const newAst = this._ast.addWhere([condition]).setProjectionType('node')
     return new SingleNodeBuilder(
       newAst,
       this._schema,
@@ -305,7 +304,7 @@ export class CollectionBuilder<
   }
 
   first(): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
-    const newAst = this._ast.addLimit(1).setProjectionType("node")
+    const newAst = this._ast.addLimit(1).setProjectionType('node')
     return new SingleNodeBuilder(
       newAst,
       this._schema,
@@ -345,14 +344,14 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "out",
+      direction: 'out',
       toLabels,
       optional: false,
       cardinality: edgeDef.cardinality.outbound,
       edgeWhere: this.buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
       variableLength: opts?.depth
-        ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: "nodes" }
+        ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: 'nodes' }
         : undefined,
     })
 
@@ -381,10 +380,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "out",
+      direction: 'out',
       toLabels,
       optional: true,
-      cardinality: "optional",
+      cardinality: 'optional',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -412,7 +411,7 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "in",
+      direction: 'in',
       toLabels: fromLabels,
       optional: false,
       cardinality: edgeDef.cardinality.inbound,
@@ -445,10 +444,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "in",
+      direction: 'in',
       toLabels: fromLabels,
       optional: true,
-      cardinality: "optional",
+      cardinality: 'optional',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -473,10 +472,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: [edge as string],
-      direction: "both",
+      direction: 'both',
       toLabels: allLabels,
       optional: false,
-      cardinality: "many",
+      cardinality: 'many',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -507,10 +506,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: edges as unknown as string[],
-      direction: "out",
+      direction: 'out',
       toLabels: [...new Set(allLabels)],
       optional: false,
-      cardinality: "mixed",
+      cardinality: 'mixed',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -537,10 +536,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: edges as unknown as string[],
-      direction: "in",
+      direction: 'in',
       toLabels: [...new Set(allLabels)],
       optional: false,
-      cardinality: "mixed",
+      cardinality: 'mixed',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -568,10 +567,10 @@ export class CollectionBuilder<
 
     const newAst = this._ast.addTraversal({
       edges: edges as unknown as string[],
-      direction: "both",
+      direction: 'both',
       toLabels: [...new Set(allLabels)],
       optional: false,
-      cardinality: "mixed",
+      cardinality: 'mixed',
       edgeWhere: this.buildEdgeWhere(opts?.where),
     })
 
@@ -718,7 +717,7 @@ export class CollectionBuilder<
     value?: NodeProps<S, N>[K] | NodeProps<S, N>[K][],
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ComparisonCondition = {
-      type: "comparison",
+      type: 'comparison',
       field,
       operator,
       value,
@@ -751,10 +750,10 @@ export class CollectionBuilder<
 
   hasEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
-    direction: "out" | "in" | "both" = "out",
+    direction: 'out' | 'in' | 'both' = 'out',
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ExistsCondition = {
-      type: "exists",
+      type: 'exists',
       edge: edge as string,
       direction,
       target: this._ast.currentAlias,
@@ -772,10 +771,10 @@ export class CollectionBuilder<
 
   hasNoEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
-    direction: "out" | "in" | "both" = "out",
+    direction: 'out' | 'in' | 'both' = 'out',
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ExistsCondition = {
-      type: "exists",
+      type: 'exists',
       edge: edge as string,
       direction,
       target: this._ast.currentAlias,
@@ -808,9 +807,9 @@ export class CollectionBuilder<
     targetId: string,
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ConnectedToCondition = {
-      type: "connectedTo",
+      type: 'connectedTo',
       edge: edge as string,
-      direction: "out",
+      direction: 'out',
       nodeId: targetId,
       target: this._ast.currentAlias,
     }
@@ -838,9 +837,9 @@ export class CollectionBuilder<
     sourceId: string,
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const condition: ConnectedToCondition = {
-      type: "connectedTo",
+      type: 'connectedTo',
       edge: edge as string,
-      direction: "in",
+      direction: 'in',
       nodeId: sourceId,
       target: this._ast.currentAlias,
     }
@@ -860,7 +859,7 @@ export class CollectionBuilder<
 
   orderBy<K extends keyof NodeProps<S, N> & string>(
     field: K,
-    direction: "ASC" | "DESC" = "ASC",
+    direction: 'ASC' | 'DESC' = 'ASC',
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const newAst = this._ast.addOrderBy([{ field, direction, target: this._ast.currentAlias }])
     return new CollectionBuilder(
@@ -873,7 +872,7 @@ export class CollectionBuilder<
   }
 
   orderByMultiple(
-    fields: Array<{ field: keyof NodeProps<S, N> & string; direction: "ASC" | "DESC" }>,
+    fields: Array<{ field: keyof NodeProps<S, N> & string; direction: 'ASC' | 'DESC' }>,
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
     const orderFields = fields.map((f) => ({
       field: f.field,
@@ -921,11 +920,11 @@ export class CollectionBuilder<
   }
 
   after(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error("Cursor pagination not yet implemented")
+    throw new Error('Cursor pagination not yet implemented')
   }
 
   before(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error("Cursor pagination not yet implemented")
+    throw new Error('Cursor pagination not yet implemented')
   }
 
   distinct(): CollectionBuilder<S, N, Aliases, EdgeAliases> {
@@ -949,7 +948,7 @@ export class CollectionBuilder<
 
   async count(): Promise<number> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const newAst = this._ast.setCountProjection()
@@ -963,7 +962,7 @@ export class CollectionBuilder<
     if (results.length === 0) return 0
 
     const countValue = convertNeo4jValue(results[0]!.count)
-    return typeof countValue === "number" ? countValue : Number(countValue)
+    return typeof countValue === 'number' ? countValue : Number(countValue)
   }
 
   // ===========================================================================
@@ -981,7 +980,7 @@ export class CollectionBuilder<
   // ===========================================================================
 
   select<K extends keyof NodeProps<S, N> & string>(..._fields: K[]): CollectionSelector<S, N, K> {
-    throw new Error("Select not yet implemented")
+    throw new Error('Select not yet implemented')
   }
 
   // ===========================================================================
@@ -990,7 +989,7 @@ export class CollectionBuilder<
 
   async execute(): Promise<NodeProps<S, N>[]> {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -1027,11 +1026,11 @@ export class CollectionBuilder<
       endCursor: string | null
     }
   }> {
-    throw new Error("Cursor pagination not yet implemented")
+    throw new Error('Cursor pagination not yet implemented')
   }
 
   stream(): AsyncIterable<NodeProps<S, N>> {
-    throw new Error("Streaming not yet implemented")
+    throw new Error('Streaming not yet implemented')
   }
 
   // ===========================================================================
@@ -1043,7 +1042,7 @@ export class CollectionBuilder<
 
     const conditions: EdgeWhereCondition[] = []
     for (const [field, ops] of Object.entries(where)) {
-      if (typeof ops === "object" && ops !== null) {
+      if (typeof ops === 'object' && ops !== null) {
         for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
           conditions.push({ field, operator: operator as ComparisonOperator, value })
         }
@@ -1056,35 +1055,35 @@ export class CollectionBuilder<
     const target = this._ast.currentAlias
     return {
       eq: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "eq", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'eq', value, target }) as ComparisonCondition,
       neq: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "neq", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'neq', value, target }) as ComparisonCondition,
       gt: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "gt", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'gt', value, target }) as ComparisonCondition,
       gte: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "gte", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'gte', value, target }) as ComparisonCondition,
       lt: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "lt", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'lt', value, target }) as ComparisonCondition,
       lte: (field: string, value: unknown) =>
-        ({ type: "comparison", field, operator: "lte", value, target }) as ComparisonCondition,
+        ({ type: 'comparison', field, operator: 'lte', value, target }) as ComparisonCondition,
       in: (field: string, values: unknown[]) =>
         ({
-          type: "comparison",
+          type: 'comparison',
           field,
-          operator: "in",
+          operator: 'in',
           value: values,
           target,
         }) as ComparisonCondition,
       and: (...conditions: WhereCondition[]) =>
-        ({ type: "logical", operator: "AND", conditions }) as import("../ast").LogicalCondition,
+        ({ type: 'logical', operator: 'AND', conditions }) as import('../ast').LogicalCondition,
       or: (...conditions: WhereCondition[]) =>
-        ({ type: "logical", operator: "OR", conditions }) as import("../ast").LogicalCondition,
+        ({ type: 'logical', operator: 'OR', conditions }) as import('../ast').LogicalCondition,
       not: (condition: WhereCondition) =>
         ({
-          type: "logical",
-          operator: "NOT",
+          type: 'logical',
+          operator: 'NOT',
           conditions: [condition],
-        }) as import("../ast").LogicalCondition,
+        }) as import('../ast').LogicalCondition,
     } as WhereBuilder<S, N>
   }
 
@@ -1103,11 +1102,11 @@ export interface CollectionSelector<
   N extends NodeLabels<S>,
   K extends keyof NodeProps<S, N>,
 > {
-  orderBy(field: K, direction?: "ASC" | "DESC"): CollectionSelector<S, N, K>
+  orderBy(field: K, direction?: 'ASC' | 'DESC'): CollectionSelector<S, N, K>
   limit(count: number): CollectionSelector<S, N, K>
   skip(count: number): CollectionSelector<S, N, K>
   execute(): Promise<Pick<NodeProps<S, N>, K>[]>
   stream(): AsyncIterable<Pick<NodeProps<S, N>, K>>
-  compile(): import("../compiler").CompiledQuery
+  compile(): import('../compiler').CompiledQuery
   toCypher(): string
 }

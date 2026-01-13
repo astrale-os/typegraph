@@ -5,7 +5,7 @@
  * Useful for validation, debugging, and testing.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps, EdgeProps } from "../schema"
+import type { AnySchema, NodeLabels, EdgeTypes, NodeProps, EdgeProps } from '../schema'
 import type {
   NodeInput,
   EdgeInput,
@@ -15,7 +15,7 @@ import type {
   CreateOptions,
   HierarchyOptions,
   IdGenerator,
-} from "./types"
+} from './types'
 
 // =============================================================================
 // DRY RUN RESULT
@@ -87,10 +87,11 @@ export class DryRunCollector {
  * Builder for creating dry-run results.
  */
 export class DryRunBuilder<S extends AnySchema> {
-  constructor(
-    private readonly schema: S,
-    private readonly idGenerator: IdGenerator,
-  ) {}
+  private readonly idGenerator: IdGenerator
+
+  constructor(_schema: S, idGenerator: IdGenerator) {
+    this.idGenerator = idGenerator
+  }
 
   createNode<N extends NodeLabels<S>>(
     label: N,
@@ -111,7 +112,7 @@ export class DryRunBuilder<S extends AnySchema> {
   }
 
   updateNode<N extends NodeLabels<S>>(
-    label: N,
+    _label: N,
     id: string,
     data: Partial<NodeInput<S, N>>,
     query: string,
@@ -126,7 +127,7 @@ export class DryRunBuilder<S extends AnySchema> {
     }
   }
 
-  deleteNode(label: string, id: string, query: string): DryRunResult<DeleteResult> {
+  deleteNode(_label: string, id: string, query: string): DryRunResult<DeleteResult> {
     return {
       query,
       params: { id },
@@ -135,13 +136,13 @@ export class DryRunBuilder<S extends AnySchema> {
   }
 
   createEdge<E extends EdgeTypes<S>>(
-    edge: E,
+    _edge: E,
     from: string,
     to: string,
     data: EdgeInput<S, E> | undefined,
     query: string,
   ): DryRunResult<EdgeResult<S, E>> {
-    const edgeId = this.idGenerator.generate(edge as string)
+    const edgeId = this.idGenerator.generate(_edge as string)
 
     return {
       query,
@@ -155,7 +156,7 @@ export class DryRunBuilder<S extends AnySchema> {
     }
   }
 
-  deleteEdge(edge: string, from: string, to: string, query: string): DryRunResult<DeleteResult> {
+  deleteEdge(_edge: string, from: string, to: string, query: string): DryRunResult<DeleteResult> {
     return {
       query,
       params: { fromId: from, toId: to },

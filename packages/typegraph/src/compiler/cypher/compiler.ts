@@ -4,10 +4,10 @@
  * Transforms AST into Cypher query strings for Neo4j/Memgraph.
  */
 
-import type { QueryAST } from "../../ast"
-import type { SchemaDefinition } from "../../schema"
-import type { CompiledQuery, CompilerOptions } from "../types"
-import type { QueryCompilerProvider } from "../provider"
+import type { QueryAST } from '../../ast'
+import type { SchemaDefinition } from '../../schema'
+import type { CompiledQuery, CompilerOptions } from '../types'
+import type { QueryCompilerProvider } from '../provider'
 import type {
   ASTNode,
   MatchStep,
@@ -30,16 +30,15 @@ import type {
   ReachableStep,
   Projection,
   ForkStep,
-} from "../../ast"
+} from '../../ast'
 
 /**
  * Cypher compiler implementation.
  * Compiles AST to Cypher queries for Neo4j/Memgraph.
  */
 export class CypherCompiler implements QueryCompilerProvider {
-  readonly name = "cypher"
+  readonly name = 'cypher'
 
-  private schema: SchemaDefinition
   private options: CompilerOptions
 
   private params: Record<string, unknown> = {}
@@ -52,18 +51,16 @@ export class CypherCompiler implements QueryCompilerProvider {
   private aggregateStep: AggregateStep | null = null
   private hasBranchStep: boolean = false
 
-  constructor(schema?: SchemaDefinition, options: CompilerOptions = {}) {
-    this.schema = schema ?? ({} as SchemaDefinition)
+  constructor(_schema?: SchemaDefinition, options: CompilerOptions = {}) {
     this.options = {
-      paramPrefix: "p",
+      paramPrefix: 'p',
       includeComments: false,
       ...options,
     }
   }
 
-  compile(ast: QueryAST, schema?: SchemaDefinition, options?: CompilerOptions): CompiledQuery {
-    // Allow schema/options override per compile call
-    if (schema) this.schema = schema
+  compile(ast: QueryAST, _schema?: SchemaDefinition, options?: CompilerOptions): CompiledQuery {
+    // Allow options override per compile call
     if (options) this.options = { ...this.options, ...options }
 
     // Reset state
@@ -105,7 +102,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       parts.push(this.limitClause)
     }
 
-    const cypher = parts.join("\n")
+    const cypher = parts.join('\n')
 
     return {
       cypher,
@@ -128,17 +125,17 @@ export class CypherCompiler implements QueryCompilerProvider {
     let pendingWhereConditions: WhereCondition[] = []
 
     const hasConnectedTo = (conditions: WhereCondition[]) =>
-      conditions.some((c) => c.type === "connectedTo")
+      conditions.some((c) => c.type === 'connectedTo')
 
     for (const step of steps) {
-      if (step.type === "where") {
+      if (step.type === 'where') {
         // If this WhereStep has connectedTo conditions, it will produce MATCH patterns
         // which naturally separate WHERE clauses from adjacent steps.
         // Don't merge it with pending conditions - preserve the step ordering.
         if (hasConnectedTo(step.conditions)) {
           if (pendingWhereConditions.length > 0) {
             result.push({
-              type: "where",
+              type: 'where',
               conditions: [...pendingWhereConditions],
             } as WhereStep)
             pendingWhereConditions = []
@@ -151,7 +148,7 @@ export class CypherCompiler implements QueryCompilerProvider {
         // Non-WHERE step: flush pending and add the step
         if (pendingWhereConditions.length > 0) {
           result.push({
-            type: "where",
+            type: 'where',
             conditions: [...pendingWhereConditions],
           } as WhereStep)
           pendingWhereConditions = []
@@ -162,7 +159,7 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     if (pendingWhereConditions.length > 0) {
       result.push({
-        type: "where",
+        type: 'where',
         conditions: [...pendingWhereConditions],
       } as WhereStep)
     }
@@ -172,49 +169,49 @@ export class CypherCompiler implements QueryCompilerProvider {
 
   private compileStep(step: ASTNode): void {
     switch (step.type) {
-      case "match":
+      case 'match':
         this.compileMatch(step)
         break
-      case "matchById":
+      case 'matchById':
         this.compileMatchById(step)
         break
-      case "traversal":
+      case 'traversal':
         this.compileTraversal(step)
         break
-      case "where":
+      case 'where':
         this.compileWhere(step)
         break
-      case "alias":
+      case 'alias':
         // Alias steps don't generate Cypher, they're metadata
         break
-      case "branch":
+      case 'branch':
         this.compileBranch(step)
         break
-      case "path":
+      case 'path':
         this.compilePath(step)
         break
-      case "aggregate":
+      case 'aggregate':
         this.aggregateStep = step
         break
-      case "orderBy":
+      case 'orderBy':
         this.compileOrderBy(step)
         break
-      case "limit":
+      case 'limit':
         this.compileLimit(step)
         break
-      case "skip":
+      case 'skip':
         this.compileSkip(step)
         break
-      case "distinct":
+      case 'distinct':
         this.hasDistinct = true
         break
-      case "hierarchy":
+      case 'hierarchy':
         this.compileHierarchy(step)
         break
-      case "reachable":
+      case 'reachable':
         this.compileReachable(step)
         break
-      case "fork":
+      case 'fork':
         this.compileFork(step)
         break
     }
@@ -231,10 +228,10 @@ export class CypherCompiler implements QueryCompilerProvider {
 
   private compileTraversal(step: TraversalStep): void {
     const [leftArrow, rightArrow] = this.getArrow(step.direction)
-    const edgeTypes = step.edges.join("|")
+    const edgeTypes = step.edges.join('|')
 
     // Build variable length pattern if applicable
-    let lengthPattern = ""
+    let lengthPattern = ''
     if (step.variableLength) {
       const { min, max } = step.variableLength
       if (max === undefined) {
@@ -247,13 +244,13 @@ export class CypherCompiler implements QueryCompilerProvider {
     }
 
     // Build edge pattern
-    const edgeAlias = step.edgeAlias ?? ""
+    const edgeAlias = step.edgeAlias ?? ''
     const edgePattern = `[${edgeAlias}:${edgeTypes}${lengthPattern}]`
 
     // Build target label(s)
-    const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ""
+    const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ''
 
-    const matchKeyword = step.optional ? "OPTIONAL MATCH" : "MATCH"
+    const matchKeyword = step.optional ? 'OPTIONAL MATCH' : 'MATCH'
     const pattern = `(${step.fromAlias})${leftArrow}${edgePattern}${rightArrow}(${step.toAlias}${targetLabel})`
 
     this.clauses.push(`${matchKeyword} ${pattern}`)
@@ -275,7 +272,7 @@ export class CypherCompiler implements QueryCompilerProvider {
     const otherConditions: WhereCondition[] = []
 
     for (const condition of step.conditions) {
-      if (condition.type === "connectedTo") {
+      if (condition.type === 'connectedTo') {
         connectedToConditions.push(condition)
       } else {
         otherConditions.push(condition)
@@ -290,25 +287,25 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     // Compile remaining conditions as WHERE clause
     if (otherConditions.length > 0) {
-      const conditions = otherConditions.map((c) => this.compileCondition(c)).join(" AND ")
+      const conditions = otherConditions.map((c) => this.compileCondition(c)).join(' AND ')
       this.clauses.push(`WHERE ${conditions}`)
     }
   }
 
   private compileCondition(condition: WhereCondition): string {
     switch (condition.type) {
-      case "comparison":
+      case 'comparison':
         return this.compileComparisonCondition(condition)
-      case "logical":
+      case 'logical':
         return this.compileLogicalCondition(condition)
-      case "exists":
+      case 'exists':
         return this.compileExistsCondition(condition)
-      case "connectedTo":
+      case 'connectedTo':
         // ConnectedTo conditions are handled separately in compileWhere via compileConnectedToAsMatch.
         // This case should never be reached in normal usage (API doesn't expose nested connectedTo).
         throw new Error(
-          "ConnectedTo conditions inside logical operators (AND/OR/NOT) are not supported. " +
-            "Use whereConnectedTo() directly on the query builder instead.",
+          'ConnectedTo conditions inside logical operators (AND/OR/NOT) are not supported. ' +
+            'Use whereConnectedTo() directly on the query builder instead.',
         )
     }
   }
@@ -319,15 +316,15 @@ export class CypherCompiler implements QueryCompilerProvider {
     const cypherOp = this.operatorToCypher(operator)
 
     // Handle operators that don't need a value
-    if (operator === "isNull") {
+    if (operator === 'isNull') {
       return `${fieldRef} IS NULL`
     }
-    if (operator === "isNotNull") {
+    if (operator === 'isNotNull') {
       return `${fieldRef} IS NOT NULL`
     }
 
     // Handle NOT IN specially
-    if (operator === "notIn") {
+    if (operator === 'notIn') {
       const paramRef = this.addParam(value)
       return `NOT ${fieldRef} IN ${paramRef}`
     }
@@ -339,9 +336,9 @@ export class CypherCompiler implements QueryCompilerProvider {
   private compileLogicalCondition(condition: LogicalCondition): string {
     const { operator, conditions } = condition
 
-    if (operator === "NOT") {
+    if (operator === 'NOT') {
       if (conditions.length !== 1) {
-        throw new Error("NOT condition must have exactly one sub-condition")
+        throw new Error('NOT condition must have exactly one sub-condition')
       }
       return `NOT (${this.compileCondition(conditions[0]!)})`
     }
@@ -392,13 +389,13 @@ export class CypherCompiler implements QueryCompilerProvider {
         const fieldRef = `${edgeAlias}.${c.field}`
         const cypherOp = this.operatorToCypher(c.operator)
 
-        if (c.operator === "isNull") return `${fieldRef} IS NULL`
-        if (c.operator === "isNotNull") return `${fieldRef} IS NOT NULL`
+        if (c.operator === 'isNull') return `${fieldRef} IS NULL`
+        if (c.operator === 'isNotNull') return `${fieldRef} IS NOT NULL`
 
         const paramRef = this.addParam(c.value)
         return `${fieldRef} ${cypherOp} ${paramRef}`
       })
-      .join(" AND ")
+      .join(' AND ')
   }
 
   private compileHierarchy(step: HierarchyStep): void {
@@ -414,12 +411,12 @@ export class CypherCompiler implements QueryCompilerProvider {
       untilKind,
     } = step
 
-    let direction: "out" | "in"
-    if (hierarchyDirection === "up") {
+    let direction: 'out' | 'in'
+    if (hierarchyDirection === 'up') {
       direction =
-        operation === "ancestors" || operation === "parent" || operation === "root" ? "out" : "in"
+        operation === 'ancestors' || operation === 'parent' || operation === 'root' ? 'out' : 'in'
     } else {
-      direction = operation === "descendants" || operation === "children" ? "out" : "in"
+      direction = operation === 'descendants' || operation === 'children' ? 'out' : 'in'
     }
 
     const [leftArrow, rightArrow] = this.getArrow(direction)
@@ -428,15 +425,15 @@ export class CypherCompiler implements QueryCompilerProvider {
     const targetNode = untilKind ? `(${toAlias}:${untilKind})` : `(${toAlias})`
 
     switch (operation) {
-      case "parent":
-      case "children": {
+      case 'parent':
+      case 'children': {
         const pattern = `(${fromAlias})${leftArrow}[:${edge}]${rightArrow}${targetNode}`
         this.clauses.push(`MATCH ${pattern}`)
         break
       }
 
-      case "ancestors":
-      case "descendants": {
+      case 'ancestors':
+      case 'descendants': {
         // If includeSelf is true, start from 0 to include the starting node
         const min = includeSelf ? 0 : (minDepth ?? 1)
         const lengthPattern = maxDepth !== undefined ? `*${min}..${maxDepth}` : `*${min}..`
@@ -450,15 +447,15 @@ export class CypherCompiler implements QueryCompilerProvider {
         break
       }
 
-      case "siblings": {
+      case 'siblings': {
         const parentAlias = `parent_${this.paramCounter++}`
-        const pattern = `(${fromAlias})${leftArrow}[:${edge}]${rightArrow}(${parentAlias})${leftArrow === "<-" ? "<-" : "-"}[:${edge}]${leftArrow === "<-" ? "-" : "->"}${targetNode}`
+        const pattern = `(${fromAlias})${leftArrow}[:${edge}]${rightArrow}(${parentAlias})${leftArrow === '<-' ? '<-' : '-'}[:${edge}]${leftArrow === '<-' ? '-' : '->'}${targetNode}`
         this.clauses.push(`MATCH ${pattern}`)
         this.clauses.push(`WHERE ${toAlias}.id <> ${fromAlias}.id`)
         break
       }
 
-      case "root": {
+      case 'root': {
         const pattern = `(${fromAlias})${leftArrow}[:${edge}*0..]${rightArrow}${targetNode}`
         this.clauses.push(`MATCH ${pattern}`)
         this.clauses.push(`WHERE NOT (${toAlias})${leftArrow}[:${edge}]${rightArrow}()`)
@@ -470,7 +467,7 @@ export class CypherCompiler implements QueryCompilerProvider {
   private compileReachable(step: ReachableStep): void {
     const { edges, direction, fromAlias, toAlias, minDepth, maxDepth, includeSelf } = step
     const [leftArrow, rightArrow] = this.getArrow(direction)
-    const edgeTypes = edges.join("|")
+    const edgeTypes = edges.join('|')
 
     // If includeSelf is true, start from 0 to include the starting node
     const min = includeSelf ? 0 : (minDepth ?? 1)
@@ -495,7 +492,7 @@ export class CypherCompiler implements QueryCompilerProvider {
     this.hasBranchStep = true
     const { operator, branches, distinct } = step
 
-    if (operator === "union") {
+    if (operator === 'union') {
       // UNION: Each branch becomes a complete query, joined with UNION
       const branchQueries: string[] = []
 
@@ -506,33 +503,33 @@ export class CypherCompiler implements QueryCompilerProvider {
       }
 
       // Join with UNION or UNION ALL
-      const unionKeyword = distinct ? "UNION" : "UNION ALL"
+      const unionKeyword = distinct ? 'UNION' : 'UNION ALL'
       const unionQuery = branchQueries.join(`\n${unionKeyword}\n`)
 
       // Clear current clauses and replace with union query
       this.clauses = [unionQuery]
-    } else if (operator === "intersect") {
+    } else if (operator === 'intersect') {
       // INTERSECT: Cypher doesn't have native INTERSECT
       // Use WITH + pattern matching approach for simple cases
       // For each branch after the first, we add it as a pattern that must also match
 
       if (branches.length < 2) {
-        throw new Error("INTERSECT requires at least 2 branches")
+        throw new Error('INTERSECT requires at least 2 branches')
       }
 
       // Strategy: Find the node alias from first branch and ensure all branches
       // return the same nodes. Use WITH to chain the patterns.
       const branchResults: string[] = []
-      let finalNodeAlias = "n0"
+      let finalNodeAlias = 'n0'
 
       for (let i = 0; i < branches.length; i++) {
         const branchSteps = branches[i]!
         const branchClauses: string[] = []
 
         // Get the node alias from the match step
-        let nodeAlias = "n0"
+        let nodeAlias = 'n0'
         for (const bStep of branchSteps) {
-          if (bStep.type === "match") {
+          if (bStep.type === 'match') {
             nodeAlias = bStep.alias
             break
           }
@@ -543,10 +540,10 @@ export class CypherCompiler implements QueryCompilerProvider {
 
         // Compile each step in the branch
         for (const bStep of branchSteps) {
-          if (bStep.type === "match") {
+          if (bStep.type === 'match') {
             branchClauses.push(`MATCH (${bStep.alias}:${bStep.label})`)
-          } else if (bStep.type === "where") {
-            const conditions = bStep.conditions.map((c) => this.compileCondition(c)).join(" AND ")
+          } else if (bStep.type === 'where') {
+            const conditions = bStep.conditions.map((c) => this.compileCondition(c)).join(' AND ')
             branchClauses.push(`WHERE ${conditions}`)
           }
         }
@@ -556,14 +553,14 @@ export class CypherCompiler implements QueryCompilerProvider {
           branchClauses.push(`WITH ${nodeAlias}`)
         }
 
-        branchResults.push(branchClauses.join("\n"))
+        branchResults.push(branchClauses.join('\n'))
       }
 
       // Add RETURN clause at the end
       branchResults.push(`RETURN ${finalNodeAlias}`)
 
       // Clear and set the intersect query
-      this.clauses = [branchResults.join("\n")]
+      this.clauses = [branchResults.join('\n')]
     }
   }
 
@@ -572,14 +569,14 @@ export class CypherCompiler implements QueryCompilerProvider {
    */
   private compileBranchQuery(steps: ASTNode[]): string {
     const branchClauses: string[] = []
-    let nodeAlias = "n0"
+    let nodeAlias = 'n0'
 
     // Find the node alias from match step
     for (const step of steps) {
-      if (step.type === "match") {
+      if (step.type === 'match') {
         nodeAlias = step.alias
         break
-      } else if (step.type === "matchById") {
+      } else if (step.type === 'matchById') {
         nodeAlias = step.alias
         break
       }
@@ -588,26 +585,26 @@ export class CypherCompiler implements QueryCompilerProvider {
     // Compile each step
     for (const step of steps) {
       switch (step.type) {
-        case "match":
+        case 'match':
           branchClauses.push(`MATCH (${step.alias}:${step.label})`)
           break
-        case "matchById": {
+        case 'matchById': {
           const paramRef = this.addParam(step.id)
           branchClauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)
           break
         }
-        case "where": {
-          const conditions = step.conditions.map((c) => this.compileCondition(c)).join(" AND ")
+        case 'where': {
+          const conditions = step.conditions.map((c) => this.compileCondition(c)).join(' AND ')
           branchClauses.push(`WHERE ${conditions}`)
           break
         }
-        case "traversal": {
+        case 'traversal': {
           const [leftArrow, rightArrow] = this.getArrow(step.direction)
-          const edgeTypes = step.edges.join("|")
-          const edgeAlias = step.edgeAlias ?? ""
+          const edgeTypes = step.edges.join('|')
+          const edgeAlias = step.edgeAlias ?? ''
           const edgePattern = `[${edgeAlias}:${edgeTypes}]`
-          const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ""
-          const matchKeyword = step.optional ? "OPTIONAL MATCH" : "MATCH"
+          const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ''
+          const matchKeyword = step.optional ? 'OPTIONAL MATCH' : 'MATCH'
           branchClauses.push(
             `${matchKeyword} (${step.fromAlias})${leftArrow}${edgePattern}${rightArrow}(${step.toAlias}${targetLabel})`,
           )
@@ -615,7 +612,7 @@ export class CypherCompiler implements QueryCompilerProvider {
           break
         }
         // Skip alias steps - they're metadata
-        case "alias":
+        case 'alias':
           break
         // Other steps are not typically used in union branches
         default:
@@ -626,7 +623,7 @@ export class CypherCompiler implements QueryCompilerProvider {
     // Add RETURN clause
     branchClauses.push(`RETURN ${nodeAlias}`)
 
-    return branchClauses.join("\n")
+    return branchClauses.join('\n')
   }
 
   /**
@@ -637,12 +634,12 @@ export class CypherCompiler implements QueryCompilerProvider {
     for (const branch of step.branches) {
       for (const branchStep of branch.steps) {
         // Skip the initial match step (it's the same as the source node)
-        if (branchStep.type === "match" || branchStep.type === "matchById") {
+        if (branchStep.type === 'match' || branchStep.type === 'matchById') {
           continue
         }
 
         // Force optional for traversals in fork branches
-        if (branchStep.type === "traversal") {
+        if (branchStep.type === 'traversal') {
           this.compileTraversal({ ...branchStep, optional: true })
         } else {
           this.compileStep(branchStep)
@@ -657,18 +654,18 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     let pathFunc: string
     switch (algorithm) {
-      case "shortestPath":
-        pathFunc = "shortestPath"
+      case 'shortestPath':
+        pathFunc = 'shortestPath'
         break
-      case "allShortestPaths":
-        pathFunc = "allShortestPaths"
+      case 'allShortestPaths':
+        pathFunc = 'allShortestPaths'
         break
-      case "allPaths":
-        pathFunc = ""
+      case 'allPaths':
+        pathFunc = ''
         break
     }
 
-    const lengthPattern = maxHops !== undefined ? `*..${maxHops}` : "*"
+    const lengthPattern = maxHops !== undefined ? `*..${maxHops}` : '*'
 
     if (pathFunc) {
       this.clauses.push(
@@ -698,7 +695,7 @@ export class CypherCompiler implements QueryCompilerProvider {
         }
         return `${f.target}.${f.field} ${f.direction}`
       })
-      .join(", ")
+      .join(', ')
     this.orderByClause = `ORDER BY ${fields}`
   }
 
@@ -711,7 +708,7 @@ export class CypherCompiler implements QueryCompilerProvider {
   }
 
   private compileProjection(projection: Projection, ast: QueryAST): void {
-    const distinct = this.hasDistinct ? "DISTINCT " : ""
+    const distinct = this.hasDistinct ? 'DISTINCT ' : ''
 
     if (projection.countOnly) {
       const alias = projection.nodeAliases[0] ?? ast.currentAlias
@@ -730,7 +727,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       return
     }
 
-    if (projection.type === "multiNode") {
+    if (projection.type === 'multiNode') {
       const returns: string[] = []
 
       for (const userAlias of projection.nodeAliases) {
@@ -760,7 +757,7 @@ export class CypherCompiler implements QueryCompilerProvider {
         }
       }
 
-      this.clauses.push(`RETURN ${distinct}${returns.join(", ")}`)
+      this.clauses.push(`RETURN ${distinct}${returns.join(', ')}`)
       return
     }
 
@@ -768,7 +765,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       const alias = projection.nodeAliases[0] ?? ast.currentAlias
       const fields = projection.fields[alias]
       if (fields && fields.length > 0) {
-        const fieldRefs = fields.map((f) => `${alias}.${f}`).join(", ")
+        const fieldRefs = fields.map((f) => `${alias}.${f}`).join(', ')
         this.clauses.push(`RETURN ${distinct}${fieldRefs}`)
         return
       }
@@ -789,8 +786,8 @@ export class CypherCompiler implements QueryCompilerProvider {
     if (!agg) return
 
     const returns: string[] = []
-    const groupBy = "groupBy" in agg ? agg.groupBy : []
-    const aggregations = "aggregations" in agg ? agg.aggregations : []
+    const groupBy = 'groupBy' in agg ? agg.groupBy : []
+    const aggregations = 'aggregations' in agg ? agg.aggregations : []
 
     for (const g of groupBy) {
       returns.push(`${g.alias}.${g.field}`)
@@ -801,22 +798,22 @@ export class CypherCompiler implements QueryCompilerProvider {
       let expr: string
 
       switch (a.function) {
-        case "count":
+        case 'count':
           expr = a.distinct ? `count(DISTINCT ${sourceAlias})` : `count(${sourceAlias})`
           break
-        case "sum":
+        case 'sum':
           expr = `sum(${sourceAlias}.${a.field})`
           break
-        case "avg":
+        case 'avg':
           expr = `avg(${sourceAlias}.${a.field})`
           break
-        case "min":
+        case 'min':
           expr = `min(${sourceAlias}.${a.field})`
           break
-        case "max":
+        case 'max':
           expr = `max(${sourceAlias}.${a.field})`
           break
-        case "collect":
+        case 'collect':
           expr = a.distinct
             ? `collect(DISTINCT ${sourceAlias}.${a.field})`
             : `collect(${sourceAlias}.${a.field})`
@@ -828,7 +825,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       returns.push(`${expr} AS ${a.resultAlias}`)
     }
 
-    this.clauses.push(`RETURN ${returns.join(", ")}`)
+    this.clauses.push(`RETURN ${returns.join(', ')}`)
   }
 
   private addParam(value: unknown): string {
@@ -837,76 +834,76 @@ export class CypherCompiler implements QueryCompilerProvider {
     return `$${name}`
   }
 
-  private getArrow(direction: "out" | "in" | "both"): [string, string] {
+  private getArrow(direction: 'out' | 'in' | 'both'): [string, string] {
     switch (direction) {
-      case "out":
-        return ["-", "->"]
-      case "in":
-        return ["<-", "-"]
-      case "both":
-        return ["-", "-"]
+      case 'out':
+        return ['-', '->']
+      case 'in':
+        return ['<-', '-']
+      case 'both':
+        return ['-', '-']
     }
   }
 
   private operatorToCypher(op: string): string {
     const mapping: Record<string, string> = {
-      eq: "=",
-      neq: "<>",
-      gt: ">",
-      gte: ">=",
-      lt: "<",
-      lte: "<=",
-      in: "IN",
-      notIn: "NOT IN",
-      contains: "CONTAINS",
-      startsWith: "STARTS WITH",
-      endsWith: "ENDS WITH",
-      isNull: "IS NULL",
-      isNotNull: "IS NOT NULL",
+      eq: '=',
+      neq: '<>',
+      gt: '>',
+      gte: '>=',
+      lt: '<',
+      lte: '<=',
+      in: 'IN',
+      notIn: 'NOT IN',
+      contains: 'CONTAINS',
+      startsWith: 'STARTS WITH',
+      endsWith: 'ENDS WITH',
+      isNull: 'IS NULL',
+      isNotNull: 'IS NOT NULL',
     }
     return mapping[op] ?? op
   }
 
-  private inferResultType(ast: QueryAST): CompiledQuery["resultType"] {
+  private inferResultType(ast: QueryAST): CompiledQuery['resultType'] {
     const projType = ast.projection.type
     switch (projType) {
-      case "node":
-        return "single"
-      case "multiNode":
-        return "multiNode"
-      case "path":
-        return "path"
-      case "count":
-        return "scalar"
-      case "aggregate":
-        return "aggregate"
-      case "exists":
-        return "scalar"
-      case "edge":
-        return "single"
-      case "edgeCollection":
-        return "collection"
-      case "collection":
+      case 'node':
+        return 'single'
+      case 'multiNode':
+        return 'multiNode'
+      case 'path':
+        return 'path'
+      case 'count':
+        return 'scalar'
+      case 'aggregate':
+        return 'aggregate'
+      case 'exists':
+        return 'scalar'
+      case 'edge':
+        return 'single'
+      case 'edgeCollection':
+        return 'collection'
+      case 'collection':
       default:
-        return "collection"
+        return 'collection'
     }
   }
 
-  private computeMeta(ast: QueryAST): CompiledQuery["meta"] {
+  private computeMeta(ast: QueryAST): CompiledQuery['meta'] {
     let matchCount = 0
     let hasVariableLengthPath = false
     let hasAggregation = false
 
     for (const step of ast.steps) {
-      if (step.type === "match") matchCount++
-      if (step.type === "traversal") {
+      if (step.type === 'match') matchCount++
+      if (step.type === 'traversal') {
         matchCount++
         if (step.variableLength) hasVariableLengthPath = true
       }
-      if (step.type === "path") hasVariableLengthPath = true
-      if (step.type === "hierarchy") hasVariableLengthPath = true
-      if (step.type === "reachable") hasVariableLengthPath = true
-      if (step.type === "aggregate") hasAggregation = true
+      if (step.type === 'path') hasVariableLengthPath = true
+      if (step.type === 'hierarchy') hasVariableLengthPath = true
+      if (step.type === 'reachable') hasVariableLengthPath = true
+      if (step.type === 'aggregate') hasAggregation = true
     }
 
     return {
@@ -915,7 +912,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       hasAggregation,
       matchCount,
       returnAliases:
-        ast.projection.type === "multiNode"
+        ast.projection.type === 'multiNode'
           ? [...ast.projection.nodeAliases, ...ast.projection.edgeAliases]
           : undefined,
     }

@@ -5,19 +5,19 @@
  * Created by calling `.returning()` on other builders.
  */
 
-import type { QueryAST } from "../ast"
-import type { CompiledQuery } from "../compiler"
-import { CypherCompiler } from "../compiler"
-import type { AnySchema, NodeLabels, NodeProps } from "../schema"
+import type { QueryAST } from '../ast'
+import type { CompiledQuery } from '../compiler'
+import { CypherCompiler } from '../compiler'
+import type { AnySchema, NodeLabels, NodeProps } from '../schema'
 import type {
   AliasMap,
   AliasMapToReturnType,
   EdgeAliasMap,
   EdgeAliasMapToReturnType,
-} from "../schema/inference"
-import type { QueryExecutor } from "./entry"
-import { transformMultiAliasResults } from "../utils"
-import { ExecutionError } from "../errors"
+} from '../schema/inference'
+import type { QueryExecutor } from './entry'
+import { transformMultiAliasResults } from '../utils'
+import { ExecutionError } from '../errors'
 
 /**
  * Type for collect specifications.
@@ -118,37 +118,37 @@ export class ReturningBuilder<
   andAlso<NewAliases extends string>(
     ..._aliases: NewAliases[]
   ): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   orderBy<
     A extends keyof Aliases & string,
     K extends keyof NodeProps<S, Aliases[A] & NodeLabels<S>> & string,
   >(
-    alias: A,
-    field: K,
-    _direction: "ASC" | "DESC" = "ASC",
+    _alias: A,
+    _field: K,
+    _direction: 'ASC' | 'DESC' = 'ASC',
   ): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   limit(_count: number): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   skip(_count: number): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   paginate(_options: {
     page: number
     pageSize: number
   }): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   distinct(): ReturningBuilder<S, Aliases, EdgeAliases, CollectAliases> {
-    throw new Error("Not implemented")
+    throw new Error('Not implemented')
   }
 
   compile(): CompiledQuery {
@@ -172,7 +172,7 @@ export class ReturningBuilder<
     >
   > {
     if (!this._executor) {
-      throw new ExecutionError("Query execution not available: no queryExecutor provided in config")
+      throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
@@ -222,7 +222,7 @@ export class ReturningBuilder<
       EdgeAliasMapToReturnType<S, EdgeAliases> &
       CollectSpecToReturnType<S, Aliases, CollectAliases>
   > {
-    throw new Error("Streaming not yet implemented")
+    throw new Error('Streaming not yet implemented')
   }
 
   async count(): Promise<number> {
