@@ -9,15 +9,18 @@ on:
 
 permissions:
   contents: read
-  packages: write
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - packages/typegraph
+          - packages/memory
     steps:
       - uses: actions/checkout@v4
-      - uses: astrale-os/config/.github/actions/publish/npm@main
+      - uses: astrale-os/config/.github/actions/publish/jsr@main
         with:
-          scope: '@astrale'
-          access: 'restricted'
-          token: ${{ github.token }}
+          package: ${{ matrix.package }}

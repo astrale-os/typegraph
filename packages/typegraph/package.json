@@ -46,9 +46,6 @@
     "url": "git+https://github.com/astrale-os/typegraph.git",
     "directory": "packages/typegraph"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "dependencies": {
     "zod": "^3.24.1"
   },

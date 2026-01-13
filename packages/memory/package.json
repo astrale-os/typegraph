@@ -1,5 +1,5 @@
 {
-  "name": "@astrale/typegraph-memory",
+  "name": "@astrale/typegraph-adapter-memory",
   "version": "0.1.1",
   "description": "In-memory adapter for typegraph - zero infrastructure graph database",
   "type": "module",
@@ -39,9 +39,6 @@
     "type": "git",
     "url": "git+https://github.com/astrale-os/typegraph.git",
     "directory": "packages/memory"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
     "@astrale/typegraph": "workspace:*"
