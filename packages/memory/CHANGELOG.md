@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.1...typegraph-adapter-memory-v0.2.2) (2026-01-13)
+
+
+### Bug Fixes
+
+* add license field to jsr.json files ([b658a49](https://github.com/astrale-os/typegraph/commit/b658a496a44c6bdf385984ba04c431bed5d25a08))
+* **memory:** sync jsr.json version with package.json ([0b0a9ba](https://github.com/astrale-os/typegraph/commit/0b0a9ba06255c1f837d92e700bea8fd47c411c5f))
+
 ## [0.2.1](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.0...typegraph-adapter-memory-v0.2.1) (2026-01-13)
 
 
