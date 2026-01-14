@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.4...typegraph-adapter-memory-v0.2.5) (2026-01-14)
+
+
+### Bug Fixes
+
+* **memory:** update package.json to correct module and main entry points ([28fbe83](https://github.com/astrale-os/typegraph/commit/28fbe83ef1553f2748b4615f9ef470e196978131))
+
 ## [0.2.4](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.3...typegraph-adapter-memory-v0.2.4) (2026-01-13)
 
 
