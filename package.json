@@ -16,10 +16,10 @@
     "build": "pnpm -r run build",
     "clean": "pnpm -r run clean",
     "typecheck": "pnpm -r run typecheck",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "pnpm exec eslint .",
+    "lint:fix": "pnpm exec eslint . --fix",
+    "format": "pnpm exec prettier --write .",
+    "format:check": "pnpm exec prettier --check .",
     "test": "pnpm -r run test",
     "test:watch": "pnpm -r run test:watch",
     "prepare": "husky"
@@ -31,14 +31,14 @@
     "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
     "@commitlint/cli": "~20.3.1",
     "@commitlint/config-conventional": "~20.3.1",
-    "@eslint/js": "~9.27.0",
-    "eslint": "~9.27.0",
-    "eslint-config-prettier": "~10.1.0",
+    "@eslint/js": "~9.39.2",
+    "eslint": "~9.39.2",
+    "eslint-config-prettier": "~10.1.8",
     "husky": "~9.1.7",
-    "lint-staged": "~15.4.1",
-    "prettier": "~3.4.2",
-    "typescript": "5.8.3",
-    "typescript-eslint": "~8.32.0"
+    "lint-staged": "~16.2.7",
+    "prettier": "~3.8.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "~8.53.1"
   },
   "prettier": "@astrale/prettier-config",
   "lint-staged": {
@@ -46,7 +46,7 @@
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md,yml,yaml}": [
+    "*.{json,yml,yaml}": [
       "prettier --write"
     ]
   }

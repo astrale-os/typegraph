@@ -67,7 +67,7 @@
     "falkordb": "^6.4.1",
     "neo4j-driver": "^5.27.0",
     "tsup": "^8.3.5",
-    "typescript": "5.8.3",
+    "typescript": "~5.9.3",
     "vitest": "^2.1.8"
   },
   "peerDependencies": {
