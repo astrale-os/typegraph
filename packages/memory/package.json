@@ -35,7 +35,8 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "preinstall": "node .check-workspace.cjs"
   },
   "keywords": [
     "graph",

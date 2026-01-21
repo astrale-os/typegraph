@@ -12,6 +12,7 @@
     "url": "git+https://github.com/astrale-os/typegraph.git"
   },
   "scripts": {
+    "preinstall": "node .check-workspace.cjs",
     "build": "pnpm -r run build",
     "clean": "pnpm -r run clean",
     "typecheck": "pnpm -r run typecheck",
