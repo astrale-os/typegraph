@@ -37,7 +37,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:spec": "vitest run __tests__/spec",
-    "test:integration": "vitest run -c vitest.integration.config.ts"
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "preinstall": "node .check-workspace.cjs"
   },
   "keywords": [
     "graph",
