@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.6...typegraph-adapter-memory-v0.2.7) (2026-01-21)
+
+
+### Chores
+
+* update dev dependencies and use pnpm exec for scripts ([a23991b](https://github.com/astrale-os/typegraph/commit/a23991b708f9e0e4fd6829679e6fd7016408de49))
+
 ## [0.2.6](https://github.com/astrale-os/typegraph/compare/typegraph-adapter-memory-v0.2.5...typegraph-adapter-memory-v0.2.6) (2026-01-21)
 
 
