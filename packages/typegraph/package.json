@@ -1,6 +1,6 @@
 {
   "name": "@astrale/typegraph",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB)",
   "type": "module",
   "main": "./src/index.ts",
