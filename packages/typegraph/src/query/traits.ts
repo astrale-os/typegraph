@@ -71,10 +71,8 @@ export type EdgePropertyCondition<T> =
 /**
  * Options for edge traversal.
  */
-export interface TraversalOptions<
-  S extends AnySchema,
-  E extends EdgeTypes<S>,
-> extends EdgeFilterOptions<S, E> {
+export interface TraversalOptions<S extends AnySchema, E extends EdgeTypes<S>>
+  extends EdgeFilterOptions<S, E> {
   /** Minimum number of hops (default: 1) */
   minHops?: number
   /** Maximum number of hops (default: 1) */

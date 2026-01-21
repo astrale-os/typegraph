@@ -54,10 +54,9 @@ export interface ASTVisitorInterface<TContext = void, TResult = void> {
  *
  * Provides default traversal behavior that can be overridden.
  */
-export abstract class ASTVisitor<TContext = void, TResult = void> implements ASTVisitorInterface<
-  TContext,
-  TResult
-> {
+export abstract class ASTVisitor<TContext = void, TResult = void>
+  implements ASTVisitorInterface<TContext, TResult>
+{
   visitMatch?(node: MatchStep, context: TContext): TResult
   visitTraversal?(node: TraversalStep, context: TContext): TResult
   visitWhere?(node: WhereStep, context: TContext): TResult
