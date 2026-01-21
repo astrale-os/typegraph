@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4](https://github.com/astrale-os/typegraph/compare/typegraph-v0.2.3...typegraph-v0.2.4) (2026-01-21)
+
+
+### Chores
+
+* add workspace checker preinstall scripts ([0b6fbf8](https://github.com/astrale-os/typegraph/commit/0b6fbf85505fffea6a60b1304c9d4f5751437683))
+* use src paths for dev, keep dist in publishConfig ([434d0af](https://github.com/astrale-os/typegraph/commit/434d0afd757eb9fb056a3ca98d88738a88681164))
+
 ## [0.2.3](https://github.com/astrale-os/typegraph/compare/typegraph-v0.2.2...typegraph-v0.2.3) (2026-01-13)
 
 
