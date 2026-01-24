@@ -7,5 +7,12 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**'],
     testTimeout: 30000,
     hookTimeout: 30000,
+    // Run in single fork to avoid race conditions with shared external services (FalkorDB)
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
 })
