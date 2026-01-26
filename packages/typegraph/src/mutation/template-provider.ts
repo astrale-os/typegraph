@@ -29,13 +29,13 @@ export interface MutationTemplateProvider {
 }
 
 export interface NodeTemplateProvider {
-  create(label: string): string
-  update(label: string): string
-  delete(label: string): string
-  deleteKeepEdges(label: string): string
-  getById(label: string): string
-  clone(label: string): string
-  upsert(label: string): string
+  create(labels: string[]): string
+  update(labels: string[]): string
+  delete(labels: string[]): string
+  deleteKeepEdges(labels: string[]): string
+  getById(labels: string[]): string
+  clone(labels: string[]): string
+  upsert(labels: string[]): string
 }
 
 export interface EdgeTemplateProvider {
@@ -48,22 +48,22 @@ export interface EdgeTemplateProvider {
 }
 
 export interface HierarchyTemplateProvider {
-  createChild(nodeLabel: string, edgeType: string): string
+  createChild(nodeLabels: string[], edgeType: string): string
   move(edgeType: string): string
   moveOrphan(edgeType: string): string
   getParent(edgeType: string): string
   wouldCreateCycle(edgeType: string): string
   deleteSubtree(edgeType: string): string
   getSubtree(edgeType: string): string
-  cloneWithParent(nodeLabel: string, edgeType: string): string
-  clonePreserveParent(nodeLabel: string, edgeType: string): string
+  cloneWithParent(nodeLabels: string[], edgeType: string): string
+  clonePreserveParent(nodeLabels: string[], edgeType: string): string
 }
 
 export interface BatchTemplateProvider {
   // Node batch operations
-  createMany(label: string): string
-  updateMany(label: string): string
-  deleteMany(label: string): string
+  createMany(labels: string[]): string
+  updateMany(labels: string[]): string
+  deleteMany(labels: string[]): string
   // Edge batch operations
   linkMany(edgeType: string): string
   unlinkMany(edgeType: string): string

@@ -12,57 +12,58 @@ import type {
   BatchTemplateProvider,
   TemplateUtils,
 } from '../template-provider'
+import { formatLabels } from '../../schema/labels'
 
 // =============================================================================
 // NODE OPERATIONS
 // =============================================================================
 
 const nodeTemplates: NodeTemplateProvider = {
-  create: (label: string) =>
+  create: (labels: string[]) =>
     `
-    CREATE (n:${label})
+    CREATE (n${formatLabels(labels)})
     SET n = $props, n.id = $id
     RETURN n
   `.trim(),
 
-  update: (label: string) =>
+  update: (labels: string[]) =>
     `
-    MATCH (n:${label} {id: $id})
+    MATCH (n${formatLabels(labels)} {id: $id})
     SET n += $props
     RETURN n
   `.trim(),
 
-  delete: (label: string) =>
+  delete: (labels: string[]) =>
     `
-    MATCH (n:${label} {id: $id})
+    MATCH (n${formatLabels(labels)} {id: $id})
     DETACH DELETE n
     RETURN count(n) > 0 as deleted
   `.trim(),
 
-  deleteKeepEdges: (label: string) =>
+  deleteKeepEdges: (labels: string[]) =>
     `
-    MATCH (n:${label} {id: $id})
+    MATCH (n${formatLabels(labels)} {id: $id})
     DELETE n
     RETURN count(n) > 0 as deleted
   `.trim(),
 
-  getById: (label: string) =>
+  getById: (labels: string[]) =>
     `
-    MATCH (n:${label} {id: $id})
+    MATCH (n${formatLabels(labels)} {id: $id})
     RETURN n
   `.trim(),
 
-  clone: (label: string) =>
+  clone: (labels: string[]) =>
     `
-    MATCH (source:${label} {id: $sourceId})
-    CREATE (clone:${label})
+    MATCH (source${formatLabels(labels)} {id: $sourceId})
+    CREATE (clone${formatLabels(labels)})
     SET clone = properties(source), clone.id = $newId, clone += $overrides
     RETURN clone
   `.trim(),
 
-  upsert: (label: string) =>
+  upsert: (labels: string[]) =>
     `
-    MERGE (n:${label} {id: $id})
+    MERGE (n${formatLabels(labels)} {id: $id})
     ON CREATE SET n = $createProps, n.id = $id
     ON MATCH SET n += $updateProps
     RETURN n,
@@ -123,10 +124,10 @@ const edgeTemplates: EdgeTemplateProvider = {
 // =============================================================================
 
 const hierarchyTemplates: HierarchyTemplateProvider = {
-  createChild: (nodeLabel: string, edgeType: string) =>
+  createChild: (nodeLabels: string[], edgeType: string) =>
     `
     MATCH (parent {id: $parentId})
-    CREATE (child:${nodeLabel})
+    CREATE (child${formatLabels(nodeLabels)})
     SET child = $props, child.id = $id
     CREATE (child)-[:${edgeType}]->(parent)
     RETURN child
@@ -187,20 +188,20 @@ const hierarchyTemplates: HierarchyTemplateProvider = {
     ORDER BY depth
   `.trim(),
 
-  cloneWithParent: (nodeLabel: string, edgeType: string) =>
+  cloneWithParent: (nodeLabels: string[], edgeType: string) =>
     `
-    MATCH (source:${nodeLabel} {id: $sourceId})
+    MATCH (source${formatLabels(nodeLabels)} {id: $sourceId})
     MATCH (parent {id: $parentId})
-    CREATE (clone:${nodeLabel})
+    CREATE (clone${formatLabels(nodeLabels)})
     SET clone = properties(source), clone.id = $newId, clone += $overrides
     CREATE (clone)-[:${edgeType}]->(parent)
     RETURN clone
   `.trim(),
 
-  clonePreserveParent: (nodeLabel: string, edgeType: string) =>
+  clonePreserveParent: (nodeLabels: string[], edgeType: string) =>
     `
-    MATCH (source:${nodeLabel} {id: $sourceId})-[:${edgeType}]->(parent)
-    CREATE (clone:${nodeLabel})
+    MATCH (source${formatLabels(nodeLabels)} {id: $sourceId})-[:${edgeType}]->(parent)
+    CREATE (clone${formatLabels(nodeLabels)})
     SET clone = properties(source), clone.id = $newId, clone += $overrides
     CREATE (clone)-[:${edgeType}]->(parent)
     RETURN clone
@@ -213,26 +214,26 @@ const hierarchyTemplates: HierarchyTemplateProvider = {
 
 const batchTemplates: BatchTemplateProvider = {
   // Node batch operations
-  createMany: (label: string) =>
+  createMany: (labels: string[]) =>
     `
     UNWIND $items as item
-    CREATE (n:${label})
+    CREATE (n${formatLabels(labels)})
     SET n = item.props, n.id = item.id
     RETURN n
   `.trim(),
 
-  updateMany: (label: string) =>
+  updateMany: (labels: string[]) =>
     `
     UNWIND $updates as update
-    MATCH (n:${label} {id: update.id})
+    MATCH (n${formatLabels(labels)} {id: update.id})
     SET n += update.props
     RETURN n
   `.trim(),
 
-  deleteMany: (label: string) =>
+  deleteMany: (labels: string[]) =>
     `
     UNWIND $ids as nodeId
-    MATCH (n:${label} {id: nodeId})
+    MATCH (n${formatLabels(labels)} {id: nodeId})
     DETACH DELETE n
     RETURN count(n) as deletedCount
   `.trim(),

@@ -63,6 +63,20 @@ export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
 
   /** Optional description for documentation */
   readonly description?: string
+
+  /**
+   * Additional labels for this node type beyond the base labels.
+   *
+   * @example
+   * ```typescript
+   * const admin = node({
+   *   properties: {...},
+   *   additionalLabels: ['Privileged']
+   * })
+   * // Creates: (n:Node:Admin:Privileged)
+   * ```
+   */
+  readonly additionalLabels?: readonly string[]
 }
 
 // =============================================================================
@@ -144,6 +158,36 @@ export interface EdgeDefinition<
 
   /** Optional description for documentation */
   readonly description?: string
+}
+
+// =============================================================================
+// LABEL CONFIGURATION
+// =============================================================================
+
+/**
+ * Configuration for node labels applied to all nodes.
+ * By default, all nodes get a `:Node` label automatically (like implicit `id`),
+ *
+ * @example
+ * ```typescript
+ * // Default: all nodes get :Node label
+ * const schema = defineSchema({
+ *   nodes: { user: node({ properties: {...} }) },
+ *   edges: {...}
+ * })
+ * // Opt-out
+ * const schema = defineSchema({
+ *   labels: { includeBaseLabels: false },
+ *   nodes: {...},
+ *   edges: {...}
+ * })
+ * ```
+ */
+export interface LabelConfig {
+  /** Base labels applied to ALL nodes. Default: ['Node'] */
+  readonly baseLabels?: readonly string[]
+  /** Whether to include base labels. Default: true */
+  readonly includeBaseLabels?: boolean
 }
 
 // =============================================================================
@@ -232,6 +276,9 @@ export interface SchemaDefinition<
 
   /** Optional hierarchy configuration for tree-structured graphs */
   readonly hierarchy?: HierarchyConfig<keyof TEdges & string>
+
+  /** Label configuration for universal node labels. Default: all nodes get :Node label for O(1) universal lookups. */
+  readonly labels?: LabelConfig
 
   /** Schema version for migrations */
   readonly version?: string

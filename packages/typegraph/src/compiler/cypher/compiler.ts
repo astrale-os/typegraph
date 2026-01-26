@@ -5,7 +5,8 @@
  */
 
 import type { QueryAST } from '../../ast'
-import type { SchemaDefinition } from '../../schema'
+import type { SchemaDefinition, AnySchema } from '../../schema'
+import { resolveNodeLabels, formatLabels } from '../../schema/labels'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 import type {
@@ -40,6 +41,7 @@ export class CypherCompiler implements QueryCompilerProvider {
   readonly name = 'cypher'
 
   private options: CompilerOptions
+  private schema: AnySchema | undefined
 
   private params: Record<string, unknown> = {}
   private paramCounter: number = 0
@@ -51,7 +53,8 @@ export class CypherCompiler implements QueryCompilerProvider {
   private aggregateStep: AggregateStep | null = null
   private hasBranchStep: boolean = false
 
-  constructor(_schema?: SchemaDefinition, options: CompilerOptions = {}) {
+  constructor(schema?: SchemaDefinition, options: CompilerOptions = {}) {
+    this.schema = schema
     this.options = {
       paramPrefix: 'p',
       includeComments: false,
@@ -59,9 +62,11 @@ export class CypherCompiler implements QueryCompilerProvider {
     }
   }
 
-  compile(ast: QueryAST, _schema?: SchemaDefinition, options?: CompilerOptions): CompiledQuery {
+  compile(ast: QueryAST, schema?: SchemaDefinition, options?: CompilerOptions): CompiledQuery {
     // Allow options override per compile call
     if (options) this.options = { ...this.options, ...options }
+    // Use provided schema or fall back to constructor schema
+    if (schema) this.schema = schema
 
     // Reset state
     this.params = {}
@@ -218,7 +223,11 @@ export class CypherCompiler implements QueryCompilerProvider {
   }
 
   private compileMatch(step: MatchStep): void {
-    this.clauses.push(`MATCH (${step.alias}:${step.label})`)
+    // Resolve labels when schema is available (includes base labels like :Node)
+    const labelStr = this.schema
+      ? formatLabels(resolveNodeLabels(this.schema, step.label))
+      : `:${step.label}`
+    this.clauses.push(`MATCH (${step.alias}${labelStr})`)
   }
 
   private compileMatchById(step: MatchByIdStep): void {
@@ -541,7 +550,11 @@ export class CypherCompiler implements QueryCompilerProvider {
         // Compile each step in the branch
         for (const bStep of branchSteps) {
           if (bStep.type === 'match') {
-            branchClauses.push(`MATCH (${bStep.alias}:${bStep.label})`)
+            // Resolve labels when schema is available (includes base labels like :Node)
+            const labelStr = this.schema
+              ? formatLabels(resolveNodeLabels(this.schema, bStep.label))
+              : `:${bStep.label}`
+            branchClauses.push(`MATCH (${bStep.alias}${labelStr})`)
           } else if (bStep.type === 'where') {
             const conditions = bStep.conditions.map((c) => this.compileCondition(c)).join(' AND ')
             branchClauses.push(`WHERE ${conditions}`)
@@ -585,9 +598,14 @@ export class CypherCompiler implements QueryCompilerProvider {
     // Compile each step
     for (const step of steps) {
       switch (step.type) {
-        case 'match':
-          branchClauses.push(`MATCH (${step.alias}:${step.label})`)
+        case 'match': {
+          // Resolve labels when schema is available (includes base labels like :Node)
+          const labelStr = this.schema
+            ? formatLabels(resolveNodeLabels(this.schema, step.label))
+            : `:${step.label}`
+          branchClauses.push(`MATCH (${step.alias}${labelStr})`)
           break
+        }
         case 'matchById': {
           const paramRef = this.addParam(step.id)
           branchClauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)

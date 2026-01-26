@@ -6,6 +6,7 @@
  */
 
 import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
+import { resolveNodeLabels } from '../schema/labels'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -130,7 +131,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     // Run before hooks
     const finalData = await this.hooksRunner.runBeforeCreate(label, data)
 
-    const query = this.templates.node.create(safeLabel)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.node.create(safeLabels)
     const params = this.buildParams({ id, props: finalData })
 
     // Dry-run mode
@@ -158,8 +163,6 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     id: string,
     data: Partial<NodeInput<S, N>>,
   ): Promise<NodeResult<S, N>> {
-    const safeLabel = this.sanitize(label as string)
-
     // Validate (partial)
     if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
       this.validator.validateNode(label, data, true)
@@ -168,7 +171,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     // Run before hooks
     const finalData = await this.hooksRunner.runBeforeUpdate(label, id, data)
 
-    const query = this.templates.node.update(safeLabel)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.node.update(safeLabels)
     const params = this.buildParams({ id, props: finalData })
 
     // Dry-run mode
@@ -196,20 +203,23 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
-    const safeLabel = this.sanitize(label as string)
     const detach = options?.detach ?? true
 
     // Run before hooks
     await this.hooksRunner.runBeforeDelete(label, id)
 
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
     const query = detach
-      ? this.templates.node.delete(safeLabel)
-      : this.templates.node.deleteKeepEdges(safeLabel)
+      ? this.templates.node.delete(safeLabels)
+      : this.templates.node.deleteKeepEdges(safeLabels)
     const params = this.buildParams({ id })
 
     // Dry-run mode
     if (this.dryRunMode) {
-      return this.dryRunBuilder.deleteNode(safeLabel, id, query).simulatedResult!
+      return this.dryRunBuilder.deleteNode(label as string, id, query).simulatedResult!
     }
 
     const results = await this.executor.run<{ deleted: boolean }>(query, params)
@@ -230,14 +240,16 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     id: string,
     data: NodeInput<S, N>,
   ): Promise<UpsertResult<S, N>> {
-    const safeLabel = this.sanitize(label as string)
-
     // Validate
     if (this.validationOptions.enabled && this.validationOptions.onCreate) {
       this.validator.validateNode(label, data)
     }
 
-    const query = this.templates.node.upsert(safeLabel)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.node.upsert(safeLabels)
     const params = this.buildParams({
       id,
       createProps: data,
@@ -405,7 +417,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const edgeType = this.resolveHierarchyEdge(options?.edge)
     const id = this.idGenerator.generate(safeLabel)
 
-    const query = this.templates.hierarchy.createChild(safeLabel, edgeType)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.hierarchy.createChild(safeLabels, edgeType)
     const params = this.buildParams({ id, parentId, props: data })
 
     const results = await this.executor.run<{ child: NodeProps<S, N> }>(query, params)
@@ -497,12 +513,16 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const safeLabel = this.sanitize(label as string)
     const newId = this.idGenerator.generate(safeLabel)
 
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
     let query: string
     let params: Record<string, unknown>
 
     if (options?.parentId) {
       const edgeType = this.resolveHierarchyEdge(options.edge)
-      query = this.templates.hierarchy.cloneWithParent(safeLabel, edgeType)
+      query = this.templates.hierarchy.cloneWithParent(safeLabels, edgeType)
       params = this.buildParams({
         sourceId,
         newId,
@@ -511,14 +531,14 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
       })
     } else if (options?.preserveParent) {
       const edgeType = this.resolveHierarchyEdge(options.edge)
-      query = this.templates.hierarchy.clonePreserveParent(safeLabel, edgeType)
+      query = this.templates.hierarchy.clonePreserveParent(safeLabels, edgeType)
       params = this.buildParams({
         sourceId,
         newId,
         overrides: overrides ?? {},
       })
     } else {
-      query = this.templates.node.clone(safeLabel)
+      query = this.templates.node.clone(safeLabels)
       params = this.buildParams({
         sourceId,
         newId,
@@ -567,11 +587,12 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     // Create ID mapping - use each node's actual label for ID generation
     const idMapping: Record<string, string> = {}
-    const labelMapping: Record<string, string> = {}
+    const labelsMapping: Record<string, string[]> = {}
     for (const { node, nodeLabels } of nodesToClone) {
       const safeLabel = this.sanitize(nodeLabels[0]!)
       idMapping[node.id] = this.idGenerator.generate(safeLabel)
-      labelMapping[node.id] = safeLabel
+      // Store all labels for each node (from database, already includes base labels)
+      labelsMapping[node.id] = nodeLabels.map((l) => this.sanitize(l))
     }
 
     // Clone in transaction
@@ -581,8 +602,8 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
       // Clone nodes in order (root first, then by depth)
       for (const { node, depth } of nodesToClone) {
         const newId = idMapping[node.id]
-        const nodeLabel = labelMapping[node.id]
-        if (!newId || !nodeLabel) continue
+        const nodeLabels = labelsMapping[node.id]
+        if (!newId || !nodeLabels) continue
 
         const { id: _id, ...nodeData } = node
 
@@ -593,8 +614,8 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
           finalData = { ...finalData, ...transformed }
         }
 
-        // Create node with its original label
-        const createQuery = this.templates.node.create(nodeLabel)
+        // Create node with its original labels (includes base labels like :Node)
+        const createQuery = this.templates.node.create(nodeLabels)
         const createResults = await tx.run<{ n: NodeProps<S, NodeLabels<S>> }>(createQuery, {
           id: newId,
           props: finalData,
@@ -690,7 +711,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
       props,
     }))
 
-    const query = this.templates.batch.createMany(safeLabel)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.batch.createMany(safeLabels)
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { items: itemsWithIds })
 
     return results.map((r, i) => ({
@@ -703,14 +728,16 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     label: N,
     updates: Array<{ id: string; data: Partial<NodeInput<S, N>> }>,
   ): Promise<NodeResult<S, N>[]> {
-    const safeLabel = this.sanitize(label as string)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
 
     const updateItems = updates.map((u) => ({
       id: u.id,
       props: u.data,
     }))
 
-    const query = this.templates.batch.updateMany(safeLabel)
+    const query = this.templates.batch.updateMany(safeLabels)
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { updates: updateItems })
 
     return results.map((r) => ({
@@ -724,9 +751,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     ids: string[],
     _options?: DeleteOptions,
   ): Promise<DeleteResult> {
-    const safeLabel = this.sanitize(label as string)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
 
-    const query = this.templates.batch.deleteMany(safeLabel)
+    const query = this.templates.batch.deleteMany(safeLabels)
     const results = await this.executor.run<{ deletedCount: number }>(query, { ids })
 
     return {
@@ -867,7 +896,11 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     const safeLabel = this.sanitize(label as string)
     const id = options?.id ?? this.idGenerator.generate(safeLabel)
 
-    const query = this.templates.node.create(safeLabel)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.node.create(safeLabels)
     const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, { id, props: data })
     const result = results[0]
 
@@ -883,9 +916,11 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     id: string,
     data: Partial<NodeInput<S, N>>,
   ): Promise<NodeResult<S, N>> {
-    const safeLabel = this.sanitize(label as string)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
 
-    const query = this.templates.node.update(safeLabel)
+    const query = this.templates.node.update(safeLabels)
     const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, { id, props: data })
     const result = results[0]
 
@@ -901,12 +936,15 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
-    const safeLabel = this.sanitize(label as string)
     const detach = options?.detach ?? true
 
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
     const query = detach
-      ? this.templates.node.delete(safeLabel)
-      : this.templates.node.deleteKeepEdges(safeLabel)
+      ? this.templates.node.delete(safeLabels)
+      : this.templates.node.deleteKeepEdges(safeLabels)
     const results = await this.runner.run<{ deleted: boolean }>(query, { id })
 
     return { deleted: results[0]?.deleted ?? false, id }
@@ -917,9 +955,11 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     id: string,
     data: NodeInput<S, N>,
   ): Promise<UpsertResult<S, N>> {
-    const safeLabel = this.sanitize(label as string)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
 
-    const query = this.templates.node.upsert(safeLabel)
+    const query = this.templates.node.upsert(safeLabels)
     const results = await this.runner.run<{ n: NodeProps<S, N>; created: boolean }>(query, {
       id,
       createProps: data,
@@ -1066,7 +1106,11 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     const edgeType = this.resolveHierarchyEdge(options?.edge)
     const id = this.idGenerator.generate(safeLabel)
 
-    const query = this.templates.hierarchy.createChild(safeLabel, edgeType)
+    // Resolve labels (includes base labels like :Node)
+    const labels = resolveNodeLabels(this.schema, label as string)
+    const safeLabels = labels.map((l) => this.sanitize(l))
+
+    const query = this.templates.hierarchy.createChild(safeLabels, edgeType)
     const results = await this.runner.run<{ child: NodeProps<S, N> }>(query, {
       id,
       parentId,

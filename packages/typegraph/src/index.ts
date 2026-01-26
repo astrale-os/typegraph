@@ -50,7 +50,14 @@
 // SCHEMA
 // =============================================================================
 
-export { defineSchema, node, edge } from './schema'
+export {
+  defineSchema,
+  node,
+  edge,
+  resolveNodeLabels,
+  formatLabels,
+  DEFAULT_BASE_LABELS,
+} from './schema'
 export type {
   SchemaDefinition,
   AnySchema,
@@ -59,6 +66,7 @@ export type {
   Cardinality,
   PropertyType,
   HierarchyConfig,
+  LabelConfig,
   HasHierarchy,
   HierarchyEdge,
   HierarchyDirection,

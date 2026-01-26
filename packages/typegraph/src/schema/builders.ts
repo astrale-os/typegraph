@@ -12,6 +12,7 @@ import type {
   Cardinality,
   IndexConfig,
   HierarchyConfig,
+  LabelConfig,
 } from './types'
 
 // =============================================================================
@@ -33,6 +34,19 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
 
   /** Optional description */
   description?: string
+
+  /**
+   * Additional labels for this node type beyond the base labels.
+   * @example
+   * ```typescript
+   * node({
+   *   properties: {...},
+   *   additionalLabels: ['Privileged', 'Auditable']
+   * })
+   * // Creates: (n:Node:NodeLabel:Privileged:Auditable)
+   * ```
+   */
+  additionalLabels?: readonly string[]
 }
 
 /**
@@ -61,6 +75,7 @@ export function node<TProps extends z.ZodRawShape>(
     properties: z.object(config.properties),
     indexes: (config.indexes ?? []) as NodeDefinition<TProps>['indexes'],
     description: config.description,
+    additionalLabels: config.additionalLabels,
   }
 }
 
@@ -184,6 +199,11 @@ export interface SchemaConfig<
   nodes: TNodes
   edges: TEdges
   hierarchy?: HierarchyConfig<keyof TEdges & string>
+  /**
+   * Label configuration for universal node labels.
+   * Default: all nodes get :Node label for O(1) universal lookups.
+   */
+  labels?: LabelConfig
   version?: string
   meta?: {
     name?: string
@@ -253,6 +273,7 @@ export function defineSchema<
     nodes: config.nodes,
     edges: config.edges,
     hierarchy: config.hierarchy,
+    labels: config.labels,
     version: config.version,
     meta: config.meta,
   }

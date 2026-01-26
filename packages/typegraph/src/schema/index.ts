@@ -6,6 +6,7 @@
  */
 
 export { node, edge, defineSchema } from './builders'
+export { resolveNodeLabels, formatLabels, DEFAULT_BASE_LABELS } from './labels'
 export type {
   SchemaDefinition,
   AnySchema,
@@ -15,6 +16,7 @@ export type {
   Cardinality,
   IndexConfig,
   HierarchyConfig,
+  LabelConfig,
   HasHierarchy,
   HierarchyEdge,
   HierarchyDirection,
