@@ -56,6 +56,7 @@ export {
   edge,
   resolveNodeLabels,
   formatLabels,
+  getNodesSatisfying,
   DEFAULT_BASE_LABELS,
 } from './schema'
 export type {

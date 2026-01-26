@@ -65,18 +65,14 @@ export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
   readonly description?: string
 
   /**
-   * Additional labels for this node type beyond the base labels.
+   * Node types that this node also acts as (IS-A relationship).
+   * Each entry references another node type key in the schema.
    *
-   * @example
-   * ```typescript
-   * const admin = node({
-   *   properties: {...},
-   *   additionalLabels: ['Privileged']
-   * })
-   * // Creates: (n:Node:Admin:Privileged)
-   * ```
+   * Effects:
+   * - Adds PascalCase Cypher labels for each referenced type
+   * - Allows this node to satisfy edges expecting those types
    */
-  readonly additionalLabels?: readonly string[]
+  readonly labels?: readonly string[]
 }
 
 // =============================================================================

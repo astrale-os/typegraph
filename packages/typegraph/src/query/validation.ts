@@ -6,6 +6,7 @@
  */
 
 import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import { getNodesSatisfying } from '../schema'
 
 // =============================================================================
 // VALIDATION ERRORS
@@ -117,6 +118,10 @@ export class SchemaValidator<S extends AnySchema> {
 
   /**
    * Validate a traversal from one node type to another via an edge.
+   *
+   * Supports:
+   * - Polymorphic edges (from/to as arrays)
+   * - Multi-label nodes via `labels` (IS-A relationships)
    */
   validateTraversal<N extends NodeLabels<S>, E extends EdgeTypes<S>>(
     fromLabel: N,
@@ -129,20 +134,39 @@ export class SchemaValidator<S extends AnySchema> {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) return
 
-    const isValidOutbound = direction !== 'in' && edgeDef.from === fromLabel
-    const isValidInbound = direction !== 'out' && edgeDef.to === fromLabel
+    // Normalize from/to to arrays for polymorphic edge support
+    const edgeFrom = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
+    const edgeTo = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
+
+    // Build expanded sets including nodes that satisfy edge endpoints
+    const expandedFrom = new Set<string>()
+    for (const label of edgeFrom) {
+      for (const satisfying of getNodesSatisfying(this.schema, label)) {
+        expandedFrom.add(satisfying)
+      }
+    }
+
+    const expandedTo = new Set<string>()
+    for (const label of edgeTo) {
+      for (const satisfying of getNodesSatisfying(this.schema, label)) {
+        expandedTo.add(satisfying)
+      }
+    }
+
+    const isValidOutbound = direction !== 'in' && expandedFrom.has(fromLabel as string)
+    const isValidInbound = direction !== 'out' && expandedTo.has(fromLabel as string)
 
     if (!isValidOutbound && !isValidInbound) {
       throw new QueryValidationError(
         `Invalid traversal: cannot traverse "${edgeType as string}" ${direction === 'out' ? 'outbound' : direction === 'in' ? 'inbound' : 'in any direction'} from "${fromLabel as string}". ` +
-          `Edge "${edgeType as string}" connects ${edgeDef.from} -> ${edgeDef.to}`,
+          `Edge "${edgeType as string}" connects ${edgeFrom.join('|')} -> ${edgeTo.join('|')}`,
         'INVALID_TRAVERSAL',
         {
           fromLabel,
           edgeType,
           direction,
-          edgeFrom: edgeDef.from,
-          edgeTo: edgeDef.to,
+          edgeFrom,
+          edgeTo,
         },
       )
     }

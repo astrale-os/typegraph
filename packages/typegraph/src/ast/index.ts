@@ -31,6 +31,7 @@ export type {
   LogicalCondition,
   ExistsCondition,
   ConnectedToCondition,
+  LabelCondition,
   EdgeWhereCondition,
   ComparisonOperator,
   VariableLengthConfig,

@@ -6,7 +6,7 @@
 
 import type { QueryAST } from '../../ast'
 import type { SchemaDefinition, AnySchema } from '../../schema'
-import { resolveNodeLabels, formatLabels } from '../../schema/labels'
+import { resolveNodeLabels, formatLabels, getBaseLabelForIdLookup } from '../../schema/labels'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 import type {
@@ -20,6 +20,7 @@ import type {
   LogicalCondition,
   ExistsCondition,
   ConnectedToCondition,
+  LabelCondition,
   EdgeWhereCondition,
   BranchStep,
   PathStep,
@@ -232,7 +233,9 @@ export class CypherCompiler implements QueryCompilerProvider {
 
   private compileMatchById(step: MatchByIdStep): void {
     const paramRef = this.addParam(step.id)
-    this.clauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)
+    // Use base label (e.g., :Node) for O(1) index lookup when available
+    const baseLabel = getBaseLabelForIdLookup(this.schema)
+    this.clauses.push(`MATCH (${step.alias}${baseLabel} {id: ${paramRef}})`)
   }
 
   private compileTraversal(step: TraversalStep): void {
@@ -256,8 +259,15 @@ export class CypherCompiler implements QueryCompilerProvider {
     const edgeAlias = step.edgeAlias ?? ''
     const edgePattern = `[${edgeAlias}:${edgeTypes}${lengthPattern}]`
 
-    // Build target label(s)
-    const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ''
+    // Build target label(s) - resolve node type keys to full labels
+    let targetLabel = ''
+    if (step.toLabels.length > 0 && this.schema) {
+      // toLabels contains node type keys, resolve each to full labels
+      const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
+      targetLabel = formatLabels(resolvedLabels)
+    } else if (step.toLabels.length > 0) {
+      targetLabel = formatLabels(step.toLabels)
+    }
 
     const matchKeyword = step.optional ? 'OPTIONAL MATCH' : 'MATCH'
     const pattern = `(${step.fromAlias})${leftArrow}${edgePattern}${rightArrow}(${step.toAlias}${targetLabel})`
@@ -309,6 +319,8 @@ export class CypherCompiler implements QueryCompilerProvider {
         return this.compileLogicalCondition(condition)
       case 'exists':
         return this.compileExistsCondition(condition)
+      case 'label':
+        return this.compileLabelCondition(condition)
       case 'connectedTo':
         // ConnectedTo conditions are handled separately in compileWhere via compileConnectedToAsMatch.
         // This case should never be reached in normal usage (API doesn't expose nested connectedTo).
@@ -363,6 +375,21 @@ export class CypherCompiler implements QueryCompilerProvider {
     return negated ? `NOT ${pattern}` : pattern
   }
 
+  private compileLabelCondition(condition: LabelCondition): string {
+    const { labels, mode, negated, target } = condition
+
+    if (labels.length === 0) {
+      return 'true' // Empty labels = no constraint
+    }
+
+    const labelChecks = labels.map((label) => `${target}:${label}`)
+
+    const joiner = mode === 'all' ? ' AND ' : ' OR '
+    const combined = labelChecks.length === 1 ? labelChecks[0] : `(${labelChecks.join(joiner)})`
+
+    return negated ? `NOT ${combined}` : combined!
+  }
+
   /**
    * Compile a connectedTo condition as an optimized MATCH pattern.
    *
@@ -370,10 +397,10 @@ export class CypherCompiler implements QueryCompilerProvider {
    *   WHERE (n0)-[:EDGE]->({id: $p0})
    *
    * We generate an explicit MATCH clause:
-   *   MATCH (n0)-[:EDGE]->(target0 {id: $p0})
+   *   MATCH (n0)-[:EDGE]->(target0:Node {id: $p0})
    *
    * This is more efficient because:
-   * 1. The query planner can use index lookup on target0.id
+   * 1. The query planner can use index lookup on target0.id via :Node index
    * 2. Traversal starts from the known node, not from a label scan
    * 3. The pattern is explicit, giving better hints to the optimizer
    */
@@ -386,9 +413,12 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     const [leftArrow, rightArrow] = this.getArrow(direction)
 
-    // Generate: MATCH (source)-[:EDGE]->(targetAlias {id: $param})
-    // or:       MATCH (source)<-[:EDGE]-(targetAlias {id: $param})
-    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}(${targetAlias} {id: ${paramRef}})`
+    // Use base label (e.g., :Node) for O(1) index lookup when available
+    const baseLabel = getBaseLabelForIdLookup(this.schema)
+
+    // Generate: MATCH (source)-[:EDGE]->(targetAlias:Node {id: $param})
+    // or:       MATCH (source)<-[:EDGE]-(targetAlias:Node {id: $param})
+    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}(${targetAlias}${baseLabel} {id: ${paramRef}})`
     this.clauses.push(`MATCH ${pattern}`)
   }
 
@@ -608,7 +638,8 @@ export class CypherCompiler implements QueryCompilerProvider {
         }
         case 'matchById': {
           const paramRef = this.addParam(step.id)
-          branchClauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)
+          const baseLabel = getBaseLabelForIdLookup(this.schema)
+          branchClauses.push(`MATCH (${step.alias}${baseLabel} {id: ${paramRef}})`)
           break
         }
         case 'where': {
@@ -621,7 +652,13 @@ export class CypherCompiler implements QueryCompilerProvider {
           const edgeTypes = step.edges.join('|')
           const edgeAlias = step.edgeAlias ?? ''
           const edgePattern = `[${edgeAlias}:${edgeTypes}]`
-          const targetLabel = step.toLabels.length === 1 ? `:${step.toLabels[0]}` : ''
+          let targetLabel = ''
+          if (step.toLabels.length > 0 && this.schema) {
+            const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
+            targetLabel = formatLabels(resolvedLabels)
+          } else if (step.toLabels.length > 0) {
+            targetLabel = formatLabels(step.toLabels)
+          }
           const matchKeyword = step.optional ? 'OPTIONAL MATCH' : 'MATCH'
           branchClauses.push(
             `${matchKeyword} (${step.fromAlias})${leftArrow}${edgePattern}${rightArrow}(${step.toAlias}${targetLabel})`,

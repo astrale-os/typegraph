@@ -6,7 +6,14 @@
  */
 
 export { node, edge, defineSchema } from './builders'
-export { resolveNodeLabels, formatLabels, DEFAULT_BASE_LABELS } from './labels'
+export {
+  resolveNodeLabels,
+  formatLabels,
+  getNodesSatisfying,
+  getBaseLabelForIdLookup,
+  toPascalCase,
+  DEFAULT_BASE_LABELS,
+} from './labels'
 export type {
   SchemaDefinition,
   AnySchema,

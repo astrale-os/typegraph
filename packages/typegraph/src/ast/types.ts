@@ -82,11 +82,28 @@ export interface ConnectedToCondition {
   target: string
 }
 
+/**
+ * Filter nodes by label presence.
+ * Used for multi-label node queries.
+ */
+export interface LabelCondition {
+  type: 'label'
+  /** Labels to check for */
+  labels: string[]
+  /** Check mode: 'all' = node must have ALL labels, 'any' = node must have ANY label */
+  mode: 'all' | 'any'
+  /** Whether to negate the condition */
+  negated: boolean
+  /** The alias of the node this condition applies to */
+  target: string
+}
+
 export type WhereCondition =
   | ComparisonCondition
   | LogicalCondition
   | ExistsCondition
   | ConnectedToCondition
+  | LabelCondition
 
 /**
  * Condition specifically for edge properties during traversal.

@@ -790,6 +790,131 @@ export class CollectionBuilder<
     )
   }
 
+  // ---------------------------------------------------------------------------
+  // LABEL FILTERING (Multi-Label Support)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Filter to nodes that have ALL specified labels.
+   */
+  withLabels(...labels: string[]): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    if (labels.length === 0) return this
+
+    const condition = {
+      type: 'label' as const,
+      labels,
+      mode: 'all' as const,
+      negated: false,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
+  }
+
+  /**
+   * Filter to nodes that have ANY of the specified labels.
+   */
+  withAnyLabel(...labels: string[]): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    if (labels.length === 0) return this
+
+    const condition = {
+      type: 'label' as const,
+      labels,
+      mode: 'any' as const,
+      negated: false,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
+  }
+
+  /**
+   * Filter to nodes that do NOT have the specified label.
+   */
+  withoutLabel(label: string): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    const condition = {
+      type: 'label' as const,
+      labels: [label],
+      mode: 'all' as const,
+      negated: true,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
+  }
+
+  /**
+   * Filter to nodes that do NOT have ANY of the specified labels.
+   */
+  withoutAnyLabel(...labels: string[]): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    if (labels.length === 0) return this
+
+    const condition = {
+      type: 'label' as const,
+      labels,
+      mode: 'any' as const,
+      negated: true,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
+  }
+
+  /**
+   * Filter to nodes that have ALL specified labels.
+   * Alias for `withLabels()`.
+   */
+  withAllLabels(...labels: string[]): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    return this.withLabels(...labels)
+  }
+
+  /**
+   * Filter to nodes that do NOT have ALL of the specified labels.
+   */
+  withoutAllLabels(...labels: string[]): CollectionBuilder<S, N, Aliases, EdgeAliases> {
+    if (labels.length === 0) return this
+
+    const condition = {
+      type: 'label' as const,
+      labels,
+      mode: 'all' as const,
+      negated: true,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
+  }
+
   /**
    * Filter to nodes that have an outgoing edge to a specific node ID.
    *

@@ -133,6 +133,10 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
+    // Merge additional labels from options (e.g., for creating :Module:Identity nodes)
+    if (options?.additionalLabels?.length) {
+      labels.push(...options.additionalLabels)
+    }
     const safeLabels = labels.map((l) => this.sanitize(l))
 
     const query = this.templates.node.create(safeLabels)
@@ -713,6 +717,10 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
+    // Merge additional labels from options
+    if (options?.additionalLabels?.length) {
+      labels.push(...options.additionalLabels)
+    }
     const safeLabels = labels.map((l) => this.sanitize(l))
 
     const query = this.templates.batch.createMany(safeLabels)

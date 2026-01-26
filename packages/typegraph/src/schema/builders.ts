@@ -36,17 +36,10 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
   description?: string
 
   /**
-   * Additional labels for this node type beyond the base labels.
-   * @example
-   * ```typescript
-   * node({
-   *   properties: {...},
-   *   additionalLabels: ['Privileged', 'Auditable']
-   * })
-   * // Creates: (n:Node:NodeLabel:Privileged:Auditable)
-   * ```
+   * Node types that this node also acts as (IS-A relationship).
+   * Each entry references another node type key in the schema.
    */
-  additionalLabels?: readonly string[]
+  labels?: readonly string[]
 }
 
 /**
@@ -75,7 +68,7 @@ export function node<TProps extends z.ZodRawShape>(
     properties: z.object(config.properties),
     indexes: (config.indexes ?? []) as NodeDefinition<TProps>['indexes'],
     description: config.description,
-    additionalLabels: config.additionalLabels,
+    labels: config.labels,
   }
 }
 

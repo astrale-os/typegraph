@@ -7,6 +7,7 @@
 
 import { type z } from 'zod'
 import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import { getNodesSatisfying } from '../schema'
 import { ValidationError } from './errors'
 
 // =============================================================================
@@ -119,11 +120,18 @@ export class MutationValidator<S extends AnySchema> {
 
     if (fromLabel) {
       const allowedFrom = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
-      if (!allowedFrom.includes(fromLabel)) {
+      const expandedFrom = new Set<string>()
+      for (const label of allowedFrom) {
+        for (const satisfying of getNodesSatisfying(this.schema, label)) {
+          expandedFrom.add(satisfying)
+        }
+      }
+
+      if (!expandedFrom.has(fromLabel)) {
         throw new ValidationError(
           `Invalid source for ${edgeType as string}: '${fromLabel}' not allowed`,
           'from',
-          allowedFrom.join(' | '),
+          [...expandedFrom].join(' | '),
           fromLabel,
         )
       }
@@ -131,11 +139,18 @@ export class MutationValidator<S extends AnySchema> {
 
     if (toLabel) {
       const allowedTo = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
-      if (!allowedTo.includes(toLabel)) {
+      const expandedTo = new Set<string>()
+      for (const label of allowedTo) {
+        for (const satisfying of getNodesSatisfying(this.schema, label)) {
+          expandedTo.add(satisfying)
+        }
+      }
+
+      if (!expandedTo.has(toLabel)) {
         throw new ValidationError(
           `Invalid target for ${edgeType as string}: '${toLabel}' not allowed`,
           'to',
-          allowedTo.join(' | '),
+          [...expandedTo].join(' | '),
           toLabel,
         )
       }

@@ -113,6 +113,8 @@ export interface CloneSubtreeResult<S extends AnySchema, N extends NodeLabels<S>
 export interface CreateOptions {
   /** Provide custom ID instead of auto-generating */
   id?: string
+  /** Additional labels to apply to the node */
+  additionalLabels?: string[]
 }
 
 /**
