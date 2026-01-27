@@ -72,14 +72,6 @@ export class IdentityEvaluator {
   constructor(private executor: RawExecutor) {}
 
   /**
-   * Get whether EXISTS syntax is supported.
-   * Always returns false for FalkorDB compatibility.
-   */
-  async supportsExistsSyntax(): Promise<boolean> {
-    return false
-  }
-
-  /**
    * Fetch identity composition data from graph.
    */
   async fetchIdentity(id: string): Promise<IdentityComposition> {

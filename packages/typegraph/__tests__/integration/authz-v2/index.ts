@@ -9,8 +9,6 @@ export * from './types'
 
 // Core implementation
 export * from './identity-evaluator'
-export * from './cypher-generator'
-export * from './scoped-evaluator'
 export * from './access-checker'
 
 // Test utilities

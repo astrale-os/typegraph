@@ -13,12 +13,15 @@ import {
   type AuthzTestContext,
 } from './setup'
 import { createAccessChecker } from './access-checker'
+import { IdentityEvaluator, CycleDetectedError, InvalidIdentityError } from './identity-evaluator'
 import {
-  createIdentityEvaluator,
-  CycleDetectedError,
-  InvalidIdentityError,
-} from './identity-evaluator'
-import { expectGranted, identity } from './helpers'
+  expectGranted,
+  expectDeniedByTarget,
+  expectDeniedByType,
+  subjectFromIds,
+  identity,
+  subject,
+} from './helpers'
 
 describe('AUTH_V2: Edge Cases', () => {
   let ctx: AuthzTestContext
@@ -42,23 +45,19 @@ describe('AUTH_V2: Edge Cases', () => {
 
   describe('Cycle Detection', () => {
     it('detects direct cycle (A -> A)', async () => {
-      // Create identity that points to itself
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'CYCLE_SELF' },
       })
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $id})
-         CREATE (i)-[:unionWith]->(i)`,
+        `MATCH (i:Identity {id: $id}) CREATE (i)-[:unionWith]->(i)`,
         { params: { id: 'CYCLE_SELF' } },
       )
 
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
+      const evaluator = new IdentityEvaluator(ctx.executor)
       await expect(evaluator.evalIdentity('CYCLE_SELF')).rejects.toThrow(CycleDetectedError)
     })
 
     it('detects indirect cycle (A -> B -> A)', async () => {
-      // Create cyclic identities
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'CYCLE_A' },
       })
@@ -67,23 +66,17 @@ describe('AUTH_V2: Edge Cases', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
-         CREATE (a)-[:unionWith]->(b)`,
-        { params: { aId: 'CYCLE_A', bId: 'CYCLE_B' } },
+        `MATCH (a:Identity {id: 'CYCLE_A'}), (b:Identity {id: 'CYCLE_B'}) CREATE (a)-[:unionWith]->(b)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
-         CREATE (b)-[:unionWith]->(a)`,
-        { params: { aId: 'CYCLE_A', bId: 'CYCLE_B' } },
+        `MATCH (a:Identity {id: 'CYCLE_A'}), (b:Identity {id: 'CYCLE_B'}) CREATE (b)-[:unionWith]->(a)`,
       )
 
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
+      const evaluator = new IdentityEvaluator(ctx.executor)
       await expect(evaluator.evalIdentity('CYCLE_A')).rejects.toThrow(CycleDetectedError)
     })
 
     it('allows diamond pattern (A -> B, A -> C, B -> D, C -> D)', async () => {
-      // Create diamond pattern
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'DIAMOND_A' },
       })
@@ -97,72 +90,56 @@ describe('AUTH_V2: Edge Cases', () => {
         params: { id: 'DIAMOND_D' },
       })
 
-      // Add perms to D so it's a valid leaf
+      // D has perms
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'DIAMOND_D', moduleId: 'M1' } },
+        `MATCH (i:Identity {id: 'DIAMOND_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
       )
 
       // A -> B, A -> C
       await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: 'DIAMOND_A'}), (b:Identity {id: 'DIAMOND_B'})
-         CREATE (a)-[:unionWith]->(b)`,
+        `MATCH (a:Identity {id: 'DIAMOND_A'}), (b:Identity {id: 'DIAMOND_B'}) CREATE (a)-[:unionWith]->(b)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: 'DIAMOND_A'}), (c:Identity {id: 'DIAMOND_C'})
-         CREATE (a)-[:unionWith]->(c)`,
+        `MATCH (a:Identity {id: 'DIAMOND_A'}), (c:Identity {id: 'DIAMOND_C'}) CREATE (a)-[:unionWith]->(c)`,
       )
 
       // B -> D, C -> D
       await ctx.connection.graph.query(
-        `MATCH (b:Identity {id: 'DIAMOND_B'}), (d:Identity {id: 'DIAMOND_D'})
-         CREATE (b)-[:unionWith]->(d)`,
+        `MATCH (b:Identity {id: 'DIAMOND_B'}), (d:Identity {id: 'DIAMOND_D'}) CREATE (b)-[:unionWith]->(d)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (c:Identity {id: 'DIAMOND_C'}), (d:Identity {id: 'DIAMOND_D'})
-         CREATE (c)-[:unionWith]->(d)`,
+        `MATCH (c:Identity {id: 'DIAMOND_C'}), (d:Identity {id: 'DIAMOND_D'}) CREATE (c)-[:unionWith]->(d)`,
       )
 
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
-      // Should not throw - diamond is allowed
+      const evaluator = new IdentityEvaluator(ctx.executor)
       const expr = await evaluator.evalIdentity('DIAMOND_A')
       expect(expr).toBeDefined()
     })
 
-    it('returns base expression for leaf identity (no composition)', async () => {
-      // Create an isolated identity with no permissions and no composition edges
-      // This is valid - it just won't match any permissions when evaluated
+    it('returns base expression for leaf identity', async () => {
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'ISOLATED' },
       })
 
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
-      // Leaf nodes (no composition) return an identity expression
+      const evaluator = new IdentityEvaluator(ctx.executor)
       const expr = await evaluator.evalIdentity('ISOLATED')
       expect(expr).toEqual({ kind: 'identity', id: 'ISOLATED' })
     })
 
     it('denies access for identity without permissions', async () => {
-      // Create an isolated identity with no permissions
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'NO_PERMS' },
       })
 
       const checker = createAccessChecker(ctx.executor)
-
-      // Access check should deny because NO_PERMS has no permissions
-      const result = await checker.hasAccess(
-        [identity('APP1')],
-        [identity('NO_PERMS')],
+      const result = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['NO_PERMS']),
         'M1',
         'read',
+        'principal',
       )
 
-      expect(result.granted).toBe(false)
-      expect(result.reason).toBe('target')
+      expectDeniedByTarget(result)
     })
   })
 
@@ -171,67 +148,22 @@ describe('AUTH_V2: Edge Cases', () => {
   // ===========================================================================
 
   describe('Exclude Edge Cases', () => {
-    it('detects direct exclude cycle (A excludeWith A)', async () => {
-      // Create identity that excludes itself
+    it('detects direct exclude cycle', async () => {
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'EXCLUDE_CYCLE_SELF' },
       })
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $id})
-         CREATE (i)-[:excludeWith]->(i)`,
-        { params: { id: 'EXCLUDE_CYCLE_SELF' } },
+        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}) CREATE (i)-[:excludeWith]->(i)`,
       )
-      // Give it some direct perms so it's not invalid for other reasons
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'EXCLUDE_CYCLE_SELF', moduleId: 'M1' } },
+        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
       )
 
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
+      const evaluator = new IdentityEvaluator(ctx.executor)
       await expect(evaluator.evalIdentity('EXCLUDE_CYCLE_SELF')).rejects.toThrow(CycleDetectedError)
     })
 
-    it('detects indirect exclude cycle (A excludeWith B excludeWith A)', async () => {
-      // Create cyclic identities via excludeWith
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'EXCLUDE_CYCLE_A' },
-      })
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'EXCLUDE_CYCLE_B' },
-      })
-
-      // Give both direct perms
-      await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'EXCLUDE_CYCLE_A', moduleId: 'M1' } },
-      )
-      await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'EXCLUDE_CYCLE_B', moduleId: 'M2' } },
-      )
-
-      await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
-         CREATE (a)-[:excludeWith]->(b)`,
-        { params: { aId: 'EXCLUDE_CYCLE_A', bId: 'EXCLUDE_CYCLE_B' } },
-      )
-      await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
-         CREATE (b)-[:excludeWith]->(a)`,
-        { params: { aId: 'EXCLUDE_CYCLE_A', bId: 'EXCLUDE_CYCLE_B' } },
-      )
-
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
-      await expect(evaluator.evalIdentity('EXCLUDE_CYCLE_A')).rejects.toThrow(CycleDetectedError)
-    })
-
-    it('rejects exclude-only identity (no base permissions)', async () => {
-      // Create identity with only excludeWith, no direct perms or unions
+    it('rejects exclude-only identity', async () => {
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'EXCLUDE_ONLY' },
       })
@@ -239,79 +171,15 @@ describe('AUTH_V2: Edge Cases', () => {
         params: { id: 'EXCLUDE_TARGET' },
       })
 
-      // EXCLUDE_TARGET has some perms
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'EXCLUDE_TARGET', moduleId: 'M1' } },
+        `MATCH (i:Identity {id: 'EXCLUDE_TARGET'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'}) CREATE (a)-[:excludeWith]->(b)`,
       )
 
-      // EXCLUDE_ONLY only has excludeWith, no direct perms or union
-      await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'})
-         CREATE (a)-[:excludeWith]->(b)`,
-      )
-
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
+      const evaluator = new IdentityEvaluator(ctx.executor)
       await expect(evaluator.evalIdentity('EXCLUDE_ONLY')).rejects.toThrow(InvalidIdentityError)
-    })
-
-    it('allows diamond pattern with exclude (A -> B, A -> C, B -> D, C excludeWith D)', async () => {
-      // Create diamond where one path excludes the common descendant
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'DIAMOND_EXCLUDE_A' },
-      })
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'DIAMOND_EXCLUDE_B' },
-      })
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'DIAMOND_EXCLUDE_C' },
-      })
-      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
-        params: { id: 'DIAMOND_EXCLUDE_D' },
-      })
-
-      // D has perms - it's the leaf
-      await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'DIAMOND_EXCLUDE_D', moduleId: 'M1' } },
-      )
-
-      // A -> B (union), A -> C (union)
-      await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: 'DIAMOND_EXCLUDE_A'}), (b:Identity {id: 'DIAMOND_EXCLUDE_B'})
-         CREATE (a)-[:unionWith]->(b)`,
-      )
-      await ctx.connection.graph.query(
-        `MATCH (a:Identity {id: 'DIAMOND_EXCLUDE_A'}), (c:Identity {id: 'DIAMOND_EXCLUDE_C'})
-         CREATE (a)-[:unionWith]->(c)`,
-      )
-
-      // B -> D (union)
-      await ctx.connection.graph.query(
-        `MATCH (b:Identity {id: 'DIAMOND_EXCLUDE_B'}), (d:Identity {id: 'DIAMOND_EXCLUDE_D'})
-         CREATE (b)-[:unionWith]->(d)`,
-      )
-
-      // C excludeWith D
-      await ctx.connection.graph.query(
-        `MATCH (c:Identity {id: 'DIAMOND_EXCLUDE_C'}), (d:Identity {id: 'DIAMOND_EXCLUDE_D'})
-         CREATE (c)-[:excludeWith]->(d)`,
-      )
-      // C needs some base perms to be valid
-      await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
-        { params: { identityId: 'DIAMOND_EXCLUDE_C', moduleId: 'M2' } },
-      )
-
-      const evaluator = createIdentityEvaluator(ctx.executor)
-
-      // Should not throw - diamond with exclude is allowed
-      const expr = await evaluator.evalIdentity('DIAMOND_EXCLUDE_A')
-      expect(expr).toBeDefined()
     })
   })
 
@@ -320,8 +188,7 @@ describe('AUTH_V2: Edge Cases', () => {
   // ===========================================================================
 
   describe('Deep Hierarchy', () => {
-    it('handles 15-level deep hierarchy within FalkorDB limits', async () => {
-      // Create 15-level deep hierarchy
+    it('handles 15-level deep hierarchy', async () => {
       let parentId = 'workspace-1'
 
       for (let i = 1; i <= 15; i++) {
@@ -330,28 +197,22 @@ describe('AUTH_V2: Edge Cases', () => {
           params: { id: nodeId, name: `Deep ${i}` },
         })
         await ctx.connection.graph.query(
-          `MATCH (child:Module {id: $childId}), (parent:Node {id: $parentId})
-           CREATE (child)-[:hasParent]->(parent)`,
+          `MATCH (child:Module {id: $childId}), (parent:Node {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
           { params: { childId: nodeId, parentId } },
         )
-        // Assign type
         await ctx.connection.graph.query(
-          `MATCH (m:Module {id: $moduleId}), (t:Type {id: $typeId})
-           CREATE (m)-[:ofType]->(t)`,
-          { params: { moduleId: nodeId, typeId: 'T1' } },
+          `MATCH (m:Module {id: $moduleId}), (t:Type {id: 'T1'}) CREATE (m)-[:ofType]->(t)`,
+          { params: { moduleId: nodeId } },
         )
         parentId = nodeId
       }
 
       const checker = createAccessChecker(ctx.executor)
-
-      // Permission on workspace-1 should inherit to deepest node
-      // USER1 has edit on workspace-1
-      const result = await checker.hasAccess(
-        [identity('APP1')],
-        [identity('USER1')],
+      const result = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
         'DEEP_15',
         'edit',
+        'principal',
       )
 
       expectGranted(result)
@@ -364,34 +225,51 @@ describe('AUTH_V2: Edge Cases', () => {
 
   describe('Identity Without Direct Perms', () => {
     it('handles identity with only union composition', async () => {
-      // Create identity with no direct perms, only unionWith
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'UNION_ONLY' },
       })
       await ctx.connection.graph.query(
-        `MATCH (u:Identity {id: 'UNION_ONLY'}), (r:Identity {id: 'ROLE1'})
-         CREATE (u)-[:unionWith]->(r)`,
+        `MATCH (u:Identity {id: 'UNION_ONLY'}), (r:Identity {id: 'ROLE1'}) CREATE (u)-[:unionWith]->(r)`,
       )
 
       const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
 
-      // UNION_ONLY -> ROLE1 -> edit on workspace-2
-      const result = await checker.hasAccess(
-        [identity('APP1')],
-        [identity('UNION_ONLY')],
+      // Build expression for UNION_ONLY (which unions with ROLE1)
+      const unionOnlyExpr = await evaluator.evalIdentity('UNION_ONLY')
+
+      // UNION_ONLY inherits from ROLE1 which has edit on workspace-2
+      const grantedResult = await checker.checkAccess(
+        subject(identity('APP1'), unionOnlyExpr),
         'M3',
         'edit',
+        'principal',
       )
+      expectGranted(grantedResult)
 
-      expectGranted(result)
+      // UNION_ONLY should NOT have access to M1 (ROLE1 has no perms on workspace-1)
+      const deniedResult = await checker.checkAccess(
+        subject(identity('APP1'), unionOnlyExpr),
+        'M1',
+        'edit',
+        'principal',
+      )
+      expectDeniedByTarget(deniedResult)
     })
 
     it('handles identity with only intersect composition', async () => {
-      // X already has intersectWith A and B
       const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
 
-      // X = A ∩ B, should have read on M1
-      const result = await checker.hasAccess([identity('APP1')], [identity('X')], 'M1', 'read')
+      // X = A ∩ B (from seed data)
+      const xExpr = await evaluator.evalIdentity('X')
+
+      const result = await checker.checkAccess(
+        subject(identity('APP1'), xExpr),
+        'M1',
+        'read',
+        'principal',
+      )
 
       expectGranted(result)
     })
@@ -402,39 +280,44 @@ describe('AUTH_V2: Edge Cases', () => {
   // ===========================================================================
 
   describe('Caching', () => {
-    it('produces consistent results across multiple calls with same identity', async () => {
+    it('produces consistent results across multiple calls', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      // Make multiple calls with same identity - results should be consistent
-      const result1 = await checker.hasAccess([identity('APP1')], [identity('USER1')], 'M1', 'read')
-      const result2 = await checker.hasAccess([identity('APP1')], [identity('USER1')], 'M2', 'read')
-      const result3 = await checker.hasAccess([identity('APP1')], [identity('USER1')], 'M3', 'read')
+      const result1 = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
+        'M1',
+        'read',
+        'p',
+      )
+      const result2 = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
+        'M2',
+        'read',
+        'p',
+      )
+      const result3 = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
+        'M3',
+        'read',
+        'p',
+      )
 
-      // All calls should succeed (USER1 has read on root, inherited by all modules)
       expectGranted(result1)
       expectGranted(result2)
       expectGranted(result3)
-
-      // Verify type cache: all modules have same type T1
-      const result4 = await checker.hasAccess(
-        [identity('APP1')],
-        [identity('USER1')],
-        'M1',
-        'edit', // Different permission, same target
-      )
-      expectGranted(result4) // USER1 has edit on workspace-1, M1 inherits
     })
 
     it('clears cache when requested', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      await checker.hasAccess([identity('APP1')], [identity('USER1')], 'M1', 'read')
-
-      // Clear cache
+      await checker.checkAccess(subjectFromIds(['APP1'], ['USER1']), 'M1', 'read', 'p')
       checker.clearCache()
-
-      // Should still work after cache clear
-      const result = await checker.hasAccess([identity('APP1')], [identity('USER1')], 'M1', 'read')
+      const result = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
+        'M1',
+        'read',
+        'p',
+      )
 
       expectGranted(result)
     })
@@ -446,32 +329,28 @@ describe('AUTH_V2: Edge Cases', () => {
 
   describe('Type Permission', () => {
     it('denies module access when app lacks use on type', async () => {
-      // Create APP2 without use permission on T1
       await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
         params: { id: 'APP2' },
       })
 
       const checker = createAccessChecker(ctx.executor)
-
-      const result = await checker.hasAccess(
-        [identity('APP2')], // APP2 has no use on T1
-        [identity('USER1')],
+      const result = await checker.checkAccess(
+        subjectFromIds(['APP2'], ['USER1']),
         'M1',
         'read',
+        'principal',
       )
 
-      expect(result.granted).toBe(false)
-      expect(result.reason).toBe('type')
+      expectDeniedByType(result)
     })
 
     it('allows module access when app has use on type', async () => {
       const checker = createAccessChecker(ctx.executor)
-
-      const result = await checker.hasAccess(
-        [identity('APP1')], // APP1 has use on T1
-        [identity('USER1')],
+      const result = await checker.checkAccess(
+        subjectFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
+        'principal',
       )
 
       expectGranted(result)

@@ -1,38 +1,117 @@
 /**
  * AUTH_V2 Test Helpers
  *
- * Common assertion helpers and test utilities.
+ * Assertion helpers and factory functions for testing.
  */
 
 import { expect } from 'vitest'
-import type { AccessResult, IdentityInput, Scope } from './types'
+import type { AccessDecision, AccessExplanation, Subject, Scope, IdentityExpr } from './types'
 
 // =============================================================================
 // ASSERTION HELPERS
 // =============================================================================
 
-export function expectGranted(result: AccessResult): void {
+export function expectGranted(result: AccessDecision | AccessExplanation): void {
   expect(result.granted).toBe(true)
-  expect(result.reason).toBeUndefined()
+  expect(result.deniedBy).toBeUndefined()
 }
 
-export function expectDeniedByType(result: AccessResult): void {
+export function expectDeniedByType(result: AccessDecision | AccessExplanation): void {
   expect(result.granted).toBe(false)
-  expect(result.reason).toBe('type')
+  expect(result.deniedBy).toBe('type')
 }
 
-export function expectDeniedByTarget(result: AccessResult): void {
+export function expectDeniedByTarget(result: AccessDecision | AccessExplanation): void {
   expect(result.granted).toBe(false)
-  expect(result.reason).toBe('target')
+  expect(result.deniedBy).toBe('target')
 }
 
 // =============================================================================
-// FACTORY FUNCTIONS
+// EXPRESSION BUILDERS
 // =============================================================================
 
-export function identity(identityId: string, scopes?: Scope[]): IdentityInput {
-  return { identityId, scopes }
+/**
+ * Create an identity expression leaf.
+ */
+export function identity(id: string, scopes?: Scope[]): IdentityExpr {
+  return scopes ? { kind: 'identity', id, scopes } : { kind: 'identity', id }
 }
+
+/**
+ * Create a union expression from multiple expressions.
+ * Returns 'false' expression if no expressions provided.
+ */
+export function union(...exprs: IdentityExpr[]): IdentityExpr {
+  if (exprs.length === 0) {
+    // Empty union - will be filtered to 'false' in Cypher
+    return { kind: 'identity', id: '__EMPTY__', scopes: [{ principals: ['__NEVER_MATCH__'] }] }
+  }
+  if (exprs.length === 1) {
+    return exprs[0]!
+  }
+  return exprs.reduce((acc, expr) => ({ kind: 'union', left: acc, right: expr }))
+}
+
+/**
+ * Create an intersect expression from multiple expressions.
+ */
+export function intersect(...exprs: IdentityExpr[]): IdentityExpr {
+  if (exprs.length === 0) {
+    throw new Error('intersect requires at least one expression')
+  }
+  if (exprs.length === 1) {
+    return exprs[0]!
+  }
+  return exprs.reduce((acc, expr) => ({ kind: 'intersect', left: acc, right: expr }))
+}
+
+/**
+ * Create an exclude expression (base \ excluded).
+ */
+export function exclude(base: IdentityExpr, excluded: IdentityExpr): IdentityExpr {
+  return { kind: 'exclude', left: base, right: excluded }
+}
+
+/**
+ * Convenience: Create a union of identity leaves from IDs.
+ * Applies same scopes to all identities.
+ */
+export function identities(ids: string[], scopes?: Scope[]): IdentityExpr {
+  if (ids.length === 0) {
+    return union() // Empty expression
+  }
+  return union(...ids.map((id) => identity(id, scopes)))
+}
+
+// =============================================================================
+// SUBJECT FACTORY
+// =============================================================================
+
+/**
+ * Create a Subject from expressions.
+ */
+export function subject(forType: IdentityExpr, forTarget: IdentityExpr): Subject {
+  return { forType, forTarget }
+}
+
+/**
+ * Convenience: Create a Subject from ID arrays.
+ * Optional scopes are applied to target identities only (type check is unscoped).
+ */
+export function subjectFromIds(
+  typeIds: string[],
+  targetIds: string[],
+  options?: { scopes?: Scope[] },
+): Subject {
+  return {
+    forType: identities(typeIds),
+    forTarget: identities(targetIds, options?.scopes),
+  }
+}
+
+// =============================================================================
+// SCOPE HELPERS
+// =============================================================================
 
 export function nodeScope(nodes: string[]): Scope {
   return { nodes }
@@ -42,31 +121,10 @@ export function permScope(perms: string[]): Scope {
   return { perms }
 }
 
-export function fullScope(nodes: string[], perms: string[]): Scope {
-  return { nodes, perms }
+export function principalScope(principals: string[]): Scope {
+  return { principals }
 }
 
-// =============================================================================
-// COMMON TEST SCENARIOS
-// =============================================================================
-
-/**
- * Create identity with node scope restriction.
- */
-export function identityWithNodeScope(identityId: string, nodes: string[]): IdentityInput {
-  return { identityId, scopes: [{ nodes }] }
-}
-
-/**
- * Create identity with permission scope restriction.
- */
-export function identityWithPermScope(identityId: string, perms: string[]): IdentityInput {
-  return { identityId, scopes: [{ perms }] }
-}
-
-/**
- * Create identity with multiple scopes (OR'd together).
- */
-export function identityWithScopes(identityId: string, scopes: Scope[]): IdentityInput {
-  return { identityId, scopes }
+export function fullScope(nodes?: string[], perms?: string[], principals?: string[]): Scope {
+  return { nodes, perms, principals }
 }

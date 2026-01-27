@@ -2,7 +2,16 @@
  * AUTH_V2 Types
  *
  * Core types for the capability-based access control system.
+ * Two APIs: checkAccess (hot path) and explainAccess (cold path).
  */
+
+// =============================================================================
+// PRIMITIVE TYPES
+// =============================================================================
+
+export type NodeId = string
+export type IdentityId = string
+export type PermissionT = string
 
 // =============================================================================
 // SCOPE TYPES
@@ -18,18 +27,25 @@
  * Multiple scopes are OR'd together (identity satisfies ANY scope).
  */
 export type Scope = {
-  nodes?: string[]
-  perms?: string[]
-  principals?: string[]
+  nodes?: NodeId[]
+  perms?: PermissionT[]
+  principals?: IdentityId[]
 }
 
+// =============================================================================
+// SUBJECT TYPE
+// =============================================================================
+
 /**
- * Identity input with optional scope restrictions.
- * Multiple scopes are OR'd together.
+ * Subject for access check.
+ * Contains identity expressions for type and target checks.
+ *
+ * Scopes are on IdentityExpr leaves, not here.
+ * Principal is passed separately to checkAccess/explainAccess.
  */
-export type IdentityInput = {
-  identityId: string
-  scopes?: Scope[]
+export type Subject = {
+  forType: IdentityExpr
+  forTarget: IdentityExpr
 }
 
 // =============================================================================
@@ -39,16 +55,16 @@ export type IdentityInput = {
 /**
  * Expression tree for identity composition.
  * - identity: leaf node representing a single identity with optional scope restrictions
- * - union: OR of two expressions (∪)
- * - intersect: AND of two expressions (∩)
- * - exclude: set difference of two expressions (\)
+ * - union: OR of two expressions (A ∪ B)
+ * - intersect: AND of two expressions (A ∩ B)
+ * - exclude: set difference (A \ B)
  *
  * Scopes on leaf nodes enable principal filtering: when generating Cypher,
- * leaves that don't allow the current principal are treated as empty sets (∅).
+ * leaves that don't allow the current principal are treated as empty sets.
  * Empty sets propagate through composition: A ∪ ∅ = A, A ∩ ∅ = ∅, A \ ∅ = A.
  */
 export type IdentityExpr =
-  | { kind: 'identity'; id: string; scopes?: Scope[] }
+  | { kind: 'identity'; id: IdentityId; scopes?: Scope[] }
   | { kind: 'union'; left: IdentityExpr; right: IdentityExpr }
   | { kind: 'intersect'; left: IdentityExpr; right: IdentityExpr }
   | { kind: 'exclude'; left: IdentityExpr; right: IdentityExpr }
@@ -57,25 +73,90 @@ export type IdentityExpr =
  * Raw identity composition data from the database.
  */
 export type IdentityComposition = {
-  id: string
-  unions: string[]
-  intersects: string[]
-  excludes: string[]
+  id: IdentityId
+  unions: IdentityId[]
+  intersects: IdentityId[]
+  excludes: IdentityId[]
   hasDirectPerms: boolean
 }
 
 // =============================================================================
-// ACCESS RESULT TYPES
+// ACCESS DECISION (HOT PATH)
 // =============================================================================
 
 /**
- * Result of an access check.
- * - granted: true if access is allowed
- * - reason: 'type' if denied by type check, 'target' if denied by target check
+ * Hot path result: simple grant/deny decision.
+ * Use checkAccess() for this.
  */
-export type AccessResult = {
+export type AccessDecision = {
   granted: boolean
-  reason?: 'type' | 'target'
+  deniedBy?: 'type' | 'target'
+}
+
+// =============================================================================
+// ACCESS EXPLANATION (COLD PATH)
+// =============================================================================
+
+/**
+ * Cold path result: detailed explanation for debugging.
+ * Use explainAccess() for this.
+ */
+export type AccessExplanation = {
+  // Echo inputs (self-contained)
+  targetId: NodeId
+  perm: PermissionT
+  principal: IdentityId | undefined
+
+  // Result
+  granted: boolean
+  deniedBy?: 'type' | 'target'
+
+  // Phase explanations
+  typeCheck: PhaseExplanation
+  targetCheck: PhaseExplanation
+}
+
+/**
+ * Explanation for a single phase (type check or target check).
+ */
+export type PhaseExplanation = {
+  expression: IdentityExpr | null
+  leaves: LeafEvaluation[]
+  cypher: string
+}
+
+/**
+ * Evaluation of a single leaf identity in the expression tree.
+ *
+ * Path encoding: position in tree
+ * - [] = root (single identity)
+ * - [0] = left branch
+ * - [1] = right branch
+ * - [0, 1] = left.right
+ * - With multiple identities: [identityIndex, ...treePath]
+ */
+export type LeafEvaluation = {
+  path: number[]
+  identityId: IdentityId
+  status: 'granted' | 'filtered' | 'missing'
+
+  // Granted: where permission was found and how
+  grantedAt?: NodeId
+  inheritancePath?: NodeId[] // target → ... → grantedAt
+
+  // Filtered: why and where
+  filterDetail?: FilterDetail[]
+
+  // Missing: what was searched
+  searchedPath?: NodeId[] // target → ... → root (searched but not found)
+}
+
+/**
+ * Detail about why a scope filtered an identity.
+ */
+export type FilterDetail = {
+  scopeIndex: number
+  failedCheck: 'principal' | 'perm' | 'node'
 }
 
 // =============================================================================
@@ -114,14 +195,6 @@ export interface AuthzTestData {
 // =============================================================================
 // CONFIGURATION TYPES
 // =============================================================================
-
-/**
- * Cypher generator configuration.
- */
-export interface CypherGeneratorConfig {
-  maxDepth: number
-  useExistsSyntax: boolean
-}
 
 /**
  * Access checker configuration.
