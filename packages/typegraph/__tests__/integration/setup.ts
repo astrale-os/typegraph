@@ -214,34 +214,43 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
   const [user1] = await connection
     .run<{
       id: string
-    }>(`CREATE (u:user {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`, {
-      id: 'user-1',
-      email: 'alice@example.com',
-      name: 'Alice',
-      status: 'active',
-    })
+    }>(
+      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+      {
+        id: 'user-1',
+        email: 'alice@example.com',
+        name: 'Alice',
+        status: 'active',
+      },
+    )
     .then((r) => r.records)
 
   const [user2] = await connection
     .run<{
       id: string
-    }>(`CREATE (u:user {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`, {
-      id: 'user-2',
-      email: 'bob@example.com',
-      name: 'Bob',
-      status: 'active',
-    })
+    }>(
+      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+      {
+        id: 'user-2',
+        email: 'bob@example.com',
+        name: 'Bob',
+        status: 'active',
+      },
+    )
     .then((r) => r.records)
 
   const [user3] = await connection
     .run<{
       id: string
-    }>(`CREATE (u:user {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`, {
-      id: 'user-3',
-      email: 'charlie@example.com',
-      name: 'Charlie',
-      status: 'inactive',
-    })
+    }>(
+      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+      {
+        id: 'user-3',
+        email: 'charlie@example.com',
+        name: 'Charlie',
+        status: 'inactive',
+      },
+    )
     .then((r) => r.records)
 
   // Create posts
@@ -249,7 +258,7 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
     .run<{
       id: string
     }>(
-      `CREATE (p:post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
+      `CREATE (p:Node:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
       {
         id: 'post-1',
         title: 'Hello World',
@@ -263,7 +272,7 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
     .run<{
       id: string
     }>(
-      `CREATE (p:post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
+      `CREATE (p:Node:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
       {
         id: 'post-2',
         title: 'GraphQL vs REST',
@@ -276,7 +285,7 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
   const [post3] = await connection
     .run<{
       id: string
-    }>(`CREATE (p:post {id: $id, title: $title, views: $views}) RETURN p.id as id`, {
+    }>(`CREATE (p:Node:Post {id: $id, title: $title, views: $views}) RETURN p.id as id`, {
       id: 'post-3',
       title: 'Draft Post',
       views: 0,
@@ -287,7 +296,7 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
   const [comment1] = await connection
     .run<{
       id: string
-    }>(`CREATE (c:comment {id: $id, text: $text}) RETURN c.id as id`, {
+    }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
       id: 'comment-1',
       text: 'Great post!',
     })
@@ -296,7 +305,7 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
   const [comment2] = await connection
     .run<{
       id: string
-    }>(`CREATE (c:comment {id: $id, text: $text}) RETURN c.id as id`, {
+    }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
       id: 'comment-2',
       text: 'Thanks for sharing',
     })
@@ -306,66 +315,81 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
   const [tag1] = await connection
     .run<{
       id: string
-    }>(`CREATE (t:tag {id: $id, name: $name}) RETURN t.id as id`, { id: 'tag-1', name: 'tech' })
+    }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
+      id: 'tag-1',
+      name: 'tech',
+    })
     .then((r) => r.records)
 
   const [tag2] = await connection
     .run<{
       id: string
-    }>(`CREATE (t:tag {id: $id, name: $name}) RETURN t.id as id`, { id: 'tag-2', name: 'tutorial' })
+    }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
+      id: 'tag-2',
+      name: 'tutorial',
+    })
     .then((r) => r.records)
 
   // Create folders (hierarchy)
-  await connection.run(`CREATE (f:folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
-    id: 'folder-root',
-    name: 'Root',
-    path: '/',
-  })
+  await connection.run(
+    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    {
+      id: 'folder-root',
+      name: 'Root',
+      path: '/',
+    },
+  )
 
-  await connection.run(`CREATE (f:folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
-    id: 'folder-docs',
-    name: 'Documents',
-    path: '/documents',
-  })
+  await connection.run(
+    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    {
+      id: 'folder-docs',
+      name: 'Documents',
+      path: '/documents',
+    },
+  )
 
-  await connection.run(`CREATE (f:folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
-    id: 'folder-work',
-    name: 'Work',
-    path: '/documents/work',
-  })
+  await connection.run(
+    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    {
+      id: 'folder-work',
+      name: 'Work',
+      path: '/documents/work',
+    },
+  )
 
   // Create relationships
   // User -> authored -> Post
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-1' },
   )
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-2' },
   )
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-2', postId: 'post-3' },
   )
 
   // User -> likes -> Post
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     {
       userId: 'user-2',
       postId: 'post-1',
     },
   )
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     {
       userId: 'user-3',
       postId: 'post-1',
     },
   )
   await connection.run(
-    `MATCH (u:user {id: $userId}), (p:post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     {
       userId: 'user-1',
       postId: 'post-2',
@@ -374,14 +398,14 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
 
   // User -> follows -> User
   await connection.run(
-    `MATCH (u1:user {id: $fromId}), (u2:user {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
+    `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
     {
       fromId: 'user-2',
       toId: 'user-1',
     },
   )
   await connection.run(
-    `MATCH (u1:user {id: $fromId}), (u2:user {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
+    `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
     {
       fromId: 'user-3',
       toId: 'user-1',
@@ -390,14 +414,14 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
 
   // Post -> hasComment -> Comment
   await connection.run(
-    `MATCH (p:post {id: $postId}), (c:comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
+    `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
     {
       postId: 'post-1',
       commentId: 'comment-1',
     },
   )
   await connection.run(
-    `MATCH (p:post {id: $postId}), (c:comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
+    `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
     {
       postId: 'post-1',
       commentId: 'comment-2',
@@ -406,14 +430,14 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
 
   // User -> wroteComment -> Comment
   await connection.run(
-    `MATCH (u:user {id: $userId}), (c:comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
+    `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
     {
       userId: 'user-2',
       commentId: 'comment-1',
     },
   )
   await connection.run(
-    `MATCH (u:user {id: $userId}), (c:comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
+    `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
     {
       userId: 'user-3',
       commentId: 'comment-2',
@@ -422,21 +446,21 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
 
   // Post -> tagged -> Tag
   await connection.run(
-    `MATCH (p:post {id: $postId}), (t:tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     {
       postId: 'post-1',
       tagId: 'tag-1',
     },
   )
   await connection.run(
-    `MATCH (p:post {id: $postId}), (t:tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     {
       postId: 'post-2',
       tagId: 'tag-1',
     },
   )
   await connection.run(
-    `MATCH (p:post {id: $postId}), (t:tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     {
       postId: 'post-2',
       tagId: 'tag-2',
@@ -445,11 +469,11 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
 
   // Folder hierarchy
   await connection.run(
-    `MATCH (child:folder {id: $childId}), (parent:folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
+    `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-docs', parentId: 'folder-root' },
   )
   await connection.run(
-    `MATCH (child:folder {id: $childId}), (parent:folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
+    `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-work', parentId: 'folder-docs' },
   )
 

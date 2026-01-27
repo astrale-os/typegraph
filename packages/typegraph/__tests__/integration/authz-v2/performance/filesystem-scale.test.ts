@@ -3,6 +3,8 @@
  *
  * Tests traversal-only approach at production scale.
  * Goal: Prove that traversal is "good enough" for filesystem-like systems.
+ *
+ * SKIPPED BY DEFAULT - Run with: RUN_PERF_TESTS=1 pnpm test:integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -15,7 +17,9 @@ import {
 import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
 
-describe('Filesystem Scale Test', () => {
+const SKIP_PERF_TESTS = !process.env.RUN_PERF_TESTS
+
+describe.skipIf(SKIP_PERF_TESTS)('Filesystem Scale Test', () => {
   // Test at increasing scales
   const scales = [
     { name: '1K', workspaces: 10, foldersPerWs: 10, filesPerFolder: 10 }, // 1,000 files

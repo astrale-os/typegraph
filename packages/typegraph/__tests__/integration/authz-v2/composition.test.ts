@@ -298,6 +298,353 @@ describe('AUTH_V2: Identity Composition', () => {
   })
 
   // ===========================================================================
+  // EXCLUDE (SET DIFFERENCE)
+  // ===========================================================================
+
+  describe('Exclude Composition', () => {
+    it('basic exclude denies access (E = A \\ C where C has M2)', async () => {
+      // Create identities for exclude test
+      // E = A \ C
+      // A has read on M1 and M2
+      // C has read on M2 only
+      // So E should have read on M1, but NOT M2
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_E' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_C' },
+      })
+
+      // EXCLUDE_C has read on M2 only
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_C', moduleId: 'M2' } },
+      )
+
+      // EXCLUDE_E = A (has M1, M2) \ EXCLUDE_C (has M2)
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_E'}), (a:Identity {id: 'A'})
+         CREATE (e)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_E'}), (c:Identity {id: 'EXCLUDE_C'})
+         CREATE (e)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // EXCLUDE_E should NOT have read on M2 (excluded by C)
+      const resultM2 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('EXCLUDE_E')],
+        'M2',
+        'read',
+      )
+      expectDeniedByTarget(resultM2)
+    })
+
+    it('preserve non-excluded permissions (E = A \\ C keeps M1)', async () => {
+      // Reuse setup from previous test by creating fresh identities
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_E2' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_C2' },
+      })
+
+      // EXCLUDE_C2 has read on M2 only (not M1)
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_C2', moduleId: 'M2' } },
+      )
+
+      // EXCLUDE_E2 = A (has M1, M2) \ EXCLUDE_C2 (has M2)
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_E2'}), (a:Identity {id: 'A'})
+         CREATE (e)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_E2'}), (c:Identity {id: 'EXCLUDE_C2'})
+         CREATE (e)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // EXCLUDE_E2 should STILL have read on M1 (not excluded)
+      const resultM1 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('EXCLUDE_E2')],
+        'M1',
+        'read',
+      )
+      expectGranted(resultM1)
+    })
+
+    it('multiple excludes (X = A \\ B \\ C)', async () => {
+      // Create identities
+      // X = A \ B \ C
+      // A has read on M1, M2
+      // B has read on M2
+      // C has read on M3 (not relevant, but tests chaining)
+      // Result: X has read on M1 only
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'MULTI_EXCLUDE_X' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'MULTI_EXCLUDE_B' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'MULTI_EXCLUDE_C' },
+      })
+
+      // MULTI_EXCLUDE_B has read on M2
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'MULTI_EXCLUDE_B', moduleId: 'M2' } },
+      )
+
+      // MULTI_EXCLUDE_C has read on M1 (this should also exclude M1)
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'MULTI_EXCLUDE_C', moduleId: 'M1' } },
+      )
+
+      // MULTI_EXCLUDE_X = A \ B \ C
+      await ctx.connection.graph.query(
+        `MATCH (x:Identity {id: 'MULTI_EXCLUDE_X'}), (a:Identity {id: 'A'})
+         CREATE (x)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (x:Identity {id: 'MULTI_EXCLUDE_X'}), (b:Identity {id: 'MULTI_EXCLUDE_B'})
+         CREATE (x)-[:excludeWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (x:Identity {id: 'MULTI_EXCLUDE_X'}), (c:Identity {id: 'MULTI_EXCLUDE_C'})
+         CREATE (x)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // M2 excluded by B
+      const resultM2 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('MULTI_EXCLUDE_X')],
+        'M2',
+        'read',
+      )
+      expectDeniedByTarget(resultM2)
+
+      // M1 excluded by C
+      const resultM1 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('MULTI_EXCLUDE_X')],
+        'M1',
+        'read',
+      )
+      expectDeniedByTarget(resultM1)
+    })
+
+    it('union then exclude ((A ∪ B) \\ C)', async () => {
+      // Create: Y = (A ∪ B) \ C
+      // A has read on M1, M2
+      // B has read on M1
+      // C has read on M2
+      // Result: Y has read on M1, not M2
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'UNION_EXCLUDE_Y' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'UNION_EXCLUDE_C' },
+      })
+
+      // UNION_EXCLUDE_C has read on M2
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'UNION_EXCLUDE_C', moduleId: 'M2' } },
+      )
+
+      // Y = A ∪ B
+      await ctx.connection.graph.query(
+        `MATCH (y:Identity {id: 'UNION_EXCLUDE_Y'}), (a:Identity {id: 'A'})
+         CREATE (y)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (y:Identity {id: 'UNION_EXCLUDE_Y'}), (b:Identity {id: 'B'})
+         CREATE (y)-[:unionWith]->(b)`,
+      )
+      // Y \ C
+      await ctx.connection.graph.query(
+        `MATCH (y:Identity {id: 'UNION_EXCLUDE_Y'}), (c:Identity {id: 'UNION_EXCLUDE_C'})
+         CREATE (y)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // Y should have read on M1 (both A and B have it, C doesn't exclude it)
+      const resultM1 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('UNION_EXCLUDE_Y')],
+        'M1',
+        'read',
+      )
+      expectGranted(resultM1)
+
+      // Y should NOT have read on M2 (excluded by C)
+      const resultM2 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('UNION_EXCLUDE_Y')],
+        'M2',
+        'read',
+      )
+      expectDeniedByTarget(resultM2)
+    })
+
+    it('intersect then exclude ((A ∩ B) \\ C)', async () => {
+      // Create: Z = (A ∩ B) \ C
+      // A has read on M1, M2
+      // B has read on M1
+      // C has read on M3 (doesn't affect result)
+      // A ∩ B = M1 only
+      // Result: Z has read on M1
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'INTER_EXCLUDE_Z' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'INTER_EXCLUDE_C' },
+      })
+
+      // INTER_EXCLUDE_C has read on M3 (not M1, so won't affect the intersection result)
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'INTER_EXCLUDE_C', moduleId: 'M3' } },
+      )
+
+      // Z = A ∩ B
+      await ctx.connection.graph.query(
+        `MATCH (z:Identity {id: 'INTER_EXCLUDE_Z'}), (a:Identity {id: 'A'})
+         CREATE (z)-[:intersectWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (z:Identity {id: 'INTER_EXCLUDE_Z'}), (b:Identity {id: 'B'})
+         CREATE (z)-[:intersectWith]->(b)`,
+      )
+      // Z \ C
+      await ctx.connection.graph.query(
+        `MATCH (z:Identity {id: 'INTER_EXCLUDE_Z'}), (c:Identity {id: 'INTER_EXCLUDE_C'})
+         CREATE (z)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // Z = (A ∩ B) \ C = M1 \ M3 = M1
+      const resultM1 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('INTER_EXCLUDE_Z')],
+        'M1',
+        'read',
+      )
+      expectGranted(resultM1)
+
+      // M2 not in intersection, so denied
+      const resultM2 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('INTER_EXCLUDE_Z')],
+        'M2',
+        'read',
+      )
+      expectDeniedByTarget(resultM2)
+    })
+
+    it('complex composition ((A ∪ B) ∩ D) \\ E', async () => {
+      // Create: W = ((A ∪ B) ∩ D) \ E
+      // A has read on M1, M2
+      // B has read on M1
+      // D has read on M1, M2, M3
+      // E has read on M2
+      // (A ∪ B) = M1, M2
+      // (A ∪ B) ∩ D = M1, M2 (both have it)
+      // Result: W = M1 (M2 excluded by E)
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'COMPLEX_W' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'COMPLEX_D' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'COMPLEX_E' },
+      })
+
+      // COMPLEX_D has read on M1, M2, M3
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'COMPLEX_D', moduleId: 'M1' } },
+      )
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'COMPLEX_D', moduleId: 'M2' } },
+      )
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'COMPLEX_D', moduleId: 'M3' } },
+      )
+
+      // COMPLEX_E has read on M2
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'COMPLEX_E', moduleId: 'M2' } },
+      )
+
+      // W = (A ∪ B) ∩ D \ E
+      await ctx.connection.graph.query(
+        `MATCH (w:Identity {id: 'COMPLEX_W'}), (a:Identity {id: 'A'})
+         CREATE (w)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (w:Identity {id: 'COMPLEX_W'}), (b:Identity {id: 'B'})
+         CREATE (w)-[:unionWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (w:Identity {id: 'COMPLEX_W'}), (d:Identity {id: 'COMPLEX_D'})
+         CREATE (w)-[:intersectWith]->(d)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (w:Identity {id: 'COMPLEX_W'}), (e:Identity {id: 'COMPLEX_E'})
+         CREATE (w)-[:excludeWith]->(e)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // W should have read on M1
+      const resultM1 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('COMPLEX_W')],
+        'M1',
+        'read',
+      )
+      expectGranted(resultM1)
+
+      // W should NOT have read on M2 (excluded by E)
+      const resultM2 = await checker.hasAccess(
+        [identity('APP1')],
+        [identity('COMPLEX_W')],
+        'M2',
+        'read',
+      )
+      expectDeniedByTarget(resultM2)
+    })
+  })
+
+  // ===========================================================================
   // COMPLEX COMPOSITION
   // ===========================================================================
 

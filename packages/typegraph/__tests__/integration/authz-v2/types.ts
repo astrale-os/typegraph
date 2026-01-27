@@ -36,11 +36,13 @@ export type IdentityInput = {
  * - base: leaf node representing a single identity
  * - union: OR of two expressions (∪)
  * - intersect: AND of two expressions (∩)
+ * - exclude: set difference of two expressions (\)
  */
 export type IdentityExpr =
   | { kind: 'base'; id: string }
   | { kind: 'union'; left: IdentityExpr; right: IdentityExpr }
   | { kind: 'intersect'; left: IdentityExpr; right: IdentityExpr }
+  | { kind: 'exclude'; left: IdentityExpr; right: IdentityExpr }
 
 /**
  * Raw identity composition data from the database.
@@ -49,6 +51,7 @@ export type IdentityComposition = {
   id: string
   unions: string[]
   intersects: string[]
+  excludes: string[]
   hasDirectPerms: boolean
 }
 

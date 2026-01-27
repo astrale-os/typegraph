@@ -49,15 +49,18 @@ const FETCH_IDENTITY_QUERY = `
   MATCH (i:Identity {id: $id})
   OPTIONAL MATCH (i)-[:unionWith]->(u:Identity)
   OPTIONAL MATCH (i)-[:intersectWith]->(n:Identity)
+  OPTIONAL MATCH (i)-[:excludeWith]->(e:Identity)
   OPTIONAL MATCH (i)-[:hasPerm]->(permTarget)
   WITH i,
        collect(DISTINCT u.id) AS unions,
        collect(DISTINCT n.id) AS intersects,
+       collect(DISTINCT e.id) AS excludes,
        count(DISTINCT permTarget) > 0 AS hasDirectPerms
   RETURN
     i.id AS id,
     unions,
     intersects,
+    excludes,
     hasDirectPerms
 `
 
@@ -91,6 +94,7 @@ export class IdentityEvaluator {
       id: result.id,
       unions: (result.unions ?? []).filter((u): u is string => u !== null),
       intersects: (result.intersects ?? []).filter((i): i is string => i !== null),
+      excludes: (result.excludes ?? []).filter((e): e is string => e !== null),
       hasDirectPerms: result.hasDirectPerms ?? false,
     }
   }
@@ -115,10 +119,10 @@ export class IdentityEvaluator {
     }
     visited.add(id)
 
-    const { unions, intersects, hasDirectPerms } = await this.fetchIdentity(id)
+    const { unions, intersects, excludes, hasDirectPerms } = await this.fetchIdentity(id)
 
     // Leaf node: no composition edges
-    if (unions.length === 0 && intersects.length === 0) {
+    if (unions.length === 0 && intersects.length === 0 && excludes.length === 0) {
       return { kind: 'base', id }
     }
 
@@ -136,6 +140,12 @@ export class IdentityEvaluator {
     for (const intersectId of intersects) {
       const intersectExpr = await this.evalIdentity(intersectId, new Set(visited))
       result = result ? { kind: 'intersect', left: result, right: intersectExpr } : intersectExpr
+    }
+
+    // Apply excludes (last): (...) \ E \ F
+    for (const excludeId of excludes) {
+      const excludeExpr = await this.evalIdentity(excludeId, new Set(visited))
+      result = result ? { kind: 'exclude', left: result, right: excludeExpr } : null
     }
 
     // Edge case: no direct perms AND no valid composition

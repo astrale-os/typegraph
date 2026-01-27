@@ -167,6 +167,155 @@ describe('AUTH_V2: Edge Cases', () => {
   })
 
   // ===========================================================================
+  // EXCLUDE EDGE CASES
+  // ===========================================================================
+
+  describe('Exclude Edge Cases', () => {
+    it('detects direct exclude cycle (A excludeWith A)', async () => {
+      // Create identity that excludes itself
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_CYCLE_SELF' },
+      })
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $id})
+         CREATE (i)-[:excludeWith]->(i)`,
+        { params: { id: 'EXCLUDE_CYCLE_SELF' } },
+      )
+      // Give it some direct perms so it's not invalid for other reasons
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_CYCLE_SELF', moduleId: 'M1' } },
+      )
+
+      const evaluator = createIdentityEvaluator(ctx.executor)
+
+      await expect(evaluator.evalIdentity('EXCLUDE_CYCLE_SELF')).rejects.toThrow(CycleDetectedError)
+    })
+
+    it('detects indirect exclude cycle (A excludeWith B excludeWith A)', async () => {
+      // Create cyclic identities via excludeWith
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_CYCLE_A' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_CYCLE_B' },
+      })
+
+      // Give both direct perms
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_CYCLE_A', moduleId: 'M1' } },
+      )
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_CYCLE_B', moduleId: 'M2' } },
+      )
+
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
+         CREATE (a)-[:excludeWith]->(b)`,
+        { params: { aId: 'EXCLUDE_CYCLE_A', bId: 'EXCLUDE_CYCLE_B' } },
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: $aId}), (b:Identity {id: $bId})
+         CREATE (b)-[:excludeWith]->(a)`,
+        { params: { aId: 'EXCLUDE_CYCLE_A', bId: 'EXCLUDE_CYCLE_B' } },
+      )
+
+      const evaluator = createIdentityEvaluator(ctx.executor)
+
+      await expect(evaluator.evalIdentity('EXCLUDE_CYCLE_A')).rejects.toThrow(CycleDetectedError)
+    })
+
+    it('rejects exclude-only identity (no base permissions)', async () => {
+      // Create identity with only excludeWith, no direct perms or unions
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_ONLY' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_TARGET' },
+      })
+
+      // EXCLUDE_TARGET has some perms
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'EXCLUDE_TARGET', moduleId: 'M1' } },
+      )
+
+      // EXCLUDE_ONLY only has excludeWith, no direct perms or union
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'})
+         CREATE (a)-[:excludeWith]->(b)`,
+      )
+
+      const evaluator = createIdentityEvaluator(ctx.executor)
+
+      await expect(evaluator.evalIdentity('EXCLUDE_ONLY')).rejects.toThrow(InvalidIdentityError)
+    })
+
+    it('allows diamond pattern with exclude (A -> B, A -> C, B -> D, C excludeWith D)', async () => {
+      // Create diamond where one path excludes the common descendant
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_EXCLUDE_A' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_EXCLUDE_B' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_EXCLUDE_C' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_EXCLUDE_D' },
+      })
+
+      // D has perms - it's the leaf
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'DIAMOND_EXCLUDE_D', moduleId: 'M1' } },
+      )
+
+      // A -> B (union), A -> C (union)
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_EXCLUDE_A'}), (b:Identity {id: 'DIAMOND_EXCLUDE_B'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_EXCLUDE_A'}), (c:Identity {id: 'DIAMOND_EXCLUDE_C'})
+         CREATE (a)-[:unionWith]->(c)`,
+      )
+
+      // B -> D (union)
+      await ctx.connection.graph.query(
+        `MATCH (b:Identity {id: 'DIAMOND_EXCLUDE_B'}), (d:Identity {id: 'DIAMOND_EXCLUDE_D'})
+         CREATE (b)-[:unionWith]->(d)`,
+      )
+
+      // C excludeWith D
+      await ctx.connection.graph.query(
+        `MATCH (c:Identity {id: 'DIAMOND_EXCLUDE_C'}), (d:Identity {id: 'DIAMOND_EXCLUDE_D'})
+         CREATE (c)-[:excludeWith]->(d)`,
+      )
+      // C needs some base perms to be valid
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        { params: { identityId: 'DIAMOND_EXCLUDE_C', moduleId: 'M2' } },
+      )
+
+      const evaluator = createIdentityEvaluator(ctx.executor)
+
+      // Should not throw - diamond with exclude is allowed
+      const expr = await evaluator.evalIdentity('DIAMOND_EXCLUDE_A')
+      expect(expr).toBeDefined()
+    })
+  })
+
+  // ===========================================================================
   // DEEP HIERARCHY
   // ===========================================================================
 

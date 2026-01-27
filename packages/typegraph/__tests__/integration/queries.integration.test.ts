@@ -30,7 +30,7 @@ describe('Query Integration Tests', () => {
       const compiled = query.compile()
 
       expect(compiled.cypher).toContain('MATCH')
-      expect(compiled.cypher).toContain(':user')
+      expect(compiled.cypher).toContain(':Node:User')
 
       const result = await ctx.executor.execute(compiled)
       expect(result.data).toHaveLength(3)
@@ -404,7 +404,7 @@ describe('Query Integration Tests', () => {
   describe('Raw Queries', () => {
     it('executes a raw Cypher query', async () => {
       const results = await ctx.graph.raw<{ name: string; email: string }>(
-        `MATCH (u:user) WHERE u.status = $status RETURN u.name as name, u.email as email ORDER BY u.name`,
+        `MATCH (u:Node:User) WHERE u.status = $status RETURN u.name as name, u.email as email ORDER BY u.name`,
         { status: 'active' },
       )
 
@@ -415,7 +415,7 @@ describe('Query Integration Tests', () => {
 
     it('executes a raw query with aggregation', async () => {
       const results = await ctx.graph.raw<{ status: string; count: number }>(
-        `MATCH (u:user) RETURN u.status as status, count(u) as count ORDER BY status`,
+        `MATCH (u:Node:User) RETURN u.status as status, count(u) as count ORDER BY status`,
         {},
       )
 
@@ -426,7 +426,7 @@ describe('Query Integration Tests', () => {
 
     it('executes a raw query with relationships', async () => {
       const results = await ctx.graph.raw<{ author: string; postCount: number }>(
-        `MATCH (u:user)-[:authored]->(p:post)
+        `MATCH (u:Node:User)-[:authored]->(p:Node:Post)
          RETURN u.name as author, count(p) as postCount
          ORDER BY postCount DESC`,
         {},
@@ -440,7 +440,7 @@ describe('Query Integration Tests', () => {
 
     it('returns empty array for no matches', async () => {
       const results = await ctx.graph.raw<{ id: string }>(
-        `MATCH (u:user {id: $id}) RETURN u.id as id`,
+        `MATCH (u:Node:User {id: $id}) RETURN u.id as id`,
         {
           id: 'non-existent-id',
         },

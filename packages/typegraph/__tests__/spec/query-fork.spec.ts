@@ -147,7 +147,7 @@ describe('Query Compilation: Fork Patterns', () => {
 
       // Should have initial MATCH for user
       expect(cypher).toContain('MATCH')
-      expect(cypher).toContain(':user')
+      expect(cypher).toContain(':Node:User')
 
       // Should have OPTIONAL MATCH for each fork branch
       expect(cypher).toContain('OPTIONAL MATCH')
@@ -231,7 +231,7 @@ describe('Query Compilation: Fork Patterns', () => {
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
 
-      expect(cypher).toContain(':message')
+      expect(cypher).toContain(':Node:Message')
       expect(cypher).toContain(':replyTo')
       expect(cypher).toContain(':hasReaction')
       expect(cypher).toContain('collect(')
@@ -514,9 +514,9 @@ describe('Query Compilation: Fork Patterns', () => {
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
 
-      // Initial MATCH should be for all posts
+      // Initial MATCH should be for all posts (with :Node base label and PascalCase)
       expect(cypher).toContain('MATCH (')
-      expect(cypher).toContain(':post)')
+      expect(cypher).toContain(':Node:Post)')
       expect(cypher).toContain('OPTIONAL MATCH')
     })
 
@@ -858,7 +858,7 @@ describe('Query Compilation: Fork Patterns', () => {
 
       // Verify structure
       expect(cypher).toContain('MATCH')
-      expect(cypher).toContain(':message')
+      expect(cypher).toContain(':Node:Message')
       expect(cypher).toContain('ORDER BY')
       expect(cypher).toContain('LIMIT 50')
       expect(cypher).toContain('OPTIONAL MATCH')
@@ -918,7 +918,7 @@ describe('Query Compilation: Fork Patterns', () => {
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
 
-      expect(cypher).toContain(':user')
+      expect(cypher).toContain(':Node:User')
       expect(cypher).toContain(':authored')
       expect(cypher).toContain(':follows')
       expect(cypher).toContain(':likes')

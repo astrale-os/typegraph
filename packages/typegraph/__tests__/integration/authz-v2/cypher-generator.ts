@@ -65,6 +65,8 @@ export class CypherGenerator {
         return `(${this.toPermCheck(expr.left, targetVar, perm)} OR ${this.toPermCheck(expr.right, targetVar, perm)})`
       case 'intersect':
         return `(${this.toPermCheck(expr.left, targetVar, perm)} AND ${this.toPermCheck(expr.right, targetVar, perm)})`
+      case 'exclude':
+        return `(${this.toPermCheck(expr.left, targetVar, perm)} AND NOT ${this.toPermCheck(expr.right, targetVar, perm)})`
     }
   }
 

@@ -218,8 +218,9 @@ describe('Query Validation', () => {
         expect(error.code).toBe('INVALID_TRAVERSAL')
         expect(error.message).toContain('user')
         expect(error.message).toContain('post')
-        expect(error.details?.edgeFrom).toBe('user')
-        expect(error.details?.edgeTo).toBe('post')
+        // edgeFrom/edgeTo are now arrays to support polymorphic edges
+        expect(error.details?.edgeFrom).toEqual(['user'])
+        expect(error.details?.edgeTo).toEqual(['post'])
       }
     })
   })

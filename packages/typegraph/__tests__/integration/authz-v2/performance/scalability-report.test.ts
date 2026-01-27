@@ -3,9 +3,13 @@
  *
  * Tests AUTH_V2 performance at increasing scales (1K to 1M nodes)
  * with the :Node label optimization.
+ *
+ * SKIPPED BY DEFAULT - Run with: RUN_PERF_TESTS=1 pnpm test:integration
  */
 
 import { describe, it, beforeAll, afterAll } from 'vitest'
+
+const SKIP_PERF_TESTS = !process.env.RUN_PERF_TESTS
 import {
   createFalkorDBConnection,
   createRawExecutor,
@@ -34,7 +38,7 @@ interface ScaleResult {
 
 const results: ScaleResult[] = []
 
-describe('Scalability Report', () => {
+describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
   const scales = [
     { name: '1K', workspaces: 10, foldersPerWs: 10, filesPerFolder: 10 },
     { name: '10K', workspaces: 20, foldersPerWs: 25, filesPerFolder: 20 },
