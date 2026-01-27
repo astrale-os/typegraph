@@ -123,11 +123,11 @@ export class IdentityEvaluator {
 
     // Leaf node: no composition edges
     if (unions.length === 0 && intersects.length === 0 && excludes.length === 0) {
-      return { kind: 'base', id }
+      return { kind: 'identity', id }
     }
 
     // Start with self if has direct perms
-    let result: IdentityExpr | null = hasDirectPerms ? { kind: 'base', id } : null
+    let result: IdentityExpr | null = hasDirectPerms ? { kind: 'identity', id } : null
 
     // Build union chain: (X ∪ A ∪ B)
     for (const unionId of unions) {

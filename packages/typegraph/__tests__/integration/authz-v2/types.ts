@@ -10,12 +10,17 @@
 
 /**
  * Scope restricts an identity's effective permissions.
- * - nodes: restrict to these subtrees (empty = anywhere)
- * - perms: restrict to these permission types (empty = any)
+ * - nodes: restrict to these subtrees (empty/undefined = anywhere)
+ * - perms: restrict to these permission types (empty/undefined = any)
+ * - principals: restrict which principals can invoke this identity (empty/undefined = any)
+ *
+ * All three dimensions must pass for the scope to allow access.
+ * Multiple scopes are OR'd together (identity satisfies ANY scope).
  */
 export type Scope = {
   nodes?: string[]
   perms?: string[]
+  principals?: string[]
 }
 
 /**
@@ -33,13 +38,17 @@ export type IdentityInput = {
 
 /**
  * Expression tree for identity composition.
- * - base: leaf node representing a single identity
+ * - identity: leaf node representing a single identity with optional scope restrictions
  * - union: OR of two expressions (∪)
  * - intersect: AND of two expressions (∩)
  * - exclude: set difference of two expressions (\)
+ *
+ * Scopes on leaf nodes enable principal filtering: when generating Cypher,
+ * leaves that don't allow the current principal are treated as empty sets (∅).
+ * Empty sets propagate through composition: A ∪ ∅ = A, A ∩ ∅ = ∅, A \ ∅ = A.
  */
 export type IdentityExpr =
-  | { kind: 'base'; id: string }
+  | { kind: 'identity'; id: string; scopes?: Scope[] }
   | { kind: 'union'; left: IdentityExpr; right: IdentityExpr }
   | { kind: 'intersect'; left: IdentityExpr; right: IdentityExpr }
   | { kind: 'exclude'; left: IdentityExpr; right: IdentityExpr }

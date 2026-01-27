@@ -140,9 +140,9 @@ describe('AUTH_V2: Edge Cases', () => {
 
       const evaluator = createIdentityEvaluator(ctx.executor)
 
-      // Leaf nodes (no composition) return a base expression
+      // Leaf nodes (no composition) return an identity expression
       const expr = await evaluator.evalIdentity('ISOLATED')
-      expect(expr).toEqual({ kind: 'base', id: 'ISOLATED' })
+      expect(expr).toEqual({ kind: 'identity', id: 'ISOLATED' })
     })
 
     it('denies access for identity without permissions', async () => {
