@@ -233,6 +233,68 @@ export type FilterDetail = {
 }
 
 // =============================================================================
+// IDENTITY QUERY PORT
+// =============================================================================
+
+/**
+ * Port interface for identity-based access control queries.
+ * Adapter implementations provide concrete I/O behavior.
+ */
+export interface IdentityQueryPort {
+  checkAccess(params: {
+    principal: IdentityId
+    grant: Grant
+    nodeId: NodeId
+    perm: PermissionT
+  }): Promise<AccessDecision>
+  explainAccess(params: {
+    principal: IdentityId
+    grant: Grant
+    nodeId: NodeId
+    perm: PermissionT
+  }): Promise<AccessExplanation>
+}
+
+// =============================================================================
+// REASON TYPES (STRUCTURED EXPLANATION)
+// =============================================================================
+
+/**
+ * Leaf reason: evaluation of a single identity.
+ */
+export type LeafReason = {
+  kind: 'identity'
+  id: string
+  status: 'active' | 'filtered' | 'missing'
+  filter?: { reason: 'principal' | 'perm' | 'scope' }
+}
+
+/**
+ * Composite reason: evaluation of a composition node.
+ */
+export type CompositeReason = {
+  kind: 'union' | 'intersect' | 'exclude'
+  left: Reason
+  right: Reason
+  simplified?: 'left' | 'right' | 'both'
+}
+
+/**
+ * Reason tree: mirrors the expression tree with evaluation results.
+ */
+export type Reason = LeafReason | CompositeReason
+
+/**
+ * Full access result with structured reason tree.
+ */
+export type AccessResult = {
+  granted: boolean
+  deniedBy?: 'type' | 'resource'
+  reason: Reason
+  cypher: string
+}
+
+// =============================================================================
 // RAW EXECUTOR TYPE
 // =============================================================================
 
@@ -263,15 +325,4 @@ export interface AuthzTestData {
   modules: { m1: string; m2: string; m3: string }
   spaces: { ws1: string; ws2: string }
   root: string
-}
-
-// =============================================================================
-// CONFIGURATION TYPES
-// =============================================================================
-
-/**
- * Access checker configuration.
- */
-export interface AccessCheckerConfig {
-  maxDepth?: number
 }

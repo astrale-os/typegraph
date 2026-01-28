@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { IdentityExpr, Scope } from './types'
+import type { IdentityExpr, Scope } from '../types'
 
 // =============================================================================
 // TYPES

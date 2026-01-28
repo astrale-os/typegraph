@@ -5,14 +5,14 @@
  * Handles JWT verification, scope intersection, and security constraints.
  */
 
-import type { IdentityExpr, IdentityId, Scope } from './types'
+import type { IdentityExpr, IdentityId, Scope } from '../types'
 import {
   type TokenVerifier,
   KERNEL_ISSUER,
   type EncodedIdentityExpr,
   type EncodedGrant,
 } from './token-verifier'
-import { intersectScopes } from './scope-utils'
+import { intersectScopes } from '../expression/scope'
 
 // =============================================================================
 // RESOLVED TYPES

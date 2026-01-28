@@ -11,9 +11,9 @@ import {
   clearDatabase,
   seedAuthzTestData,
   type AuthzTestContext,
-} from './setup'
-import { createAccessChecker } from './access-checker'
-import { IdentityEvaluator } from './identity-evaluator'
+} from './testing/setup'
+import { createAccessChecker } from './adapter'
+import { IdentityEvaluator } from './adapter/identity-evaluator'
 import {
   grant,
   grantFromIds,
@@ -25,7 +25,7 @@ import {
   expectDeniedByResource,
   principalScope,
   permScope,
-} from './helpers'
+} from './testing/helpers'
 
 describe('AUTH_V2: New API', () => {
   let ctx: AuthzTestContext
@@ -51,12 +51,12 @@ describe('AUTH_V2: New API', () => {
     it('grants access when both type and target identities have permissions', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
@@ -64,12 +64,12 @@ describe('AUTH_V2: New API', () => {
     it('denies access when type identity is missing', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.checkAccess(
-        grantFromIds([], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds([], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByType(result)
     })
@@ -77,12 +77,12 @@ describe('AUTH_V2: New API', () => {
     it('denies access when target identity is missing', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], []),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], []),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
     })
@@ -94,12 +94,12 @@ describe('AUTH_V2: New API', () => {
 
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.checkAccess(
-        grantFromIds(['APP_NO_USE'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP_NO_USE'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByType(result)
     })
@@ -107,12 +107,12 @@ describe('AUTH_V2: New API', () => {
     it('denies access when target identity lacks permission', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'admin', // Permission USER1 doesn't have
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'admin', // Permission USER1 doesn't have
+      })
 
       expectDeniedByResource(result)
     })
@@ -125,12 +125,12 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       // APP_NO_USE2 lacks 'use', but APP1 has it
-      const result = await checker.checkAccess(
-        grantFromIds(['APP_NO_USE2', 'APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP_NO_USE2', 'APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
@@ -139,23 +139,23 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       // workspace-1 has no type, so type check is skipped
-      const result = await checker.checkAccess(
-        grantFromIds([], ['USER1']), // No type identities needed
-        'workspace-1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds([], ['USER1']), // No type identities needed
+        nodeId: 'workspace-1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
       // Verify via explainAccess that type check was actually skipped
       // When target has no type, typeCheck.cypher is 'true' (always passes)
-      const explanation = await checker.explainAccess(
-        grantFromIds([], ['USER1']),
-        'workspace-1',
-        'read',
-        'principal',
-      )
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds([], ['USER1']),
+        nodeId: 'workspace-1',
+        perm: 'read',
+      })
       // Type check skipped because workspace-1 has no type
       expect(explanation.typeCheck.cypher).toBe('true')
       expect(explanation.typeCheck.leaves).toHaveLength(0)
@@ -170,12 +170,12 @@ describe('AUTH_V2: New API', () => {
     it('returns detailed explanation for granted access', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
@@ -196,12 +196,12 @@ describe('AUTH_V2: New API', () => {
       // USER1 has union with ROLE1, so the expression tree has branches
       const user1Expr = await evaluator.evalIdentity('USER1')
 
-      const result = await checker.explainAccess(
-        grant(identity('APP1'), user1Expr),
-        'M3', // Module in workspace-2, where ROLE1 has edit
-        'edit',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), user1Expr),
+        nodeId: 'M3', // Module in workspace-2, where ROLE1 has edit
+        perm: 'edit',
+      })
 
       expectGranted(result)
 
@@ -219,12 +219,12 @@ describe('AUTH_V2: New API', () => {
 
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER_NO_PERM']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER_NO_PERM']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
 
@@ -250,12 +250,15 @@ describe('AUTH_V2: New API', () => {
       // Test with a non-typed target (workspace) so type check is skipped
       // This isolates the principal filtering to target check only
       // Scope restricts to 'other-principal' but we pass 'some-principal'
-      const result = await checker.explainAccess(
-        grant(identities([]), identity('SCOPED_IDENTITY', [principalScope(['other-principal'])])),
-        'workspace-1', // Non-typed target
-        'read',
-        'some-principal', // Different from the allowed principal
-      )
+      const result = await checker.explainAccess({
+        principal: 'some-principal', // Different from the allowed principal
+        grant: grant(
+          identities([]),
+          identity('SCOPED_IDENTITY', [principalScope(['other-principal'])]),
+        ),
+        nodeId: 'workspace-1', // Non-typed target
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
 
@@ -271,15 +274,15 @@ describe('AUTH_V2: New API', () => {
 
       // Test with a non-typed target (workspace) so type check is skipped
       // This isolates the perm filtering to target check only
-      const result = await checker.explainAccess(
-        grant(
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(
           identities([]),
           identity('USER1', [permScope(['admin'])]), // Only allow 'admin', not 'read'
         ),
-        'workspace-1', // Non-typed target
-        'read',
-        'principal',
-      )
+        nodeId: 'workspace-1', // Non-typed target
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
 
@@ -293,12 +296,12 @@ describe('AUTH_V2: New API', () => {
     it('returns expression tree in phase explanation', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
@@ -313,12 +316,12 @@ describe('AUTH_V2: New API', () => {
     it('returns cypher in phase explanation', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
@@ -336,12 +339,12 @@ describe('AUTH_V2: New API', () => {
       // X = A ∩ B. A has read on M1, B has read on M1
       const xExpr = await evaluator.evalIdentity('X')
 
-      const result = await checker.explainAccess(
-        grant(identity('APP1'), xExpr),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), xExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
@@ -362,12 +365,12 @@ describe('AUTH_V2: New API', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
       const aExpr = await evaluator.evalIdentity('A')
 
-      const result = await checker.explainAccess(
-        grant(identity('APP1'), union(user1Expr, aExpr)),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), union(user1Expr, aExpr)),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
 
@@ -390,18 +393,18 @@ describe('AUTH_V2: New API', () => {
     it('checkAccess and explainAccess agree on granted', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const decision = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
@@ -414,18 +417,18 @@ describe('AUTH_V2: New API', () => {
 
       const checker = createAccessChecker(ctx.executor)
 
-      const decision = await checker.checkAccess(
-        grantFromIds(['APP_NO_USE3'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grantFromIds(['APP_NO_USE3'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP_NO_USE3'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP_NO_USE3'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
@@ -435,18 +438,18 @@ describe('AUTH_V2: New API', () => {
     it('checkAccess and explainAccess agree on denied by target', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const decision = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'admin',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'admin',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'admin',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'admin',
+      })
 
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
@@ -462,18 +465,18 @@ describe('AUTH_V2: New API', () => {
       // So X should be denied on M2
       const xExpr = await evaluator.evalIdentity('X')
 
-      const decision = await checker.checkAccess(
-        grant(identity('APP1'), xExpr),
-        'M2',
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grant(identity('APP1'), xExpr),
-        'M2',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), xExpr),
+        nodeId: 'M2',
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), xExpr),
+        nodeId: 'M2',
+        perm: 'read',
+      })
 
       // Both must agree: intersect requires ALL leaves to have permission
       expect(decision.granted).toBe(explanation.granted)
@@ -512,18 +515,18 @@ describe('AUTH_V2: New API', () => {
 
       const eExpr = await evaluator.evalIdentity('EXCLUDE_TEST_E')
 
-      const decision = await checker.checkAccess(
-        grant(identity('APP1'), eExpr),
-        'M1',
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grant(identity('APP1'), eExpr),
-        'M1',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), eExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), eExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       // Both must agree: exclude means left granted AND right NOT granted
       // A has read on M1, C has read on M1, so A \ C = denied
@@ -542,18 +545,18 @@ describe('AUTH_V2: New API', () => {
       // Create scoped identity that only allows access within workspace-2
       const scopedExpr = identity('USER1', { nodes: ['workspace-2'] })
 
-      const decision = await checker.checkAccess(
-        grant(identity('APP1'), scopedExpr),
-        'M1', // M1 is under workspace-1, not workspace-2
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grant(identity('APP1'), scopedExpr),
-        'M1',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), scopedExpr),
+        nodeId: 'M1', // M1 is under workspace-1, not workspace-2
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), scopedExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       // Both must agree: node scope restriction should deny access
       expect(decision.granted).toBe(explanation.granted)
@@ -569,18 +572,18 @@ describe('AUTH_V2: New API', () => {
 
       const scopedExpr = identity('USER1', { nodes: ['workspace-1'] })
 
-      const decision = await checker.checkAccess(
-        grant(identity('APP1'), scopedExpr),
-        'M1', // M1 is under workspace-1
-        'read',
-        'principal',
-      )
-      const explanation = await checker.explainAccess(
-        grant(identity('APP1'), scopedExpr),
-        'M1',
-        'read',
-        'principal',
-      )
+      const decision = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), scopedExpr),
+        nodeId: 'M1', // M1 is under workspace-1
+        perm: 'read',
+      })
+      const explanation = await checker.explainAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), scopedExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       // Both must agree: node scope matches, should be granted
       expect(decision.granted).toBe(explanation.granted)
@@ -598,12 +601,12 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       await expect(
-        checker.checkAccess(
-          grantFromIds(['APP1'], ['USER1']),
-          "M1' OR 1=1 --", // Cypher injection attempt
-          'read',
-          'principal',
-        ),
+        checker.checkAccess({
+          principal: 'principal',
+          grant: grantFromIds(['APP1'], ['USER1']),
+          nodeId: "M1' OR 1=1 --", // Cypher injection attempt
+          perm: 'read',
+        }),
       ).rejects.toThrow('Invalid resourceId')
     })
 
@@ -611,12 +614,12 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       await expect(
-        checker.checkAccess(
-          grantFromIds(['APP1'], ['USER1']),
-          'M1',
-          "read'}]-() RETURN 1 --", // Cypher injection attempt
-          'principal',
-        ),
+        checker.checkAccess({
+          principal: 'principal',
+          grant: grantFromIds(['APP1'], ['USER1']),
+          nodeId: 'M1',
+          perm: "read'}]-() RETURN 1 --", // Cypher injection attempt
+        }),
       ).rejects.toThrow('Invalid perm')
     })
 
@@ -624,12 +627,12 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       await expect(
-        checker.checkAccess(
-          grant(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
-          'M1',
-          'read',
-          'principal',
-        ),
+        checker.checkAccess({
+          principal: 'principal',
+          grant: grant(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       ).rejects.toThrow('Invalid identity ID')
     })
 
@@ -637,12 +640,12 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       await expect(
-        checker.checkAccess(
-          grant(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
-          'M1',
-          'read',
-          'principal',
-        ),
+        checker.checkAccess({
+          principal: 'principal',
+          grant: grant(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       ).rejects.toThrow('Invalid scope node ID')
     })
 
@@ -651,12 +654,12 @@ describe('AUTH_V2: New API', () => {
 
       // These should not throw - valid ID formats
       await expect(
-        checker.checkAccess(
-          grantFromIds(['APP1'], ['USER1']),
-          'M1',
-          'read',
-          'some-principal-id:v1',
-        ),
+        checker.checkAccess({
+          principal: 'some-principal-id:v1',
+          grant: grantFromIds(['APP1'], ['USER1']),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       ).resolves.toBeDefined()
     })
   })

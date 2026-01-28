@@ -24,7 +24,7 @@
  * ```
  */
 
-import type { IdentityExpr, Scope } from './types'
+import type { IdentityExpr, Scope } from '../types'
 
 // =============================================================================
 // EXPR INTERFACE (for type checking builder vs raw expression)

@@ -12,7 +12,7 @@ import type {
   Scope,
   UnresolvedGrant,
   UnresolvedIdentityExpr,
-} from './types'
+} from '../types'
 
 // =============================================================================
 // JWT VERIFIER INTERFACE
@@ -176,8 +176,8 @@ export async function resolveExpression(
 }
 
 // Re-export utilities from canonical locations
-export { intersectScopes } from './scope-utils'
-export { applyTopLevelScopes, extractPrimaryIdentity } from './expression-resolver'
+export { intersectScopes } from '../expression/scope'
+export { applyTopLevelScopes, extractPrimaryIdentity } from './resolver'
 
 /**
  * Decode an UnresolvedGrant into a Grant.

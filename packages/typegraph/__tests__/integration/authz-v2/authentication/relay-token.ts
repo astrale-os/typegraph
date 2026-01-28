@@ -11,7 +11,7 @@ import type {
   IdentityId,
   RelayTokenRequest,
   RelayTokenResponse,
-} from './types'
+} from '../types'
 import {
   TokenVerifier,
   type IdentityRegistry,
@@ -20,11 +20,7 @@ import {
   type TokenPayload,
   type EncodedIdentityExpr,
 } from './token-verifier'
-import {
-  ExpressionResolver,
-  extractPrimaryIdentity,
-  validateGrantSecurity,
-} from './expression-resolver'
+import { ExpressionResolver, extractPrimaryIdentity, validateGrantSecurity } from './resolver'
 import { identityExprToUnresolved } from './grant-encoding'
 
 // =============================================================================
@@ -32,7 +28,7 @@ import { identityExprToUnresolved } from './grant-encoding'
 // =============================================================================
 
 export { KERNEL_ISSUER } from './token-verifier'
-export { extractPrimaryIdentity } from './expression-resolver'
+export { extractPrimaryIdentity } from './resolver'
 
 // =============================================================================
 // AUTH CONTEXT
@@ -108,6 +104,11 @@ export class KernelService {
 
     const primaryIdentity = extractPrimaryIdentity(withScopes)
 
+    // NOTE: Relay tokens only embed forResource, not forType.
+    // This is intentional: relay tokens are for resource-scoped delegation.
+    // When authenticated, the missing forType defaults to the principal's own
+    // identity via resolveGrant(), meaning the type check uses the principal
+    // (caller) identity rather than the delegated expression.
     const payload: TokenPayload = {
       iss: KERNEL_ISSUER,
       sub: primaryIdentity,

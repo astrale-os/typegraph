@@ -9,8 +9,8 @@ import {
   toCompactJSON,
   fromCompactJSON,
   type CompactExpr,
-} from './expr-compact'
-import { identity, union, intersect, exclude } from './expr-builder'
+} from './expression/compact'
+import { identity, union, intersect, exclude } from './expression/builder'
 import type { IdentityExpr } from './types'
 
 describe('AUTH_V2: Expression Compaction', () => {
@@ -302,6 +302,11 @@ describe('AUTH_V2: Expression Compaction', () => {
 
   describe('robustness', () => {
     it('handles empty scope arrays correctly', () => {
+      // NOTE: Compact format intentionally strips empty arrays (nodes: []) from scopes.
+      // This is semantically safe because both { nodes: [] } and absent nodes mean
+      // "no node restriction" — the scope dimension is unrestricted in both cases.
+      // The authorization logic (scopeAllowsNode) treats undefined as unrestricted,
+      // and empty arrays are stripped before reaching Cypher generation.
       const expr: IdentityExpr = {
         kind: 'identity',
         id: 'USER1',

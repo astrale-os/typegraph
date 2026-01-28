@@ -11,11 +11,11 @@ import {
   clearDatabase,
   seedAuthzTestData,
   type AuthzTestContext,
-} from './setup'
-import { createAccessChecker } from './access-checker'
-import { IdentityEvaluator } from './identity-evaluator'
-import { expectGranted, expectDeniedByResource, grantFromIds } from './helpers'
-import { identity, union, intersect, grant, raw } from './expr-builder'
+} from './testing/setup'
+import { createAccessChecker } from './adapter'
+import { IdentityEvaluator } from './adapter/identity-evaluator'
+import { expectGranted, expectDeniedByResource, grantFromIds } from './testing/helpers'
+import { identity, union, intersect, grant, raw } from './expression/builder'
 
 describe('AUTH_V2: Identity Composition', () => {
   let ctx: AuthzTestContext
@@ -63,24 +63,24 @@ describe('AUTH_V2: Identity Composition', () => {
       )
 
       // USER1_NO_UNION CANNOT access M3 for edit
-      const deniedResult = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1_NO_UNION']),
-        'M3',
-        'edit',
-        'principal',
-      )
+      const deniedResult = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1_NO_UNION']),
+        nodeId: 'M3',
+        perm: 'edit',
+      })
       expectDeniedByResource(deniedResult)
 
       // USER1 (has unionWith ROLE1) CAN access M3 for edit
       // Build the expression for USER1 which includes ROLE1 via union
       const user1Expr = await evaluator.evalIdentity('USER1')
 
-      const grantedResult = await checker.checkAccess(
-        grant(identity('APP1'), raw(user1Expr)).build(),
-        'M3',
-        'edit',
-        'principal',
-      )
+      const grantedResult = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), raw(user1Expr)).build(),
+        nodeId: 'M3',
+        perm: 'edit',
+      })
       expectGranted(grantedResult)
     })
 
@@ -91,12 +91,12 @@ describe('AUTH_V2: Identity Composition', () => {
       // USER1 unionWith ROLE1, but neither has 'admin'
       const user1Expr = await evaluator.evalIdentity('USER1')
 
-      const result = await checker.checkAccess(
-        grant(identity('APP1'), raw(user1Expr)).build(),
-        'M1',
-        'admin',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), raw(user1Expr)).build(),
+        nodeId: 'M1',
+        perm: 'admin',
+      })
 
       expectDeniedByResource(result)
     })
@@ -154,28 +154,28 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // Should have edit on all three
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(unionAbcExpr)).build(),
-          'M1',
-          'edit',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
+          nodeId: 'M1',
+          perm: 'edit',
+        }),
       )
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(unionAbcExpr)).build(),
-          'M2',
-          'edit',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
+          nodeId: 'M2',
+          perm: 'edit',
+        }),
       )
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(unionAbcExpr)).build(),
-          'M3',
-          'edit',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
+          nodeId: 'M3',
+          perm: 'edit',
+        }),
       )
     })
   })
@@ -195,12 +195,12 @@ describe('AUTH_V2: Identity Composition', () => {
       // X should have read on M1
       const xExpr = await evaluator.evalIdentity('X')
 
-      const result = await checker.checkAccess(
-        grant(identity('APP1'), raw(xExpr)).build(),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), raw(xExpr)).build(),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
@@ -213,12 +213,12 @@ describe('AUTH_V2: Identity Composition', () => {
       // A has read on M2, B does not
       const xExpr = await evaluator.evalIdentity('X')
 
-      const result = await checker.checkAccess(
-        grant(identity('APP1'), raw(xExpr)).build(),
-        'M2',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), raw(xExpr)).build(),
+        nodeId: 'M2',
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
     })
@@ -275,28 +275,28 @@ describe('AUTH_V2: Identity Composition', () => {
       const interAbcExpr = await evaluator.evalIdentity('INTER_ABC')
 
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(interAbcExpr)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(interAbcExpr)).build(),
-          'M2',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
+          nodeId: 'M2',
+          perm: 'read',
+        }),
       )
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(interAbcExpr)).build(),
-          'M3',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
+          nodeId: 'M3',
+          perm: 'read',
+        }),
       )
     })
   })
@@ -334,12 +334,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // M2 excluded by C
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(excludeEExpr)).build(),
-          'M2',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(excludeEExpr)).build(),
+          nodeId: 'M2',
+          perm: 'read',
+        }),
       )
     })
 
@@ -369,12 +369,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // M1 not excluded
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(excludeE2Expr)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(excludeE2Expr)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
     })
 
@@ -412,20 +412,20 @@ describe('AUTH_V2: Identity Composition', () => {
       const multiExcludeXExpr = await evaluator.evalIdentity('MULTI_EXCLUDE_X')
 
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
-          'M2',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          nodeId: 'M2',
+          perm: 'read',
+        }),
       )
     })
 
@@ -457,20 +457,20 @@ describe('AUTH_V2: Identity Composition', () => {
       const unionExcludeYExpr = await evaluator.evalIdentity('UNION_EXCLUDE_Y')
 
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
-          'M2',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          nodeId: 'M2',
+          perm: 'read',
+        }),
       )
     })
 
@@ -521,20 +521,20 @@ describe('AUTH_V2: Identity Composition', () => {
       const complexWExpr = await evaluator.evalIdentity('COMPLEX_W')
 
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(complexWExpr)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(complexWExpr)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
       expectDeniedByResource(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(complexWExpr)).build(),
-          'M2',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(complexWExpr)).build(),
+          nodeId: 'M2',
+          perm: 'read',
+        }),
       )
     })
   })
@@ -557,12 +557,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // Should grant access to M3 (via ROLE1's workspace-2 edit)
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(resolved)).build(),
-          'M3',
-          'edit',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(resolved)).build(),
+          nodeId: 'M3',
+          perm: 'edit',
+        }),
       )
     })
 
@@ -617,12 +617,12 @@ describe('AUTH_V2: Identity Composition', () => {
       // USER1 has read at root
       // Result: should have read on M1
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(resolved)).build(),
-          'M1',
-          'read',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(resolved)).build(),
+          nodeId: 'M1',
+          perm: 'read',
+        }),
       )
     })
 
@@ -638,12 +638,12 @@ describe('AUTH_V2: Identity Composition', () => {
       expect(resolved.kind).toBe('union')
 
       expectGranted(
-        await checker.checkAccess(
-          grant(identity('APP1'), raw(resolved)).build(),
-          'M3',
-          'edit',
-          'p',
-        ),
+        await checker.checkAccess({
+          principal: 'p',
+          grant: grant(identity('APP1'), raw(resolved)).build(),
+          nodeId: 'M3',
+          perm: 'edit',
+        }),
       )
     })
 

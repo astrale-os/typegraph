@@ -13,7 +13,7 @@ import {
   createRawExecutor,
   clearDatabase,
   type FalkorDBConnection,
-} from '../setup'
+} from '../testing/setup'
 import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
 

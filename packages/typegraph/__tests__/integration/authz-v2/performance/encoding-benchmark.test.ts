@@ -11,10 +11,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { identity, union, intersect, exclude } from '../expr-builder'
-import { toCompactJSON, fromCompactJSON } from '../expr-compact'
-import { encode, decode, encodeBase64, decodeBase64 } from '../expr-encoding'
-import { dedup, expand, hasRepeatedSubtrees, dedupStats } from '../expr-dedup'
+import { identity, union, intersect, exclude } from '../expression/builder'
+import { toCompactJSON, fromCompactJSON } from '../expression/compact'
+import { encode, decode, encodeBase64, decodeBase64 } from '../expression/encoding'
+import { dedup, expand, hasRepeatedSubtrees, dedupStats } from '../expression/dedup'
 import type { IdentityExpr } from '../types'
 
 // =============================================================================

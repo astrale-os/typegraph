@@ -5,7 +5,7 @@
  */
 
 import { expect } from 'vitest'
-import type { AccessDecision, AccessExplanation, Grant, Scope, IdentityExpr } from './types'
+import type { AccessDecision, AccessExplanation, Grant, Scope, IdentityExpr } from '../types'
 
 // =============================================================================
 // ASSERTION HELPERS

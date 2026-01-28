@@ -4,8 +4,8 @@
  * Builds expression trees from identity composition edges (unionWith, intersectWith).
  */
 
-import type { IdentityExpr, IdentityComposition, RawExecutor } from './types'
-import { isExprBuilder, type ExprBuilder } from './expr-builder'
+import type { IdentityExpr, IdentityComposition, RawExecutor } from '../types'
+import { isExprBuilder, type ExprBuilder } from '../expression/builder'
 
 // =============================================================================
 // ERRORS
@@ -141,9 +141,13 @@ export class IdentityEvaluator {
       result = result ? { kind: 'exclude', left: result, right: excludeExpr } : null
     }
 
-    // Edge case: no direct perms AND no valid composition
+    // Edge case: exclude-only identity (no base set to subtract from) or no composition at all
     if (!result) {
-      throw new InvalidIdentityError(id, 'Identity has no permissions and no valid composition')
+      const hasExcludes = excludes.length > 0
+      const reason = hasExcludes
+        ? 'Identity has only exclude composition edges with no base set (unions/intersects/direct perms)'
+        : 'Identity has no permissions and no valid composition'
+      throw new InvalidIdentityError(id, reason)
     }
 
     return result

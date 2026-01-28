@@ -5,7 +5,7 @@
  * Scopes:   { n?: nodes[], p?: perms[], r?: principals[] }
  */
 
-import type { IdentityExpr, Scope } from './types'
+import type { IdentityExpr, Scope } from '../types'
 
 // Max recursion depth to prevent stack overflow from malicious input
 const MAX_DEPTH = 100

@@ -7,28 +7,35 @@
 // Types
 export * from './types'
 
-// Core implementation
-export * from './identity-evaluator'
-export * from './access-checker'
+// Expression domain
+export * from './expression'
 
-// Expression builder (preferred API)
-export * from './expr-builder'
+// Authorization domain
+export * from './authorization'
 
-// Encoding layers (explicit exports to avoid conflicts)
-export { toCompact, fromCompact, toCompactJSON, fromCompactJSON } from './expr-compact'
-
-export * from './expr-dedup'
-
+// Adapter domain
 export {
-  encode,
-  decode,
-  encodeBase64,
-  decodeBase64,
-  compareSizes as binaryCompareSizes,
-} from './expr-encoding'
+  FalkorDBIdentityAdapter,
+  createFalkorDBIdentityAdapter,
+  AccessChecker,
+  createAccessChecker,
+} from './adapter'
+export {
+  IdentityEvaluator,
+  CycleDetectedError,
+  InvalidIdentityError,
+} from './adapter/identity-evaluator'
 
-// Test utilities (helpers have legacy identity/union/etc that conflict with expr-builder)
-export * from './setup'
+// Authentication domain
+export * from './authentication'
+
+// Testing utilities
+export {
+  setupAuthzTest,
+  teardownAuthzTest,
+  clearDatabase,
+  seedAuthzTestData,
+} from './testing/setup'
 export {
   expectGranted,
   expectDeniedByType,
@@ -39,4 +46,4 @@ export {
   permScope,
   principalScope,
   fullScope,
-} from './helpers'
+} from './testing/helpers'

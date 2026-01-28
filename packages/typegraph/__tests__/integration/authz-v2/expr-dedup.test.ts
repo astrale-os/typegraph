@@ -14,8 +14,8 @@ import {
   isDedupedExpr,
   type DedupedExpr,
   type Ref,
-} from './expr-dedup'
-import { identity, union, intersect, exclude } from './expr-builder'
+} from './expression/dedup'
+import { identity, union, intersect, exclude } from './expression/builder'
 import type { IdentityExpr } from './types'
 
 describe('AUTH_V2: Expression Deduplication', () => {

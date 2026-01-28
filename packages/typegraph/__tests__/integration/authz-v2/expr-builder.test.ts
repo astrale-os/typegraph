@@ -15,7 +15,7 @@ import {
   grant,
   raw,
   isExprBuilder,
-} from './expr-builder'
+} from './expression/builder'
 import type { IdentityExpr, Scope } from './types'
 
 describe('AUTH_V2: Expression Builder SDK', () => {

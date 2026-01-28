@@ -5,7 +5,7 @@
  * Single source of truth for token verification logic.
  */
 
-import type { IdentityId, UnresolvedGrant, UnresolvedIdentityExpr } from './types'
+import type { IdentityId, UnresolvedGrant, UnresolvedIdentityExpr } from '../types'
 
 // =============================================================================
 // TYPES

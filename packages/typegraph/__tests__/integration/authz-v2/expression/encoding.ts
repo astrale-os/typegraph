@@ -25,9 +25,9 @@
  * ```
  */
 
-import type { IdentityExpr, Scope } from './types'
-import { isDedupedExpr, isRef, type DedupedExpr, type RefExpr } from './expr-dedup'
-import { toCompactJSON } from './expr-compact'
+import type { IdentityExpr, Scope } from '../types'
+import { isDedupedExpr, isRef, type DedupedExpr, type RefExpr } from './dedup'
+import { toCompactJSON } from './compact'
 
 // =============================================================================
 // TYPE TAGS
@@ -46,6 +46,9 @@ const SCOPE_HAS_NODES = 0x01
 const SCOPE_HAS_PERMS = 0x02
 const SCOPE_HAS_PRINCIPALS = 0x04
 
+// Depth limit (consistent with compact.ts)
+const MAX_DEPTH = 100
+
 // =============================================================================
 // BUFFER WRITER
 // =============================================================================
@@ -54,6 +57,7 @@ class BufferWriter {
   private chunks: Uint8Array[] = []
   private current: Uint8Array
   private offset: number = 0
+  private encoder = new TextEncoder()
 
   constructor(initialSize: number = 256) {
     this.current = new Uint8Array(initialSize)
@@ -83,7 +87,7 @@ class BufferWriter {
   }
 
   writeString(str: string): void {
-    const bytes = new TextEncoder().encode(str)
+    const bytes = this.encoder.encode(str)
     this.writeVarint(bytes.length)
     this.ensureCapacity(bytes.length)
     this.current.set(bytes, this.offset)
@@ -240,7 +244,11 @@ function writeIdentity(writer: BufferWriter, id: string, scopes?: Scope[]): void
   }
 }
 
-function writeExpr(writer: BufferWriter, expr: IdentityExpr): void {
+function writeExpr(writer: BufferWriter, expr: IdentityExpr, depth: number = 0): void {
+  if (depth > MAX_DEPTH) {
+    throw new Error('Expression too deeply nested (binary encoding)')
+  }
+
   switch (expr.kind) {
     case 'identity':
       writeIdentity(writer, expr.id, expr.scopes)
@@ -248,25 +256,29 @@ function writeExpr(writer: BufferWriter, expr: IdentityExpr): void {
 
     case 'union':
       writer.writeByte(TAG_UNION)
-      writeExpr(writer, expr.left)
-      writeExpr(writer, expr.right)
+      writeExpr(writer, expr.left, depth + 1)
+      writeExpr(writer, expr.right, depth + 1)
       break
 
     case 'intersect':
       writer.writeByte(TAG_INTERSECT)
-      writeExpr(writer, expr.left)
-      writeExpr(writer, expr.right)
+      writeExpr(writer, expr.left, depth + 1)
+      writeExpr(writer, expr.right, depth + 1)
       break
 
     case 'exclude':
       writer.writeByte(TAG_EXCLUDE)
-      writeExpr(writer, expr.left)
-      writeExpr(writer, expr.right)
+      writeExpr(writer, expr.left, depth + 1)
+      writeExpr(writer, expr.right, depth + 1)
       break
   }
 }
 
-function writeRefExpr(writer: BufferWriter, expr: RefExpr): void {
+function writeRefExpr(writer: BufferWriter, expr: RefExpr, depth: number = 0): void {
+  if (depth > MAX_DEPTH) {
+    throw new Error('Expression too deeply nested (binary encoding)')
+  }
+
   if (isRef(expr)) {
     writer.writeByte(TAG_REF)
     writer.writeVarint(expr.$ref)
@@ -280,20 +292,20 @@ function writeRefExpr(writer: BufferWriter, expr: RefExpr): void {
 
     case 'union':
       writer.writeByte(TAG_UNION)
-      writeRefExpr(writer, expr.left)
-      writeRefExpr(writer, expr.right)
+      writeRefExpr(writer, expr.left, depth + 1)
+      writeRefExpr(writer, expr.right, depth + 1)
       break
 
     case 'intersect':
       writer.writeByte(TAG_INTERSECT)
-      writeRefExpr(writer, expr.left)
-      writeRefExpr(writer, expr.right)
+      writeRefExpr(writer, expr.left, depth + 1)
+      writeRefExpr(writer, expr.right, depth + 1)
       break
 
     case 'exclude':
       writer.writeByte(TAG_EXCLUDE)
-      writeRefExpr(writer, expr.left)
-      writeRefExpr(writer, expr.right)
+      writeRefExpr(writer, expr.left, depth + 1)
+      writeRefExpr(writer, expr.right, depth + 1)
       break
   }
 }
@@ -334,7 +346,11 @@ function readIdentityScoped(reader: BufferReader): {
   return { kind: 'identity', id, scopes }
 }
 
-function readExpr(reader: BufferReader): IdentityExpr {
+function readExpr(reader: BufferReader, depth: number = 0): IdentityExpr {
+  if (depth > MAX_DEPTH) {
+    throw new Error('Expression too deeply nested (binary decoding)')
+  }
+
   const tag = reader.readByte()
 
   switch (tag) {
@@ -345,20 +361,36 @@ function readExpr(reader: BufferReader): IdentityExpr {
       return readIdentityScoped(reader)
 
     case TAG_UNION:
-      return { kind: 'union', left: readExpr(reader), right: readExpr(reader) }
+      return {
+        kind: 'union',
+        left: readExpr(reader, depth + 1),
+        right: readExpr(reader, depth + 1),
+      }
 
     case TAG_INTERSECT:
-      return { kind: 'intersect', left: readExpr(reader), right: readExpr(reader) }
+      return {
+        kind: 'intersect',
+        left: readExpr(reader, depth + 1),
+        right: readExpr(reader, depth + 1),
+      }
 
     case TAG_EXCLUDE:
-      return { kind: 'exclude', left: readExpr(reader), right: readExpr(reader) }
+      return {
+        kind: 'exclude',
+        left: readExpr(reader, depth + 1),
+        right: readExpr(reader, depth + 1),
+      }
 
     default:
       throw new Error(`Unknown expression tag: 0x${tag.toString(16)}`)
   }
 }
 
-function readRefExpr(reader: BufferReader): RefExpr {
+function readRefExpr(reader: BufferReader, depth: number = 0): RefExpr {
+  if (depth > MAX_DEPTH) {
+    throw new Error('Expression too deeply nested (binary decoding)')
+  }
+
   const tag = reader.readByte()
 
   switch (tag) {
@@ -372,13 +404,25 @@ function readRefExpr(reader: BufferReader): RefExpr {
       return readIdentityScoped(reader)
 
     case TAG_UNION:
-      return { kind: 'union', left: readRefExpr(reader), right: readRefExpr(reader) }
+      return {
+        kind: 'union',
+        left: readRefExpr(reader, depth + 1),
+        right: readRefExpr(reader, depth + 1),
+      }
 
     case TAG_INTERSECT:
-      return { kind: 'intersect', left: readRefExpr(reader), right: readRefExpr(reader) }
+      return {
+        kind: 'intersect',
+        left: readRefExpr(reader, depth + 1),
+        right: readRefExpr(reader, depth + 1),
+      }
 
     case TAG_EXCLUDE:
-      return { kind: 'exclude', left: readRefExpr(reader), right: readRefExpr(reader) }
+      return {
+        kind: 'exclude',
+        left: readRefExpr(reader, depth + 1),
+        right: readRefExpr(reader, depth + 1),
+      }
 
     default:
       throw new Error(`Unknown expression tag: 0x${tag.toString(16)}`)

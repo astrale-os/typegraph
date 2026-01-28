@@ -5,7 +5,7 @@
  * Scopes can only be made MORE restrictive, never less.
  */
 
-import type { Scope, IdentityId, PermissionT, NodeId } from './types'
+import type { Scope, IdentityId, PermissionT, NodeId, FilterDetail } from '../types'
 
 // =============================================================================
 // SCOPE INTERSECTION
@@ -119,12 +119,14 @@ function deduplicateScopes(scopes: Scope[]): Scope[] {
 
 /**
  * Create a deterministic string key for a scope (for deduplication).
+ * Uses JSON.stringify to avoid collisions from delimiter characters in IDs.
  */
 function scopeToKey(scope: Scope): string {
-  const nodes = scope.nodes ? [...scope.nodes].sort().join(',') : ''
-  const perms = scope.perms ? [...scope.perms].sort().join(',') : ''
-  const principals = scope.principals ? [...scope.principals].sort().join(',') : ''
-  return `n:${nodes}|p:${perms}|pr:${principals}`
+  return JSON.stringify({
+    n: scope.nodes ? [...scope.nodes].sort() : null,
+    p: scope.perms ? [...scope.perms].sort() : null,
+    r: scope.principals ? [...scope.principals].sort() : null,
+  })
 }
 
 // =============================================================================
@@ -186,4 +188,78 @@ export function scopesAllow(
       return false
     return true
   })
+}
+
+// =============================================================================
+// RICH SCOPE CHECKS (extracted from access-checker)
+// =============================================================================
+
+/**
+ * Check if a single scope allows the given principal and perm.
+ * Rich version that returns the failed check reason.
+ */
+export function scopePasses(
+  scope: Scope,
+  principal: IdentityId | undefined,
+  perm: PermissionT,
+): { passes: boolean; failedCheck?: 'principal' | 'perm' } {
+  if (scope.principals?.length && (!principal || !scope.principals.includes(principal))) {
+    return { passes: false, failedCheck: 'principal' }
+  }
+  if (scope.perms?.length && !scope.perms.includes(perm)) {
+    return { passes: false, failedCheck: 'perm' }
+  }
+  return { passes: true }
+}
+
+/**
+ * Check which scopes allow the given principal and perm.
+ * Returns applicable scopes (those that pass principal/perm checks) for node restriction tracking.
+ */
+export function filterApplicableScopes(
+  scopes: Scope[] | undefined,
+  principal: IdentityId | undefined,
+  perm: PermissionT,
+): { allowed: boolean; applicableScopes: Scope[] } {
+  if (!scopes?.length) {
+    return { allowed: true, applicableScopes: [] }
+  }
+
+  const applicableScopes = scopes.filter((scope) => scopePasses(scope, principal, perm).passes)
+
+  return {
+    allowed: applicableScopes.length > 0,
+    applicableScopes,
+  }
+}
+
+/**
+ * Check scope filter for cold path (returns FilterDetail[]).
+ */
+export function checkFilter(
+  scopes: Scope[] | undefined,
+  principal: IdentityId | undefined,
+  perm: PermissionT,
+): { allowed: boolean; details?: FilterDetail[]; applicableScopes?: Scope[] } {
+  if (!scopes?.length) {
+    return { allowed: true, applicableScopes: [] }
+  }
+
+  const details: FilterDetail[] = []
+  const applicableScopes: Scope[] = []
+
+  for (let i = 0; i < scopes.length; i++) {
+    const result = scopePasses(scopes[i]!, principal, perm)
+    if (result.passes) {
+      applicableScopes.push(scopes[i]!)
+    } else {
+      details.push({ scopeIndex: i, failedCheck: result.failedCheck! })
+    }
+  }
+
+  if (applicableScopes.length > 0) {
+    return { allowed: true, applicableScopes }
+  }
+
+  return { allowed: false, details }
 }

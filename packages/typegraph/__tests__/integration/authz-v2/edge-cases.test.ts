@@ -11,9 +11,13 @@ import {
   clearDatabase,
   seedAuthzTestData,
   type AuthzTestContext,
-} from './setup'
-import { createAccessChecker } from './access-checker'
-import { IdentityEvaluator, CycleDetectedError, InvalidIdentityError } from './identity-evaluator'
+} from './testing/setup'
+import { createAccessChecker } from './adapter'
+import {
+  IdentityEvaluator,
+  CycleDetectedError,
+  InvalidIdentityError,
+} from './adapter/identity-evaluator'
 import {
   expectGranted,
   expectDeniedByResource,
@@ -21,7 +25,7 @@ import {
   grantFromIds,
   identity,
   grant,
-} from './helpers'
+} from './testing/helpers'
 
 describe('AUTH_V2: Edge Cases', () => {
   let ctx: AuthzTestContext
@@ -114,6 +118,17 @@ describe('AUTH_V2: Edge Cases', () => {
       const evaluator = new IdentityEvaluator(ctx.executor)
       const expr = await evaluator.evalIdentity('DIAMOND_A')
       expect(expr).toBeDefined()
+
+      // Verify diamond resolution actually works: DIAMOND_D has read on M1,
+      // accessible via both B and C branches of the diamond
+      const checker = createAccessChecker(ctx.executor)
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), expr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
+      expectGranted(result)
     })
 
     it('returns base expression for leaf identity', async () => {
@@ -132,12 +147,12 @@ describe('AUTH_V2: Edge Cases', () => {
       })
 
       const checker = createAccessChecker(ctx.executor)
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], ['NO_PERMS']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['NO_PERMS']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByResource(result)
     })
@@ -208,12 +223,12 @@ describe('AUTH_V2: Edge Cases', () => {
       }
 
       const checker = createAccessChecker(ctx.executor)
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'DEEP_15',
-        'edit',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'DEEP_15',
+        perm: 'edit',
+      })
 
       expectGranted(result)
     })
@@ -239,21 +254,21 @@ describe('AUTH_V2: Edge Cases', () => {
       const unionOnlyExpr = await evaluator.evalIdentity('UNION_ONLY')
 
       // UNION_ONLY inherits from ROLE1 which has edit on workspace-2
-      const grantedResult = await checker.checkAccess(
-        grant(identity('APP1'), unionOnlyExpr),
-        'M3',
-        'edit',
-        'principal',
-      )
+      const grantedResult = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), unionOnlyExpr),
+        nodeId: 'M3',
+        perm: 'edit',
+      })
       expectGranted(grantedResult)
 
       // UNION_ONLY should NOT have access to M1 (ROLE1 has no perms on workspace-1)
-      const deniedResult = await checker.checkAccess(
-        grant(identity('APP1'), unionOnlyExpr),
-        'M1',
-        'edit',
-        'principal',
-      )
+      const deniedResult = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), unionOnlyExpr),
+        nodeId: 'M1',
+        perm: 'edit',
+      })
       expectDeniedByResource(deniedResult)
     })
 
@@ -264,12 +279,12 @@ describe('AUTH_V2: Edge Cases', () => {
       // X = A ∩ B (from seed data)
       const xExpr = await evaluator.evalIdentity('X')
 
-      const result = await checker.checkAccess(
-        grant(identity('APP1'), xExpr),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grant(identity('APP1'), xExpr),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
@@ -283,24 +298,24 @@ describe('AUTH_V2: Edge Cases', () => {
     it('produces consistent results across multiple calls', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      const result1 = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'p',
-      )
-      const result2 = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M2',
-        'read',
-        'p',
-      )
-      const result3 = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M3',
-        'read',
-        'p',
-      )
+      const result1 = await checker.checkAccess({
+        principal: 'p',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
+      const result2 = await checker.checkAccess({
+        principal: 'p',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M2',
+        perm: 'read',
+      })
+      const result3 = await checker.checkAccess({
+        principal: 'p',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M3',
+        perm: 'read',
+      })
 
       expectGranted(result1)
       expectGranted(result2)
@@ -310,9 +325,19 @@ describe('AUTH_V2: Edge Cases', () => {
     it('clears cache when requested', async () => {
       const checker = createAccessChecker(ctx.executor)
 
-      await checker.checkAccess(grantFromIds(['APP1'], ['USER1']), 'M1', 'read', 'p')
+      await checker.checkAccess({
+        principal: 'p',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
       checker.clearCache()
-      const result = await checker.checkAccess(grantFromIds(['APP1'], ['USER1']), 'M1', 'read', 'p')
+      const result = await checker.checkAccess({
+        principal: 'p',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
@@ -329,24 +354,24 @@ describe('AUTH_V2: Edge Cases', () => {
       })
 
       const checker = createAccessChecker(ctx.executor)
-      const result = await checker.checkAccess(
-        grantFromIds(['APP2'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP2'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectDeniedByType(result)
     })
 
     it('allows module access when app has use on type', async () => {
       const checker = createAccessChecker(ctx.executor)
-      const result = await checker.checkAccess(
-        grantFromIds(['APP1'], ['USER1']),
-        'M1',
-        'read',
-        'principal',
-      )
+      const result = await checker.checkAccess({
+        principal: 'principal',
+        grant: grantFromIds(['APP1'], ['USER1']),
+        nodeId: 'M1',
+        perm: 'read',
+      })
 
       expectGranted(result)
     })
