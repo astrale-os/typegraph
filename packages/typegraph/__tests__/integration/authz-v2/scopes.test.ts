@@ -17,7 +17,6 @@ import { IdentityEvaluator } from './identity-evaluator'
 import {
   subject,
   identity,
-  identities,
   expectGranted,
   expectDeniedByTarget,
   nodeScope,

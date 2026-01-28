@@ -259,7 +259,7 @@ export async function sustainedLoad<T>(
 
       if (inFlight < maxConcurrent) {
         inFlight++
-        const opIndex = operationIndex++
+        operationIndex++
         const opStart = performance.now()
 
         fn()

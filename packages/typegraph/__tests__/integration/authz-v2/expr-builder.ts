@@ -187,7 +187,10 @@ export class BinaryExpr extends Expr {
  * ```
  */
 export function identity(id: string, scopes?: Scope | Scope[]): IdentityExprBuilder {
-  const scopeArray = scopes ? (Array.isArray(scopes) ? scopes : [scopes]) : []
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('identity id must be a non-empty string')
+  }
+  const scopeArray = scopes ? (Array.isArray(scopes) ? scopes : [scopes]).filter(Boolean) : []
   return new IdentityExprBuilder(id, scopeArray)
 }
 
@@ -209,6 +212,12 @@ export const id = identity
  * ```
  */
 export function raw(expr: IdentityExpr): Expr {
+  if (!expr || typeof expr !== 'object' || !('kind' in expr)) {
+    throw new Error('raw() requires a valid IdentityExpr object')
+  }
+  if (!['identity', 'union', 'intersect', 'exclude'].includes(expr.kind)) {
+    throw new Error(`Invalid expression kind: ${expr.kind}`)
+  }
   return new RawExpr(expr)
 }
 
@@ -295,6 +304,11 @@ export function applyScopes(expr: IdentityExpr, scope: Scope): IdentityExpr {
         left: applyScopes(expr.left, scope),
         right: applyScopes(expr.right, scope),
       }
+    default: {
+      // Exhaustive check - will cause compile error if new kinds are added
+      const exhaustiveCheck: never = expr
+      throw new Error(`Unknown expression kind: ${(exhaustiveCheck as { kind: string }).kind}`)
+    }
   }
 }
 

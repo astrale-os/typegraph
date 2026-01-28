@@ -7,6 +7,8 @@
  * Two APIs:
  * - checkAccess (hot path): Simple grant/deny
  * - explainAccess (cold path): Detailed explanation
+ *
+ * Security: All inputs are validated before Cypher generation to prevent injection.
  */
 
 import type {
@@ -24,6 +26,72 @@ import type {
   IdentityId,
   PermissionT,
 } from './types'
+
+// =============================================================================
+// INPUT VALIDATION (Security: Cypher Injection Prevention)
+// =============================================================================
+
+/**
+ * Regex for safe Cypher identifiers.
+ * Allows: alphanumeric, underscore, hyphen, colon (for namespaced IDs)
+ * Max length: 256 chars to prevent DoS
+ */
+const SAFE_ID_REGEX = /^[a-zA-Z0-9_:-]{1,256}$/
+
+/**
+ * Validate a string is safe for Cypher interpolation.
+ * Throws if validation fails.
+ */
+function validateCypherId(value: string, fieldName: string): void {
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string`)
+  }
+  if (!SAFE_ID_REGEX.test(value)) {
+    throw new Error(
+      `Invalid ${fieldName}: "${value}" must contain only alphanumeric characters, underscores, hyphens, and colons (max 256 chars)`,
+    )
+  }
+}
+
+/**
+ * Validate all IDs in an expression tree.
+ */
+function validateExpression(expr: IdentityExpr): void {
+  switch (expr.kind) {
+    case 'identity':
+      validateCypherId(expr.id, 'identity ID')
+      if (expr.scopes) {
+        for (const scope of expr.scopes) {
+          if (scope.nodes) {
+            for (const nodeId of scope.nodes) {
+              validateCypherId(nodeId, 'scope node ID')
+            }
+          }
+          if (scope.principals) {
+            for (const principalId of scope.principals) {
+              validateCypherId(principalId, 'scope principal ID')
+            }
+          }
+          if (scope.perms) {
+            for (const perm of scope.perms) {
+              validateCypherId(perm, 'scope permission')
+            }
+          }
+        }
+      }
+      break
+    case 'union':
+    case 'intersect':
+    case 'exclude':
+      validateExpression(expr.left)
+      validateExpression(expr.right)
+      break
+    default: {
+      const exhaustive: never = expr
+      throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
+    }
+  }
+}
 
 // =============================================================================
 // ACCESS CHECKER
@@ -54,6 +122,13 @@ export class AccessChecker {
     perm: PermissionT,
     principal: IdentityId,
   ): Promise<AccessDecision> {
+    // Input validation (security: prevent Cypher injection)
+    validateCypherId(targetId, 'targetId')
+    validateCypherId(perm, 'perm')
+    validateCypherId(principal, 'principal')
+    validateExpression(subject.forType)
+    validateExpression(subject.forTarget)
+
     const { forType, forTarget } = subject
 
     // Phase 1: Type check (only if target has a type)
@@ -109,6 +184,13 @@ export class AccessChecker {
     perm: PermissionT,
     principal: IdentityId,
   ): Promise<AccessExplanation> {
+    // Input validation (security: prevent Cypher injection)
+    validateCypherId(targetId, 'targetId')
+    validateCypherId(perm, 'perm')
+    validateCypherId(principal, 'principal')
+    validateExpression(subject.forType)
+    validateExpression(subject.forTarget)
+
     const { forType, forTarget } = subject
 
     // Get target type
@@ -120,14 +202,16 @@ export class AccessChecker {
 
     if (typeId) {
       typeCheck = await this.explainPhase(forType, typeId, 'use', undefined)
-      typeGranted = typeCheck.leaves.some((l) => l.status === 'granted')
+      // Correctly evaluate expression tree semantics
+      typeGranted = this.evaluateGranted(forType, typeCheck.leaves)
     } else {
       typeCheck = { expression: forType, leaves: [], cypher: 'true' }
     }
 
     // Phase 2: Target check (scoped by principal)
     const targetCheck = await this.explainPhase(forTarget, targetId, perm, principal)
-    const targetGranted = targetCheck.leaves.some((l) => l.status === 'granted')
+    // Correctly evaluate expression tree semantics
+    const targetGranted = this.evaluateGranted(forTarget, targetCheck.leaves)
 
     const granted = typeGranted && targetGranted
 
@@ -171,7 +255,44 @@ export class AccessChecker {
   }
 
   /**
+   * Evaluate whether expression is granted based on leaf statuses.
+   * This correctly implements expression semantics:
+   * - union: left OR right
+   * - intersect: left AND right
+   * - exclude: left AND NOT right
+   */
+  evaluateGranted(expr: IdentityExpr, leaves: LeafEvaluation[], path: number[] = []): boolean {
+    switch (expr.kind) {
+      case 'identity': {
+        const pathKey = path.join(',')
+        const leaf = leaves.find((l) => l.path.join(',') === pathKey)
+        return leaf?.status === 'granted'
+      }
+      case 'union':
+        return (
+          this.evaluateGranted(expr.left, leaves, [...path, 0]) ||
+          this.evaluateGranted(expr.right, leaves, [...path, 1])
+        )
+      case 'intersect':
+        return (
+          this.evaluateGranted(expr.left, leaves, [...path, 0]) &&
+          this.evaluateGranted(expr.right, leaves, [...path, 1])
+        )
+      case 'exclude':
+        return (
+          this.evaluateGranted(expr.left, leaves, [...path, 0]) &&
+          !this.evaluateGranted(expr.right, leaves, [...path, 1])
+        )
+      default: {
+        const exhaustive: never = expr
+        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
+      }
+    }
+  }
+
+  /**
    * Collect all leaves from expression tree with path tracking.
+   * Extracts node restrictions from applicable scopes for cold path consistency.
    */
   private collectLeaves(
     expr: IdentityExpr,
@@ -194,12 +315,32 @@ export class AccessChecker {
           ]
         }
 
+        // Extract node restrictions from applicable scopes
+        // If ANY applicable scope has no node restriction, permission is valid anywhere
+        // Otherwise, permission is valid only if target is in one of the restricted subtrees
+        const applicableScopes = filterResult.applicableScopes ?? []
+        let nodeRestrictions: NodeId[] | undefined
+
+        if (applicableScopes.length > 0) {
+          // Check if any scope has no node restrictions (meaning "anywhere")
+          const hasUnrestrictedScope = applicableScopes.some(
+            (scope) => !scope.nodes || scope.nodes.length === 0,
+          )
+
+          if (!hasUnrestrictedScope) {
+            // All scopes have node restrictions - collect all allowed nodes
+            nodeRestrictions = [...new Set(applicableScopes.flatMap((scope) => scope.nodes ?? []))]
+          }
+          // else: nodeRestrictions stays undefined (no restrictions)
+        }
+
         // Will be updated by queryLeafDetails
         return [
           {
             path,
             identityId: expr.id,
             status: 'missing', // Placeholder, updated after query
+            nodeRestrictions,
           },
         ]
       }
@@ -210,6 +351,10 @@ export class AccessChecker {
         const leftLeaves = this.collectLeaves(expr.left, [...path, 0], principal, perm)
         const rightLeaves = this.collectLeaves(expr.right, [...path, 1], principal, perm)
         return [...leftLeaves, ...rightLeaves]
+      }
+      default: {
+        const exhaustive: never = expr
+        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
       }
     }
   }
@@ -237,24 +382,31 @@ export class AccessChecker {
 
   /**
    * Check if scopes allow the request (for cold path).
+   * Returns applicable scopes (those that pass principal/perm checks) for node restriction tracking.
    */
   private checkFilter(
     scopes: Scope[] | undefined,
     principal: IdentityId | undefined,
     perm: PermissionT,
-  ): { allowed: boolean; details?: FilterDetail[] } {
+  ): { allowed: boolean; details?: FilterDetail[]; applicableScopes?: Scope[] } {
     if (!scopes?.length) {
-      return { allowed: true }
+      return { allowed: true, applicableScopes: [] }
     }
 
     const details: FilterDetail[] = []
+    const applicableScopes: Scope[] = []
 
     for (let i = 0; i < scopes.length; i++) {
       const result = this.scopePasses(scopes[i]!, principal, perm)
       if (result.passes) {
-        return { allowed: true }
+        applicableScopes.push(scopes[i]!)
+      } else {
+        details.push({ scopeIndex: i, failedCheck: result.failedCheck! })
       }
-      details.push({ scopeIndex: i, failedCheck: result.failedCheck! })
+    }
+
+    if (applicableScopes.length > 0) {
+      return { allowed: true, applicableScopes }
     }
 
     return { allowed: false, details }
@@ -262,6 +414,7 @@ export class AccessChecker {
 
   /**
    * Query grantedAt, inheritancePath, and searchedPath for each leaf.
+   * Also verifies node scope restrictions are satisfied.
    */
   private async queryLeafDetails(
     leaves: LeafEvaluation[],
@@ -269,6 +422,25 @@ export class AccessChecker {
     perm: PermissionT,
   ): Promise<void> {
     const identityIds = [...new Set(leaves.map((l) => l.identityId))]
+
+    // First, check if any leaves have node restrictions
+    const hasNodeRestrictions = leaves.some(
+      (l) => l.nodeRestrictions && l.nodeRestrictions.length > 0,
+    )
+
+    // Query target's ancestor path (needed for node restriction checks)
+    let targetAncestors: Set<NodeId> | null = null
+    if (hasNodeRestrictions) {
+      const ancestorQuery = `
+        MATCH (target:Node {id: $targetId})
+        MATCH (target)-[:hasParent*0..${this.maxDepth}]->(ancestor:Node)
+        RETURN collect(ancestor.id) AS ancestors
+      `
+      const ancestorResults = await this.executor.run<{ ancestors: string[] }>(ancestorQuery, {
+        targetId,
+      })
+      targetAncestors = new Set(ancestorResults[0]?.ancestors ?? [])
+    }
 
     for (const identityId of identityIds) {
       const query = `
@@ -297,6 +469,22 @@ export class AccessChecker {
         if (leaf.identityId !== identityId) continue
 
         if (grantedResult) {
+          // Check node restrictions if present
+          // Node restriction means: target must be in subtree of one of the restricted nodes
+          // i.e., one of the restricted nodes must be an ancestor of target
+          if (leaf.nodeRestrictions && leaf.nodeRestrictions.length > 0 && targetAncestors) {
+            const nodeRestrictionsSatisfied = leaf.nodeRestrictions.some((restrictedNode) =>
+              targetAncestors!.has(restrictedNode),
+            )
+
+            if (!nodeRestrictionsSatisfied) {
+              // Permission exists but node restrictions not satisfied
+              leaf.status = 'missing'
+              leaf.searchedPath = searchedPath
+              continue
+            }
+          }
+
           leaf.status = 'granted'
           leaf.grantedAt = grantedResult.ancestor
           leaf.inheritancePath = grantedResult.pathNodes
@@ -347,6 +535,10 @@ export class AccessChecker {
         if (left === 'false') return 'false'
         if (right === 'false') return left
         return `(${left} AND NOT ${right})`
+      }
+      default: {
+        const exhaustive: never = expr
+        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
       }
     }
   }

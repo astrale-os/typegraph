@@ -32,9 +32,15 @@ export function expectDeniedByTarget(result: AccessDecision | AccessExplanation)
 
 /**
  * Create an identity expression leaf.
+ * @param id - Identity ID
+ * @param scopes - Optional scope(s). Can be a single Scope or array of Scopes.
  */
-export function identity(id: string, scopes?: Scope[]): IdentityExpr {
-  return scopes ? { kind: 'identity', id, scopes } : { kind: 'identity', id }
+export function identity(id: string, scopes?: Scope | Scope[]): IdentityExpr {
+  if (!scopes) {
+    return { kind: 'identity', id }
+  }
+  const scopeArray = Array.isArray(scopes) ? scopes : [scopes]
+  return { kind: 'identity', id, scopes: scopeArray }
 }
 
 /**
@@ -75,8 +81,10 @@ export function exclude(base: IdentityExpr, excluded: IdentityExpr): IdentityExp
 /**
  * Convenience: Create a union of identity leaves from IDs.
  * Applies same scopes to all identities.
+ * @param ids - Array of identity IDs
+ * @param scopes - Optional scope(s). Can be a single Scope or array of Scopes.
  */
-export function identities(ids: string[], scopes?: Scope[]): IdentityExpr {
+export function identities(ids: string[], scopes?: Scope | Scope[]): IdentityExpr {
   if (ids.length === 0) {
     return union() // Empty expression
   }

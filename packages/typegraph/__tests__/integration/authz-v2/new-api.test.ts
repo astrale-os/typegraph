@@ -452,5 +452,212 @@ describe('AUTH_V2: New API', () => {
       expect(decision.deniedBy).toBe(explanation.deniedBy)
       expect(decision.deniedBy).toBe('target')
     })
+
+    it('checkAccess and explainAccess agree on intersect denial', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // X = A ∩ B
+      // A has read on M2, B does NOT have read on M2
+      // So X should be denied on M2
+      const xExpr = await evaluator.evalIdentity('X')
+
+      const decision = await checker.checkAccess(
+        subject(identity('APP1'), xExpr),
+        'M2',
+        'read',
+        'principal',
+      )
+      const explanation = await checker.explainAccess(
+        subject(identity('APP1'), xExpr),
+        'M2',
+        'read',
+        'principal',
+      )
+
+      // Both must agree: intersect requires ALL leaves to have permission
+      expect(decision.granted).toBe(explanation.granted)
+      expect(decision.deniedBy).toBe(explanation.deniedBy)
+      expect(decision.deniedBy).toBe('target')
+    })
+
+    it('checkAccess and explainAccess agree on exclude denial', async () => {
+      // Create E = A \ C where both A and C have read on M1
+      // So E should be denied on M1 (A has perm but C also has, so excluded)
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_TEST_E' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_TEST_C' },
+      })
+
+      // C has read on M1
+      await ctx.connection.graph.query(
+        `MATCH (i:Identity {id: 'EXCLUDE_TEST_C'}), (m:Module {id: 'M1'})
+         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+      )
+
+      // E = A \ C
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_TEST_E'}), (a:Identity {id: 'A'})
+         CREATE (e)-[:unionWith]->(a)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (e:Identity {id: 'EXCLUDE_TEST_E'}), (c:Identity {id: 'EXCLUDE_TEST_C'})
+         CREATE (e)-[:excludeWith]->(c)`,
+      )
+
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      const eExpr = await evaluator.evalIdentity('EXCLUDE_TEST_E')
+
+      const decision = await checker.checkAccess(
+        subject(identity('APP1'), eExpr),
+        'M1',
+        'read',
+        'principal',
+      )
+      const explanation = await checker.explainAccess(
+        subject(identity('APP1'), eExpr),
+        'M1',
+        'read',
+        'principal',
+      )
+
+      // Both must agree: exclude means left granted AND right NOT granted
+      // A has read on M1, C has read on M1, so A \ C = denied
+      expect(decision.granted).toBe(explanation.granted)
+      expect(decision.deniedBy).toBe(explanation.deniedBy)
+      expect(decision.deniedBy).toBe('target')
+    })
+
+    it('checkAccess and explainAccess agree on node scope restrictions', async () => {
+      // Regression test: cold path must respect node scope restrictions
+      // USER1 has read on root, but identity is scoped to workspace-2 nodes only
+      // Should be denied because target M1 is under workspace-1, not workspace-2
+
+      const checker = createAccessChecker(ctx.executor)
+
+      // Create scoped identity that only allows access within workspace-2
+      const scopedExpr = identity('USER1', { nodes: ['workspace-2'] })
+
+      const decision = await checker.checkAccess(
+        subject(identity('APP1'), scopedExpr),
+        'M1', // M1 is under workspace-1, not workspace-2
+        'read',
+        'principal',
+      )
+      const explanation = await checker.explainAccess(
+        subject(identity('APP1'), scopedExpr),
+        'M1',
+        'read',
+        'principal',
+      )
+
+      // Both must agree: node scope restriction should deny access
+      expect(decision.granted).toBe(explanation.granted)
+      expect(decision.deniedBy).toBe(explanation.deniedBy)
+      expect(decision.granted).toBe(false)
+      expect(decision.deniedBy).toBe('target')
+    })
+
+    it('checkAccess and explainAccess agree on matching node scope', async () => {
+      // USER1 has read on root, identity scoped to workspace-1 nodes - should be granted
+      // M1 is under workspace-1, so scope is satisfied
+      const checker = createAccessChecker(ctx.executor)
+
+      const scopedExpr = identity('USER1', { nodes: ['workspace-1'] })
+
+      const decision = await checker.checkAccess(
+        subject(identity('APP1'), scopedExpr),
+        'M1', // M1 is under workspace-1
+        'read',
+        'principal',
+      )
+      const explanation = await checker.explainAccess(
+        subject(identity('APP1'), scopedExpr),
+        'M1',
+        'read',
+        'principal',
+      )
+
+      // Both must agree: node scope matches, should be granted
+      expect(decision.granted).toBe(explanation.granted)
+      expect(decision.deniedBy).toBe(explanation.deniedBy)
+      expect(decision.granted).toBe(true)
+    })
+  })
+
+  // ===========================================================================
+  // Input Validation (Security)
+  // ===========================================================================
+
+  describe('Input Validation', () => {
+    it('rejects malformed targetId', async () => {
+      const checker = createAccessChecker(ctx.executor)
+
+      await expect(
+        checker.checkAccess(
+          subjectFromIds(['APP1'], ['USER1']),
+          "M1' OR 1=1 --", // Cypher injection attempt
+          'read',
+          'principal',
+        ),
+      ).rejects.toThrow('Invalid targetId')
+    })
+
+    it('rejects malformed perm', async () => {
+      const checker = createAccessChecker(ctx.executor)
+
+      await expect(
+        checker.checkAccess(
+          subjectFromIds(['APP1'], ['USER1']),
+          'M1',
+          "read'}]-() RETURN 1 --", // Cypher injection attempt
+          'principal',
+        ),
+      ).rejects.toThrow('Invalid perm')
+    })
+
+    it('rejects malformed identity ID in expression', async () => {
+      const checker = createAccessChecker(ctx.executor)
+
+      await expect(
+        checker.checkAccess(
+          subject(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
+          'M1',
+          'read',
+          'principal',
+        ),
+      ).rejects.toThrow('Invalid identity ID')
+    })
+
+    it('rejects malformed node ID in scope', async () => {
+      const checker = createAccessChecker(ctx.executor)
+
+      await expect(
+        checker.checkAccess(
+          subject(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
+          'M1',
+          'read',
+          'principal',
+        ),
+      ).rejects.toThrow('Invalid scope node ID')
+    })
+
+    it('accepts valid IDs with hyphens and colons', async () => {
+      const checker = createAccessChecker(ctx.executor)
+
+      // These should not throw - valid ID formats
+      await expect(
+        checker.checkAccess(
+          subjectFromIds(['APP1'], ['USER1']),
+          'M1',
+          'read',
+          'some-principal-id:v1',
+        ),
+      ).resolves.toBeDefined()
+    })
   })
 })

@@ -4,7 +4,7 @@
  * Tests unionWith, intersectWith, and excludeWith identity composition.
  */
 
-import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
 import {
   setupAuthzTest,
   teardownAuthzTest,
@@ -14,14 +14,8 @@ import {
 } from './setup'
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
-import {
-  expectGranted,
-  expectDeniedByTarget,
-  subjectFromIds,
-  subject as subjectHelper,
-  identity as rawIdentity,
-} from './helpers'
-import { identity, union, intersect, exclude, subject, applyScopes, raw } from './expr-builder'
+import { expectGranted, expectDeniedByTarget, subjectFromIds } from './helpers'
+import { identity, union, intersect, subject, raw } from './expr-builder'
 
 describe('AUTH_V2: Identity Composition', () => {
   let ctx: AuthzTestContext
@@ -573,7 +567,6 @@ describe('AUTH_V2: Identity Composition', () => {
     })
 
     it('preserves scoped leaves without expansion', async () => {
-      const checker = createAccessChecker(ctx.executor)
       const evaluator = new IdentityEvaluator(ctx.executor)
 
       // USER1 has unionWith ROLE1 in DB, but scoped leaves are NOT expanded
@@ -586,7 +579,6 @@ describe('AUTH_V2: Identity Composition', () => {
     })
 
     it('resolves mixed expression with scoped and unscoped leaves', async () => {
-      const checker = createAccessChecker(ctx.executor)
       const evaluator = new IdentityEvaluator(ctx.executor)
 
       // union(USER1 (unscoped), ROLE1 (scoped))

@@ -21,11 +21,9 @@ import {
   createTestExecutor,
   createMutationExecutor,
   clearDatabase,
-  type TestContext,
 } from './setup'
 import { createGraph } from '../../src/query/entry'
 import { type ConnectionManager } from '../../src/executor/connection'
-import { type QueryExecutor } from '../../src/executor/executor'
 
 // =============================================================================
 // TEST SCHEMAS - Demonstrating Different Label Configurations
@@ -143,12 +141,11 @@ const noLabelSchema = defineSchema({
 
 describe('Universal :Node Label Integration Tests', () => {
   let connection: ConnectionManager
-  let executor: QueryExecutor
 
   beforeAll(async () => {
     connection = createTestConnection()
     await connection.connect()
-    executor = createTestExecutor(connection)
+    createTestExecutor(connection) // Needed for setup but not used in tests
   }, 30000)
 
   afterAll(async () => {
@@ -224,7 +221,7 @@ describe('Universal :Node Label Integration Tests', () => {
         mutationExecutor,
       })
 
-      const users = await graph.mutate.createMany('user', [
+      await graph.mutate.createMany('user', [
         { email: 'user1@example.com', name: 'User 1' },
         { email: 'user2@example.com', name: 'User 2' },
       ])
@@ -275,11 +272,11 @@ describe('Universal :Node Label Integration Tests', () => {
         mutationExecutor,
       })
 
-      const user = await graph.mutate.create('user', {
+      await graph.mutate.create('user', {
         email: 'dave@example.com',
         name: 'Dave',
       })
-      const doc = await graph.mutate.create('document', {
+      await graph.mutate.create('document', {
         title: 'Important Doc',
       })
 

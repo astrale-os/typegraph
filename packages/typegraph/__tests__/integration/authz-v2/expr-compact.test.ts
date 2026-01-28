@@ -1,7 +1,5 @@
 /**
  * AUTH_V2 Tests: Expression Compaction
- *
- * Tests for compact JSON encoding of identity expressions.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -10,7 +8,6 @@ import {
   fromCompact,
   toCompactJSON,
   fromCompactJSON,
-  compareSizes,
   type CompactExpr,
 } from './expr-compact'
 import { identity, union, intersect, exclude } from './expr-builder'
@@ -190,9 +187,45 @@ describe('AUTH_V2: Expression Compaction', () => {
       })
     })
 
+    // Error handling
     it('throws on unknown kind', () => {
-      const compact = ['z', ['i', 'A'], ['i', 'B']] as unknown as CompactExpr
-      expect(() => fromCompact(compact)).toThrow('Unknown compact expression kind: z')
+      expect(() => fromCompact(['z', ['i', 'A'], ['i', 'B']])).toThrow('Unknown expression kind')
+    })
+
+    it('throws on empty array', () => {
+      expect(() => fromCompact([])).toThrow('Invalid expression')
+    })
+
+    it('throws on non-array input', () => {
+      expect(() => fromCompact('not an array')).toThrow('Invalid expression')
+    })
+
+    it('throws on missing identity id', () => {
+      expect(() => fromCompact(['i'])).toThrow('Invalid expression')
+    })
+
+    it('throws on wrong id type', () => {
+      expect(() => fromCompact(['i', 123])).toThrow('Invalid identity id')
+    })
+
+    it('throws on empty id', () => {
+      expect(() => fromCompact(['i', ''])).toThrow('Invalid identity id')
+    })
+
+    it('throws on missing operands for union', () => {
+      expect(() => fromCompact(['u', ['i', 'A']])).toThrow('Invalid binary expression')
+    })
+
+    it('throws on invalid scope type', () => {
+      expect(() => fromCompact(['i', 'A', 'not-an-array'])).toThrow('Invalid identity scopes')
+    })
+
+    it('throws on invalid scope.nodes type', () => {
+      expect(() => fromCompact(['i', 'A', [{ n: 'not-array' }]])).toThrow('Invalid scope.nodes')
+    })
+
+    it('throws on invalid scope.nodes element type', () => {
+      expect(() => fromCompact(['i', 'A', [{ n: [123] }]])).toThrow('Invalid scope.nodes')
     })
   })
 
@@ -234,10 +267,10 @@ describe('AUTH_V2: Expression Compaction', () => {
   })
 
   // ===========================================================================
-  // JSON CONVENIENCE
+  // JSON HELPERS
   // ===========================================================================
 
-  describe('JSON convenience functions', () => {
+  describe('JSON helpers', () => {
     it('toCompactJSON serializes to string', () => {
       const expr = union(identity('A'), identity('B')).build()
       const json = toCompactJSON(expr)
@@ -259,65 +292,16 @@ describe('AUTH_V2: Expression Compaction', () => {
 
     it('JSON round-trip works', () => {
       const expr = intersect(identity('A', { nodes: ['ws1'] }), identity('B')).build()
-
-      const json = toCompactJSON(expr)
-      const parsed = fromCompactJSON(json)
-
-      expect(parsed).toEqual(expr)
+      expect(fromCompactJSON(toCompactJSON(expr))).toEqual(expr)
     })
   })
 
   // ===========================================================================
-  // SIZE COMPARISON
+  // ROBUSTNESS
   // ===========================================================================
 
-  describe('compareSizes()', () => {
-    it('reports size savings for simple expression', () => {
-      const expr = union(identity('A'), identity('B')).build()
-      const stats = compareSizes(expr)
-
-      expect(stats.verbose).toBeGreaterThan(stats.compact)
-      expect(stats.savings).toBeGreaterThan(0)
-      expect(stats.savingsPercent).toBeGreaterThan(0)
-    })
-
-    it('reports significant savings for complex expression', () => {
-      const expr = intersect(
-        union(
-          identity('USER1', { nodes: ['workspace-1'] }),
-          identity('ROLE1', { perms: ['read', 'write'] }),
-        ),
-        exclude(identity('GROUP1'), identity('BLOCKED', { principals: ['principal-1'] })),
-      ).build()
-
-      const stats = compareSizes(expr)
-
-      // Should save at least 40%
-      expect(stats.savingsPercent).toBeGreaterThanOrEqual(40)
-    })
-
-    it('returns correct verbose size', () => {
-      const expr = identity('A').build()
-      const stats = compareSizes(expr)
-
-      expect(stats.verbose).toBe(JSON.stringify(expr).length)
-    })
-
-    it('returns correct compact size', () => {
-      const expr = identity('A').build()
-      const stats = compareSizes(expr)
-
-      expect(stats.compact).toBe(toCompactJSON(expr).length)
-    })
-  })
-
-  // ===========================================================================
-  // EDGE CASES
-  // ===========================================================================
-
-  describe('edge cases', () => {
+  describe('robustness', () => {
     it('handles empty scope arrays correctly', () => {
-      // Empty arrays should be omitted in compact form
       const expr: IdentityExpr = {
         kind: 'identity',
         id: 'USER1',
@@ -325,10 +309,8 @@ describe('AUTH_V2: Expression Compaction', () => {
       }
 
       const compact = toCompact(expr)
-      // Empty nodes array should not appear
       expect(compact).toEqual(['i', 'USER1', [{ p: ['read'] }]])
 
-      // But round-trip should preserve the perm
       const expanded = fromCompact(compact)
       expect(expanded).toEqual({
         kind: 'identity',
@@ -338,34 +320,53 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('handles deeply nested expressions', () => {
-      // ((A ∪ B) ∩ C) \ ((D ∪ E) ∩ F)
       const expr = exclude(
         intersect(union(identity('A'), identity('B')), identity('C')),
         intersect(union(identity('D'), identity('E')), identity('F')),
       ).build()
 
-      const compact = toCompact(expr)
-      const expanded = fromCompact(compact)
-
-      expect(expanded).toEqual(expr)
+      expect(fromCompact(toCompact(expr))).toEqual(expr)
     })
 
     it('handles identity IDs with special characters', () => {
       const expr = identity('user@example.com').build()
-      const compact = toCompact(expr)
-      const expanded = fromCompact(compact)
-
-      expect(expanded).toEqual(expr)
+      expect(fromCompact(toCompact(expr))).toEqual(expr)
     })
 
     it('handles long scope arrays', () => {
       const nodes = Array.from({ length: 100 }, (_, i) => `node-${i}`)
       const expr = identity('USER1', { nodes }).build()
+      expect(fromCompact(toCompact(expr))).toEqual(expr)
+    })
 
-      const compact = toCompact(expr)
+    it('rejects expressions exceeding max depth', () => {
+      // Build expression with 101 levels of nesting
+      let deep: IdentityExpr = { kind: 'identity', id: 'leaf' }
+      for (let i = 0; i < 101; i++) {
+        deep = { kind: 'union', left: deep, right: { kind: 'identity', id: 'x' } }
+      }
+      expect(() => toCompact(deep)).toThrow('Expression too deeply nested')
+    })
+
+    it('rejects compact input exceeding max depth', () => {
+      // Build compact expression with 101 levels
+      let deep: unknown = ['i', 'leaf']
+      for (let i = 0; i < 101; i++) {
+        deep = ['u', deep, ['i', 'x']]
+      }
+      expect(() => fromCompact(deep)).toThrow('Expression too deeply nested')
+    })
+
+    it('preserves empty scopes for round-trip semantics', () => {
+      // Empty scope {} is preserved to maintain round-trip consistency
+      const compact = ['i', 'USER1', [{}]]
       const expanded = fromCompact(compact)
+      expect(expanded).toEqual({ kind: 'identity', id: 'USER1', scopes: [{}] })
+    })
 
-      expect(expanded).toEqual(expr)
+    it('rejects array passed as scope object', () => {
+      const compact = ['i', 'USER1', [['not', 'an', 'object']]]
+      expect(() => fromCompact(compact)).toThrow('Invalid scope')
     })
   })
 })

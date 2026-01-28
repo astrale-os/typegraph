@@ -14,10 +14,6 @@ import {
   applyScopes,
   subject,
   raw,
-  Expr,
-  IdentityExprBuilder,
-  BinaryExpr,
-  RawExpr,
   isExprBuilder,
 } from './expr-builder'
 import type { IdentityExpr, Scope } from './types'
@@ -53,6 +49,19 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
     it('id() is alias for identity()', () => {
       expect(id('USER1').build()).toEqual(identity('USER1').build())
+    })
+
+    it('throws on empty string id', () => {
+      expect(() => identity('')).toThrow('identity id must be a non-empty string')
+    })
+
+    it('filters out null/undefined scopes', () => {
+      const expr = identity('USER1', [null as unknown as Scope, { nodes: ['ws1'] }])
+      expect(expr.build()).toEqual({
+        kind: 'identity',
+        id: 'USER1',
+        scopes: [{ nodes: ['ws1'] }],
+      })
     })
   })
 
@@ -276,6 +285,18 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         left: { kind: 'identity', id: 'RESOLVED' },
         right: { kind: 'identity', id: 'NEW' },
       })
+    })
+
+    it('throws on null input', () => {
+      expect(() => raw(null as unknown as IdentityExpr)).toThrow(
+        'raw() requires a valid IdentityExpr object',
+      )
+    })
+
+    it('throws on invalid kind', () => {
+      expect(() => raw({ kind: 'invalid' } as unknown as IdentityExpr)).toThrow(
+        'Invalid expression kind: invalid',
+      )
     })
   })
 

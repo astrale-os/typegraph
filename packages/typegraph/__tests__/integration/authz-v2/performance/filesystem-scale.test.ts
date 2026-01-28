@@ -63,7 +63,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Filesystem Scale Test', () => {
       afterAll(async () => {
         if (connection) {
           try {
-            await connection.client.delete(connection.graphName)
+            await (connection.client as any).delete(connection.graphName)
           } catch {
             /* cleanup failure ok */
           }

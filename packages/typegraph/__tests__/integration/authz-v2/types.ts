@@ -105,7 +105,7 @@ export type AccessExplanation = {
   // Echo inputs (self-contained)
   targetId: NodeId
   perm: PermissionT
-  principal: IdentityId | undefined
+  principal: IdentityId
 
   // Result
   granted: boolean
@@ -120,7 +120,7 @@ export type AccessExplanation = {
  * Explanation for a single phase (type check or target check).
  */
 export type PhaseExplanation = {
-  expression: IdentityExpr | null
+  expression: IdentityExpr
   leaves: LeafEvaluation[]
   cypher: string
 }
@@ -149,14 +149,21 @@ export type LeafEvaluation = {
 
   // Missing: what was searched
   searchedPath?: NodeId[] // target → ... → root (searched but not found)
+
+  // Node scope restrictions that must be satisfied (if any)
+  // Empty array means no node restrictions (permission valid anywhere)
+  // Non-empty means target must be descendant of at least one of these nodes
+  nodeRestrictions?: NodeId[]
 }
 
 /**
  * Detail about why a scope filtered an identity.
+ * Note: 'principal' and 'perm' are checked during leaf collection.
+ * Node scope restrictions are enforced in Cypher, not in filter.
  */
 export type FilterDetail = {
   scopeIndex: number
-  failedCheck: 'principal' | 'perm' | 'node'
+  failedCheck: 'principal' | 'perm'
 }
 
 // =============================================================================

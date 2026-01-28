@@ -85,7 +85,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
       afterAll(async () => {
         if (connection) {
           try {
-            await connection.client.delete(connection.graphName)
+            await (connection.client as any).delete(connection.graphName)
           } catch {
             /* cleanup failure ok */
           }
@@ -350,7 +350,6 @@ async function seedAtScale(
 
 function generateHtmlReport(results: ScaleResult[]): string {
   const scales = results.map((r) => r.scale)
-  const nodes = results.map((r) => r.nodes)
   const means = results.map((r) => r.latency.mean)
   const p95s = results.map((r) => r.latency.p95)
   const seqThroughputs = results.map((r) => r.throughput.sequential)

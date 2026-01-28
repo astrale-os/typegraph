@@ -76,7 +76,7 @@ function transformResult<T>(record: Record<string, unknown>): T {
 export function createRawExecutor(graph: Graph): RawExecutor {
   return {
     async run<T>(query: string, params?: Record<string, unknown>): Promise<T[]> {
-      const result = await graph.query(query, { params: params ?? {} })
+      const result = (await graph.query(query, { params: (params ?? {}) as any })) as any
       const records: T[] = []
 
       // FalkorDB returns data differently
@@ -86,7 +86,7 @@ export function createRawExecutor(graph: Graph): RawExecutor {
             // Convert array to object using header names
             const obj: Record<string, unknown> = {}
             if (result.header) {
-              result.header.forEach((col, idx) => {
+              result.header.forEach((col: string, idx: number) => {
                 obj[col] = row[idx]
               })
             }
@@ -343,7 +343,7 @@ export async function setupAuthzTest(): Promise<AuthzTestContext> {
 export async function teardownAuthzTest(ctx: AuthzTestContext): Promise<void> {
   // Delete the graph entirely to clean up
   try {
-    await ctx.connection.client.delete(ctx.connection.graphName)
+    await (ctx.connection.client as any).delete(ctx.connection.graphName)
   } catch {
     // Graph might not exist, ignore
   }
