@@ -5,7 +5,7 @@
  */
 
 import { expect } from 'vitest'
-import type { AccessDecision, AccessExplanation, Subject, Scope, IdentityExpr } from './types'
+import type { AccessDecision, AccessExplanation, Grant, Scope, IdentityExpr } from './types'
 
 // =============================================================================
 // ASSERTION HELPERS
@@ -92,28 +92,28 @@ export function identities(ids: string[], scopes?: Scope | Scope[]): IdentityExp
 }
 
 // =============================================================================
-// SUBJECT FACTORY
+// GRANT FACTORY
 // =============================================================================
 
 /**
- * Create a Subject from expressions.
+ * Create a Grant from expressions.
  */
-export function subject(forType: IdentityExpr, forTarget: IdentityExpr): Subject {
-  return { forType, forTarget }
+export function grant(forType: IdentityExpr, forResource: IdentityExpr): Grant {
+  return { forType, forResource }
 }
 
 /**
- * Convenience: Create a Subject from ID arrays.
+ * Convenience: Create a Grant from ID arrays.
  * Optional scopes are applied to target identities only (type check is unscoped).
  */
-export function subjectFromIds(
+export function grantFromIds(
   typeIds: string[],
   targetIds: string[],
   options?: { scopes?: Scope[] },
-): Subject {
+): Grant {
   return {
     forType: identities(typeIds),
-    forTarget: identities(targetIds, options?.scopes),
+    forResource: identities(targetIds, options?.scopes),
   }
 }
 

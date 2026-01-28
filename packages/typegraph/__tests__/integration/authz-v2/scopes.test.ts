@@ -15,7 +15,7 @@ import {
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
 import {
-  subject,
+  grant,
   identity,
   expectGranted,
   expectDeniedByTarget,
@@ -49,7 +49,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
+        grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         'M1', // M1 is in workspace-1
         'read',
         'principal',
@@ -62,7 +62,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
+        grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         'M3', // M3 is in workspace-2
         'read',
         'principal',
@@ -81,7 +81,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [permScope(['read'])])),
+        grant(identity('APP1'), identity('USER1', [permScope(['read'])])),
         'M1',
         'read',
         'principal',
@@ -94,7 +94,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [permScope(['read'])])),
+        grant(identity('APP1'), identity('USER1', [permScope(['read'])])),
         'M1',
         'edit', // edit not in scope
         'principal',
@@ -114,7 +114,7 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       // Two scopes: ws1+read/edit OR ws2+read
       const result = await checker.checkAccess(
-        subject(
+        grant(
           identity('APP1'),
           identity('USER1', [
             fullScope(['workspace-1'], ['read', 'edit']),
@@ -133,7 +133,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(
+        grant(
           identity('APP1'),
           identity('USER1', [
             fullScope(['workspace-1'], ['read', 'edit']),
@@ -158,7 +158,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [])),
+        grant(identity('APP1'), identity('USER1', [])),
         'M1',
         'read',
         'principal',
@@ -171,7 +171,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1')),
+        grant(identity('APP1'), identity('USER1')),
         'M1',
         'read',
         'principal',
@@ -184,7 +184,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [{ nodes: ['workspace-1'] }])),
+        grant(identity('APP1'), identity('USER1', [{ nodes: ['workspace-1'] }])),
         'M1',
         'edit',
         'principal',
@@ -205,7 +205,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       // USER1 has edit on workspace-1 directly
       // With scope restricted to workspace-1, USER1's ws1 perms apply
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
+        grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         'M1', // M1 is in workspace-1
         'edit',
         'principal',
@@ -220,7 +220,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       // USER1 has edit on workspace-1
       // With scope restricted to workspace-2, USER1 cannot access M1
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [nodeScope(['workspace-2'])])),
+        grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-2'])])),
         'M1', // M1 is in workspace-1, but scope is workspace-2
         'edit',
         'principal',
@@ -241,7 +241,7 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       // Use evaluated expression (scopes on leaves come from evalIdentity)
       const result = await checker.checkAccess(
-        subject(identity('APP1'), xExpr),
+        grant(identity('APP1'), xExpr),
         'M1',
         'read',
         'principal',
@@ -260,7 +260,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), xExpr),
+        grant(identity('APP1'), xExpr),
         'M2',
         'read',
         'principal',
@@ -279,7 +279,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
         'M1',
         'read',
         'principal',
@@ -292,7 +292,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
         'M1',
         'edit', // edit not in perm scope
         'principal',
@@ -305,7 +305,7 @@ describe('AUTH_V2: Scope Filtering', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
         'M3', // M3 is in workspace-2
         'read',
         'principal',

@@ -12,7 +12,7 @@ import {
   intersect,
   exclude,
   applyScopes,
-  subject,
+  grant,
   raw,
   isExprBuilder,
 } from './expr-builder'
@@ -486,27 +486,27 @@ describe('AUTH_V2: Expression Builder SDK', () => {
   })
 
   // ===========================================================================
-  // SUBJECT BUILDER
+  // GRANT BUILDER
   // ===========================================================================
 
-  describe('subject()', () => {
-    it('builds subject with forType and forTarget', () => {
-      const subj = subject(identity('APP1'), identity('USER1'))
-      expect(subj.build()).toEqual({
+  describe('grant()', () => {
+    it('builds grant with forType and forResource', () => {
+      const g = grant(identity('APP1'), identity('USER1'))
+      expect(g.build()).toEqual({
         forType: { kind: 'identity', id: 'APP1' },
-        forTarget: { kind: 'identity', id: 'USER1' },
+        forResource: { kind: 'identity', id: 'USER1' },
       })
     })
 
     it('supports complex expressions', () => {
-      const subj = subject(
+      const g = grant(
         identity('APP1'),
         union(identity('USER1'), identity('ROLE1')).intersect(identity('GROUP1')),
       )
 
-      expect(subj.build()).toEqual({
+      expect(g.build()).toEqual({
         forType: { kind: 'identity', id: 'APP1' },
-        forTarget: {
+        forResource: {
           kind: 'intersect',
           left: {
             kind: 'union',

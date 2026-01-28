@@ -313,38 +313,38 @@ export function applyScopes(expr: IdentityExpr, scope: Scope): IdentityExpr {
 }
 
 // =============================================================================
-// SUBJECT BUILDER
+// GRANT BUILDER
 // =============================================================================
 
 /**
- * Builder for creating Subject objects with forType and forTarget expressions.
+ * Builder for creating Grant objects with forType and forResource expressions.
  */
-export class SubjectBuilder {
+export class GrantBuilder {
   constructor(
     private readonly forType: Expr,
-    private readonly forTarget: Expr,
+    private readonly forResource: Expr,
   ) {}
 
   /**
-   * Build the raw Subject object.
+   * Build the raw Grant object.
    */
-  build(): { forType: IdentityExpr; forTarget: IdentityExpr } {
+  build(): { forType: IdentityExpr; forResource: IdentityExpr } {
     return {
       forType: this.forType.build(),
-      forTarget: this.forTarget.build(),
+      forResource: this.forResource.build(),
     }
   }
 }
 
 /**
- * Create a SubjectBuilder for composing forType and forTarget expressions.
+ * Create a GrantBuilder for composing forType and forResource expressions.
  *
  * @example
  * ```typescript
- * const subj = subject(identity("APP1"), forTargetExpr)
- * const rawSubject = subj.build()
+ * const g = grant(identity("APP1"), forResourceExpr)
+ * const rawGrant = g.build()
  * ```
  */
-export function subject(forType: Expr, forTarget: Expr): SubjectBuilder {
-  return new SubjectBuilder(forType, forTarget)
+export function grant(forType: Expr, forResource: Expr): GrantBuilder {
+  return new GrantBuilder(forType, forResource)
 }

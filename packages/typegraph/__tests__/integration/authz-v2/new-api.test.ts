@@ -15,8 +15,8 @@ import {
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
 import {
-  subject,
-  subjectFromIds,
+  grant,
+  grantFromIds,
   identity,
   identities,
   union,
@@ -52,7 +52,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -65,7 +65,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subjectFromIds([], ['USER1']),
+        grantFromIds([], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -78,7 +78,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subjectFromIds(['APP1'], []),
+        grantFromIds(['APP1'], []),
         'M1',
         'read',
         'principal',
@@ -95,7 +95,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subjectFromIds(['APP_NO_USE'], ['USER1']),
+        grantFromIds(['APP_NO_USE'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -108,7 +108,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.checkAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'admin', // Permission USER1 doesn't have
         'principal',
@@ -126,7 +126,7 @@ describe('AUTH_V2: New API', () => {
 
       // APP_NO_USE2 lacks 'use', but APP1 has it
       const result = await checker.checkAccess(
-        subjectFromIds(['APP_NO_USE2', 'APP1'], ['USER1']),
+        grantFromIds(['APP_NO_USE2', 'APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -140,7 +140,7 @@ describe('AUTH_V2: New API', () => {
 
       // workspace-1 has no type, so type check is skipped
       const result = await checker.checkAccess(
-        subjectFromIds([], ['USER1']), // No type identities needed
+        grantFromIds([], ['USER1']), // No type identities needed
         'workspace-1',
         'read',
         'principal',
@@ -151,7 +151,7 @@ describe('AUTH_V2: New API', () => {
       // Verify via explainAccess that type check was actually skipped
       // When target has no type, typeCheck.cypher is 'true' (always passes)
       const explanation = await checker.explainAccess(
-        subjectFromIds([], ['USER1']),
+        grantFromIds([], ['USER1']),
         'workspace-1',
         'read',
         'principal',
@@ -171,7 +171,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -197,7 +197,7 @@ describe('AUTH_V2: New API', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
 
       const result = await checker.explainAccess(
-        subject(identity('APP1'), user1Expr),
+        grant(identity('APP1'), user1Expr),
         'M3', // Module in workspace-2, where ROLE1 has edit
         'edit',
         'principal',
@@ -220,7 +220,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER_NO_PERM']),
+        grantFromIds(['APP1'], ['USER_NO_PERM']),
         'M1',
         'read',
         'principal',
@@ -251,7 +251,7 @@ describe('AUTH_V2: New API', () => {
       // This isolates the principal filtering to target check only
       // Scope restricts to 'other-principal' but we pass 'some-principal'
       const result = await checker.explainAccess(
-        subject(identities([]), identity('SCOPED_IDENTITY', [principalScope(['other-principal'])])),
+        grant(identities([]), identity('SCOPED_IDENTITY', [principalScope(['other-principal'])])),
         'workspace-1', // Non-typed target
         'read',
         'some-principal', // Different from the allowed principal
@@ -272,7 +272,7 @@ describe('AUTH_V2: New API', () => {
       // Test with a non-typed target (workspace) so type check is skipped
       // This isolates the perm filtering to target check only
       const result = await checker.explainAccess(
-        subject(
+        grant(
           identities([]),
           identity('USER1', [permScope(['admin'])]), // Only allow 'admin', not 'read'
         ),
@@ -294,7 +294,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -314,7 +314,7 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const result = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -337,7 +337,7 @@ describe('AUTH_V2: New API', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.explainAccess(
-        subject(identity('APP1'), xExpr),
+        grant(identity('APP1'), xExpr),
         'M1',
         'read',
         'principal',
@@ -363,7 +363,7 @@ describe('AUTH_V2: New API', () => {
       const aExpr = await evaluator.evalIdentity('A')
 
       const result = await checker.explainAccess(
-        subject(identity('APP1'), union(user1Expr, aExpr)),
+        grant(identity('APP1'), union(user1Expr, aExpr)),
         'M1',
         'read',
         'principal',
@@ -391,13 +391,13 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const decision = await checker.checkAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -415,13 +415,13 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const decision = await checker.checkAccess(
-        subjectFromIds(['APP_NO_USE3'], ['USER1']),
+        grantFromIds(['APP_NO_USE3'], ['USER1']),
         'M1',
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subjectFromIds(['APP_NO_USE3'], ['USER1']),
+        grantFromIds(['APP_NO_USE3'], ['USER1']),
         'M1',
         'read',
         'principal',
@@ -436,13 +436,13 @@ describe('AUTH_V2: New API', () => {
       const checker = createAccessChecker(ctx.executor)
 
       const decision = await checker.checkAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'admin',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subjectFromIds(['APP1'], ['USER1']),
+        grantFromIds(['APP1'], ['USER1']),
         'M1',
         'admin',
         'principal',
@@ -463,13 +463,13 @@ describe('AUTH_V2: New API', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const decision = await checker.checkAccess(
-        subject(identity('APP1'), xExpr),
+        grant(identity('APP1'), xExpr),
         'M2',
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subject(identity('APP1'), xExpr),
+        grant(identity('APP1'), xExpr),
         'M2',
         'read',
         'principal',
@@ -513,13 +513,13 @@ describe('AUTH_V2: New API', () => {
       const eExpr = await evaluator.evalIdentity('EXCLUDE_TEST_E')
 
       const decision = await checker.checkAccess(
-        subject(identity('APP1'), eExpr),
+        grant(identity('APP1'), eExpr),
         'M1',
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subject(identity('APP1'), eExpr),
+        grant(identity('APP1'), eExpr),
         'M1',
         'read',
         'principal',
@@ -543,13 +543,13 @@ describe('AUTH_V2: New API', () => {
       const scopedExpr = identity('USER1', { nodes: ['workspace-2'] })
 
       const decision = await checker.checkAccess(
-        subject(identity('APP1'), scopedExpr),
+        grant(identity('APP1'), scopedExpr),
         'M1', // M1 is under workspace-1, not workspace-2
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subject(identity('APP1'), scopedExpr),
+        grant(identity('APP1'), scopedExpr),
         'M1',
         'read',
         'principal',
@@ -570,13 +570,13 @@ describe('AUTH_V2: New API', () => {
       const scopedExpr = identity('USER1', { nodes: ['workspace-1'] })
 
       const decision = await checker.checkAccess(
-        subject(identity('APP1'), scopedExpr),
+        grant(identity('APP1'), scopedExpr),
         'M1', // M1 is under workspace-1
         'read',
         'principal',
       )
       const explanation = await checker.explainAccess(
-        subject(identity('APP1'), scopedExpr),
+        grant(identity('APP1'), scopedExpr),
         'M1',
         'read',
         'principal',
@@ -599,7 +599,7 @@ describe('AUTH_V2: New API', () => {
 
       await expect(
         checker.checkAccess(
-          subjectFromIds(['APP1'], ['USER1']),
+          grantFromIds(['APP1'], ['USER1']),
           "M1' OR 1=1 --", // Cypher injection attempt
           'read',
           'principal',
@@ -612,7 +612,7 @@ describe('AUTH_V2: New API', () => {
 
       await expect(
         checker.checkAccess(
-          subjectFromIds(['APP1'], ['USER1']),
+          grantFromIds(['APP1'], ['USER1']),
           'M1',
           "read'}]-() RETURN 1 --", // Cypher injection attempt
           'principal',
@@ -625,7 +625,7 @@ describe('AUTH_V2: New API', () => {
 
       await expect(
         checker.checkAccess(
-          subject(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
+          grant(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
           'M1',
           'read',
           'principal',
@@ -638,7 +638,7 @@ describe('AUTH_V2: New API', () => {
 
       await expect(
         checker.checkAccess(
-          subject(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
+          grant(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
           'M1',
           'read',
           'principal',
@@ -652,7 +652,7 @@ describe('AUTH_V2: New API', () => {
       // These should not throw - valid ID formats
       await expect(
         checker.checkAccess(
-          subjectFromIds(['APP1'], ['USER1']),
+          grantFromIds(['APP1'], ['USER1']),
           'M1',
           'read',
           'some-principal-id:v1',

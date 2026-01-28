@@ -14,8 +14,8 @@ import {
 } from './setup'
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
-import { expectGranted, expectDeniedByTarget, subjectFromIds } from './helpers'
-import { identity, union, intersect, subject, raw } from './expr-builder'
+import { expectGranted, expectDeniedByTarget, grantFromIds } from './helpers'
+import { identity, union, intersect, grant, raw } from './expr-builder'
 
 describe('AUTH_V2: Identity Composition', () => {
   let ctx: AuthzTestContext
@@ -64,7 +64,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // USER1_NO_UNION CANNOT access M3 for edit
       const deniedResult = await checker.checkAccess(
-        subjectFromIds(['APP1'], ['USER1_NO_UNION']),
+        grantFromIds(['APP1'], ['USER1_NO_UNION']),
         'M3',
         'edit',
         'principal',
@@ -76,7 +76,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
 
       const grantedResult = await checker.checkAccess(
-        subject(identity('APP1'), raw(user1Expr)).build(),
+        grant(identity('APP1'), raw(user1Expr)).build(),
         'M3',
         'edit',
         'principal',
@@ -92,7 +92,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), raw(user1Expr)).build(),
+        grant(identity('APP1'), raw(user1Expr)).build(),
         'M1',
         'admin',
         'principal',
@@ -155,7 +155,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // Should have edit on all three
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          grant(identity('APP1'), raw(unionAbcExpr)).build(),
           'M1',
           'edit',
           'p',
@@ -163,7 +163,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          grant(identity('APP1'), raw(unionAbcExpr)).build(),
           'M2',
           'edit',
           'p',
@@ -171,7 +171,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          grant(identity('APP1'), raw(unionAbcExpr)).build(),
           'M3',
           'edit',
           'p',
@@ -196,7 +196,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), raw(xExpr)).build(),
+        grant(identity('APP1'), raw(xExpr)).build(),
         'M1',
         'read',
         'principal',
@@ -214,7 +214,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), raw(xExpr)).build(),
+        grant(identity('APP1'), raw(xExpr)).build(),
         'M2',
         'read',
         'principal',
@@ -276,7 +276,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          grant(identity('APP1'), raw(interAbcExpr)).build(),
           'M1',
           'read',
           'p',
@@ -284,7 +284,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          grant(identity('APP1'), raw(interAbcExpr)).build(),
           'M2',
           'read',
           'p',
@@ -292,7 +292,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          grant(identity('APP1'), raw(interAbcExpr)).build(),
           'M3',
           'read',
           'p',
@@ -335,7 +335,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // M2 excluded by C
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(excludeEExpr)).build(),
+          grant(identity('APP1'), raw(excludeEExpr)).build(),
           'M2',
           'read',
           'p',
@@ -370,7 +370,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // M1 not excluded
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(excludeE2Expr)).build(),
+          grant(identity('APP1'), raw(excludeE2Expr)).build(),
           'M1',
           'read',
           'p',
@@ -413,7 +413,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           'M1',
           'read',
           'p',
@@ -421,7 +421,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           'M2',
           'read',
           'p',
@@ -458,7 +458,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
           'M1',
           'read',
           'p',
@@ -466,7 +466,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
           'M2',
           'read',
           'p',
@@ -522,7 +522,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(complexWExpr)).build(),
+          grant(identity('APP1'), raw(complexWExpr)).build(),
           'M1',
           'read',
           'p',
@@ -530,7 +530,7 @@ describe('AUTH_V2: Identity Composition', () => {
       )
       expectDeniedByTarget(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(complexWExpr)).build(),
+          grant(identity('APP1'), raw(complexWExpr)).build(),
           'M2',
           'read',
           'p',
@@ -558,7 +558,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // Should grant access to M3 (via ROLE1's workspace-2 edit)
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(resolved)).build(),
+          grant(identity('APP1'), raw(resolved)).build(),
           'M3',
           'edit',
           'p',
@@ -607,10 +607,10 @@ describe('AUTH_V2: Identity Composition', () => {
       const evaluator = new IdentityEvaluator(ctx.executor)
 
       // Build expression using SDK
-      const forTargetBuilder = identity('USER1').intersect(identity('A'))
+      const forResourceBuilder = identity('USER1').intersect(identity('A'))
 
       // Resolve (expands USER1 to union(USER1, ROLE1), A stays as-is)
-      const resolved = await evaluator.evalExpr(forTargetBuilder)
+      const resolved = await evaluator.evalExpr(forResourceBuilder)
 
       // (USER1 ∪ ROLE1) ∩ A
       // A has read on M1
@@ -618,7 +618,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // Result: should have read on M1
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(resolved)).build(),
+          grant(identity('APP1'), raw(resolved)).build(),
           'M1',
           'read',
           'p',
@@ -639,7 +639,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expectGranted(
         await checker.checkAccess(
-          subject(identity('APP1'), raw(resolved)).build(),
+          grant(identity('APP1'), raw(resolved)).build(),
           'M3',
           'edit',
           'p',

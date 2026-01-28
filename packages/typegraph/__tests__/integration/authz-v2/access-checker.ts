@@ -17,7 +17,7 @@ import type {
   PhaseExplanation,
   LeafEvaluation,
   FilterDetail,
-  Subject,
+  Grant,
   AccessCheckerConfig,
   IdentityExpr,
   RawExecutor,
@@ -114,10 +114,10 @@ export class AccessChecker {
 
   /**
    * Hot path: Simple access check returning only grant/deny.
-   * Takes subject with expressions + principal for scope filtering.
+   * Takes grant with expressions + principal for scope filtering.
    */
   async checkAccess(
-    subject: Subject,
+    grant: Grant,
     targetId: NodeId,
     perm: PermissionT,
     principal: IdentityId,
@@ -126,10 +126,10 @@ export class AccessChecker {
     validateCypherId(targetId, 'targetId')
     validateCypherId(perm, 'perm')
     validateCypherId(principal, 'principal')
-    validateExpression(subject.forType)
-    validateExpression(subject.forTarget)
+    validateExpression(grant.forType)
+    validateExpression(grant.forResource)
 
-    const { forType, forTarget } = subject
+    const { forType, forResource } = grant
 
     // Phase 1: Type check (only if target has a type)
     const typeId = await this.getTargetType(targetId)
@@ -148,7 +148,7 @@ export class AccessChecker {
     }
 
     // Phase 2: Target check (scoped by principal)
-    const targetCypher = this.toCypher(forTarget, 'target', perm, principal)
+    const targetCypher = this.toCypher(forResource, 'target', perm, principal)
     if (targetCypher === 'false') {
       return { granted: false, deniedBy: 'target' }
     }
@@ -179,7 +179,7 @@ export class AccessChecker {
    * Cold path: Detailed access explanation for debugging.
    */
   async explainAccess(
-    subject: Subject,
+    grant: Grant,
     targetId: NodeId,
     perm: PermissionT,
     principal: IdentityId,
@@ -188,10 +188,10 @@ export class AccessChecker {
     validateCypherId(targetId, 'targetId')
     validateCypherId(perm, 'perm')
     validateCypherId(principal, 'principal')
-    validateExpression(subject.forType)
-    validateExpression(subject.forTarget)
+    validateExpression(grant.forType)
+    validateExpression(grant.forResource)
 
-    const { forType, forTarget } = subject
+    const { forType, forResource } = grant
 
     // Get target type
     const typeId = await this.getTargetType(targetId)
@@ -209,9 +209,9 @@ export class AccessChecker {
     }
 
     // Phase 2: Target check (scoped by principal)
-    const targetCheck = await this.explainPhase(forTarget, targetId, perm, principal)
+    const targetCheck = await this.explainPhase(forResource, targetId, perm, principal)
     // Correctly evaluate expression tree semantics
-    const targetGranted = this.evaluateGranted(forTarget, targetCheck.leaves)
+    const targetGranted = this.evaluateGranted(forResource, targetCheck.leaves)
 
     const granted = typeGranted && targetGranted
 

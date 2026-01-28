@@ -34,7 +34,7 @@ export {
   expectDeniedByType,
   expectDeniedByTarget,
   identities,
-  subjectFromIds,
+  grantFromIds,
   nodeScope,
   permScope,
   principalScope,

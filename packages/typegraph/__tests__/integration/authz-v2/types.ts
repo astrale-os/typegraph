@@ -33,19 +33,22 @@ export type Scope = {
 }
 
 // =============================================================================
-// SUBJECT TYPE
+// GRANT TYPE
 // =============================================================================
 
 /**
- * Subject for access check.
- * Contains identity expressions for type and target checks.
+ * Grant for access check.
+ * Contains identity expressions for type and resource checks.
+ *
+ * - forType: identities that can USE this type of resource (e.g., app permissions)
+ * - forResource: identities that have permission on the specific resource (e.g., user permissions)
  *
  * Scopes are on IdentityExpr leaves, not here.
  * Principal is passed separately to checkAccess/explainAccess.
  */
-export type Subject = {
+export type Grant = {
   forType: IdentityExpr
-  forTarget: IdentityExpr
+  forResource: IdentityExpr
 }
 
 // =============================================================================
