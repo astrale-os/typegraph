@@ -5,7 +5,7 @@
  * Scopes can only be made MORE restrictive, never less.
  */
 
-import type { Scope, IdentityId, PermissionT, NodeId, FilterDetail } from '../types'
+import type { IdentityExpr, Scope, IdentityId, PermissionT, NodeId, FilterDetail } from '../types'
 
 // =============================================================================
 // SCOPE INTERSECTION
@@ -30,8 +30,7 @@ function intersectArrays<T>(a: T[] | undefined, b: T[] | undefined): T[] | undef
   const setB = new Set(b)
   const result = a.filter((x) => setB.has(x))
 
-  // Return undefined if result would be empty (means "nothing allowed" which is different from "unrestricted")
-  // Actually, empty array means nothing is allowed, which is valid
+  // Empty result = nothing allowed (distinct from undefined = unrestricted)
   return result
 }
 
@@ -83,38 +82,23 @@ export function intersectScopes(a: Scope[], b: Scope[]): Scope[] {
   if (a.length === 0) return b
   if (b.length === 0) return a
 
-  // Compute pairwise intersections
+  const seen = new Set<string>()
   const results: Scope[] = []
 
   for (const scopeA of a) {
     for (const scopeB of b) {
       const intersection = intersectScope(scopeA, scopeB)
       if (intersection !== null) {
-        results.push(intersection)
+        const key = scopeToKey(intersection)
+        if (!seen.has(key)) {
+          seen.add(key)
+          results.push(intersection)
+        }
       }
     }
   }
 
-  // Deduplicate identical scopes
-  return deduplicateScopes(results)
-}
-
-/**
- * Remove duplicate scopes from an array.
- */
-function deduplicateScopes(scopes: Scope[]): Scope[] {
-  const seen = new Set<string>()
-  const result: Scope[] = []
-
-  for (const scope of scopes) {
-    const key = scopeToKey(scope)
-    if (!seen.has(key)) {
-      seen.add(key)
-      result.push(scope)
-    }
-  }
-
-  return result
+  return results
 }
 
 /**
@@ -262,4 +246,70 @@ export function checkFilter(
   }
 
   return { allowed: false, details }
+}
+
+// =============================================================================
+// EXPRESSION TREE SCOPE OPERATIONS
+// =============================================================================
+
+/**
+ * Add a scope to all identity leaves in an expression tree.
+ *
+ * @param expr - The expression to walk
+ * @param scope - The scope to append to each leaf
+ *
+ * @example
+ * ```typescript
+ * const expanded = await evaluator.evalExpr(identity("USER1"))
+ * const scoped = applyScope(expanded, { nodes: ["workspace-1"] })
+ * ```
+ */
+export function applyScope(expr: IdentityExpr, scope: Scope): IdentityExpr {
+  switch (expr.kind) {
+    case 'identity':
+      return {
+        ...expr,
+        scopes: expr.scopes ? [...expr.scopes, scope] : [scope],
+      }
+    case 'union':
+    case 'intersect':
+    case 'exclude':
+      return {
+        kind: expr.kind,
+        left: applyScope(expr.left, scope),
+        right: applyScope(expr.right, scope),
+      }
+  }
+}
+
+/**
+ * Apply top-level scopes to all leaves via proper intersection.
+ * Used by the auth layer to narrow delegated expressions.
+ *
+ * @param expr - The expression to narrow
+ * @param scopes - Scopes to intersect onto each leaf
+ */
+export function applyTopLevelScopes(expr: IdentityExpr, scopes: Scope[]): IdentityExpr {
+  if (scopes.length === 0) return expr
+
+  switch (expr.kind) {
+    case 'identity': {
+      const newScopes = expr.scopes ? intersectScopes(expr.scopes, scopes) : scopes
+      // IMPORTANT: Keep empty array (means "no valid scopes" = deny).
+      // Only use undefined for "unrestricted". Empty array after intersection = impossible.
+      return {
+        kind: 'identity',
+        id: expr.id,
+        scopes: newScopes,
+      }
+    }
+    case 'union':
+    case 'intersect':
+    case 'exclude':
+      return {
+        kind: expr.kind,
+        left: applyTopLevelScopes(expr.left, scopes),
+        right: applyTopLevelScopes(expr.right, scopes),
+      }
+  }
 }

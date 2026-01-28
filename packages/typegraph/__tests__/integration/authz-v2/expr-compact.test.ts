@@ -246,7 +246,7 @@ describe('AUTH_V2: Expression Compaction', () => {
 
     it('preserves complex expression', () => {
       const expr = intersect(
-        union(identity('A', { nodes: ['ws1'] }), identity('B').restrict({ perms: ['write'] })),
+        union(identity('A', { nodes: ['ws1'] }), identity('B').scope({ perms: ['write'] })),
         exclude(identity('C'), identity('D', [{ principals: ['p1'] }])),
       ).build()
 
@@ -257,7 +257,7 @@ describe('AUTH_V2: Expression Compaction', () => {
       const ref1 = union(identity('X', { nodes: ['node-A'] }), identity('Y'))
       const restrictedIdentity = ref1.intersect(identity('Z'))
       const finalIdentity = intersect(
-        identity('H').restrict({ perms: ['read'] }),
+        identity('H').scope({ perms: ['read'] }),
         restrictedIdentity.exclude(identity('M')),
       )
 

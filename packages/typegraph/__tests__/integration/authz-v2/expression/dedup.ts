@@ -4,6 +4,31 @@
  * Finds repeated subtrees in an expression and replaces them with references.
  * Format-agnostic - works with JSON compact or binary encoding.
  *
+ * ## When to use
+ *
+ * - Call `hasRepeatedSubtrees(expr)` first — returns true if dedup will help
+ * - Typical savings: 30-80% for expressions with shared subtrees
+ * - No benefit (~2% overhead) for expressions without duplicates
+ * - Best combined with binary encoding via `getCodec('binary', { dedup: true })`
+ *
+ * ## Activation
+ *
+ * ```typescript
+ * // Via KernelServiceConfig:
+ * new KernelService(registry, keyStore, { encoding: 'binary', dedup: true })
+ *
+ * // Via codec directly:
+ * const codec = getCodec('binary', { dedup: true })
+ * const encoded = codec.encodeExpr(expr)  // auto-dedup if repeated subtrees found
+ * ```
+ *
+ * ## Pipeline
+ *
+ * ```
+ * Encode: expr → dedup() → DedupedExpr → encode() → bytes → base64
+ * Decode: base64 → bytes → decode() → DedupedExpr → expand() → IdentityExpr
+ * ```
+ *
  * @example
  * ```typescript
  * const shared = union(identity("A"), identity("B"))

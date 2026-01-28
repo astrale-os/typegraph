@@ -29,6 +29,9 @@ export {
 // Authentication domain
 export * from './authentication'
 
+// SDK
+export * from './sdk'
+
 // Testing utilities
 export {
   setupAuthzTest,

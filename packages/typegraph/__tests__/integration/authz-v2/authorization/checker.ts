@@ -18,28 +18,31 @@ export async function checkAccess(
 
   const { forType, forResource } = grant
 
-  // Phase 1: Type check (only if target has a type)
+  // Resource query has no dependency on typeId — start immediately
+  const targetQuery = queryPort.generateQuery(forResource, 'target', perm, principal)
+  const resourcePromise =
+    targetQuery === null ? Promise.resolve(false) : queryPort.executeCheck(targetQuery, nodeId)
+
+  // Type check (only if target has a type)
   const typeId = await queryPort.getTargetType(nodeId)
 
   if (typeId) {
-    // Type check is NOT scoped by principal - always unrestricted
-    const typeCypher = queryPort.generateCypher(forType, 'target', 'use', undefined)
-    if (typeCypher === 'false') {
+    const typeQuery = queryPort.generateQuery(forType, 'target', 'use', undefined)
+    if (typeQuery === null) {
       return { granted: false, deniedBy: 'type' }
     }
 
-    const typeGranted = await queryPort.executeTypeCheck(typeCypher, typeId)
-    if (!typeGranted) {
-      return { granted: false, deniedBy: 'type' }
-    }
+    // Run type execution in parallel with already-started resource execution
+    const [typeGranted, targetGranted] = await Promise.all([
+      queryPort.executeTypeCheck(typeQuery, typeId),
+      resourcePromise,
+    ])
+
+    if (!typeGranted) return { granted: false, deniedBy: 'type' }
+    return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
   }
 
-  // Phase 2: Target check (scoped by principal)
-  const targetCypher = queryPort.generateCypher(forResource, 'target', perm, principal)
-  if (targetCypher === 'false') {
-    return { granted: false, deniedBy: 'resource' }
-  }
-
-  const targetGranted = await queryPort.executeCheck(targetCypher, nodeId)
+  // No type — just await resource
+  const targetGranted = await resourcePromise
   return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
 }

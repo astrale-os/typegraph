@@ -57,7 +57,7 @@ class BufferWriter {
   private chunks: Uint8Array[] = []
   private current: Uint8Array
   private offset: number = 0
-  private encoder = new TextEncoder()
+  private static readonly encoder = new TextEncoder()
 
   constructor(initialSize: number = 256) {
     this.current = new Uint8Array(initialSize)
@@ -87,7 +87,7 @@ class BufferWriter {
   }
 
   writeString(str: string): void {
-    const bytes = this.encoder.encode(str)
+    const bytes = BufferWriter.encoder.encode(str)
     this.writeVarint(bytes.length)
     this.ensureCapacity(bytes.length)
     this.current.set(bytes, this.offset)
@@ -114,7 +114,7 @@ class BufferWriter {
 
 class BufferReader {
   private offset: number = 0
-  private decoder = new TextDecoder()
+  private static readonly decoder = new TextDecoder()
 
   constructor(private buffer: Uint8Array) {}
 
@@ -154,7 +154,7 @@ class BufferReader {
     }
     const bytes = this.buffer.subarray(this.offset, this.offset + length)
     this.offset += length
-    return this.decoder.decode(bytes)
+    return BufferReader.decoder.decode(bytes)
   }
 }
 
@@ -517,12 +517,7 @@ export function decode(bytes: Uint8Array): IdentityExpr | DedupedExpr {
  */
 export function encodeBase64(expr: IdentityExpr | DedupedExpr): string {
   const binary = encode(expr)
-  // Use built-in btoa with array conversion
-  let binaryString = ''
-  for (let i = 0; i < binary.length; i++) {
-    binaryString += String.fromCharCode(binary[i]!)
-  }
-  return btoa(binaryString)
+  return Buffer.from(binary).toString('base64')
 }
 
 /**
@@ -532,11 +527,7 @@ export function encodeBase64(expr: IdentityExpr | DedupedExpr): string {
  * @returns IdentityExpr or DedupedExpr
  */
 export function decodeBase64(base64: string): IdentityExpr | DedupedExpr {
-  const binaryString = atob(base64)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
+  const bytes = new Uint8Array(Buffer.from(base64, 'base64'))
   return decode(bytes)
 }
 

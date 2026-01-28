@@ -96,7 +96,7 @@ describe('AUTH_V2: Edge Cases', () => {
 
       // D has perms
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'DIAMOND_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'DIAMOND_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // A -> B, A -> C
@@ -171,7 +171,7 @@ describe('AUTH_V2: Edge Cases', () => {
         `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}) CREATE (i)-[:excludeWith]->(i)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       const evaluator = new IdentityEvaluator(ctx.executor)
@@ -187,7 +187,7 @@ describe('AUTH_V2: Edge Cases', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_TARGET'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_TARGET'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
         `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'}) CREATE (a)-[:excludeWith]->(b)`,

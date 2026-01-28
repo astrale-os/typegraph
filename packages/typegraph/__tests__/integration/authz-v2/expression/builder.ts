@@ -106,17 +106,17 @@ export class IdentityExprBuilder extends Expr {
   }
 
   /**
-   * Add a scope restriction to this identity.
+   * Add a scope to this identity.
    * Returns a new builder (immutable).
    *
    * @example
    * ```typescript
-   * identity("USER1").restrict({ nodes: ["workspace-1"] })
-   * identity("ROLE1").restrict({ perms: ["read"] })
+   * identity("USER1").scope({ nodes: ["workspace-1"] })
+   * identity("ROLE1").scope({ perms: ["read"] })
    * ```
    */
-  restrict(scope: Scope): IdentityExprBuilder {
-    return new IdentityExprBuilder(this.id, [...this.scopes, scope])
+  scope(s: Scope): IdentityExprBuilder {
+    return new IdentityExprBuilder(this.id, [...this.scopes, s])
   }
 
   build(): IdentityExpr {
@@ -268,48 +268,6 @@ export function intersect(...exprs: Expr[]): Expr {
  */
 export function exclude(base: Expr, excluded: Expr): Expr {
   return base.exclude(excluded)
-}
-
-// =============================================================================
-// HELPER UTILITIES
-// =============================================================================
-
-/**
- * Apply scopes to all identity leaves in an expression tree.
- * Useful for restricting an expanded expression to a specific context.
- *
- * @param expr - The expression to apply scopes to
- * @param scope - The scope to add to all leaves
- * @returns A new expression with scopes applied to all identity leaves
- *
- * @example
- * ```typescript
- * // Expand USER1's composition, then restrict all to workspace-1
- * const expanded = await evaluator.evalExpr(identity("USER1"))
- * const restricted = applyScopes(expanded, { nodes: ["workspace-1"] })
- * ```
- */
-export function applyScopes(expr: IdentityExpr, scope: Scope): IdentityExpr {
-  switch (expr.kind) {
-    case 'identity':
-      return {
-        ...expr,
-        scopes: expr.scopes ? [...expr.scopes, scope] : [scope],
-      }
-    case 'union':
-    case 'intersect':
-    case 'exclude':
-      return {
-        kind: expr.kind,
-        left: applyScopes(expr.left, scope),
-        right: applyScopes(expr.right, scope),
-      }
-    default: {
-      // Exhaustive check - will cause compile error if new kinds are added
-      const exhaustiveCheck: never = expr
-      throw new Error(`Unknown expression kind: ${(exhaustiveCheck as { kind: string }).kind}`)
-    }
-  }
 }
 
 // =============================================================================

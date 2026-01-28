@@ -8,6 +8,7 @@
 import type { AccessQueryPort } from './access-query-port'
 import { validateAccessInputs, throwExhaustiveCheck } from '../expression/validation'
 import { checkFilter } from '../expression/scope'
+import { fragmentToDisplayString } from '../adapter/cypher'
 import type {
   Grant,
   NodeId,
@@ -28,32 +29,43 @@ export async function explainAccess(
 
   const { forType, forResource } = grant
 
-  // Get target type
+  // Start resource phase immediately (no dependency on typeId)
+  const resourcePromise = explainPhase(forResource, nodeId, perm, principal, queryPort)
+
   const typeId = await queryPort.getTargetType(nodeId)
 
-  // Phase 1: Type check (NOT scoped)
-  let typeCheck: PhaseExplanation
-  let typeGranted = true
-
   if (typeId) {
-    typeCheck = await explainPhase(forType, typeId, 'use', undefined, queryPort)
-    typeGranted = evaluateGranted(forType, typeCheck.leaves)
-  } else {
-    typeCheck = { expression: forType, leaves: [], cypher: 'true' }
+    // Run type phase in parallel with already-started resource phase
+    const [typeCheck, resourceCheck] = await Promise.all([
+      explainPhase(forType, typeId, 'use', undefined, queryPort),
+      resourcePromise,
+    ])
+    const typeGranted = evaluateGranted(forType, typeCheck.leaves)
+    const targetGranted = evaluateGranted(forResource, resourceCheck.leaves)
+    const granted = typeGranted && targetGranted
+
+    return {
+      resourceId: nodeId,
+      perm,
+      principal,
+      granted,
+      deniedBy: !granted ? (!typeGranted ? 'type' : 'resource') : undefined,
+      typeCheck,
+      resourceCheck,
+    }
   }
 
-  // Phase 2: Target check (scoped by principal)
-  const resourceCheck = await explainPhase(forResource, nodeId, perm, principal, queryPort)
+  const typeCheck: PhaseExplanation = { expression: forType, leaves: [], query: 'true' }
+  const resourceCheck = await resourcePromise
   const targetGranted = evaluateGranted(forResource, resourceCheck.leaves)
-
-  const granted = typeGranted && targetGranted
+  const granted = targetGranted
 
   return {
     resourceId: nodeId,
     perm,
     principal,
     granted,
-    deniedBy: !granted ? (!typeGranted ? 'type' : 'resource') : undefined,
+    deniedBy: !granted ? 'resource' : undefined,
     typeCheck,
     resourceCheck,
   }
@@ -110,8 +122,9 @@ async function explainPhase(
   // Collect leaves from expression tree
   const leaves = collectLeaves(expr, [], principal, perm)
 
-  // Generate cypher
-  const cypher = queryPort.generateCypher(expr, 'target', perm, principal)
+  // Generate query
+  const fragment = queryPort.generateQuery(expr, 'target', perm, principal)
+  const query = fragmentToDisplayString(fragment)
 
   // Query details for non-filtered leaves
   const activeLeaves = leaves.filter((l) => l.status !== 'filtered')
@@ -122,7 +135,7 @@ async function explainPhase(
   return {
     expression: expr,
     leaves,
-    cypher,
+    query,
   }
 }
 

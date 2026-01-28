@@ -11,11 +11,11 @@ import {
   union,
   intersect,
   exclude,
-  applyScopes,
   grant,
   raw,
   isExprBuilder,
 } from './expression/builder'
+import { applyScope } from './expression/scope'
 import type { IdentityExpr, Scope } from './types'
 
 describe('AUTH_V2: Expression Builder SDK', () => {
@@ -65,9 +65,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     })
   })
 
-  describe('.restrict()', () => {
+  describe('.scope()', () => {
     it('adds scope to identity', () => {
-      const expr = identity('USER1').restrict({ nodes: ['ws1'] })
+      const expr = identity('USER1').scope({ nodes: ['ws1'] })
       expect(expr.build()).toEqual({
         kind: 'identity',
         id: 'USER1',
@@ -75,10 +75,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       })
     })
 
-    it('chains multiple restrict calls', () => {
+    it('chains multiple scope calls', () => {
       const expr = identity('USER1')
-        .restrict({ nodes: ['ws1'] })
-        .restrict({ perms: ['read'] })
+        .scope({ nodes: ['ws1'] })
+        .scope({ perms: ['read'] })
 
       expect(expr.build()).toEqual({
         kind: 'identity',
@@ -89,7 +89,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
     it('is immutable - original not modified', () => {
       const original = identity('USER1')
-      const restricted = original.restrict({ nodes: ['ws1'] })
+      const restricted = original.scope({ nodes: ['ws1'] })
 
       expect(original.build()).toEqual({ kind: 'identity', id: 'USER1' })
       expect(restricted.build()).toEqual({
@@ -313,11 +313,11 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const restrictedIdentity = ref1.intersect(identity('Z'))
 
       // finalIdentity = intersect(
-      //   identity("H").restrict({ perms: ["read"] }),
+      //   identity("H").scope({ perms: ["read"] }),
       //   restrictedIdentity.exclude(identity("M"))
       // )
       const finalIdentity = intersect(
-        identity('H').restrict({ perms: ['read'] }),
+        identity('H').scope({ perms: ['read'] }),
         restrictedIdentity.exclude(identity('M')),
       )
 
@@ -393,7 +393,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('round-trips complex expression', () => {
       const expr = union(identity('A', { nodes: ['n1'] }), identity('B'))
         .intersect(identity('C'))
-        .exclude(identity('D').restrict({ perms: ['write'] }))
+        .exclude(identity('D').scope({ perms: ['write'] }))
 
       const json = JSON.stringify(expr.build())
       const parsed: IdentityExpr = JSON.parse(json)
@@ -403,13 +403,13 @@ describe('AUTH_V2: Expression Builder SDK', () => {
   })
 
   // ===========================================================================
-  // applyScopes() HELPER
+  // applyScope() HELPER
   // ===========================================================================
 
-  describe('applyScopes()', () => {
+  describe('applyScope()', () => {
     it('adds scope to simple identity', () => {
       const expr: IdentityExpr = { kind: 'identity', id: 'A' }
-      const result = applyScopes(expr, { nodes: ['ws1'] })
+      const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
         kind: 'identity',
@@ -424,7 +424,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         id: 'A',
         scopes: [{ perms: ['read'] }],
       }
-      const result = applyScopes(expr, { nodes: ['ws1'] })
+      const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
         kind: 'identity',
@@ -439,7 +439,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         left: { kind: 'identity', id: 'A' },
         right: { kind: 'identity', id: 'B' },
       }
-      const result = applyScopes(expr, { nodes: ['ws1'] })
+      const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
         kind: 'union',
@@ -463,7 +463,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         },
       }
 
-      const result = applyScopes(expr, { nodes: ['ws1'] })
+      const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
         kind: 'intersect',

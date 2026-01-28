@@ -47,11 +47,11 @@ export function identity(id: string, scopes?: Scope | Scope[]): IdentityExpr {
 
 /**
  * Create a union expression from multiple expressions.
- * Returns 'false' expression if no expressions provided.
+ * Returns null query expression if no expressions provided.
  */
 export function union(...exprs: IdentityExpr[]): IdentityExpr {
   if (exprs.length === 0) {
-    // Empty union - will be filtered to 'false' in Cypher
+    // Empty union - will be filtered to null in Cypher
     return { kind: 'identity', id: '__EMPTY__', scopes: [{ principals: ['__NEVER_MATCH__'] }] }
   }
   if (exprs.length === 1) {

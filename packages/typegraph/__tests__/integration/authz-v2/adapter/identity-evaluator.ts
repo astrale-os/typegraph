@@ -6,6 +6,7 @@
 
 import type { IdentityExpr, IdentityComposition, RawExecutor } from '../types'
 import { isExprBuilder, type ExprBuilder } from '../expression/builder'
+import { type GraphVocab, resolveVocab } from './vocabulary'
 
 // =============================================================================
 // ERRORS
@@ -42,54 +43,66 @@ export class InvalidIdentityError extends Error {
 // QUERIES
 // =============================================================================
 
-/**
- * Query to fetch identity composition data.
- * Uses OPTIONAL MATCH and count for FalkorDB compatibility.
- */
-const FETCH_IDENTITY_QUERY = `
-  MATCH (i:Identity {id: $id})
-  OPTIONAL MATCH (i)-[:unionWith]->(u:Identity)
-  OPTIONAL MATCH (i)-[:intersectWith]->(n:Identity)
-  OPTIONAL MATCH (i)-[:excludeWith]->(e:Identity)
-  OPTIONAL MATCH (i)-[:hasPerm]->(permTarget)
-  WITH i,
-       collect(DISTINCT u.id) AS unions,
-       collect(DISTINCT n.id) AS intersects,
-       collect(DISTINCT e.id) AS excludes,
-       count(DISTINCT permTarget) > 0 AS hasDirectPerms
-  RETURN
-    i.id AS id,
-    unions,
-    intersects,
-    excludes,
-    hasDirectPerms
-`
-
 // =============================================================================
 // IDENTITY EVALUATOR
 // =============================================================================
 
 export class IdentityEvaluator {
-  constructor(private executor: RawExecutor) {}
+  private vocab: GraphVocab
+  private compositionCache = new Map<string, IdentityComposition>()
+
+  constructor(
+    private executor: RawExecutor,
+    vocab?: Partial<GraphVocab>,
+  ) {
+    this.vocab = resolveVocab(vocab)
+  }
+
+  /** Build identity fetch query from vocabulary. */
+  private get fetchQuery(): string {
+    const v = this.vocab
+    return `
+      MATCH (i:${v.identity} {id: $id})
+      OPTIONAL MATCH (i)-[:${v.union}]->(u:${v.identity})
+      OPTIONAL MATCH (i)-[:${v.intersect}]->(n:${v.identity})
+      OPTIONAL MATCH (i)-[:${v.exclude}]->(e:${v.identity})
+      OPTIONAL MATCH (i)-[:${v.perm}]->(permTarget)
+      WITH i,
+           collect(DISTINCT u.id) AS unions,
+           collect(DISTINCT n.id) AS intersects,
+           collect(DISTINCT e.id) AS excludes,
+           count(DISTINCT permTarget) > 0 AS hasDirectPerms
+      RETURN i.id AS id, unions, intersects, excludes, hasDirectPerms
+    `
+  }
 
   /**
    * Fetch identity composition data from graph.
    */
   async fetchIdentity(id: string): Promise<IdentityComposition> {
-    const results = await this.executor.run<IdentityComposition>(FETCH_IDENTITY_QUERY, { id })
+    const cached = this.compositionCache.get(id)
+    if (cached) return cached
+
+    const results = await this.executor.run<IdentityComposition>(this.fetchQuery, { id })
 
     if (results.length === 0) {
       throw new IdentityNotFoundError(id)
     }
 
     const result = results[0]!
-    return {
+    const composition: IdentityComposition = {
       id: result.id,
       unions: (result.unions ?? []).filter((u): u is string => u !== null),
       intersects: (result.intersects ?? []).filter((i): i is string => i !== null),
       excludes: (result.excludes ?? []).filter((e): e is string => e !== null),
       hasDirectPerms: result.hasDirectPerms ?? false,
     }
+    this.compositionCache.set(id, composition)
+    return composition
+  }
+
+  clearCompositionCache(): void {
+    this.compositionCache.clear()
   }
 
   /**
@@ -213,6 +226,9 @@ export class IdentityEvaluator {
 /**
  * Create an identity evaluator instance.
  */
-export function createIdentityEvaluator(executor: RawExecutor): IdentityEvaluator {
-  return new IdentityEvaluator(executor)
+export function createIdentityEvaluator(
+  executor: RawExecutor,
+  vocab?: Partial<GraphVocab>,
+): IdentityEvaluator {
+  return new IdentityEvaluator(executor, vocab)
 }

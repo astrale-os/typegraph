@@ -175,7 +175,8 @@ async function checkAccess(
   perm: string,
 ): Promise<boolean> {
   const query = `
-    MATCH (resource:Node {id: $resourceId})-[:hasParent*0..20]->(ancestor:Node)<-[:hasPerm {perm: $perm}]-(i:Identity {id: $userId})
+    MATCH (resource:Node {id: $resourceId})-[:hasParent*0..20]->(ancestor:Node)<-[hp:hasPerm]-(i:Identity {id: $userId})
+    WHERE $perm IN hp.perms
     RETURN true AS hasAccess
     LIMIT 1
   `
@@ -205,7 +206,7 @@ async function seedFilesystem(
     CREATE (i:Node:Identity {id: userId})
     WITH i
     MATCH (r:Root {id: 'root'})
-    CREATE (i)-[:hasPerm {perm: 'read'}]->(r)
+    CREATE (i)-[:hasPerm {perms: ['read']}]->(r)
   `,
     { userIds },
   )

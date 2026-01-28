@@ -188,7 +188,7 @@ export type AccessExplanation = {
 export type PhaseExplanation = {
   expression: IdentityExpr
   leaves: LeafEvaluation[]
-  cypher: string
+  query: string | null
 }
 
 /**
@@ -291,7 +291,7 @@ export type AccessResult = {
   granted: boolean
   deniedBy?: 'type' | 'resource'
   reason: Reason
-  cypher: string
+  query: string | null
 }
 
 // =============================================================================

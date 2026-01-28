@@ -2,10 +2,12 @@
  * AUTH_V2 Token Verification
  *
  * Mock implementation of JWT verification with issuer key lookup.
- * Single source of truth for token verification logic.
+ * Pure crypto/format verification — no identity resolution.
  */
 
-import type { IdentityId, UnresolvedGrant, UnresolvedIdentityExpr } from '../types'
+import type { UnresolvedGrant } from '../types'
+import { IssuerKeyStore } from './issuer-key-store'
+import { IdentityRegistry } from './identity-registry'
 
 // =============================================================================
 // TYPES
@@ -20,11 +22,6 @@ export interface TokenPayload {
   grant?: UnresolvedGrant
 }
 
-// Type aliases for backward compatibility
-// Encoded* = Unresolved* (same concept: expression before kernel resolution)
-export type EncodedGrant = UnresolvedGrant
-export type EncodedIdentityExpr = UnresolvedIdentityExpr
-
 // =============================================================================
 // CONSTANTS
 // =============================================================================
@@ -32,103 +29,27 @@ export type EncodedIdentityExpr = UnresolvedIdentityExpr
 export const KERNEL_ISSUER = 'kernel.astrale.ai'
 
 // =============================================================================
-// IDENTITY REGISTRY (Mock Graph Lookup)
-// =============================================================================
-
-/**
- * Mock identity registry: (iss, sub) → IdentityId
- * In production, this would be a graph lookup.
- */
-export class IdentityRegistry {
-  private identities = new Map<string, IdentityId>()
-
-  private makeKey(iss: string, sub: string): string {
-    return `${iss}::${sub}`
-  }
-
-  register(iss: string, sub: string, identityId: IdentityId): void {
-    this.identities.set(this.makeKey(iss, sub), identityId)
-  }
-
-  resolve(iss: string, sub: string): IdentityId | undefined {
-    // Kernel-issued tokens: sub IS the identityId
-    if (iss === KERNEL_ISSUER) {
-      return sub
-    }
-    return this.identities.get(this.makeKey(iss, sub))
-  }
-
-  /**
-   * Resolve or throw if not found.
-   */
-  resolveOrThrow(iss: string, sub: string): IdentityId {
-    const id = this.resolve(iss, sub)
-    if (!id) {
-      throw new Error(`Unknown identity: ${iss}::${sub}`)
-    }
-    return id
-  }
-}
-
-// =============================================================================
-// ISSUER KEY STORE (Mock JWKS)
-// =============================================================================
-
-/**
- * Mock issuer key store: issuer URL → verification key
- * In production, this would fetch JWKS from issuer/.well-known/jwks.json
- */
-export class IssuerKeyStore {
-  private keys = new Map<string, string>()
-
-  /**
-   * Register a trusted issuer with its signing key.
-   */
-  registerIssuer(issuer: string, key: string): void {
-    this.keys.set(issuer, key)
-  }
-
-  /**
-   * Get the verification key for an issuer.
-   * Returns undefined if issuer is not trusted.
-   */
-  getKey(issuer: string): string | undefined {
-    return this.keys.get(issuer)
-  }
-
-  /**
-   * Check if an issuer is trusted.
-   */
-  isTrusted(issuer: string): boolean {
-    return this.keys.has(issuer)
-  }
-}
-
-// =============================================================================
 // TOKEN VERIFIER
 // =============================================================================
 
 export interface VerificationResult {
   payload: TokenPayload
-  identityId: IdentityId
 }
 
 export class TokenVerifier {
   constructor(
-    private registry: IdentityRegistry,
     private keyStore: IssuerKeyStore,
     private expectedAudience: string = KERNEL_ISSUER,
   ) {}
 
   /**
-   * Verify a JWT token and resolve the identity.
+   * Verify a JWT token.
    *
    * 1. Decode the token
    * 2. Verify the issuer is trusted
    * 3. Verify the signature (mocked)
    * 4. Check expiration
    * 5. Check audience
-   * 6. Resolve identity from (iss, sub)
    */
   verify(token: string): VerificationResult {
     // 1. Decode
@@ -154,10 +75,7 @@ export class TokenVerifier {
       throw new Error(`Invalid audience: expected ${this.expectedAudience}, got ${payload.aud}`)
     }
 
-    // 6. Resolve identity
-    const identityId = this.registry.resolveOrThrow(payload.iss, payload.sub)
-
-    return { payload, identityId }
+    return { payload }
   }
 
   /**
@@ -216,7 +134,7 @@ export function createTestVerifier(): {
   keyStore.registerIssuer('idp.test', 'idp-key')
   keyStore.registerIssuer('google.com', 'google-key')
 
-  const verifier = new TokenVerifier(registry, keyStore)
+  const verifier = new TokenVerifier(keyStore)
 
   return { registry, keyStore, verifier }
 }

@@ -1,18 +1,21 @@
 /**
- * AUTH_V2 Expression Resolver
+ * AUTH_V2 Grant Resolver
  *
  * Single source of truth for resolving UnresolvedIdentityExpr → IdentityExpr.
  * Handles JWT verification, scope intersection, and security constraints.
  */
 
-import type { IdentityExpr, IdentityId, Scope } from '../types'
-import {
-  type TokenVerifier,
-  KERNEL_ISSUER,
-  type EncodedIdentityExpr,
-  type EncodedGrant,
-} from './token-verifier'
-import { intersectScopes } from '../expression/scope'
+import type {
+  IdentityExpr,
+  IdentityId,
+  Scope,
+  UnresolvedIdentityExpr,
+  UnresolvedGrant,
+} from '../types'
+import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
+import type { IdentityRegistry } from './identity-registry'
+import { applyTopLevelScopes } from '../expression/scope'
+import type { PayloadCodec } from '../expression/codec'
 
 // =============================================================================
 // RESOLVED TYPES
@@ -27,11 +30,15 @@ export interface ResolvedGrant {
 }
 
 // =============================================================================
-// EXPRESSION RESOLVER
+// GRANT RESOLVER
 // =============================================================================
 
-export class ExpressionResolver {
-  constructor(private verifier: TokenVerifier) {}
+export class GrantResolver {
+  constructor(
+    private verifier: TokenVerifier,
+    private registry: IdentityRegistry,
+    private codec?: PayloadCodec,
+  ) {}
 
   /**
    * Resolve an encoded identity expression to a fully resolved IdentityExpr.
@@ -41,7 +48,7 @@ export class ExpressionResolver {
    * - Scopes are properly intersected (not concatenated)
    * - Expression structure is preserved
    */
-  async resolve(expr: EncodedIdentityExpr): Promise<IdentityExpr> {
+  async resolve(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
     return this.resolveExpr(expr)
   }
 
@@ -50,22 +57,23 @@ export class ExpressionResolver {
    * Applies defaults (principal) for missing forType/forResource.
    */
   async resolveGrant(
-    encoded: EncodedGrant | undefined,
+    grant: UnresolvedGrant | undefined,
     principal: IdentityId,
   ): Promise<ResolvedGrant> {
     const defaultExpr: IdentityExpr = { kind: 'identity', id: principal }
 
-    if (!encoded) {
+    if (!grant) {
       return { forType: defaultExpr, forResource: defaultExpr }
     }
 
-    if (encoded.v !== 1) {
-      throw new Error(`Unsupported grant version: ${encoded.v}`)
+    if (grant.v !== 1) {
+      throw new Error(`Unsupported grant version: ${grant.v}`)
     }
 
-    const forType = encoded.forType ? await this.resolve(encoded.forType) : defaultExpr
-
-    const forResource = encoded.forResource ? await this.resolve(encoded.forResource) : defaultExpr
+    const [forType, forResource] = await Promise.all([
+      grant.forType ? this.resolve(this.decodeField(grant.forType)) : defaultExpr,
+      grant.forResource ? this.resolve(this.decodeField(grant.forResource)) : defaultExpr,
+    ])
 
     return { forType, forResource }
   }
@@ -82,7 +90,20 @@ export class ExpressionResolver {
   // PRIVATE METHODS
   // ===========================================================================
 
-  private async resolveExpr(expr: EncodedIdentityExpr): Promise<IdentityExpr> {
+  /**
+   * Decode a grant field through the codec if present.
+   * When encoding is 'compact' or 'binary', the field is encoded;
+   * codec decodes it back to a resolved IdentityExpr which is
+   * structurally compatible with UnresolvedIdentityExpr (plain IDs).
+   */
+  private decodeField(raw: unknown): UnresolvedIdentityExpr {
+    if (this.codec) {
+      return this.codec.decodeExpr(raw) as UnresolvedIdentityExpr
+    }
+    return raw as UnresolvedIdentityExpr
+  }
+
+  private async resolveExpr(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
     switch (expr.kind) {
       case 'identity':
         return this.resolveIdentity(expr)
@@ -116,11 +137,12 @@ export class ExpressionResolver {
 
   private async resolveJwtIdentity(jwt: string, leafScopes?: Scope[]): Promise<IdentityExpr> {
     // Verify the JWT
-    const { payload, identityId } = this.verifier.verify(jwt)
+    const { payload } = this.verifier.verify(jwt)
+    const identityId = this.registry.resolveOrThrow(payload.iss, payload.sub)
 
     // If this is a kernel-issued token with a grant, extract and merge
     if (payload.iss === KERNEL_ISSUER && payload.grant?.forResource) {
-      const inner = payload.grant.forResource
+      const inner = this.decodeField(payload.grant.forResource)
 
       // Recursively resolve the inner expression
       const resolvedInner = await this.resolveExpr(inner)
@@ -153,7 +175,7 @@ export class ExpressionResolver {
  */
 export function validateGrantSecurity(
   issuer: string,
-  grant: EncodedGrant | undefined,
+  grant: UnresolvedGrant | undefined,
   verifier: TokenVerifier,
 ): void {
   // Kernel-issued tokens can embed anything (they're already trusted)
@@ -173,7 +195,7 @@ export function validateGrantSecurity(
 /**
  * Recursively validate that all embedded JWTs are kernel-signed.
  */
-function validateExpressionSecurity(expr: EncodedIdentityExpr, verifier: TokenVerifier): void {
+function validateExpressionSecurity(expr: UnresolvedIdentityExpr, verifier: TokenVerifier): void {
   switch (expr.kind) {
     case 'identity':
       if ('jwt' in expr) {
@@ -188,39 +210,6 @@ function validateExpressionSecurity(expr: EncodedIdentityExpr, verifier: TokenVe
       validateExpressionSecurity(expr.left, verifier)
       validateExpressionSecurity(expr.right, verifier)
       break
-  }
-}
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-/**
- * Apply top-level scopes to all leaves in an expression.
- * Uses proper intersection, not concatenation.
- */
-export function applyTopLevelScopes(expr: IdentityExpr, scopes: Scope[]): IdentityExpr {
-  if (scopes.length === 0) return expr
-
-  switch (expr.kind) {
-    case 'identity': {
-      const newScopes = expr.scopes ? intersectScopes(expr.scopes, scopes) : scopes
-      // IMPORTANT: Keep empty array (means "no valid scopes" = deny).
-      // Only use undefined for "unrestricted". Empty array after intersection = impossible.
-      return {
-        kind: 'identity',
-        id: expr.id,
-        scopes: newScopes,
-      }
-    }
-    case 'union':
-    case 'intersect':
-    case 'exclude':
-      return {
-        kind: expr.kind,
-        left: applyTopLevelScopes(expr.left, scopes),
-        right: applyTopLevelScopes(expr.right, scopes),
-      }
   }
 }
 

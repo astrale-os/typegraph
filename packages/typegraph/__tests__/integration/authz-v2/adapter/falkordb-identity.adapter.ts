@@ -7,7 +7,7 @@
 
 import { checkAccess } from '../authorization/checker'
 import { explainAccess, evaluateGranted } from '../authorization/explainer'
-import { FalkorDBAccessQueryAdapter } from './queries'
+import { FalkorDBAccessQueryAdapter, type FalkorDBQueryConfig } from './queries'
 import type {
   RawExecutor,
   AccessDecision,
@@ -23,7 +23,7 @@ import type {
 export class FalkorDBIdentityAdapter {
   private queryAdapter: FalkorDBAccessQueryAdapter
 
-  constructor(executor: RawExecutor, config?: { maxDepth?: number }) {
+  constructor(executor: RawExecutor, config?: FalkorDBQueryConfig) {
     this.queryAdapter = new FalkorDBAccessQueryAdapter(executor, config)
   }
 
@@ -56,7 +56,7 @@ export class FalkorDBIdentityAdapter {
 
 export function createFalkorDBIdentityAdapter(
   executor: RawExecutor,
-  config?: { maxDepth?: number },
+  config?: FalkorDBQueryConfig,
 ): FalkorDBIdentityAdapter {
   return new FalkorDBIdentityAdapter(executor, config)
 }

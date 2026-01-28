@@ -149,7 +149,7 @@ describe('AUTH_V2: New API', () => {
       expectGranted(result)
 
       // Verify via explainAccess that type check was actually skipped
-      // When target has no type, typeCheck.cypher is 'true' (always passes)
+      // When target has no type, typeCheck.query is 'true' (always passes)
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grantFromIds([], ['USER1']),
@@ -157,7 +157,7 @@ describe('AUTH_V2: New API', () => {
         perm: 'read',
       })
       // Type check skipped because workspace-1 has no type
-      expect(explanation.typeCheck.cypher).toBe('true')
+      expect(explanation.typeCheck.query).toBe('true')
       expect(explanation.typeCheck.leaves).toHaveLength(0)
     })
   })
@@ -181,7 +181,7 @@ describe('AUTH_V2: New API', () => {
 
       // Type check should have at least one granted leaf
       expect(result.typeCheck.leaves.some((l) => l.status === 'granted')).toBe(true)
-      expect(result.typeCheck.cypher).not.toBe('false')
+      expect(result.typeCheck.query).not.toBeNull()
 
       // Target check should have at least one granted leaf with grantedAt
       const grantedLeaf = result.resourceCheck.leaves.find((l) => l.status === 'granted')
@@ -241,7 +241,7 @@ describe('AUTH_V2: New API', () => {
       })
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (r:Root {id: $rootId})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(r)`,
+         CREATE (i)-[:hasPerm {perms: ['read']}]->(r)`,
         { params: { identityId: 'SCOPED_IDENTITY', rootId: 'root' } },
       )
 
@@ -325,11 +325,11 @@ describe('AUTH_V2: New API', () => {
 
       expectGranted(result)
 
-      // Both phases should have cypher
-      expect(result.typeCheck.cypher).toBeDefined()
-      expect(result.typeCheck.cypher).not.toBe('')
-      expect(result.resourceCheck.cypher).toBeDefined()
-      expect(result.resourceCheck.cypher).not.toBe('')
+      // Both phases should have query
+      expect(result.typeCheck.query).not.toBeNull()
+      expect(typeof result.typeCheck.query).toBe('string')
+      expect(result.resourceCheck.query).not.toBeNull()
+      expect(typeof result.resourceCheck.query).toBe('string')
     })
 
     it('handles intersect composition with correct grantedAt', async () => {
@@ -497,7 +497,7 @@ describe('AUTH_V2: New API', () => {
       // C has read on M1
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: 'EXCLUDE_TEST_C'}), (m:Module {id: 'M1'})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // E = A \ C

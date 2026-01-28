@@ -53,12 +53,12 @@ describe('AUTH_V2: Identity Composition', () => {
       })
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (r:Root {id: 'root'})
-         CREATE (i)-[:hasPerm {perm: 'read'}]->(r)`,
+         CREATE (i)-[:hasPerm {perms: ['read']}]->(r)`,
         { params: { identityId: 'USER1_NO_UNION' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (s:Space {id: 'workspace-1'})
-         CREATE (i)-[:hasPerm {perm: 'edit'}]->(s)`,
+         CREATE (i)-[:hasPerm {perms: ['edit']}]->(s)`,
         { params: { identityId: 'USER1_NO_UNION' } },
       )
 
@@ -119,17 +119,17 @@ describe('AUTH_V2: Identity Composition', () => {
       // Each has edit on different module
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'edit'}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
         { params: { identityId: 'UNION_A', moduleId: 'M1' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'edit'}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
         { params: { identityId: 'UNION_B', moduleId: 'M2' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perm: 'edit'}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
         { params: { identityId: 'UNION_C', moduleId: 'M3' } },
       )
 
@@ -243,19 +243,19 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // Permissions
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // INTER_ABC = A ∩ B ∩ C
@@ -316,7 +316,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // E = A \ C
@@ -352,7 +352,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_C2'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_C2'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -390,10 +390,10 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_B'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_B'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -438,7 +438,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'UNION_EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'UNION_EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -487,18 +487,18 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // D has read on all
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // E excludes M2
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_E'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perm: 'read'}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_E'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
       )
 
       // W = (A ∪ B) ∩ D \ E

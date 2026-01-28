@@ -6,39 +6,35 @@
  */
 
 import type {
-  Grant,
-  IdentityExpr,
   IdentityId,
   RelayTokenRequest,
   RelayTokenResponse,
+  UnresolvedIdentityExpr,
 } from '../types'
+import { TokenVerifier, KERNEL_ISSUER, type TokenPayload } from './token-verifier'
+import type { IdentityRegistry } from './identity-registry'
+import type { IssuerKeyStore } from './issuer-key-store'
+import { GrantResolver, extractPrimaryIdentity } from './grant-resolver'
+import { authenticate as authenticateImpl, type AuthContext } from './authenticator'
 import {
-  TokenVerifier,
-  type IdentityRegistry,
-  type IssuerKeyStore,
-  KERNEL_ISSUER,
-  type TokenPayload,
-  type EncodedIdentityExpr,
-} from './token-verifier'
-import { ExpressionResolver, extractPrimaryIdentity, validateGrantSecurity } from './resolver'
-import { identityExprToUnresolved } from './grant-encoding'
+  type ExpressionEncoding,
+  type PayloadCodec,
+  getCodec,
+  jsonCodec,
+} from '../expression/codec'
 
 // =============================================================================
 // RE-EXPORTS
 // =============================================================================
 
 export { KERNEL_ISSUER } from './token-verifier'
-export { extractPrimaryIdentity } from './resolver'
+export { extractPrimaryIdentity } from './grant-resolver'
 
 // =============================================================================
-// AUTH CONTEXT
+// RE-EXPORT AUTH CONTEXT
 // =============================================================================
 
-export interface AuthContext {
-  origin: 'backend' | 'shell' | 'system'
-  principal: IdentityId
-  grant: Grant
-}
+export type { AuthContext } from './authenticator'
 
 // =============================================================================
 // KERNEL SERVICE
@@ -47,11 +43,16 @@ export interface AuthContext {
 export interface KernelServiceConfig {
   defaultTtl: number
   maxTtl: number
+  encoding: ExpressionEncoding
+  /** Enable structural deduplication (only effective with 'binary' encoding). */
+  dedup: boolean
 }
 
 const defaultConfig: KernelServiceConfig = {
   defaultTtl: 3600,
   maxTtl: 86400,
+  encoding: 'json',
+  dedup: false,
 }
 
 /**
@@ -64,8 +65,12 @@ const defaultConfig: KernelServiceConfig = {
  */
 export class KernelService {
   private verifier: TokenVerifier
-  private resolver: ExpressionResolver
+  private resolver: GrantResolver
   private config: KernelServiceConfig
+
+  private get codec(): PayloadCodec {
+    return getCodec(this.config.encoding, { dedup: this.config.dedup })
+  }
 
   constructor(
     public readonly registry: IdentityRegistry,
@@ -73,8 +78,11 @@ export class KernelService {
     config: Partial<KernelServiceConfig> = {},
   ) {
     this.config = { ...defaultConfig, ...config }
-    this.verifier = new TokenVerifier(registry, keyStore, KERNEL_ISSUER)
-    this.resolver = new ExpressionResolver(this.verifier)
+    this.verifier = new TokenVerifier(keyStore, KERNEL_ISSUER)
+    const codecOpts = { dedup: this.config.dedup }
+    const codec =
+      this.config.encoding !== 'json' ? getCodec(this.config.encoding, codecOpts) : undefined
+    this.resolver = new GrantResolver(this.verifier, registry, codec)
   }
 
   // ===========================================================================
@@ -90,7 +98,7 @@ export class KernelService {
    */
   async relayToken(request: RelayTokenRequest): Promise<RelayTokenResponse> {
     // 1. Resolve expression
-    const resolved = await this.resolver.resolve(request.expression as EncodedIdentityExpr)
+    const resolved = await this.resolver.resolve(request.expression as UnresolvedIdentityExpr)
 
     // 2. Apply top-level scopes
     const withScopes = request.scopes
@@ -117,7 +125,7 @@ export class KernelService {
       exp,
       grant: {
         v: 1,
-        forResource: identityExprToUnresolved(withScopes),
+        forResource: this.codec.encodeExpr(withScopes) as UnresolvedIdentityExpr,
       },
     }
 
@@ -132,36 +140,9 @@ export class KernelService {
 
   /**
    * Authenticate a JWT and return the AuthContext.
-   *
-   * 1. Verify the JWT signature and claims
-   * 2. Resolve principal from (iss, sub)
-   * 3. SECURITY CHECK: If external app, embedded tokens MUST be kernel-signed
-   * 4. Resolve the grant (or use defaults)
    */
   async authenticate(token: string): Promise<AuthContext> {
-    // 1. Verify JWT
-    const { payload, identityId } = this.verifier.verify(token)
-
-    // 2. Principal is the resolved identity
-    const principal = identityId
-
-    // 3. CRITICAL SECURITY CHECK
-    // External apps can ONLY embed kernel-signed tokens
-    if (payload.iss !== KERNEL_ISSUER && payload.grant) {
-      validateGrantSecurity(payload.iss, payload.grant, this.verifier)
-    }
-
-    // 4. Determine origin
-    const origin: AuthContext['origin'] = payload.iss === KERNEL_ISSUER ? 'system' : 'backend'
-
-    // 5. Resolve grant
-    const resolvedGrant = await this.resolver.resolveGrant(payload.grant, principal)
-    const grant: Grant = {
-      forType: resolvedGrant.forType,
-      forResource: resolvedGrant.forResource,
-    }
-
-    return { origin, principal, grant }
+    return authenticateImpl(token, this.verifier, this.registry, this.resolver)
   }
 
   // ===========================================================================
@@ -201,8 +182,8 @@ export function createAppJwt(
   appId: string,
   options?: {
     grant?: {
-      forType?: EncodedIdentityExpr
-      forResource?: EncodedIdentityExpr
+      forType?: UnresolvedIdentityExpr
+      forResource?: UnresolvedIdentityExpr
     }
     ttl?: number
   },
