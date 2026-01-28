@@ -14,7 +14,7 @@ import {
 } from './setup'
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
-import { expectGranted, expectDeniedByTarget, grantFromIds } from './helpers'
+import { expectGranted, expectDeniedByResource, grantFromIds } from './helpers'
 import { identity, union, intersect, grant, raw } from './expr-builder'
 
 describe('AUTH_V2: Identity Composition', () => {
@@ -69,7 +69,7 @@ describe('AUTH_V2: Identity Composition', () => {
         'edit',
         'principal',
       )
-      expectDeniedByTarget(deniedResult)
+      expectDeniedByResource(deniedResult)
 
       // USER1 (has unionWith ROLE1) CAN access M3 for edit
       // Build the expression for USER1 which includes ROLE1 via union
@@ -98,7 +98,7 @@ describe('AUTH_V2: Identity Composition', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('handles 3-way union (A ∪ B ∪ C)', async () => {
@@ -220,7 +220,7 @@ describe('AUTH_V2: Identity Composition', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('handles 3-way intersection (A ∩ B ∩ C)', async () => {
@@ -282,7 +282,7 @@ describe('AUTH_V2: Identity Composition', () => {
           'p',
         ),
       )
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(interAbcExpr)).build(),
           'M2',
@@ -290,7 +290,7 @@ describe('AUTH_V2: Identity Composition', () => {
           'p',
         ),
       )
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(interAbcExpr)).build(),
           'M3',
@@ -333,7 +333,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const excludeEExpr = await evaluator.evalIdentity('EXCLUDE_E')
 
       // M2 excluded by C
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(excludeEExpr)).build(),
           'M2',
@@ -411,7 +411,7 @@ describe('AUTH_V2: Identity Composition', () => {
 
       const multiExcludeXExpr = await evaluator.evalIdentity('MULTI_EXCLUDE_X')
 
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           'M1',
@@ -419,7 +419,7 @@ describe('AUTH_V2: Identity Composition', () => {
           'p',
         ),
       )
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           'M2',
@@ -464,7 +464,7 @@ describe('AUTH_V2: Identity Composition', () => {
           'p',
         ),
       )
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
           'M2',
@@ -528,7 +528,7 @@ describe('AUTH_V2: Identity Composition', () => {
           'p',
         ),
       )
-      expectDeniedByTarget(
+      expectDeniedByResource(
         await checker.checkAccess(
           grant(identity('APP1'), raw(complexWExpr)).build(),
           'M2',

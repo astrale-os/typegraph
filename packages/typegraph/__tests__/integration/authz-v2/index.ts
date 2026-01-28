@@ -32,7 +32,7 @@ export * from './setup'
 export {
   expectGranted,
   expectDeniedByType,
-  expectDeniedByTarget,
+  expectDeniedByResource,
   identities,
   grantFromIds,
   nodeScope,

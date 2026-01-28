@@ -21,9 +21,9 @@ export function expectDeniedByType(result: AccessDecision | AccessExplanation): 
   expect(result.deniedBy).toBe('type')
 }
 
-export function expectDeniedByTarget(result: AccessDecision | AccessExplanation): void {
+export function expectDeniedByResource(result: AccessDecision | AccessExplanation): void {
   expect(result.granted).toBe(false)
-  expect(result.deniedBy).toBe('target')
+  expect(result.deniedBy).toBe('resource')
 }
 
 // =============================================================================
@@ -34,9 +34,11 @@ export function expectDeniedByTarget(result: AccessDecision | AccessExplanation)
  * Create an identity expression leaf.
  * @param id - Identity ID
  * @param scopes - Optional scope(s). Can be a single Scope or array of Scopes.
+ *                Empty array is treated as undefined (unrestricted).
  */
 export function identity(id: string, scopes?: Scope | Scope[]): IdentityExpr {
-  if (!scopes) {
+  // Empty array or undefined = unrestricted (no scopes)
+  if (!scopes || (Array.isArray(scopes) && scopes.length === 0)) {
     return { kind: 'identity', id }
   }
   const scopeArray = Array.isArray(scopes) ? scopes : [scopes]
@@ -104,16 +106,16 @@ export function grant(forType: IdentityExpr, forResource: IdentityExpr): Grant {
 
 /**
  * Convenience: Create a Grant from ID arrays.
- * Optional scopes are applied to target identities only (type check is unscoped).
+ * Optional scopes are applied to resource identities only (type check is unscoped).
  */
 export function grantFromIds(
   typeIds: string[],
-  targetIds: string[],
+  resourceIds: string[],
   options?: { scopes?: Scope[] },
 ): Grant {
   return {
     forType: identities(typeIds),
-    forResource: identities(targetIds, options?.scopes),
+    forResource: identities(resourceIds, options?.scopes),
   }
 }
 

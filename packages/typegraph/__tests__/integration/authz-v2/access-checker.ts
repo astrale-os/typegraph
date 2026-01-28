@@ -56,41 +56,74 @@ function validateCypherId(value: string, fieldName: string): void {
 /**
  * Validate all IDs in an expression tree.
  */
-function validateExpression(expr: IdentityExpr): void {
+/**
+ * Exhaustive check helper - throws if an unknown expression kind is encountered.
+ */
+function throwExhaustiveCheck(expr: never): never {
+  throw new Error(`Unknown expression kind: ${(expr as { kind: string }).kind}`)
+}
+
+/**
+ * Validate all IDs in a scope array.
+ */
+function validateScopes(scopes: Scope[] | undefined): void {
+  if (!scopes) return
+  for (const scope of scopes) {
+    if (scope.nodes) {
+      for (const nodeId of scope.nodes) {
+        validateCypherId(nodeId, 'scope node ID')
+      }
+    }
+    if (scope.principals) {
+      for (const principalId of scope.principals) {
+        validateCypherId(principalId, 'scope principal ID')
+      }
+    }
+    if (scope.perms) {
+      for (const perm of scope.perms) {
+        validateCypherId(perm, 'scope permission')
+      }
+    }
+  }
+}
+
+const MAX_EXPRESSION_DEPTH = 100
+
+function validateExpression(expr: IdentityExpr, depth: number = 0): void {
+  if (depth > MAX_EXPRESSION_DEPTH) {
+    throw new Error(`Expression tree exceeds maximum depth of ${MAX_EXPRESSION_DEPTH}`)
+  }
+
   switch (expr.kind) {
     case 'identity':
       validateCypherId(expr.id, 'identity ID')
-      if (expr.scopes) {
-        for (const scope of expr.scopes) {
-          if (scope.nodes) {
-            for (const nodeId of scope.nodes) {
-              validateCypherId(nodeId, 'scope node ID')
-            }
-          }
-          if (scope.principals) {
-            for (const principalId of scope.principals) {
-              validateCypherId(principalId, 'scope principal ID')
-            }
-          }
-          if (scope.perms) {
-            for (const perm of scope.perms) {
-              validateCypherId(perm, 'scope permission')
-            }
-          }
-        }
-      }
+      validateScopes(expr.scopes)
       break
     case 'union':
     case 'intersect':
     case 'exclude':
-      validateExpression(expr.left)
-      validateExpression(expr.right)
+      validateExpression(expr.left, depth + 1)
+      validateExpression(expr.right, depth + 1)
       break
-    default: {
-      const exhaustive: never = expr
-      throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
-    }
+    default:
+      throwExhaustiveCheck(expr)
   }
+}
+
+/**
+ * Validate all inputs for an access check.
+ */
+function validateAccessInputs(
+  grant: Grant,
+  resourceId: NodeId,
+  perm: PermissionT,
+  principal: IdentityId,
+): void {
+  validateCypherId(resourceId, 'resourceId')
+  validateCypherId(perm, 'perm')
+  validateCypherId(principal, 'principal')
+  validateExpression(grant.forType)
+  validateExpression(grant.forResource)
 }
 
 // =============================================================================
@@ -118,21 +151,16 @@ export class AccessChecker {
    */
   async checkAccess(
     grant: Grant,
-    targetId: NodeId,
+    resourceId: NodeId,
     perm: PermissionT,
     principal: IdentityId,
   ): Promise<AccessDecision> {
-    // Input validation (security: prevent Cypher injection)
-    validateCypherId(targetId, 'targetId')
-    validateCypherId(perm, 'perm')
-    validateCypherId(principal, 'principal')
-    validateExpression(grant.forType)
-    validateExpression(grant.forResource)
+    validateAccessInputs(grant, resourceId, perm, principal)
 
     const { forType, forResource } = grant
 
     // Phase 1: Type check (only if target has a type)
-    const typeId = await this.getTargetType(targetId)
+    const typeId = await this.getTargetType(resourceId)
 
     if (typeId) {
       // Type check is NOT scoped by principal - always unrestricted
@@ -150,24 +178,24 @@ export class AccessChecker {
     // Phase 2: Target check (scoped by principal)
     const targetCypher = this.toCypher(forResource, 'target', perm, principal)
     if (targetCypher === 'false') {
-      return { granted: false, deniedBy: 'target' }
+      return { granted: false, deniedBy: 'resource' }
     }
 
-    const targetGranted = await this.executeCheck(targetCypher, targetId)
-    return targetGranted ? { granted: true } : { granted: false, deniedBy: 'target' }
+    const targetGranted = await this.executeCheck(targetCypher, resourceId)
+    return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
   }
 
   /**
    * Execute a permission check query.
    */
-  private async executeCheck(cypherCheck: string, targetId: NodeId): Promise<boolean> {
+  private async executeCheck(cypherCheck: string, resourceId: NodeId): Promise<boolean> {
     const query = `
-      MATCH (target:Node {id: $targetId})
+      MATCH (target:Node {id: $resourceId})
       WHERE ${cypherCheck}
       RETURN true AS found
       LIMIT 1
     `
-    const results = await this.executor.run<{ found: boolean }>(query, { targetId })
+    const results = await this.executor.run<{ found: boolean }>(query, { resourceId })
     return results[0]?.found ?? false
   }
 
@@ -180,21 +208,16 @@ export class AccessChecker {
    */
   async explainAccess(
     grant: Grant,
-    targetId: NodeId,
+    resourceId: NodeId,
     perm: PermissionT,
     principal: IdentityId,
   ): Promise<AccessExplanation> {
-    // Input validation (security: prevent Cypher injection)
-    validateCypherId(targetId, 'targetId')
-    validateCypherId(perm, 'perm')
-    validateCypherId(principal, 'principal')
-    validateExpression(grant.forType)
-    validateExpression(grant.forResource)
+    validateAccessInputs(grant, resourceId, perm, principal)
 
     const { forType, forResource } = grant
 
     // Get target type
-    const typeId = await this.getTargetType(targetId)
+    const typeId = await this.getTargetType(resourceId)
 
     // Phase 1: Type check (NOT scoped)
     let typeCheck: PhaseExplanation
@@ -209,20 +232,20 @@ export class AccessChecker {
     }
 
     // Phase 2: Target check (scoped by principal)
-    const targetCheck = await this.explainPhase(forResource, targetId, perm, principal)
+    const resourceCheck = await this.explainPhase(forResource, resourceId, perm, principal)
     // Correctly evaluate expression tree semantics
-    const targetGranted = this.evaluateGranted(forResource, targetCheck.leaves)
+    const targetGranted = this.evaluateGranted(forResource, resourceCheck.leaves)
 
     const granted = typeGranted && targetGranted
 
     return {
-      targetId,
+      resourceId,
       perm,
       principal,
       granted,
-      deniedBy: !granted ? (!typeGranted ? 'type' : 'target') : undefined,
+      deniedBy: !granted ? (!typeGranted ? 'type' : 'resource') : undefined,
       typeCheck,
-      targetCheck,
+      resourceCheck,
     }
   }
 
@@ -231,7 +254,7 @@ export class AccessChecker {
    */
   private async explainPhase(
     expr: IdentityExpr,
-    targetId: NodeId,
+    resourceId: NodeId,
     perm: PermissionT,
     principal: IdentityId | undefined,
   ): Promise<PhaseExplanation> {
@@ -244,7 +267,7 @@ export class AccessChecker {
     // Query details for non-filtered leaves
     const activeLeaves = leaves.filter((l) => l.status !== 'filtered')
     if (activeLeaves.length > 0) {
-      await this.queryLeafDetails(activeLeaves, targetId, perm)
+      await this.queryLeafDetails(activeLeaves, resourceId, perm)
     }
 
     return {
@@ -283,10 +306,8 @@ export class AccessChecker {
           this.evaluateGranted(expr.left, leaves, [...path, 0]) &&
           !this.evaluateGranted(expr.right, leaves, [...path, 1])
         )
-      default: {
-        const exhaustive: never = expr
-        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
-      }
+      default:
+        throwExhaustiveCheck(expr)
     }
   }
 
@@ -352,10 +373,8 @@ export class AccessChecker {
         const rightLeaves = this.collectLeaves(expr.right, [...path, 1], principal, perm)
         return [...leftLeaves, ...rightLeaves]
       }
-      default: {
-        const exhaustive: never = expr
-        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
-      }
+      default:
+        throwExhaustiveCheck(expr)
     }
   }
 
@@ -418,7 +437,7 @@ export class AccessChecker {
    */
   private async queryLeafDetails(
     leaves: LeafEvaluation[],
-    targetId: NodeId,
+    resourceId: NodeId,
     perm: PermissionT,
   ): Promise<void> {
     const identityIds = [...new Set(leaves.map((l) => l.identityId))]
@@ -432,19 +451,19 @@ export class AccessChecker {
     let targetAncestors: Set<NodeId> | null = null
     if (hasNodeRestrictions) {
       const ancestorQuery = `
-        MATCH (target:Node {id: $targetId})
+        MATCH (target:Node {id: $resourceId})
         MATCH (target)-[:hasParent*0..${this.maxDepth}]->(ancestor:Node)
         RETURN collect(ancestor.id) AS ancestors
       `
       const ancestorResults = await this.executor.run<{ ancestors: string[] }>(ancestorQuery, {
-        targetId,
+        resourceId,
       })
       targetAncestors = new Set(ancestorResults[0]?.ancestors ?? [])
     }
 
     for (const identityId of identityIds) {
       const query = `
-        MATCH (target:Node {id: $targetId})
+        MATCH (target:Node {id: $resourceId})
         MATCH path = (target)-[:hasParent*0..${this.maxDepth}]->(ancestor:Node)
         OPTIONAL MATCH (ancestor)<-[:hasPerm {perm: $perm}]-(i:Identity {id: $identityId})
         WITH target, ancestor, path, i
@@ -459,7 +478,7 @@ export class AccessChecker {
 
       const queryResults = await this.executor.run<{
         results: Array<{ ancestor: string; pathNodes: string[]; hasPermission: boolean }>
-      }>(query, { targetId, perm, identityId })
+      }>(query, { resourceId, perm, identityId })
 
       const results = queryResults[0]?.results ?? []
       const grantedResult = results.find((r) => r.hasPermission)
@@ -536,10 +555,8 @@ export class AccessChecker {
         if (right === 'false') return left
         return `(${left} AND NOT ${right})`
       }
-      default: {
-        const exhaustive: never = expr
-        throw new Error(`Unknown expression kind: ${(exhaustive as { kind: string }).kind}`)
-      }
+      default:
+        throwExhaustiveCheck(expr)
     }
   }
 
@@ -610,21 +627,21 @@ export class AccessChecker {
   /**
    * Get target's type via ofType edge (cached).
    */
-  private async getTargetType(targetId: NodeId): Promise<NodeId | null> {
-    if (this.typeCache.has(targetId)) {
-      return this.typeCache.get(targetId)!
+  private async getTargetType(resourceId: NodeId): Promise<NodeId | null> {
+    if (this.typeCache.has(resourceId)) {
+      return this.typeCache.get(resourceId)!
     }
 
     const query = `
-      MATCH (t:Node {id: $targetId})
+      MATCH (t:Node {id: $resourceId})
       OPTIONAL MATCH (t)-[:ofType]->(type:Type)
       RETURN type.id AS typeId
       LIMIT 1
     `
 
-    const results = await this.executor.run<{ typeId: NodeId | null }>(query, { targetId })
+    const results = await this.executor.run<{ typeId: NodeId | null }>(query, { resourceId })
     const typeId = results[0]?.typeId ?? null
-    this.typeCache.set(targetId, typeId)
+    this.typeCache.set(resourceId, typeId)
     return typeId
   }
 

@@ -18,7 +18,7 @@ import {
   grant,
   identity,
   expectGranted,
-  expectDeniedByTarget,
+  expectDeniedByResource,
   nodeScope,
   permScope,
   fullScope,
@@ -68,7 +68,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 
@@ -100,7 +100,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 
@@ -145,7 +145,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 
@@ -226,7 +226,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('applies scope to evaluated expression leaves', async () => {
@@ -266,7 +266,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 
@@ -298,7 +298,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('denies when node is outside scope even if perm is in scope', async () => {
@@ -311,7 +311,7 @@ describe('AUTH_V2: Scope Filtering', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 })

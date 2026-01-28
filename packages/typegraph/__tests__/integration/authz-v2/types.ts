@@ -52,7 +52,70 @@ export type Grant = {
 }
 
 // =============================================================================
-// IDENTITY EXPRESSION TYPES
+// UNRESOLVED TYPES (CLIENT-SIDE / JWT PAYLOAD)
+// =============================================================================
+
+/**
+ * Unresolved identity expression (before kernel resolution).
+ *
+ * Client-side expressions reference identities either by:
+ * - JWT token (to be verified and resolved to plain ID)
+ * - Plain ID (only valid for kernel-issued tokens)
+ *
+ * Structure matches resolved IdentityExpr but with jwt/id distinction.
+ * Kernel resolves these by verifying JWTs and extracting identity IDs.
+ */
+export type UnresolvedIdentityExpr =
+  | { kind: 'identity'; jwt: string; scopes?: Scope[] }
+  | { kind: 'identity'; id: IdentityId; scopes?: Scope[] }
+  | { kind: 'union'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
+  | { kind: 'intersect'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
+  | { kind: 'exclude'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
+
+/**
+ * Unresolved grant for JWT 'grant' claim.
+ *
+ * This is what apps encode into JWTs before sending to kernel.
+ * Kernel resolves by verifying JWTs and applying defaults.
+ *
+ * Defaults:
+ * - forType undefined → use principal
+ * - forResource undefined → use principal
+ *
+ * Version field enables future format changes.
+ */
+export type UnresolvedGrant = {
+  v: 1
+  forType?: UnresolvedIdentityExpr
+  forResource?: UnresolvedIdentityExpr
+}
+
+/**
+ * RelayToken request payload.
+ *
+ * Expression-first API: always accepts an expression, not optional token.
+ * This provides one code path for simple and complex cases.
+ *
+ * - expression: The identity expression to resolve (JWTs → plain IDs)
+ * - scopes: Optional top-level scopes applied to ALL resolved leaves (intersected with per-leaf scopes)
+ * - ttl: Token lifetime in seconds (optional, kernel default applies)
+ */
+export type RelayTokenRequest = {
+  expression: UnresolvedIdentityExpr
+  scopes?: Scope[]
+  ttl?: number
+}
+
+/**
+ * RelayToken response payload.
+ */
+export type RelayTokenResponse = {
+  token: string
+  expires_at: number
+}
+
+// =============================================================================
+// IDENTITY EXPRESSION TYPES (RESOLVED)
 // =============================================================================
 
 /**
@@ -93,7 +156,7 @@ export type IdentityComposition = {
  */
 export type AccessDecision = {
   granted: boolean
-  deniedBy?: 'type' | 'target'
+  deniedBy?: 'type' | 'resource'
 }
 
 // =============================================================================
@@ -106,21 +169,21 @@ export type AccessDecision = {
  */
 export type AccessExplanation = {
   // Echo inputs (self-contained)
-  targetId: NodeId
+  resourceId: NodeId
   perm: PermissionT
   principal: IdentityId
 
   // Result
   granted: boolean
-  deniedBy?: 'type' | 'target'
+  deniedBy?: 'type' | 'resource'
 
   // Phase explanations
   typeCheck: PhaseExplanation
-  targetCheck: PhaseExplanation
+  resourceCheck: PhaseExplanation
 }
 
 /**
- * Explanation for a single phase (type check or target check).
+ * Explanation for a single phase (type check or resource check).
  */
 export type PhaseExplanation = {
   expression: IdentityExpr
@@ -145,17 +208,17 @@ export type LeafEvaluation = {
 
   // Granted: where permission was found and how
   grantedAt?: NodeId
-  inheritancePath?: NodeId[] // target → ... → grantedAt
+  inheritancePath?: NodeId[] // resource → ... → grantedAt
 
   // Filtered: why and where
   filterDetail?: FilterDetail[]
 
   // Missing: what was searched
-  searchedPath?: NodeId[] // target → ... → root (searched but not found)
+  searchedPath?: NodeId[] // resource → ... → root (searched but not found)
 
   // Node scope restrictions that must be satisfied (if any)
   // Empty array means no node restrictions (permission valid anywhere)
-  // Non-empty means target must be descendant of at least one of these nodes
+  // Non-empty means resource must be descendant of at least one of these nodes
   nodeRestrictions?: NodeId[]
 }
 

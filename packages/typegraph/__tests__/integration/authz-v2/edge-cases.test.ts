@@ -16,7 +16,7 @@ import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator, CycleDetectedError, InvalidIdentityError } from './identity-evaluator'
 import {
   expectGranted,
-  expectDeniedByTarget,
+  expectDeniedByResource,
   expectDeniedByType,
   grantFromIds,
   identity,
@@ -139,7 +139,7 @@ describe('AUTH_V2: Edge Cases', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
   })
 
@@ -254,7 +254,7 @@ describe('AUTH_V2: Edge Cases', () => {
         'edit',
         'principal',
       )
-      expectDeniedByTarget(deniedResult)
+      expectDeniedByResource(deniedResult)
     })
 
     it('handles identity with only intersect composition', async () => {

@@ -239,15 +239,15 @@ describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
 async function checkAccess(
   executor: RawExecutor,
   userId: string,
-  targetId: string,
+  resourceId: string,
   perm: string,
 ): Promise<boolean> {
   const query = `
-    MATCH (target:Node {id: $targetId})-[:hasParent*0..20]->(ancestor:Node)<-[:hasPerm {perm: $perm}]-(i:Identity {id: $userId})
+    MATCH (resource:Node {id: $resourceId})-[:hasParent*0..20]->(ancestor:Node)<-[:hasPerm {perm: $perm}]-(i:Identity {id: $userId})
     RETURN true AS hasAccess
     LIMIT 1
   `
-  const results = await executor.run<{ hasAccess: boolean }>(query, { targetId, userId, perm })
+  const results = await executor.run<{ hasAccess: boolean }>(query, { resourceId, userId, perm })
   return results.length > 0
 }
 

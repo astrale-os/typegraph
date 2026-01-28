@@ -22,7 +22,7 @@ import {
   union,
   expectGranted,
   expectDeniedByType,
-  expectDeniedByTarget,
+  expectDeniedByResource,
   principalScope,
   permScope,
 } from './helpers'
@@ -84,7 +84,7 @@ describe('AUTH_V2: New API', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('denies access when type identity lacks use permission', async () => {
@@ -114,7 +114,7 @@ describe('AUTH_V2: New API', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
     })
 
     it('grants access with multiple identities (OR semantics)', async () => {
@@ -184,7 +184,7 @@ describe('AUTH_V2: New API', () => {
       expect(result.typeCheck.cypher).not.toBe('false')
 
       // Target check should have at least one granted leaf with grantedAt
-      const grantedLeaf = result.targetCheck.leaves.find((l) => l.status === 'granted')
+      const grantedLeaf = result.resourceCheck.leaves.find((l) => l.status === 'granted')
       expect(grantedLeaf).toBeDefined()
       expect(grantedLeaf!.grantedAt).toBeDefined()
     })
@@ -206,7 +206,7 @@ describe('AUTH_V2: New API', () => {
       expectGranted(result)
 
       // Check that leaves have path information
-      for (const leaf of result.targetCheck.leaves) {
+      for (const leaf of result.resourceCheck.leaves) {
         expect(Array.isArray(leaf.path)).toBe(true)
         expect(leaf.identityId).toBeDefined()
       }
@@ -226,10 +226,10 @@ describe('AUTH_V2: New API', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
 
       // Target check should have missing leaf
-      const missingLeaf = result.targetCheck.leaves.find((l) => l.status === 'missing')
+      const missingLeaf = result.resourceCheck.leaves.find((l) => l.status === 'missing')
       expect(missingLeaf).toBeDefined()
       expect(missingLeaf!.identityId).toBe('USER_NO_PERM')
     })
@@ -257,10 +257,10 @@ describe('AUTH_V2: New API', () => {
         'some-principal', // Different from the allowed principal
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
 
       // Check that leaf was filtered due to principal
-      const filteredLeaf = result.targetCheck.leaves.find((l) => l.status === 'filtered')
+      const filteredLeaf = result.resourceCheck.leaves.find((l) => l.status === 'filtered')
       expect(filteredLeaf).toBeDefined()
       expect(filteredLeaf!.filterDetail).toBeDefined()
       expect(filteredLeaf!.filterDetail!.some((f) => f.failedCheck === 'principal')).toBe(true)
@@ -281,10 +281,10 @@ describe('AUTH_V2: New API', () => {
         'principal',
       )
 
-      expectDeniedByTarget(result)
+      expectDeniedByResource(result)
 
       // Check that leaf was filtered due to perm
-      const filteredLeaf = result.targetCheck.leaves.find((l) => l.status === 'filtered')
+      const filteredLeaf = result.resourceCheck.leaves.find((l) => l.status === 'filtered')
       expect(filteredLeaf).toBeDefined()
       expect(filteredLeaf!.filterDetail).toBeDefined()
       expect(filteredLeaf!.filterDetail!.some((f) => f.failedCheck === 'perm')).toBe(true)
@@ -307,7 +307,7 @@ describe('AUTH_V2: New API', () => {
       expect(result.typeCheck.expression!.kind).toBe('identity')
 
       // Target check should have expression (USER1 has union with ROLE1)
-      expect(result.targetCheck.expression).not.toBeNull()
+      expect(result.resourceCheck.expression).not.toBeNull()
     })
 
     it('returns cypher in phase explanation', async () => {
@@ -325,8 +325,8 @@ describe('AUTH_V2: New API', () => {
       // Both phases should have cypher
       expect(result.typeCheck.cypher).toBeDefined()
       expect(result.typeCheck.cypher).not.toBe('')
-      expect(result.targetCheck.cypher).toBeDefined()
-      expect(result.targetCheck.cypher).not.toBe('')
+      expect(result.resourceCheck.cypher).toBeDefined()
+      expect(result.resourceCheck.cypher).not.toBe('')
     })
 
     it('handles intersect composition with correct grantedAt', async () => {
@@ -346,7 +346,7 @@ describe('AUTH_V2: New API', () => {
       expectGranted(result)
 
       // Both A and B should be granted with grantedAt
-      const grantedLeaves = result.targetCheck.leaves.filter((l) => l.status === 'granted')
+      const grantedLeaves = result.resourceCheck.leaves.filter((l) => l.status === 'granted')
       expect(grantedLeaves.length).toBeGreaterThanOrEqual(2)
 
       for (const leaf of grantedLeaves) {
@@ -373,7 +373,7 @@ describe('AUTH_V2: New API', () => {
 
       // With multiple identities, paths should have offsets
       // First identity tree at path [0, ...], second at [1, ...]
-      const paths = result.targetCheck.leaves.map((l) => l.path)
+      const paths = result.resourceCheck.leaves.map((l) => l.path)
       const firstIdentityPaths = paths.filter((p) => p[0] === 0)
       const secondIdentityPaths = paths.filter((p) => p[0] === 1)
 
@@ -450,7 +450,7 @@ describe('AUTH_V2: New API', () => {
 
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
-      expect(decision.deniedBy).toBe('target')
+      expect(decision.deniedBy).toBe('resource')
     })
 
     it('checkAccess and explainAccess agree on intersect denial', async () => {
@@ -478,7 +478,7 @@ describe('AUTH_V2: New API', () => {
       // Both must agree: intersect requires ALL leaves to have permission
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
-      expect(decision.deniedBy).toBe('target')
+      expect(decision.deniedBy).toBe('resource')
     })
 
     it('checkAccess and explainAccess agree on exclude denial', async () => {
@@ -529,7 +529,7 @@ describe('AUTH_V2: New API', () => {
       // A has read on M1, C has read on M1, so A \ C = denied
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
-      expect(decision.deniedBy).toBe('target')
+      expect(decision.deniedBy).toBe('resource')
     })
 
     it('checkAccess and explainAccess agree on node scope restrictions', async () => {
@@ -559,7 +559,7 @@ describe('AUTH_V2: New API', () => {
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)
       expect(decision.granted).toBe(false)
-      expect(decision.deniedBy).toBe('target')
+      expect(decision.deniedBy).toBe('resource')
     })
 
     it('checkAccess and explainAccess agree on matching node scope', async () => {
@@ -594,7 +594,7 @@ describe('AUTH_V2: New API', () => {
   // ===========================================================================
 
   describe('Input Validation', () => {
-    it('rejects malformed targetId', async () => {
+    it('rejects malformed resourceId', async () => {
       const checker = createAccessChecker(ctx.executor)
 
       await expect(
@@ -604,7 +604,7 @@ describe('AUTH_V2: New API', () => {
           'read',
           'principal',
         ),
-      ).rejects.toThrow('Invalid targetId')
+      ).rejects.toThrow('Invalid resourceId')
     })
 
     it('rejects malformed perm', async () => {
