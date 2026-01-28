@@ -5,6 +5,7 @@
  */
 
 import type { IdentityExpr, IdentityComposition, RawExecutor } from './types'
+import { isExprBuilder, type ExprBuilder } from './expr-builder'
 
 // =============================================================================
 // ERRORS
@@ -146,6 +147,62 @@ export class IdentityEvaluator {
     }
 
     return result
+  }
+
+  /**
+   * Evaluate an expression, expanding unscoped identity leaves.
+   *
+   * Accepts either a raw IdentityExpr or an Expr builder (auto-calls .build()).
+   * For each identity leaf without scopes, expands its DB composition.
+   * Scoped leaves are preserved as-is (scopes indicate explicit restriction).
+   *
+   * @param exprOrBuilder - Raw IdentityExpr or Expr builder
+   * @returns Fully resolved IdentityExpr with DB compositions expanded
+   *
+   * @example
+   * ```typescript
+   * // With builder
+   * const resolved = await evaluator.evalExpr(identity("USER1"))
+   *
+   * // With raw expression
+   * const resolved = await evaluator.evalExpr({ kind: 'identity', id: 'USER1' })
+   *
+   * // Scoped leaves are NOT expanded
+   * const resolved = await evaluator.evalExpr(
+   *   identity("USER1", { nodes: ["ws1"] })  // Preserved as-is
+   * )
+   * ```
+   */
+  async evalExpr(exprOrBuilder: IdentityExpr | ExprBuilder): Promise<IdentityExpr> {
+    const expr = isExprBuilder(exprOrBuilder) ? exprOrBuilder.build() : exprOrBuilder
+    return this.resolveExpr(expr)
+  }
+
+  /**
+   * Internal: recursively resolve an expression tree.
+   * Expands unscoped identity leaves, preserves scoped ones.
+   */
+  private async resolveExpr(expr: IdentityExpr): Promise<IdentityExpr> {
+    switch (expr.kind) {
+      case 'identity': {
+        // Scoped leaves are preserved (explicit restriction)
+        if (expr.scopes && expr.scopes.length > 0) {
+          return expr
+        }
+        // Unscoped leaves: expand DB composition
+        return this.evalIdentity(expr.id)
+      }
+      case 'union':
+      case 'intersect':
+      case 'exclude': {
+        // Recursively resolve both branches
+        const [left, right] = await Promise.all([
+          this.resolveExpr(expr.left),
+          this.resolveExpr(expr.right),
+        ])
+        return { kind: expr.kind, left, right }
+      }
+    }
   }
 }
 

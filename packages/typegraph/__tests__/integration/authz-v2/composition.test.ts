@@ -14,7 +14,14 @@ import {
 } from './setup'
 import { createAccessChecker } from './access-checker'
 import { IdentityEvaluator } from './identity-evaluator'
-import { expectGranted, expectDeniedByTarget, subjectFromIds, subject, identity } from './helpers'
+import {
+  expectGranted,
+  expectDeniedByTarget,
+  subjectFromIds,
+  subject as subjectHelper,
+  identity as rawIdentity,
+} from './helpers'
+import { identity, union, intersect, exclude, subject, applyScopes, raw } from './expr-builder'
 
 describe('AUTH_V2: Identity Composition', () => {
   let ctx: AuthzTestContext
@@ -75,7 +82,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
 
       const grantedResult = await checker.checkAccess(
-        subject(identity('APP1'), user1Expr),
+        subject(identity('APP1'), raw(user1Expr)).build(),
         'M3',
         'edit',
         'principal',
@@ -91,7 +98,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const user1Expr = await evaluator.evalIdentity('USER1')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), user1Expr),
+        subject(identity('APP1'), raw(user1Expr)).build(),
         'M1',
         'admin',
         'principal',
@@ -153,13 +160,28 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // Should have edit on all three
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), unionAbcExpr), 'M1', 'edit', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          'M1',
+          'edit',
+          'p',
+        ),
       )
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), unionAbcExpr), 'M2', 'edit', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          'M2',
+          'edit',
+          'p',
+        ),
       )
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), unionAbcExpr), 'M3', 'edit', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(unionAbcExpr)).build(),
+          'M3',
+          'edit',
+          'p',
+        ),
       )
     })
   })
@@ -180,7 +202,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), xExpr),
+        subject(identity('APP1'), raw(xExpr)).build(),
         'M1',
         'read',
         'principal',
@@ -198,7 +220,7 @@ describe('AUTH_V2: Identity Composition', () => {
       const xExpr = await evaluator.evalIdentity('X')
 
       const result = await checker.checkAccess(
-        subject(identity('APP1'), xExpr),
+        subject(identity('APP1'), raw(xExpr)).build(),
         'M2',
         'read',
         'principal',
@@ -259,13 +281,28 @@ describe('AUTH_V2: Identity Composition', () => {
       const interAbcExpr = await evaluator.evalIdentity('INTER_ABC')
 
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), interAbcExpr), 'M1', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
       )
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), interAbcExpr), 'M2', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          'M2',
+          'read',
+          'p',
+        ),
       )
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), interAbcExpr), 'M3', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(interAbcExpr)).build(),
+          'M3',
+          'read',
+          'p',
+        ),
       )
     })
   })
@@ -303,7 +340,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // M2 excluded by C
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), excludeEExpr), 'M2', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(excludeEExpr)).build(),
+          'M2',
+          'read',
+          'p',
+        ),
       )
     })
 
@@ -333,7 +375,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // M1 not excluded
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), excludeE2Expr), 'M1', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(excludeE2Expr)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
       )
     })
 
@@ -371,10 +418,20 @@ describe('AUTH_V2: Identity Composition', () => {
       const multiExcludeXExpr = await evaluator.evalIdentity('MULTI_EXCLUDE_X')
 
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), multiExcludeXExpr), 'M1', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
       )
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), multiExcludeXExpr), 'M2', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(multiExcludeXExpr)).build(),
+          'M2',
+          'read',
+          'p',
+        ),
       )
     })
 
@@ -406,10 +463,20 @@ describe('AUTH_V2: Identity Composition', () => {
       const unionExcludeYExpr = await evaluator.evalIdentity('UNION_EXCLUDE_Y')
 
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), unionExcludeYExpr), 'M1', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
       )
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), unionExcludeYExpr), 'M2', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(unionExcludeYExpr)).build(),
+          'M2',
+          'read',
+          'p',
+        ),
       )
     })
 
@@ -460,11 +527,153 @@ describe('AUTH_V2: Identity Composition', () => {
       const complexWExpr = await evaluator.evalIdentity('COMPLEX_W')
 
       expectGranted(
-        await checker.checkAccess(subject(identity('APP1'), complexWExpr), 'M1', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(complexWExpr)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
       )
       expectDeniedByTarget(
-        await checker.checkAccess(subject(identity('APP1'), complexWExpr), 'M2', 'read', 'p'),
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(complexWExpr)).build(),
+          'M2',
+          'read',
+          'p',
+        ),
       )
+    })
+  })
+
+  // ===========================================================================
+  // evalExpr() INTEGRATION (SDK + Resolution)
+  // ===========================================================================
+
+  describe('evalExpr() Integration', () => {
+    it('accepts builder and resolves unscoped leaves', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // USER1 has unionWith ROLE1 in DB
+      // Using builder: identity("USER1") should expand to union(USER1, ROLE1)
+      const resolved = await evaluator.evalExpr(identity('USER1'))
+
+      // Should be a union expression (expanded from DB)
+      expect(resolved.kind).toBe('union')
+
+      // Should grant access to M3 (via ROLE1's workspace-2 edit)
+      expectGranted(
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(resolved)).build(),
+          'M3',
+          'edit',
+          'p',
+        ),
+      )
+    })
+
+    it('preserves scoped leaves without expansion', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // USER1 has unionWith ROLE1 in DB, but scoped leaves are NOT expanded
+      const resolved = await evaluator.evalExpr(identity('USER1', { perms: ['read'] }))
+
+      // Should remain as simple identity (scoped = not expanded)
+      expect(resolved.kind).toBe('identity')
+      expect((resolved as any).id).toBe('USER1')
+      expect((resolved as any).scopes).toEqual([{ perms: ['read'] }])
+    })
+
+    it('resolves mixed expression with scoped and unscoped leaves', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // union(USER1 (unscoped), ROLE1 (scoped))
+      // - USER1 should expand to union(USER1, ROLE1) from DB
+      // - ROLE1 (scoped) should remain as-is
+      const expr = union(identity('USER1'), identity('ROLE1', { perms: ['read'] }))
+
+      const resolved = await evaluator.evalExpr(expr)
+
+      // Result should be: union(union(USER1, ROLE1), ROLE1(scoped))
+      expect(resolved.kind).toBe('union')
+
+      // Verify structure: left should be the expanded USER1
+      const left = (resolved as any).left
+      expect(left.kind).toBe('union')
+
+      // Right should be the scoped ROLE1
+      const right = (resolved as any).right
+      expect(right.kind).toBe('identity')
+      expect(right.id).toBe('ROLE1')
+      expect(right.scopes).toEqual([{ perms: ['read'] }])
+    })
+
+    it('works with complex builder expression and checkAccess', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Build expression using SDK
+      const forTargetBuilder = identity('USER1').intersect(identity('A'))
+
+      // Resolve (expands USER1 to union(USER1, ROLE1), A stays as-is)
+      const resolved = await evaluator.evalExpr(forTargetBuilder)
+
+      // (USER1 ∪ ROLE1) ∩ A
+      // A has read on M1
+      // USER1 has read at root
+      // Result: should have read on M1
+      expectGranted(
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(resolved)).build(),
+          'M1',
+          'read',
+          'p',
+        ),
+      )
+    })
+
+    it('accepts raw IdentityExpr directly', async () => {
+      const checker = createAccessChecker(ctx.executor)
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Pass raw expression instead of builder
+      const rawExpr = { kind: 'identity' as const, id: 'USER1' }
+      const resolved = await evaluator.evalExpr(rawExpr)
+
+      // Should expand from DB
+      expect(resolved.kind).toBe('union')
+
+      expectGranted(
+        await checker.checkAccess(
+          subject(identity('APP1'), raw(resolved)).build(),
+          'M3',
+          'edit',
+          'p',
+        ),
+      )
+    })
+
+    it('resolves nested compositions correctly', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // X = A ∩ B in DB
+      // Build: intersect(X, identity("USER1"))
+      // - X should expand to intersect(A, B)
+      // - USER1 should expand to union(USER1, ROLE1)
+      const expr = intersect(identity('X'), identity('USER1'))
+      const resolved = await evaluator.evalExpr(expr)
+
+      expect(resolved.kind).toBe('intersect')
+
+      // Left should be X expanded to intersect(A, B)
+      const left = (resolved as any).left
+      expect(left.kind).toBe('intersect')
+
+      // Right should be USER1 expanded to union(USER1, ROLE1)
+      const right = (resolved as any).right
+      expect(right.kind).toBe('union')
     })
   })
 })
