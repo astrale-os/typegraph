@@ -38,6 +38,18 @@ export type CypherFragment = {
 type Counter = { value: number }
 
 /**
+ * Cache for leaf-level Cypher fragments.
+ * Keyed by (identityId, permission, scopeNodeIds) to deduplicate
+ * identical CALL blocks when the same identity appears at multiple
+ * positions in the expression tree.
+ */
+type LeafCache = Map<string, { condition: string }>
+
+function leafCacheKey(id: string, perm: string, scopeNodeIds: string[]): string {
+  return `${id}|${perm}|${scopeNodeIds.join(',')}`
+}
+
+/**
  * Assemble a CypherFragment into a full executable query.
  * Used by the adapter to construct the final MATCH ... RETURN query.
  */
@@ -102,7 +114,8 @@ export function toCypher(
   options: CypherOptions,
 ): CypherFragment | null {
   const counter: Counter = { value: 0 }
-  return toCypherInternal(expr, targetVar, perm, principal, options, counter)
+  const cache: LeafCache = new Map()
+  return toCypherInternal(expr, targetVar, perm, principal, options, counter, cache)
 }
 
 function toCypherInternal(
@@ -112,14 +125,23 @@ function toCypherInternal(
   principal: IdentityId | undefined,
   options: CypherOptions,
   counter: Counter,
+  cache: LeafCache,
 ): CypherFragment | null {
   switch (expr.kind) {
     case 'identity':
-      return identityToCypher(expr, targetVar, perm, principal, options, counter)
+      return identityToCypher(expr, targetVar, perm, principal, options, counter, cache)
 
     case 'union': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter)
-      const right = toCypherInternal(expr.right, targetVar, perm, principal, options, counter)
+      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
+      const right = toCypherInternal(
+        expr.right,
+        targetVar,
+        perm,
+        principal,
+        options,
+        counter,
+        cache,
+      )
       if (left === null && right === null) return null
       if (left === null) return right
       if (right === null) return left
@@ -132,8 +154,16 @@ function toCypherInternal(
     }
 
     case 'intersect': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter)
-      const right = toCypherInternal(expr.right, targetVar, perm, principal, options, counter)
+      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
+      const right = toCypherInternal(
+        expr.right,
+        targetVar,
+        perm,
+        principal,
+        options,
+        counter,
+        cache,
+      )
       if (left === null || right === null) return null
       return {
         calls: [...left.calls, ...right.calls],
@@ -144,8 +174,16 @@ function toCypherInternal(
     }
 
     case 'exclude': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter)
-      const right = toCypherInternal(expr.right, targetVar, perm, principal, options, counter)
+      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
+      const right = toCypherInternal(
+        expr.right,
+        targetVar,
+        perm,
+        principal,
+        options,
+        counter,
+        cache,
+      )
       if (left === null) return null
       if (right === null) return left
       return {
@@ -181,6 +219,7 @@ function identityToCypher(
   principal: IdentityId | undefined,
   options: CypherOptions,
   counter: Counter,
+  cache: LeafCache,
 ): CypherFragment | null {
   const { maxDepth, vocab: v } = options
 
@@ -188,14 +227,26 @@ function identityToCypher(
   const { allowed, applicableScopes } = filterApplicableScopes(expr.scopes, principal, perm)
   if (!allowed) return null
 
-  const idx = counter.value++
-  const permVar = `_c${idx}`
-
   // Determine scope node restrictions (if any)
   const needsScope = applicableScopes.length > 0 && !applicableScopes.some((s) => !s.nodes?.length)
   const scopeNodeIds = needsScope
-    ? [...new Set(applicableScopes.flatMap((s) => s.nodes ?? []))]
+    ? [...new Set(applicableScopes.flatMap((s) => s.nodes ?? []))].sort()
     : []
+
+  // ── Leaf dedup: check cache for identical (id, perm, scopeNodeIds) ──
+  const cacheKey = leafCacheKey(expr.id, perm, scopeNodeIds)
+  const cached = cache.get(cacheKey)
+  if (cached) {
+    return {
+      calls: [],
+      vars: [],
+      condition: cached.condition,
+      params: {},
+    }
+  }
+
+  const idx = counter.value++
+  const permVar = `_c${idx}`
 
   const idParam = `id_${idx}`
   const permParam = `perm_${idx}`
@@ -209,10 +260,13 @@ function identityToCypher(
       ` WHERE $${permParam} IN hp.perms` +
       ` RETURN hp IS NOT NULL AS ${permVar}` +
       ` LIMIT 1 }`
+
+    const condition = permVar
+    cache.set(cacheKey, { condition })
     return {
       calls: [call],
       vars: [permVar],
-      condition: permVar,
+      condition,
       params: { [idParam]: expr.id, [permParam]: perm },
     }
   }
@@ -230,10 +284,12 @@ function identityToCypher(
     ` RETURN count(hp) > 0 AS ${permVar},` +
     ` count(CASE WHEN a.id IN $${scopeParam} THEN 1 END) > 0 AS ${scopeVar} }`
 
+  const condition = `(${permVar} AND ${scopeVar})`
+  cache.set(cacheKey, { condition })
   return {
     calls: [call],
     vars: [permVar, scopeVar],
-    condition: `(${permVar} AND ${scopeVar})`,
+    condition,
     params: { [idParam]: expr.id, [permParam]: perm, [scopeParam]: scopeNodeIds },
   }
 }

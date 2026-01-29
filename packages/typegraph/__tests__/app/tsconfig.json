@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@authz/*": ["../integration/authz-v2/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../integration/authz-v2/types.ts",
+    "../integration/authz-v2/adapter/**/*.ts",
+    "../integration/authz-v2/authorization/**/*.ts",
+    "../integration/authz-v2/expression/**/*.ts",
+    "../integration/authz-v2/testing/**/*.ts",
+    "../integration/authz-v2/authentication/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
