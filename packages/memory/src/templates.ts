@@ -28,36 +28,37 @@ function cmd(
 
 /**
  * Node template provider for in-memory operations.
+ * Note: In-memory uses single-label model; we use labels[0] as primary label.
  */
 class InMemoryNodeTemplates implements NodeTemplateProvider {
-  create(label: string): string {
-    return cmd('createNode', label)
+  create(labels: string[]): string {
+    return cmd('createNode', labels[0])
   }
 
-  update(label: string): string {
-    return cmd('updateNode', label)
+  update(labels: string[]): string {
+    return cmd('updateNode', labels[0])
   }
 
-  delete(label: string): string {
-    return cmd('deleteNode', label)
+  delete(labels: string[]): string {
+    return cmd('deleteNode', labels[0])
   }
 
-  deleteKeepEdges(label: string): string {
+  deleteKeepEdges(labels: string[]): string {
     // In-memory doesn't have a separate "keep edges" mode
     // The driver handles this in the delete logic if needed
-    return cmd('deleteNode', label, undefined, { keepEdges: true })
+    return cmd('deleteNode', labels[0], undefined, { keepEdges: true })
   }
 
-  getById(label: string): string {
-    return cmd('query', label, undefined, { params: { operation: 'getById' } })
+  getById(labels: string[]): string {
+    return cmd('query', labels[0], undefined, { params: { operation: 'getById' } })
   }
 
-  clone(label: string): string {
-    return cmd('createNode', label, undefined, { clone: true })
+  clone(labels: string[]): string {
+    return cmd('createNode', labels[0], undefined, { clone: true })
   }
 
-  upsert(label: string): string {
-    return cmd('createNode', label, undefined, { upsert: true })
+  upsert(labels: string[]): string {
+    return cmd('createNode', labels[0], undefined, { upsert: true })
   }
 }
 
@@ -98,8 +99,8 @@ class InMemoryEdgeTemplates implements EdgeTemplateProvider {
  * Hierarchy template provider for in-memory operations.
  */
 class InMemoryHierarchyTemplates implements HierarchyTemplateProvider {
-  createChild(nodeLabel: string, edgeType: string): string {
-    return cmd('createNode', nodeLabel, edgeType, { hierarchy: 'createChild' })
+  createChild(nodeLabels: string[], edgeType: string): string {
+    return cmd('createNode', nodeLabels[0], edgeType, { hierarchy: 'createChild' })
   }
 
   move(edgeType: string): string {
@@ -126,12 +127,12 @@ class InMemoryHierarchyTemplates implements HierarchyTemplateProvider {
     return cmd('query', undefined, edgeType, { params: { operation: 'getSubtree' } })
   }
 
-  cloneWithParent(nodeLabel: string, edgeType: string): string {
-    return cmd('createNode', nodeLabel, edgeType, { hierarchy: 'cloneWithParent' })
+  cloneWithParent(nodeLabels: string[], edgeType: string): string {
+    return cmd('createNode', nodeLabels[0], edgeType, { hierarchy: 'cloneWithParent' })
   }
 
-  clonePreserveParent(nodeLabel: string, edgeType: string): string {
-    return cmd('createNode', nodeLabel, edgeType, { hierarchy: 'clonePreserveParent' })
+  clonePreserveParent(nodeLabels: string[], edgeType: string): string {
+    return cmd('createNode', nodeLabels[0], edgeType, { hierarchy: 'clonePreserveParent' })
   }
 }
 
@@ -139,16 +140,16 @@ class InMemoryHierarchyTemplates implements HierarchyTemplateProvider {
  * Batch template provider for in-memory operations.
  */
 class InMemoryBatchTemplates implements BatchTemplateProvider {
-  createMany(label: string): string {
-    return cmd('createNode', label, undefined, { batch: true })
+  createMany(labels: string[]): string {
+    return cmd('createNode', labels[0], undefined, { batch: true })
   }
 
-  updateMany(label: string): string {
-    return cmd('updateNode', label, undefined, { batch: true })
+  updateMany(labels: string[]): string {
+    return cmd('updateNode', labels[0], undefined, { batch: true })
   }
 
-  deleteMany(label: string): string {
-    return cmd('deleteNode', label, undefined, { batch: true })
+  deleteMany(labels: string[]): string {
+    return cmd('deleteNode', labels[0], undefined, { batch: true })
   }
 
   linkMany(edgeType: string): string {
