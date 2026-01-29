@@ -99,8 +99,14 @@ const routes: Record<string, Record<string, RouteHandler>> = {
       const query = body.query as string
       if (!query) return error(res, 'query is required')
       const params = (body.params as Record<string, unknown>) || undefined
+
+      // Measure actual query execution time
+      const startTime = performance.now()
       const results = await playgroundClient.query(query, params)
-      json(res, { results })
+      const endTime = performance.now()
+      const queryTimeMs = endTime - startTime
+
+      json(res, { results, queryTimeMs })
     },
 
     '/api/check-access': async (body, res) => {
@@ -193,6 +199,13 @@ const routes: Record<string, Record<string, RouteHandler>> = {
       const result = await handleGetScenarios(scale, seed)
       json(res, { scenarios: result })
     },
+
+    '/api/perf/cleanup': async (body, res) => {
+      const { scale } = body as { scale?: Scale }
+      const { cleanupScaleGraphs } = await import('./perf-service')
+      const result = await cleanupScaleGraphs(playgroundClient, scale)
+      json(res, result)
+    },
   },
 }
 
@@ -203,6 +216,13 @@ routes.GET['/api/perf/graph-metadata'] = async (_body, res) => {
   } else {
     json(res, { metadata: null })
   }
+}
+
+// Add GET endpoint for scale status (which graphs exist in FalkorDB)
+routes.GET['/api/perf/scale-status'] = async (_body, res) => {
+  const { getScaleStatus } = await import('./perf-service')
+  const status = await getScaleStatus(playgroundClient)
+  json(res, status)
 }
 
 export async function handleApiRequest(

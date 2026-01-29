@@ -21,6 +21,8 @@ import {
   SCENARIO_TEMPLATES,
   instantiateScenarios,
   AVAILABLE_SCENARIOS,
+  serializeMetadata,
+  deserializeMetadata,
 } from '../performance'
 
 // =============================================================================
@@ -30,13 +32,68 @@ import {
 interface RunScenarioRequest {
   scenario: TestScenario
   iterations: number
+  scale: Scale | 'base'
+}
+
+// Graph names for each scale
+const GRAPH_NAMES: Record<Scale | 'base', string> = {
+  base: 'authz',
+  small: 'authz-perf-small',
+  medium: 'authz-perf-medium',
+  large: 'authz-perf-large',
 }
 
 // =============================================================================
-// CACHED METADATA
+// CACHED METADATA (with filesystem persistence)
 // =============================================================================
 
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+const CACHE_DIR = join(process.cwd(), '.cache')
+const getMetadataPath = (scale: Scale) => join(CACHE_DIR, `metadata-${scale}.json`)
+
+// In-memory cache
 export let cachedMetadata: GraphMetadata | null = null
+
+// Load cached metadata from disk on startup
+function loadCachedMetadata(scale: Scale): GraphMetadata | null {
+  try {
+    const path = getMetadataPath(scale)
+    if (existsSync(path)) {
+      const data = readFileSync(path, 'utf-8')
+      return deserializeMetadata(JSON.parse(data))
+    }
+  } catch (e) {
+    console.warn(`Failed to load cached metadata for ${scale}:`, e)
+  }
+  return null
+}
+
+// Save metadata to disk
+function saveCachedMetadata(metadata: GraphMetadata): void {
+  try {
+    if (!existsSync(CACHE_DIR)) {
+      mkdirSync(CACHE_DIR, { recursive: true })
+    }
+    const path = getMetadataPath(metadata.scale)
+    writeFileSync(path, JSON.stringify(serializeMetadata(metadata), null, 2))
+  } catch (e) {
+    console.warn(`Failed to save cached metadata for ${metadata.scale}:`, e)
+  }
+}
+
+// Get metadata for a scale (from memory or disk)
+export function getMetadataForScale(scale: Scale): GraphMetadata | null {
+  if (cachedMetadata?.scale === scale) {
+    return cachedMetadata
+  }
+  const loaded = loadCachedMetadata(scale)
+  if (loaded) {
+    cachedMetadata = loaded
+  }
+  return loaded
+}
 
 // =============================================================================
 // HANDLERS
@@ -46,7 +103,7 @@ export async function handleRunScenario(
   body: Record<string, unknown>,
   client: PlaygroundFalkorDBClient,
 ): Promise<ScenarioResult> {
-  const { scenario, iterations } = body as unknown as RunScenarioRequest
+  const { scenario, iterations, scale = 'base' } = body as unknown as RunScenarioRequest
 
   if (!scenario || !iterations) {
     throw new Error('scenario and iterations are required')
@@ -54,6 +111,31 @@ export async function handleRunScenario(
 
   if (!client.connected) {
     throw new Error('Not connected to FalkorDB')
+  }
+
+  // Select the appropriate graph for this scale
+  let targetGraph: string
+  if (scale === 'base') {
+    targetGraph = GRAPH_NAMES.base
+  } else {
+    // For scaled graphs, use the metadata's actual graph name (which may include timestamp)
+    const metadata = getMetadataForScale(scale)
+    if (!metadata) {
+      throw new Error(`No metadata cached for scale "${scale}". Generate the graph first.`)
+    }
+    targetGraph = metadata.graphName
+  }
+  if (client.graphName !== targetGraph) {
+    await client.selectGraph(targetGraph)
+  }
+
+  // For base scale, ensure the graph is seeded
+  if (scale === 'base') {
+    const hasData = await client.hasData()
+    if (!hasData) {
+      console.log('[perf] Base graph empty, seeding...')
+      await client.seed()
+    }
   }
 
   const traces: Trace[] = []
@@ -367,10 +449,145 @@ export async function handleGenerateGraph(
     },
   })
 
-  // Cache the metadata for later use
+  // Cache the metadata (memory + disk)
   cachedMetadata = metadata
+  saveCachedMetadata(metadata)
 
   return metadata
+}
+
+// =============================================================================
+// SCENARIOS HANDLER
+// =============================================================================
+
+// =============================================================================
+// SCALE STATUS
+// =============================================================================
+
+export interface ScaleStatus {
+  scale: Scale | 'base'
+  exists: boolean
+  graphName: string | null
+  stats: { nodes: number; edges: number } | null
+}
+
+export async function getScaleStatus(
+  client: PlaygroundFalkorDBClient,
+): Promise<{ scales: ScaleStatus[]; connected: boolean }> {
+  if (!client.connected) {
+    return {
+      connected: false,
+      scales: [
+        { scale: 'base', exists: false, graphName: null, stats: null },
+        { scale: 'small', exists: false, graphName: null, stats: null },
+        { scale: 'medium', exists: false, graphName: null, stats: null },
+        { scale: 'large', exists: false, graphName: null, stats: null },
+      ],
+    }
+  }
+
+  const scales: ScaleStatus[] = []
+
+  // Check base graph
+  try {
+    await client.selectGraph('authz')
+    const hasData = await client.hasData()
+    scales.push({
+      scale: 'base',
+      exists: hasData,
+      graphName: 'authz',
+      stats: hasData ? { nodes: 23, edges: 44 } : null,
+    })
+  } catch {
+    scales.push({ scale: 'base', exists: false, graphName: null, stats: null })
+  }
+
+  // Check scaled graphs
+  for (const scale of ['small', 'medium', 'large'] as Scale[]) {
+    const metadata = getMetadataForScale(scale)
+    if (metadata) {
+      // Verify the graph actually exists in FalkorDB
+      try {
+        await client.selectGraph(metadata.graphName)
+        const result = await client.query('MATCH (n) RETURN count(n) as cnt LIMIT 1')
+        const count = result[0]?.cnt ?? 0
+        if (count > 0) {
+          scales.push({
+            scale,
+            exists: true,
+            graphName: metadata.graphName,
+            stats: { nodes: metadata.stats.totalNodes, edges: metadata.stats.totalEdges },
+          })
+        } else {
+          scales.push({ scale, exists: false, graphName: null, stats: null })
+        }
+      } catch {
+        // Graph doesn't exist
+        scales.push({ scale, exists: false, graphName: null, stats: null })
+      }
+    } else {
+      scales.push({ scale, exists: false, graphName: null, stats: null })
+    }
+  }
+
+  return { connected: true, scales }
+}
+
+// =============================================================================
+// CLEANUP
+// =============================================================================
+
+export async function cleanupScaleGraphs(
+  client: PlaygroundFalkorDBClient,
+  scale?: Scale,
+): Promise<{ ok: boolean; cleaned: string[]; errors: string[] }> {
+  const cleaned: string[] = []
+  const errors: string[] = []
+
+  if (!client.connected) {
+    return { ok: false, cleaned, errors: ['Not connected to FalkorDB'] }
+  }
+
+  const scalesToClean: Scale[] = scale ? [scale] : ['small', 'medium', 'large']
+
+  for (const s of scalesToClean) {
+    // Get metadata to find the actual graph name
+    const metadata = getMetadataForScale(s)
+    if (metadata) {
+      try {
+        // Delete the graph using FalkorDB's GRAPH.DELETE
+        await client.deleteGraph(metadata.graphName)
+        cleaned.push(metadata.graphName)
+      } catch (e) {
+        errors.push(`${s}: ${e instanceof Error ? e.message : 'failed'}`)
+      }
+    }
+
+    // Also clean up the metadata file
+    try {
+      const path = getMetadataPath(s)
+      if (existsSync(path)) {
+        const { unlinkSync } = await import('node:fs')
+        unlinkSync(path)
+      }
+    } catch {
+      // Ignore metadata cleanup errors
+    }
+
+    // Clear in-memory cache if it matches
+    if (cachedMetadata?.scale === s) {
+      cachedMetadata = null
+    }
+  }
+
+  // Switch back to base graph
+  try {
+    await client.selectGraph('authz')
+  } catch {
+    // Ignore
+  }
+
+  return { ok: errors.length === 0, cleaned, errors }
 }
 
 // =============================================================================
@@ -387,9 +604,10 @@ export async function handleGetScenarios(
   }
 
   // For scaled graphs, instantiate scenarios from templates
-  if (!cachedMetadata || cachedMetadata.scale !== scale) {
+  const metadata = getMetadataForScale(scale)
+  if (!metadata) {
     throw new Error(`No metadata cached for scale "${scale}". Generate the graph first.`)
   }
 
-  return instantiateScenarios(SCENARIO_TEMPLATES, cachedMetadata, seed ?? 42)
+  return instantiateScenarios(SCENARIO_TEMPLATES, metadata, seed ?? 42)
 }

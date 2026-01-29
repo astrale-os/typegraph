@@ -29,6 +29,13 @@ import {
 
 export type SelectedScale = Scale | 'base'
 
+export interface ScaleStatusInfo {
+  scale: SelectedScale
+  exists: boolean
+  graphName: string | null
+  stats: { nodes: number; edges: number } | null
+}
+
 // =============================================================================
 // STORE INTERFACE
 // =============================================================================
@@ -41,6 +48,11 @@ interface LatencyStore extends ProfilerState {
   generatingGraph: boolean
   generationProgress: number
   generationPhase: string
+
+  // Scale status (which graphs exist in FalkorDB)
+  scaleStatus: Record<SelectedScale, ScaleStatusInfo>
+  statusLoading: boolean
+  statusError: string | null
 
   // Actions
   setSelectedScenarios: (ids: string[]) => void
@@ -55,6 +67,8 @@ interface LatencyStore extends ProfilerState {
   // Scale actions
   setSelectedScale: (scale: SelectedScale) => void
   generateGraph: (scale: Scale) => Promise<void>
+  loadScaleStatus: () => Promise<void>
+  cleanupScale: (scale?: Scale) => Promise<void>
 
   // Running
   startRun: () => void
@@ -78,6 +92,16 @@ interface InitialState extends ProfilerState {
   generatingGraph: boolean
   generationProgress: number
   generationPhase: string
+  scaleStatus: Record<SelectedScale, ScaleStatusInfo>
+  statusLoading: boolean
+  statusError: string | null
+}
+
+const defaultScaleStatus: Record<SelectedScale, ScaleStatusInfo> = {
+  base: { scale: 'base', exists: false, graphName: null, stats: null },
+  small: { scale: 'small', exists: false, graphName: null, stats: null },
+  medium: { scale: 'medium', exists: false, graphName: null, stats: null },
+  large: { scale: 'large', exists: false, graphName: null, stats: null },
 }
 
 const initialState: InitialState = {
@@ -99,6 +123,9 @@ const initialState: InitialState = {
   generatingGraph: false,
   generationProgress: 0,
   generationPhase: '',
+  scaleStatus: { ...defaultScaleStatus },
+  statusLoading: false,
+  statusError: null,
 }
 
 // =============================================================================
@@ -156,6 +183,73 @@ export const useLatencyStore = create<LatencyStore>((set, get) => ({
     }
   },
 
+  loadScaleStatus: async () => {
+    set({ statusLoading: true, statusError: null })
+    try {
+      const response = await fetch('/api/perf/scale-status')
+      if (!response.ok) {
+        throw new Error('Failed to fetch scale status')
+      }
+      const { scales, connected } = await response.json()
+      if (!connected) {
+        set({ statusLoading: false, statusError: 'Not connected to FalkorDB' })
+        return
+      }
+
+      const newStatus: Record<SelectedScale, ScaleStatusInfo> = { ...defaultScaleStatus }
+      for (const s of scales) {
+        newStatus[s.scale as SelectedScale] = {
+          scale: s.scale,
+          exists: s.exists,
+          graphName: s.graphName,
+          stats: s.stats,
+        }
+      }
+      set({ scaleStatus: newStatus, statusLoading: false })
+
+      // If current scale has a graph, load its scenarios
+      const state = get()
+      if (state.selectedScale !== 'base' && newStatus[state.selectedScale]?.exists) {
+        const scenariosResponse = await fetch('/api/perf/scenarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scale: state.selectedScale }),
+        })
+        if (scenariosResponse.ok) {
+          const { scenarios } = await scenariosResponse.json()
+          set({ scaledScenarios: scenarios })
+        }
+      }
+    } catch (err) {
+      set({
+        statusLoading: false,
+        statusError: err instanceof Error ? err.message : String(err),
+      })
+    }
+  },
+
+  cleanupScale: async (scale) => {
+    set({ statusLoading: true, statusError: null })
+    try {
+      const response = await fetch('/api/perf/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scale }),
+      })
+      if (!response.ok) {
+        throw new Error('Failed to cleanup scale')
+      }
+
+      // Reload status after cleanup
+      await get().loadScaleStatus()
+    } catch (err) {
+      set({
+        statusLoading: false,
+        statusError: err instanceof Error ? err.message : String(err),
+      })
+    }
+  },
+
   generateGraph: async (scale) => {
     if (get().generatingGraph) return
 
@@ -166,13 +260,21 @@ export const useLatencyStore = create<LatencyStore>((set, get) => ({
       error: null,
     })
 
+    // Create abort controller for timeout
+    const controller = new AbortController()
+    const timeoutMs = scale === 'large' ? 600000 : scale === 'medium' ? 300000 : 60000
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
     try {
       // Call API to generate graph
       const response = await fetch('/api/perf/generate-graph', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scale }),
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -205,12 +307,22 @@ export const useLatencyStore = create<LatencyStore>((set, get) => ({
         // Select first two scenarios by default
         selectedScenarios: scenarios.slice(0, 2).map((s: TestScenario) => s.id),
       })
+
+      // Reload status to reflect the new graph
+      await get().loadScaleStatus()
     } catch (err) {
+      clearTimeout(timeoutId)
+      const message =
+        err instanceof Error
+          ? err.name === 'AbortError'
+            ? `Generation timed out after ${timeoutMs / 1000}s. Try a smaller scale or check server logs.`
+            : err.message
+          : String(err)
       set({
         generatingGraph: false,
         generationProgress: 0,
         generationPhase: 'Failed',
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
       })
     }
   },
@@ -267,13 +379,14 @@ export const useLatencyStore = create<LatencyStore>((set, get) => ({
           `Running ${scenario.name}...`,
         )
 
-        // Call API to run scenario
+        // Call API to run scenario (include scale for graph selection)
         const response = await fetch('/api/perf/run-scenario', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             scenario,
             iterations: state.iterations,
+            scale: state.selectedScale,
           }),
         })
 
@@ -430,8 +543,8 @@ export const selectSelectedScenarioObjects = (state: LatencyStore): TestScenario
 }
 
 export const selectIsGraphGenerated = (state: LatencyStore): boolean => {
-  if (state.selectedScale === 'base') return true
-  return state.scaleMetadata?.scale === state.selectedScale
+  if (state.selectedScale === 'base') return state.scaleStatus.base.exists
+  return state.scaleStatus[state.selectedScale]?.exists ?? false
 }
 
 export const selectScaleInfo = (state: LatencyStore): { nodes: string; edges: string } | null => {
@@ -441,4 +554,4 @@ export const selectScaleInfo = (state: LatencyStore): { nodes: string; edges: st
   return getScaleInfo(state.selectedScale)
 }
 
-export { getScaleInfo }
+export { getScaleInfo, AVAILABLE_SCENARIOS }

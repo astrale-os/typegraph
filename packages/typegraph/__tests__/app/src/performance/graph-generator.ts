@@ -36,20 +36,33 @@ export async function generateScaledGraph(
 ): Promise<GraphMetadata> {
   const config = SCALE_CONFIGS[scale]
   const rng = createSeededRandom(options.seed ?? 42)
-  const batchSize = options.batchSize ?? 1000
+  const batchSize = options.batchSize ?? 200 // Small batches for FalkorDB stability
   const onProgress = options.onProgress
+
+  // Helper to add small delay between batches to prevent overwhelming FalkorDB
+  const batchDelay = () => new Promise((resolve) => setTimeout(resolve, 10))
+
+  console.log(`[graph-gen] Starting ${scale} graph generation with batch size ${batchSize}`)
+  console.log(
+    `[graph-gen] Config: ${config.spaces} spaces, ${config.modulesPerSpace} modules/space, ${config.types} types`,
+  )
 
   const metadata = createEmptyMetadata(scale, config.graphName)
   let nodesCreated = 0
   let edgesCreated = 0
 
   const reportProgress = (percent: number, phase: string) => {
+    console.log(
+      `[graph-gen] ${percent.toFixed(0)}% - ${phase} (nodes: ${nodesCreated}, edges: ${edgesCreated})`,
+    )
     onProgress?.({ percent, phase, nodesCreated, edgesCreated })
   }
 
-  // Clear and set up indexes
+  // Set up indexes (skip clearing - we're using a fresh graph each time)
   reportProgress(0, 'Preparing database')
-  await clearDatabase(executor)
+  // Note: clearDatabase is skipped because FalkorDB has a bug with Delta_Matrix_removeElement
+  // that causes crashes during DELETE operations. Instead, we rely on the caller to
+  // use a fresh graph name or explicitly handle cleanup.
   await createIndexes(executor)
 
   // Phase 1: Create types
@@ -70,6 +83,7 @@ export async function generateScaledGraph(
     metadata,
     rng,
     batchSize,
+    batchDelay,
     (pct) => reportProgress(15 + pct * 0.45, 'Creating modules'),
   )
   nodesCreated += moduleResult.nodes
@@ -83,8 +97,14 @@ export async function generateScaledGraph(
 
   // Phase 5: Create permissions
   reportProgress(70, 'Creating permissions')
-  const permResult = await createPermissions(executor, config, metadata, rng, batchSize, (pct) =>
-    reportProgress(70 + pct * 0.2, 'Creating permissions'),
+  const permResult = await createPermissions(
+    executor,
+    config,
+    metadata,
+    rng,
+    batchSize,
+    batchDelay,
+    (pct) => reportProgress(70 + pct * 0.2, 'Creating permissions'),
   )
   edgesCreated += permResult.edges
 
@@ -112,9 +132,23 @@ export async function generateScaledGraph(
 // =============================================================================
 
 async function clearDatabase(executor: RawExecutor): Promise<void> {
-  // Delete all relationships first, then nodes
-  await executor.run('MATCH ()-[r]->() DELETE r')
-  await executor.run('MATCH (n) DELETE n')
+  // Use smaller batched deletes to avoid crashing FalkorDB
+  // Delete in batches of 1000 to prevent memory issues
+  let deleted = true
+  while (deleted) {
+    const result = await executor.run<{ count: number }>(
+      'MATCH ()-[r]->() WITH r LIMIT 1000 DELETE r RETURN count(r) as count',
+    )
+    deleted = (result[0]?.count ?? 0) > 0
+  }
+
+  deleted = true
+  while (deleted) {
+    const result = await executor.run<{ count: number }>(
+      'MATCH (n) WITH n LIMIT 1000 DELETE n RETURN count(n) as count',
+    )
+    deleted = (result[0]?.count ?? 0) > 0
+  }
 }
 
 async function createIndexes(executor: RawExecutor): Promise<void> {
@@ -206,6 +240,7 @@ async function createModuleHierarchy(
   metadata: GraphMetadata,
   rng: SeededRandom,
   batchSize: number,
+  batchDelay: () => Promise<void>,
   onProgress?: (pct: number) => void,
 ): Promise<{ nodes: number; edges: number }> {
   const allModules: ModuleData[] = []
@@ -252,6 +287,9 @@ async function createModuleHierarchy(
 
     processed += batch.length
     onProgress?.(processed / total)
+
+    // Small delay to prevent overwhelming FalkorDB
+    await batchDelay()
   }
 
   // Identify leaf modules
@@ -276,9 +314,10 @@ function generateModulesForSpace(
 
   // Create modules level by level up to maxDepth
   // Level 1: direct children of space
-  const level1Count = Math.ceil(
-    config.modulesPerSpace / Math.pow(config.branchingFactor, config.maxDepth - 1),
-  )
+  // Account for random branching (average half of branchingFactor) and some termination
+  const avgBranching = config.branchingFactor / 2
+  const expectedGrowth = Math.pow(avgBranching, config.maxDepth - 1) || 1
+  const level1Count = Math.max(4, Math.ceil(config.modulesPerSpace / expectedGrowth / 2))
   const level1: ModuleData[] = []
 
   for (let i = 0; i < level1Count && moduleCounter < config.modulesPerSpace; i++) {
@@ -308,9 +347,9 @@ function generateModulesForSpace(
     const nextLevel: ModuleData[] = []
 
     for (const parent of currentLevel) {
-      // Each parent gets 0 to branchingFactor children
+      // Each parent gets 1 to branchingFactor children (always at least 1 to ensure growth)
       const childCount = Math.min(
-        rng.nextIntRange(0, config.branchingFactor),
+        rng.nextIntRange(1, config.branchingFactor + 1),
         config.modulesPerSpace - moduleCounter,
       )
 
@@ -413,6 +452,7 @@ async function createPermissions(
   metadata: GraphMetadata,
   rng: SeededRandom,
   batchSize: number,
+  batchDelay: () => Promise<void>,
   onProgress?: (pct: number) => void,
 ): Promise<{ edges: number }> {
   const permTypes = ['read', 'edit', 'use', 'share']
@@ -425,8 +465,15 @@ async function createPermissions(
   const baseIdentities = [...metadata.identities.apps, ...metadata.identities.users]
 
   // Calculate how many permission edges to create
+  // Cap at a reasonable maximum to prevent infinite loops and memory issues
   const totalPossiblePairs = baseIdentities.length * targets.length
-  const targetEdges = Math.floor(totalPossiblePairs * config.permissionDensity)
+  const rawTargetEdges = Math.floor(totalPossiblePairs * config.permissionDensity)
+  const maxEdges = 200000 // Cap permission edges to prevent runaway
+  const targetEdges = Math.min(rawTargetEdges, maxEdges)
+
+  console.log(
+    `[graph-gen] Creating permissions: ${targetEdges} target edges (capped from ${rawTargetEdges})`,
+  )
 
   // Generate permission edges
   const permissions: { identity: string; target: string; perms: string[] }[] = []
@@ -470,8 +517,11 @@ async function createPermissions(
     }
   }
 
-  // Fill remaining with random pairs
-  while (permissions.length < targetEdges) {
+  // Fill remaining with random pairs (with safeguard against infinite loop)
+  let attempts = 0
+  const maxAttempts = targetEdges * 10 // Allow some retries for collisions
+  while (permissions.length < targetEdges && attempts < maxAttempts) {
+    attempts++
     const identity = rng.pick(baseIdentities)
     const target = rng.pick(targets)
     const pairKey = `${identity}:${target}`
@@ -483,6 +533,12 @@ async function createPermissions(
       permissions.push({ identity, target, perms })
       addToPermissionIndex(metadata.permissionIndex, identity, target, perms)
     }
+  }
+
+  if (attempts >= maxAttempts) {
+    console.log(
+      `[graph-gen] Stopped permission generation after ${attempts} attempts (created ${permissions.length}/${targetEdges})`,
+    )
   }
 
   // Batch insert permissions
@@ -501,6 +557,9 @@ async function createPermissions(
 
     processed += batch.length
     onProgress?.(processed / total)
+
+    // Small delay to prevent overwhelming FalkorDB
+    await batchDelay()
   }
 
   return { edges: permissions.length }

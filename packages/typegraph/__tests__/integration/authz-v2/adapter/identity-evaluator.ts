@@ -2,6 +2,13 @@
  * Identity Evaluator
  *
  * Builds expression trees from identity composition edges (unionWith, intersectWith).
+ *
+ * Performance optimization: Uses batch fetching with UNWIND to resolve entire
+ * composition graphs in O(1) database round-trips instead of O(N) sequential queries.
+ *
+ * Caching: Request-scoped by design. Create a cache with `createCompositionCache()`
+ * and pass it to multiple `evalExpr` calls within the same request for reuse.
+ * No instance-level caching to avoid staleness issues in authorization decisions.
  */
 
 import type { IdentityExpr, IdentityComposition, RawExecutor } from '../types'
@@ -40,8 +47,50 @@ export class InvalidIdentityError extends Error {
 }
 
 // =============================================================================
-// QUERIES
+// COMPOSITION CACHE (REQUEST-SCOPED)
 // =============================================================================
+
+/**
+ * Request-scoped cache for identity compositions.
+ *
+ * Usage:
+ * ```typescript
+ * // Create once per request
+ * const cache = createCompositionCache()
+ *
+ * // Reuse across multiple evalExpr calls
+ * const expr1 = await evaluator.evalExpr(identity('USER1'), { cache })
+ * const expr2 = await evaluator.evalExpr(identity('USER2'), { cache })
+ *
+ * // Cache is garbage collected when request ends
+ * ```
+ *
+ * Why request-scoped?
+ * - Avoids staleness: cache dies with request, no cross-request stale data
+ * - Safe for authorization: no risk of incorrect grant/deny from stale cache
+ * - Simple lifecycle: no invalidation logic needed
+ */
+export type CompositionCache = Map<string, IdentityComposition>
+
+/** Create a fresh composition cache for request-scoped reuse. */
+export function createCompositionCache(): CompositionCache {
+  return new Map()
+}
+
+// =============================================================================
+// EVAL OPTIONS
+// =============================================================================
+
+export interface EvalExprOptions {
+  /** Maximum composition depth to traverse (default: 10) */
+  maxDepth?: number
+
+  /**
+   * Optional cache for request-scoped reuse.
+   * If not provided, a fresh cache is created for this call only.
+   */
+  cache?: CompositionCache
+}
 
 // =============================================================================
 // IDENTITY EVALUATOR
@@ -49,7 +98,6 @@ export class InvalidIdentityError extends Error {
 
 export class IdentityEvaluator {
   private vocab: GraphVocab
-  private compositionCache = new Map<string, IdentityComposition>()
 
   constructor(
     private executor: RawExecutor,
@@ -58,168 +106,245 @@ export class IdentityEvaluator {
     this.vocab = resolveVocab(vocab)
   }
 
-  /** Build identity fetch query from vocabulary. */
-  private get fetchQuery(): string {
-    const v = this.vocab
-    return `
-      MATCH (i:${v.identity} {id: $id})
-      OPTIONAL MATCH (i)-[:${v.union}]->(u:${v.identity})
-      OPTIONAL MATCH (i)-[:${v.intersect}]->(n:${v.identity})
-      OPTIONAL MATCH (i)-[:${v.exclude}]->(e:${v.identity})
-      OPTIONAL MATCH (i)-[:${v.perm}]->(permTarget)
-      WITH i,
-           collect(DISTINCT u.id) AS unions,
-           collect(DISTINCT n.id) AS intersects,
-           collect(DISTINCT e.id) AS excludes,
-           count(DISTINCT permTarget) > 0 AS hasDirectPerms
-      RETURN i.id AS id, unions, intersects, excludes, hasDirectPerms
-    `
-  }
-
   /**
-   * Fetch identity composition data from graph.
+   * Fetch compositions for given root identities and their transitive dependencies.
+   *
+   * Returns ALL identities reachable from roots via composition edges,
+   * enabling in-memory tree building without additional queries.
+   *
+   * @param rootIds - Identity IDs to fetch (and their transitive dependencies)
+   * @param maxDepth - Maximum depth to traverse (default: 10)
+   * @returns Map of identity ID to composition data
    */
-  async fetchIdentity(id: string): Promise<IdentityComposition> {
-    const cached = this.compositionCache.get(id)
-    if (cached) return cached
+  async batchFetchCompositions(
+    rootIds: string[],
+    maxDepth: number = 10,
+  ): Promise<Map<string, IdentityComposition>> {
+    if (rootIds.length === 0) return new Map()
 
-    const results = await this.executor.run<IdentityComposition>(this.fetchQuery, { id })
+    const v = this.vocab
 
-    if (results.length === 0) {
-      throw new IdentityNotFoundError(id)
+    const query = `
+      UNWIND $rootIds AS rootId
+      MATCH (root:${v.identity} {id: rootId})
+      OPTIONAL MATCH path = (root)-[:${v.union}|${v.intersect}|${v.exclude}*0..${maxDepth}]->(i:${v.identity})
+      WITH DISTINCT coalesce(i, root) AS identity
+      RETURN
+        identity.id AS id,
+        [(identity)-[:${v.union}]->(u:${v.identity}) | u.id] AS unions,
+        [(identity)-[:${v.intersect}]->(n:${v.identity}) | n.id] AS intersects,
+        [(identity)-[:${v.exclude}]->(e:${v.identity}) | e.id] AS excludes,
+        size([(identity)-[:${v.perm}]->() | 1]) > 0 AS hasDirectPerms
+    `
+
+    const results = await this.executor.run<{
+      id: string
+      unions: (string | null)[]
+      intersects: (string | null)[]
+      excludes: (string | null)[]
+      hasDirectPerms: boolean
+    }>(query, { rootIds })
+
+    const compositions = new Map<string, IdentityComposition>()
+    for (const row of results) {
+      compositions.set(row.id, {
+        id: row.id,
+        unions: row.unions.filter((u): u is string => u !== null),
+        intersects: row.intersects.filter((i): i is string => i !== null),
+        excludes: row.excludes.filter((e): e is string => e !== null),
+        hasDirectPerms: row.hasDirectPerms ?? false,
+      })
     }
-
-    const result = results[0]!
-    const composition: IdentityComposition = {
-      id: result.id,
-      unions: (result.unions ?? []).filter((u): u is string => u !== null),
-      intersects: (result.intersects ?? []).filter((i): i is string => i !== null),
-      excludes: (result.excludes ?? []).filter((e): e is string => e !== null),
-      hasDirectPerms: result.hasDirectPerms ?? false,
-    }
-    this.compositionCache.set(id, composition)
-    return composition
-  }
-
-  clearCompositionCache(): void {
-    this.compositionCache.clear()
+    return compositions
   }
 
   /**
-   * Build expression tree with cycle detection.
+   * Evaluate a single identity, expanding its composition graph.
    *
-   * Algorithm:
-   * 1. Check for cycle (visited set)
-   * 2. Fetch identity data
-   * 3. If leaf (no composition), return base
-   * 4. Build union chain first (left-associative)
-   * 5. Apply intersects last (wraps unions)
-   *
-   * Key insight: `new Set(visited)` creates fresh path per branch
-   * to allow diamond patterns while detecting actual cycles.
+   * @deprecated Use evalExpr for better performance (batch fetching).
+   * This method makes O(N) sequential queries where N = graph size.
    */
   async evalIdentity(id: string, visited: Set<string> = new Set()): Promise<IdentityExpr> {
-    // Cycle detection - same node in current path
-    if (visited.has(id)) {
-      throw new CycleDetectedError(id, Array.from(visited))
-    }
-    visited.add(id)
-
-    const { unions, intersects, excludes, hasDirectPerms } = await this.fetchIdentity(id)
-
-    // Leaf node: no composition edges
-    if (unions.length === 0 && intersects.length === 0 && excludes.length === 0) {
-      return { kind: 'identity', id }
-    }
-
-    // Start with self if has direct perms
-    let result: IdentityExpr | null = hasDirectPerms ? { kind: 'identity', id } : null
-
-    // Build union chain: (X ∪ A ∪ B)
-    for (const unionId of unions) {
-      // Fresh visited set for each branch (allows diamonds, catches cycles)
-      const unionExpr = await this.evalIdentity(unionId, new Set(visited))
-      result = result ? { kind: 'union', left: result, right: unionExpr } : unionExpr
-    }
-
-    // Apply intersects: (...) ∩ C ∩ D
-    for (const intersectId of intersects) {
-      const intersectExpr = await this.evalIdentity(intersectId, new Set(visited))
-      result = result ? { kind: 'intersect', left: result, right: intersectExpr } : intersectExpr
-    }
-
-    // Apply excludes (last): (...) \ E \ F
-    for (const excludeId of excludes) {
-      const excludeExpr = await this.evalIdentity(excludeId, new Set(visited))
-      result = result ? { kind: 'exclude', left: result, right: excludeExpr } : null
-    }
-
-    // Edge case: exclude-only identity (no base set to subtract from) or no composition at all
-    if (!result) {
-      const hasExcludes = excludes.length > 0
-      const reason = hasExcludes
-        ? 'Identity has only exclude composition edges with no base set (unions/intersects/direct perms)'
-        : 'Identity has no permissions and no valid composition'
-      throw new InvalidIdentityError(id, reason)
-    }
-
-    return result
+    // Use evalExpr with a fresh cache - simpler and consistent behavior
+    return this.evalExpr({ kind: 'identity', id })
   }
 
   /**
    * Evaluate an expression, expanding unscoped identity leaves.
    *
-   * Accepts either a raw IdentityExpr or an Expr builder (auto-calls .build()).
-   * For each identity leaf without scopes, expands its DB composition.
-   * Scoped leaves are preserved as-is (scopes indicate explicit restriction).
+   * Uses batch fetching to resolve entire composition graphs in O(1) database
+   * round-trips instead of O(N) sequential queries.
    *
    * @param exprOrBuilder - Raw IdentityExpr or Expr builder
+   * @param options - Optional settings for depth limit and request-scoped caching
    * @returns Fully resolved IdentityExpr with DB compositions expanded
    *
    * @example
    * ```typescript
-   * // With builder
+   * // Simple usage (no caching between calls)
    * const resolved = await evaluator.evalExpr(identity("USER1"))
    *
-   * // With raw expression
-   * const resolved = await evaluator.evalExpr({ kind: 'identity', id: 'USER1' })
+   * // With request-scoped cache (reuse across multiple calls)
+   * const cache = createCompositionCache()
+   * const expr1 = await evaluator.evalExpr(identity("USER1"), { cache })
+   * const expr2 = await evaluator.evalExpr(identity("USER2"), { cache })
    *
-   * // Scoped leaves are NOT expanded
+   * // Scoped leaves are preserved as-is (not expanded)
    * const resolved = await evaluator.evalExpr(
-   *   identity("USER1", { nodes: ["ws1"] })  // Preserved as-is
+   *   identity("USER1", { nodes: ["ws1"] })
    * )
    * ```
    */
-  async evalExpr(exprOrBuilder: IdentityExpr | ExprBuilder): Promise<IdentityExpr> {
+  async evalExpr(
+    exprOrBuilder: IdentityExpr | ExprBuilder,
+    options: EvalExprOptions = {},
+  ): Promise<IdentityExpr> {
+    const { maxDepth = 10, cache = new Map() } = options
     const expr = isExprBuilder(exprOrBuilder) ? exprOrBuilder.build() : exprOrBuilder
-    return this.resolveExpr(expr)
+
+    // 1. Collect unscoped identity IDs that need resolution
+    const unscopedIds = this.collectUnscopedIdentities(expr)
+    if (unscopedIds.length === 0) return expr
+
+    // 2. Determine which IDs need fetching (not in cache)
+    const uncachedIds = unscopedIds.filter((id) => !cache.has(id))
+
+    // 3. Batch fetch all uncached compositions in single query
+    if (uncachedIds.length > 0) {
+      const fetched = await this.batchFetchCompositions(uncachedIds, maxDepth)
+      for (const [id, composition] of fetched) {
+        cache.set(id, composition)
+      }
+    }
+
+    // 4. Build expression tree in-memory (no further I/O)
+    return this.buildResolvedExpr(expr, cache)
   }
 
   /**
-   * Internal: recursively resolve an expression tree.
-   * Expands unscoped identity leaves, preserves scoped ones.
+   * Collect all unscoped identity IDs from an expression tree.
+   * Used to determine which identities need to be fetched.
    */
-  private async resolveExpr(expr: IdentityExpr): Promise<IdentityExpr> {
-    switch (expr.kind) {
-      case 'identity': {
-        // Scoped leaves are preserved (explicit restriction)
-        if (expr.scopes && expr.scopes.length > 0) {
-          return expr
-        }
-        // Unscoped leaves: expand DB composition
-        return this.evalIdentity(expr.id)
-      }
-      case 'union':
-      case 'intersect':
-      case 'exclude': {
-        // Recursively resolve both branches
-        const [left, right] = await Promise.all([
-          this.resolveExpr(expr.left),
-          this.resolveExpr(expr.right),
-        ])
-        return { kind: expr.kind, left, right }
+  private collectUnscopedIdentities(expr: IdentityExpr): string[] {
+    const ids: string[] = []
+    const collect = (e: IdentityExpr) => {
+      switch (e.kind) {
+        case 'identity':
+          if (!e.scopes || e.scopes.length === 0) {
+            ids.push(e.id)
+          }
+          break
+        case 'union':
+        case 'intersect':
+        case 'exclude':
+          collect(e.left)
+          collect(e.right)
+          break
       }
     }
+    collect(expr)
+    return [...new Set(ids)] // Dedupe
+  }
+
+  /**
+   * Build resolved expression tree from compositions.
+   * Operates entirely in-memory with no I/O.
+   */
+  private buildResolvedExpr(expr: IdentityExpr, compositions: CompositionCache): IdentityExpr {
+    switch (expr.kind) {
+      case 'identity':
+        if (expr.scopes && expr.scopes.length > 0) {
+          return expr // Scoped leaves preserved as-is
+        }
+        return this.buildExprFromCompositions(expr.id, compositions)
+
+      case 'union':
+      case 'intersect':
+      case 'exclude':
+        return {
+          kind: expr.kind,
+          left: this.buildResolvedExpr(expr.left, compositions),
+          right: this.buildResolvedExpr(expr.right, compositions),
+        }
+    }
+  }
+
+  /**
+   * Build expression tree from composition data with cycle detection.
+   *
+   * @param id - Identity ID to build expression for
+   * @param compositions - Fetched compositions cache
+   * @param visited - Set of visited IDs in current path (for cycle detection)
+   * @throws CycleDetectedError if a cycle is found
+   * @throws IdentityNotFoundError if identity not in compositions
+   * @throws InvalidIdentityError if identity has invalid composition
+   */
+  private buildExprFromCompositions(
+    id: string,
+    compositions: CompositionCache,
+    visited: Set<string> = new Set(),
+  ): IdentityExpr {
+    // Cycle detection
+    if (visited.has(id)) {
+      throw new CycleDetectedError(id, Array.from(visited))
+    }
+    visited.add(id)
+
+    // Missing identity - explicit error
+    // Note: This can happen if composition graph exceeds maxDepth.
+    // The query truncates at maxDepth, so deeper nodes won't be in the map.
+    const composition = compositions.get(id)
+    if (!composition) {
+      throw new IdentityNotFoundError(id)
+    }
+
+    const { unions, intersects, excludes, hasDirectPerms } = composition
+
+    // Exclude-only validation (must remain)
+    if (excludes.length > 0 && unions.length === 0 && intersects.length === 0 && !hasDirectPerms) {
+      throw new InvalidIdentityError(
+        id,
+        'Identity has only exclude composition edges with no base set',
+      )
+    }
+
+    // Leaf node
+    if (unions.length === 0 && intersects.length === 0 && excludes.length === 0) {
+      return { kind: 'identity', id }
+    }
+
+    let result: IdentityExpr | null = hasDirectPerms ? { kind: 'identity', id } : null
+
+    // Build union chain (synchronous - no I/O)
+    for (const unionId of unions) {
+      const unionExpr = this.buildExprFromCompositions(unionId, compositions, new Set(visited))
+      result = result ? { kind: 'union', left: result, right: unionExpr } : unionExpr
+    }
+
+    // Build intersect chain
+    for (const intersectId of intersects) {
+      const intersectExpr = this.buildExprFromCompositions(
+        intersectId,
+        compositions,
+        new Set(visited),
+      )
+      result = result ? { kind: 'intersect', left: result, right: intersectExpr } : intersectExpr
+    }
+
+    // Build exclude chain - throw immediately if no base set
+    for (const excludeId of excludes) {
+      if (!result) {
+        throw new InvalidIdentityError(id, 'Exclude requires a base set')
+      }
+      const excludeExpr = this.buildExprFromCompositions(excludeId, compositions, new Set(visited))
+      result = { kind: 'exclude', left: result, right: excludeExpr }
+    }
+
+    if (!result) {
+      throw new InvalidIdentityError(id, 'Identity has no permissions and no valid composition')
+    }
+
+    return result
   }
 }
 

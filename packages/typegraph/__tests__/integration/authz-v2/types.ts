@@ -256,45 +256,6 @@ export interface IdentityQueryPort {
 }
 
 // =============================================================================
-// REASON TYPES (STRUCTURED EXPLANATION)
-// =============================================================================
-
-/**
- * Leaf reason: evaluation of a single identity.
- */
-export type LeafReason = {
-  kind: 'identity'
-  id: string
-  status: 'active' | 'filtered' | 'missing'
-  filter?: { reason: 'principal' | 'perm' | 'scope' }
-}
-
-/**
- * Composite reason: evaluation of a composition node.
- */
-export type CompositeReason = {
-  kind: 'union' | 'intersect' | 'exclude'
-  left: Reason
-  right: Reason
-  simplified?: 'left' | 'right' | 'both'
-}
-
-/**
- * Reason tree: mirrors the expression tree with evaluation results.
- */
-export type Reason = LeafReason | CompositeReason
-
-/**
- * Full access result with structured reason tree.
- */
-export type AccessResult = {
-  granted: boolean
-  deniedBy?: 'type' | 'resource'
-  reason: Reason
-  query: string | null
-}
-
-// =============================================================================
 // RAW EXECUTOR TYPE
 // =============================================================================
 

@@ -4,8 +4,19 @@
  * Main panel for running latency profiling scenarios and viewing results.
  */
 
-import { useState } from 'react'
-import { Timer, Play, Square, Download, RefreshCw, Zap } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Timer,
+  Play,
+  Square,
+  Download,
+  RefreshCw,
+  Zap,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Loader2,
+} from 'lucide-react'
 import {
   useLatencyStore,
   selectIsGraphGenerated,
@@ -18,6 +29,7 @@ import { WaterfallChart } from './WaterfallChart'
 import { PhaseBreakdown } from './PhaseBreakdown'
 import { ScenarioComparison } from './ScenarioComparison'
 import { QueryDrilldown } from './QueryDrilldown'
+import { QueryBuilder } from './QueryBuilder'
 import { formatMicros } from '@/types/profiling'
 
 const TABS = [
@@ -29,10 +41,10 @@ const TABS = [
 ] as const
 
 const SCALE_OPTIONS: { value: SelectedScale; label: string; description: string }[] = [
-  { value: 'base', label: 'Base', description: '23 nodes, 44 edges' },
+  { value: 'base', label: 'Base', description: '~23 nodes' },
   { value: 'small', label: 'Small', description: '~10K nodes' },
-  { value: 'medium', label: 'Medium', description: '~100K nodes' },
-  { value: 'large', label: 'Large', description: '~1M nodes' },
+  { value: 'medium', label: 'Medium', description: '~40K nodes' },
+  { value: 'large', label: 'Large', description: '~100K nodes' },
 ]
 
 export function LatencyProfiler() {
@@ -48,9 +60,12 @@ export function LatencyProfiler() {
     error,
     selectedScale,
     generatingGraph,
-    generationProgress,
-    generationPhase,
+    _generationProgress,
+    _generationPhase,
     scaleMetadata,
+    scaleStatus,
+    statusLoading,
+    statusError,
     toggleScenario,
     selectAllScenarios,
     clearScenarios,
@@ -60,13 +75,21 @@ export function LatencyProfiler() {
     reset,
     setSelectedScale,
     generateGraph,
+    loadScaleStatus,
+    cleanupScale,
   } = useLatencyStore()
 
   const isGraphGenerated = useLatencyStore(selectIsGraphGenerated)
-  const scaleInfo = useLatencyStore(selectScaleInfo)
+  const _scaleInfo = useLatencyStore(selectScaleInfo)
   const availableScenarios = useLatencyStore(selectAvailableScenarios)
 
   const [showScenarios, setShowScenarios] = useState(true)
+  const [showCypher, setShowCypher] = useState(false)
+
+  // Load scale status on mount
+  useEffect(() => {
+    loadScaleStatus()
+  }, [])
 
   const handleExportJson = () => {
     if (!results.length) return
@@ -130,28 +153,93 @@ export function LatencyProfiler() {
         )}
       </div>
 
-      {/* Scale Selector */}
+      {/* Scale Status Overview */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-slate-500">Scale:</label>
-          <select
-            value={selectedScale}
-            onChange={(e) => handleScaleChange(e.target.value as SelectedScale)}
-            disabled={running || generatingGraph}
-            className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-[10px] text-slate-200 disabled:opacity-50"
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] text-slate-500">Graph Status</div>
+          <button
+            onClick={() => loadScaleStatus()}
+            disabled={statusLoading}
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded"
+            title="Refresh status"
           >
-            {SCALE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label} ({opt.description})
-              </option>
-            ))}
-          </select>
-          {scaleInfo && (
-            <span className="text-[10px] text-slate-500">
-              {scaleInfo.nodes} nodes, {scaleInfo.edges} edges
-            </span>
-          )}
+            {statusLoading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
+          </button>
         </div>
+
+        {statusError && (
+          <div className="text-[10px] text-red-400 bg-red-900/30 rounded p-1.5">{statusError}</div>
+        )}
+
+        <div className="grid grid-cols-4 gap-1">
+          {SCALE_OPTIONS.map((opt) => {
+            const status = scaleStatus[opt.value]
+            const isSelected = selectedScale === opt.value
+            return (
+              <button
+                key={opt.value}
+                onClick={() => handleScaleChange(opt.value)}
+                disabled={running || generatingGraph}
+                className={`flex flex-col items-center p-1.5 rounded text-[10px] border transition-colors ${
+                  isSelected
+                    ? 'bg-purple-900/50 border-purple-500 text-purple-200'
+                    : 'bg-slate-800 border-slate-700 hover:border-slate-500 text-slate-400'
+                } ${running || generatingGraph ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="font-medium">{opt.label}</span>
+                  {status?.exists ? (
+                    <CheckCircle className="w-2.5 h-2.5 text-emerald-400" />
+                  ) : (
+                    <XCircle className="w-2.5 h-2.5 text-slate-600" />
+                  )}
+                </div>
+                <span className="text-[8px] text-slate-500">{opt.description}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Current Scale Info */}
+        {scaleStatus[selectedScale]?.exists && (
+          <div className="bg-slate-800 rounded p-2 text-[10px]">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-slate-400">
+                {scaleStatus[selectedScale]?.graphName || 'Graph Ready'}
+              </div>
+              {selectedScale !== 'base' && (
+                <button
+                  onClick={() => cleanupScale(selectedScale as Exclude<SelectedScale, 'base'>)}
+                  disabled={running || generatingGraph || statusLoading}
+                  className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded"
+                  title="Delete this graph"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {scaleStatus[selectedScale]?.stats && (
+              <div className="grid grid-cols-2 gap-2 text-slate-500">
+                <div>
+                  <span className="text-slate-300">
+                    {scaleStatus[selectedScale].stats!.nodes.toLocaleString()}
+                  </span>{' '}
+                  nodes
+                </div>
+                <div>
+                  <span className="text-slate-300">
+                    {scaleStatus[selectedScale].stats!.edges.toLocaleString()}
+                  </span>{' '}
+                  edges
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Generate Graph Button */}
         {needsGeneration && (
@@ -162,8 +250,8 @@ export function LatencyProfiler() {
           >
             {generatingGraph ? (
               <>
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                Generating... {generationProgress}%
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Generating {selectedScale} graph...
               </>
             ) : (
               <>
@@ -174,44 +262,10 @@ export function LatencyProfiler() {
           </button>
         )}
 
-        {/* Generation Progress */}
+        {/* Generation Info */}
         {generatingGraph && (
-          <div className="space-y-1">
-            <div className="h-1 bg-slate-700 rounded overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all duration-300"
-                style={{ width: `${generationProgress}%` }}
-              />
-            </div>
-            <div className="text-[10px] text-slate-500">{generationPhase}</div>
-          </div>
-        )}
-
-        {/* Graph Metadata Summary */}
-        {scaleMetadata && selectedScale !== 'base' && isGraphGenerated && (
-          <div className="bg-slate-800 rounded p-2 text-[10px]">
-            <div className="text-slate-400 mb-1">Generated Graph: {scaleMetadata.graphName}</div>
-            <div className="grid grid-cols-4 gap-2 text-slate-500">
-              <div>
-                <span className="text-slate-300">
-                  {scaleMetadata.stats.totalNodes.toLocaleString()}
-                </span>{' '}
-                nodes
-              </div>
-              <div>
-                <span className="text-slate-300">
-                  {scaleMetadata.stats.totalEdges.toLocaleString()}
-                </span>{' '}
-                edges
-              </div>
-              <div>
-                <span className="text-slate-300">{scaleMetadata.stats.maxDepth}</span> max depth
-              </div>
-              <div>
-                <span className="text-slate-300">{scaleMetadata.stats.avgDegree.toFixed(1)}</span>{' '}
-                avg degree
-              </div>
-            </div>
+          <div className="text-[10px] text-slate-500 text-center">
+            This may take a while for larger graphs. Check console for progress.
           </div>
         )}
       </div>
@@ -300,6 +354,30 @@ export function LatencyProfiler() {
             </>
           )}
         </button>
+      )}
+
+      {/* Cypher Query Builder - Always visible when graph exists */}
+      {isGraphGenerated && (
+        <div className="space-y-2">
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setShowCypher(!showCypher)}
+          >
+            <div className="text-[10px] text-slate-500 flex items-center gap-1">
+              <span>Cypher Query</span>
+            </div>
+            <div className="text-[10px] text-slate-600">{showCypher ? '▼' : '▶'}</div>
+          </div>
+
+          {showCypher && (
+            <div className="bg-slate-800 rounded p-2">
+              <QueryBuilder
+                scale={selectedScale}
+                graphName={scaleStatus[selectedScale]?.graphName || null}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Progress */}

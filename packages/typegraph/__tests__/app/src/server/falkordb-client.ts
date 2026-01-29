@@ -174,10 +174,6 @@ class TimedIdentityEvaluator {
     })
     return result
   }
-
-  clearCompositionCache(): void {
-    this.inner.clearCompositionCache()
-  }
 }
 
 // =============================================================================
@@ -282,7 +278,11 @@ export class PlaygroundFalkorDBClient {
   private _graphName = ''
 
   get connected(): boolean {
-    return this.client !== null && this.graph !== null
+    return this.client !== null
+  }
+
+  get graphSelected(): boolean {
+    return this.graph !== null
   }
 
   get graphName(): string {
@@ -325,10 +325,72 @@ export class PlaygroundFalkorDBClient {
     }
   }
 
+  async deleteGraph(name: string): Promise<void> {
+    if (!this.client) throw new Error('Not connected')
+    try {
+      // Use GRAPH.DELETE command via the raw client
+      await (this.client as any).connection.sendCommand(['GRAPH.DELETE', name])
+      // If we deleted the current graph, clear state
+      if (this._graphName === name) {
+        this.graph = null
+        this.executor = null
+        this.identityEvaluator = null
+        this._graphName = ''
+      }
+    } catch (e) {
+      // Graph may not exist, which is fine
+      console.warn(`Failed to delete graph ${name}:`, e)
+    }
+  }
+
   async clear(): Promise<void> {
     if (!this.graph) throw new Error('No graph selected')
     await clearDatabase(this.graph)
-    this.identityEvaluator?.clearCompositionCache()
+  }
+
+  async hasData(): Promise<boolean> {
+    if (!this.executor) return false
+    try {
+      const result = await this.executor.run('MATCH (n) RETURN count(n) as c LIMIT 1')
+      const count = result[0]?.c ?? 0
+      return count > 0
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Delete old graphs matching a prefix to avoid accumulation.
+   * Uses Redis DEL command since FalkorDB graphs are Redis keys.
+   */
+  async cleanupOldGraphs(prefix: string): Promise<number> {
+    if (!this.client) return 0
+
+    try {
+      const graphs = await this.listGraphs()
+      const oldGraphs = graphs.filter((g) => g.startsWith(prefix + '-'))
+
+      console.log(`[cleanupOldGraphs] Found ${oldGraphs.length} old graphs with prefix "${prefix}"`)
+
+      for (const graphName of oldGraphs) {
+        try {
+          // Use Redis DEL to remove the graph key
+          // Access the underlying Redis client
+          const redisClient = (this.client as any)._client
+          if (redisClient?.del) {
+            await redisClient.del(graphName)
+            console.log(`[cleanupOldGraphs] Deleted: ${graphName}`)
+          }
+        } catch (e) {
+          console.warn(`[cleanupOldGraphs] Failed to delete ${graphName}:`, e)
+        }
+      }
+
+      return oldGraphs.length
+    } catch (e) {
+      console.warn('[cleanupOldGraphs] Error:', e)
+      return 0
+    }
   }
 
   async seed(): Promise<Record<string, unknown>> {
@@ -485,7 +547,6 @@ export class PlaygroundFalkorDBClient {
     // ================================================================
     // Summary
     // ================================================================
-    this.identityEvaluator?.clearCompositionCache()
     const moduleIds = modules.map(([id]) => id)
     return {
       space: 'platform',
@@ -923,7 +984,6 @@ export class PlaygroundFalkorDBClient {
       compEdges.push({ from: identIds[i1]!, to: identIds[i2]!, type: compType })
     }
 
-    this.identityEvaluator?.clearCompositionCache()
     return {
       root: 'root',
       spaces: spaceIds,
@@ -956,8 +1016,15 @@ export class PlaygroundFalkorDBClient {
 
     const config = SCALE_CONFIGS[scale]
 
+    // Clean up old graphs with same prefix before creating new one
+    await this.cleanupOldGraphs(config.graphName)
+
+    // Use a unique graph name with timestamp to avoid DELETE bug in FalkorDB
+    const graphName = `${config.graphName}-${Date.now()}`
+    console.log(`[seedScaled] Creating graph: ${graphName}`)
+
     // Select the performance graph (creates it if it doesn't exist)
-    await this.selectGraph(config.graphName)
+    await this.selectGraph(graphName)
 
     if (!this.executor) throw new Error('No executor available')
 
@@ -967,8 +1034,8 @@ export class PlaygroundFalkorDBClient {
       onProgress: options?.onProgress,
     })
 
-    // Clear any cached state
-    this.identityEvaluator?.clearCompositionCache()
+    // Update the graph name to reflect the actual name used
+    metadata.graphName = graphName
 
     return metadata
   }

@@ -13,7 +13,7 @@ import {
   type AuthzTestContext,
 } from './testing/setup'
 import { createAccessChecker } from './adapter'
-import { IdentityEvaluator } from './adapter/identity-evaluator'
+import { IdentityEvaluator, createCompositionCache } from './adapter/identity-evaluator'
 import { expectGranted, expectDeniedByResource, grantFromIds } from './testing/helpers'
 import { identity, union, intersect, grant, raw } from './expression/builder'
 
@@ -666,6 +666,275 @@ describe('AUTH_V2: Identity Composition', () => {
       // Right should be USER1 expanded to union(USER1, ROLE1)
       const right = (resolved as any).right
       expect(right.kind).toBe('union')
+    })
+  })
+
+  // ===========================================================================
+  // BATCH RESOLUTION PERFORMANCE TESTS
+  // ===========================================================================
+
+  describe('Batch Resolution', () => {
+    it('fetches entire composition graph in single query', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Create a deep composition chain: CHAIN_0 -> CHAIN_1 -> CHAIN_2 -> ... -> CHAIN_5
+      for (let i = 0; i < 6; i++) {
+        await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+          params: { id: `CHAIN_${i}` },
+        })
+        if (i > 0) {
+          await ctx.connection.graph.query(
+            `MATCH (a:Identity {id: $from}), (b:Identity {id: $to})
+             CREATE (a)-[:unionWith]->(b)`,
+            { params: { from: `CHAIN_${i - 1}`, to: `CHAIN_${i}` } },
+          )
+        }
+        // Give each node permission for tracking
+        await ctx.connection.graph.query(
+          `MATCH (i:Identity {id: $identityId}), (r:Root {id: 'root'})
+           CREATE (i)-[:hasPerm {perms: ['chain']}]->(r)`,
+          { params: { identityId: `CHAIN_${i}` } },
+        )
+      }
+
+      // Fetch all at once
+      const compositions = await evaluator.batchFetchCompositions(['CHAIN_0'])
+
+      // Should have all 6 identities
+      expect(compositions.size).toBe(6)
+      for (let i = 0; i < 6; i++) {
+        expect(compositions.has(`CHAIN_${i}`)).toBe(true)
+      }
+    })
+
+    it('handles diamond patterns with batch fetch', async () => {
+      // Diamond: TOP -> [LEFT, RIGHT] -> BOTTOM
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_TOP' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_LEFT' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_RIGHT' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'DIAMOND_BOTTOM' },
+      })
+
+      // TOP -> LEFT, TOP -> RIGHT
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_TOP'}), (b:Identity {id: 'DIAMOND_LEFT'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_TOP'}), (b:Identity {id: 'DIAMOND_RIGHT'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+      // LEFT -> BOTTOM, RIGHT -> BOTTOM
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_LEFT'}), (b:Identity {id: 'DIAMOND_BOTTOM'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'DIAMOND_RIGHT'}), (b:Identity {id: 'DIAMOND_BOTTOM'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+      const compositions = await evaluator.batchFetchCompositions(['DIAMOND_TOP'])
+
+      // Should have all 4 nodes exactly once (DISTINCT handles diamond)
+      expect(compositions.size).toBe(4)
+      expect(compositions.has('DIAMOND_TOP')).toBe(true)
+      expect(compositions.has('DIAMOND_LEFT')).toBe(true)
+      expect(compositions.has('DIAMOND_RIGHT')).toBe(true)
+      expect(compositions.has('DIAMOND_BOTTOM')).toBe(true)
+    })
+
+    it('detects cycles in batched mode', async () => {
+      // Create cycle: CYCLE_A -> CYCLE_B -> CYCLE_A
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'CYCLE_A' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'CYCLE_B' },
+      })
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'CYCLE_A'}), (b:Identity {id: 'CYCLE_B'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'CYCLE_B'}), (b:Identity {id: 'CYCLE_A'})
+         CREATE (a)-[:unionWith]->(b)`,
+      )
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // evalExpr should detect the cycle during tree building
+      await expect(evaluator.evalExpr(identity('CYCLE_A'))).rejects.toThrow(/Cycle detected/)
+    })
+
+    it('reuses cache within request scope', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Track fetch calls
+      let fetchCount = 0
+      const originalBatch = evaluator.batchFetchCompositions.bind(evaluator)
+      evaluator.batchFetchCompositions = async (...args) => {
+        fetchCount++
+        return originalBatch(...args)
+      }
+
+      // Create request-scoped cache
+      const cache = createCompositionCache()
+
+      // First call - should fetch from DB
+      await evaluator.evalExpr(identity('USER1'), { cache })
+      expect(fetchCount).toBe(1)
+
+      // Second call with same cache - should NOT fetch again
+      await evaluator.evalExpr(identity('USER1'), { cache })
+      expect(fetchCount).toBe(1)
+
+      // Call without cache (fresh) - should fetch again
+      await evaluator.evalExpr(identity('USER1'))
+      expect(fetchCount).toBe(2)
+
+      // New cache - should fetch again
+      const newCache = createCompositionCache()
+      await evaluator.evalExpr(identity('USER1'), { cache: newCache })
+      expect(fetchCount).toBe(3)
+    })
+
+    it('respects maxDepth limit', async () => {
+      // Create chain deeper than maxDepth=2
+      for (let i = 0; i < 5; i++) {
+        await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+          params: { id: `DEEP_${i}` },
+        })
+        if (i > 0) {
+          await ctx.connection.graph.query(
+            `MATCH (a:Identity {id: $from}), (b:Identity {id: $to})
+             CREATE (a)-[:unionWith]->(b)`,
+            { params: { from: `DEEP_${i - 1}`, to: `DEEP_${i}` } },
+          )
+        }
+      }
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // With maxDepth=2, should only get 3 nodes (0, 1, 2)
+      const compositions = await evaluator.batchFetchCompositions(['DEEP_0'], 2)
+
+      // Should have exactly 3 nodes
+      expect(compositions.size).toBe(3)
+      expect(compositions.has('DEEP_0')).toBe(true)
+      expect(compositions.has('DEEP_1')).toBe(true)
+      expect(compositions.has('DEEP_2')).toBe(true)
+      expect(compositions.has('DEEP_3')).toBe(false)
+    })
+
+    it('handles missing identity in composition', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Try to resolve non-existent identity
+      await expect(evaluator.evalExpr(identity('NONEXISTENT_IDENTITY'))).rejects.toThrow(
+        /Identity not found/,
+      )
+    })
+
+    it('rejects exclude-only identities', async () => {
+      // Create exclude-only identity (no base set)
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_ONLY' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'EXCLUDE_TARGET' },
+      })
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'})
+         CREATE (a)-[:excludeWith]->(b)`,
+      )
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      await expect(evaluator.evalExpr(identity('EXCLUDE_ONLY'))).rejects.toThrow(
+        /exclude composition edges with no base set/,
+      )
+    })
+
+    it('throws immediately on exclude without base set', async () => {
+      // Create identity with union then exclude, but union points to exclude-only
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'TRICKY_BASE' },
+      })
+      await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+        params: { id: 'TRICKY_EXCLUDE' },
+      })
+      // TRICKY_BASE has only excludeWith (no base)
+      await ctx.connection.graph.query(
+        `MATCH (a:Identity {id: 'TRICKY_BASE'}), (b:Identity {id: 'TRICKY_EXCLUDE'})
+         CREATE (a)-[:excludeWith]->(b)`,
+      )
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      await expect(evaluator.evalExpr(identity('TRICKY_BASE'))).rejects.toThrow(/base set/)
+    })
+
+    it('produces consistent results across calls', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Multiple calls should produce identical results
+      const result1 = await evaluator.evalExpr(identity('USER1'))
+      const result2 = await evaluator.evalExpr(identity('USER1'))
+      const result3 = await evaluator.evalIdentity('USER1') // deprecated but should work
+
+      // All should be structurally identical
+      expect(JSON.stringify(result1)).toBe(JSON.stringify(result2))
+      expect(JSON.stringify(result1)).toBe(JSON.stringify(result3))
+
+      // Verify expected structure: USER1 unionWith ROLE1
+      expect(result1.kind).toBe('union')
+    })
+
+    it('handles multiple roots efficiently', async () => {
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      // Fetch multiple roots at once (simulating forType + forResource)
+      const compositions = await evaluator.batchFetchCompositions(['APP1', 'USER1'])
+
+      // Should have APP1, USER1, and ROLE1 (transitively from USER1)
+      expect(compositions.has('APP1')).toBe(true)
+      expect(compositions.has('USER1')).toBe(true)
+      expect(compositions.has('ROLE1')).toBe(true)
+    })
+
+    it('resolves 10-node composition graph efficiently', async () => {
+      // Create a 10-node chain
+      for (let i = 0; i < 10; i++) {
+        await ctx.connection.graph.query('CREATE (i:Node:Identity {id: $id})', {
+          params: { id: `PERF_${i}` },
+        })
+        if (i > 0) {
+          await ctx.connection.graph.query(
+            `MATCH (a:Identity {id: $from}), (b:Identity {id: $to})
+             CREATE (a)-[:unionWith]->(b)`,
+            { params: { from: `PERF_${i - 1}`, to: `PERF_${i}` } },
+          )
+        }
+      }
+
+      const evaluator = new IdentityEvaluator(ctx.executor)
+
+      const start = performance.now()
+      await evaluator.evalExpr(identity('PERF_0'))
+      const elapsed = performance.now() - start
+
+      // Should complete in reasonable time (well under 1 second, typically <50ms)
+      // Note: This is a rough check - actual perf depends on DB connection
+      expect(elapsed).toBeLessThan(1000)
     })
   })
 })
