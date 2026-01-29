@@ -235,13 +235,14 @@ function emptyMetrics(): TraceMetrics {
     overall: emptyStats,
     byPhase: {
       trust: emptyStats,
+      decode: emptyStats,
       resolve: emptyStats,
       decide: emptyStats,
       query: emptyStats,
     },
     byMethod: {},
     cache: { hits: 0, misses: 0, hitRate: 0 },
-    phaseDistribution: { trust: 0, resolve: 0, decide: 0, query: 0 },
+    phaseDistribution: { trust: 0, decode: 0, resolve: 0, decide: 0, query: 0 },
   }
 }
 

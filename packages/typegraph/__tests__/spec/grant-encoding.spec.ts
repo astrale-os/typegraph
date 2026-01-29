@@ -22,13 +22,7 @@ import {
   validateUnresolvedGrant,
   type JwtVerifier,
 } from '../integration/authz-v2/grant-encoding'
-import type {
-  Grant,
-  IdentityExpr,
-  Scope,
-  UnresolvedGrant,
-  UnresolvedIdentityExpr,
-} from '../integration/authz-v2/types'
+import type { Grant, IdentityExpr, Scope, UnresolvedGrant } from '../integration/authz-v2/types'
 
 // =============================================================================
 // MOCK JWT VERIFIER

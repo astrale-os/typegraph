@@ -4,10 +4,9 @@
  * Generates interactive HTML reports with Chart.js visualizations.
  */
 
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { dirname } from 'node:path'
 import type { LatencyReport } from './json-exporter'
-import type { ScenarioResult } from '../scenarios'
 import type { Trace, TraceMetrics, Phase } from '../profiling'
 import { formatMicros } from '../profiling'
 

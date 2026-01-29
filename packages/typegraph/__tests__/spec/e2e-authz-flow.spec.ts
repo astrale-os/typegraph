@@ -21,7 +21,6 @@ import {
   unresolvedId,
   unresolvedJwt,
   unresolvedUnion,
-  unresolvedExclude,
 } from '../integration/authz-v2/grant-encoding'
 import { AccessChecker } from '../integration/authz-v2/access-checker'
 import {
@@ -30,7 +29,7 @@ import {
   type AuthzTestContext,
 } from '../integration/authz-v2/setup'
 import { identity, union, grant } from '../integration/authz-v2/helpers'
-import type { Scope, UnresolvedIdentityExpr } from '../integration/authz-v2/types'
+import type { UnresolvedIdentityExpr } from '../integration/authz-v2/types'
 
 // =============================================================================
 // TEST SETUP
@@ -388,26 +387,10 @@ describe('E2E: JWT Delegation Flow', () => {
 describe('E2E: Integration with AccessChecker', () => {
   let ctx: AuthzTestContext
   let checker: AccessChecker
-  let kernel: KernelService
 
   beforeEach(async () => {
     ctx = await setupAuthzTest()
     checker = new AccessChecker(ctx.executor)
-
-    // Setup kernel with identities from test data
-    const registry = new IdentityRegistry()
-    const keyStore = new IssuerKeyStore()
-
-    keyStore.registerIssuer(KERNEL_ISSUER, 'kernel-key')
-    keyStore.registerIssuer('workos.test', 'workos-key')
-    keyStore.registerIssuer('APP1', 'app1-key')
-
-    // Map IdP identities to test data IDs
-    registry.register('workos.test', 'user-1', ctx.data.identities.user1)
-    registry.register('workos.test', 'role-1', ctx.data.identities.role1)
-    registry.register('APP1', 'APP1', ctx.data.identities.app1)
-
-    kernel = new KernelService(registry, keyStore)
   })
 
   afterEach(async () => {
@@ -419,12 +402,12 @@ describe('E2E: Integration with AccessChecker', () => {
     const authGrant = grant(identity(ctx.data.identities.app1), identity(ctx.data.identities.user1))
 
     // Check access on M1
-    const result = await checker.checkAccess(
-      authGrant,
-      ctx.data.modules.m1,
-      'read',
-      ctx.data.identities.app1,
-    )
+    const result = await checker.checkAccess({
+      principal: ctx.data.identities.app1,
+      grant: authGrant,
+      nodeId: ctx.data.modules.m1,
+      perm: 'read',
+    })
 
     expect(result.granted).toBe(true)
   })
@@ -438,28 +421,33 @@ describe('E2E: Integration with AccessChecker', () => {
     )
 
     // M1 is in workspace-1
-    const m1Result = await checker.checkAccess(
-      authGrant,
-      ctx.data.modules.m1,
-      'edit',
-      ctx.data.identities.app1,
-    )
+    const m1Result = await checker.checkAccess({
+      principal: ctx.data.identities.app1,
+      grant: authGrant,
+      nodeId: ctx.data.modules.m1,
+      perm: 'edit',
+    })
     expect(m1Result.granted).toBe(true)
 
     // M3 is in workspace-2
-    const m3Result = await checker.checkAccess(
-      authGrant,
-      ctx.data.modules.m3,
-      'edit',
-      ctx.data.identities.app1,
-    )
+    const m3Result = await checker.checkAccess({
+      principal: ctx.data.identities.app1,
+      grant: authGrant,
+      nodeId: ctx.data.modules.m3,
+      perm: 'edit',
+    })
     expect(m3Result.granted).toBe(true)
   })
 
   it('denied when app lacks type permission', async () => {
     const authGrant = grant(identity('UNKNOWN_APP'), identity(ctx.data.identities.user1))
 
-    const result = await checker.checkAccess(authGrant, ctx.data.modules.m1, 'read', 'UNKNOWN_APP')
+    const result = await checker.checkAccess({
+      principal: 'UNKNOWN_APP',
+      grant: authGrant,
+      nodeId: ctx.data.modules.m1,
+      perm: 'read',
+    })
 
     expect(result.granted).toBe(false)
     expect(result.deniedBy).toBe('type')
@@ -468,12 +456,12 @@ describe('E2E: Integration with AccessChecker', () => {
   it('denied when user lacks resource permission', async () => {
     const authGrant = grant(identity(ctx.data.identities.app1), identity('UNKNOWN_USER'))
 
-    const result = await checker.checkAccess(
-      authGrant,
-      ctx.data.modules.m1,
-      'read',
-      ctx.data.identities.app1,
-    )
+    const result = await checker.checkAccess({
+      principal: ctx.data.identities.app1,
+      grant: authGrant,
+      nodeId: ctx.data.modules.m1,
+      perm: 'read',
+    })
 
     expect(result.granted).toBe(false)
     expect(result.deniedBy).toBe('resource')

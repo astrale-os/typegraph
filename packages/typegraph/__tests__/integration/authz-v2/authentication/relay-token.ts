@@ -20,7 +20,7 @@ import {
   type ExpressionEncoding,
   type PayloadCodec,
   getCodec,
-  jsonCodec,
+  jsonCodec as _jsonCodec,
 } from '../expression/codec'
 
 // =============================================================================

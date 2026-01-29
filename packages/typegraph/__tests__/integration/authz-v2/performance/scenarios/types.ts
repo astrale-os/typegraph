@@ -114,7 +114,7 @@ export const DEFAULT_RUNNER_OPTIONS: ScenarioRunnerOptions = {
     checkAccess: { mean: 5000, p95: 10000, p99: 20000 },
     directPermission: { mean: 2000, p95: 5000 },
     hierarchicalDeep: { mean: 8000, p95: 15000 },
-    phases: { trust: 10, resolve: 20, decide: 70 },
+    phases: { trust: 10, decode: 5, resolve: 20, decide: 70 },
     cache: { minHitRate: 80 },
   },
 }

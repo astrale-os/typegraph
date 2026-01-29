@@ -164,7 +164,7 @@ export class IdentityEvaluator {
    * @deprecated Use evalExpr for better performance (batch fetching).
    * This method makes O(N) sequential queries where N = graph size.
    */
-  async evalIdentity(id: string, visited: Set<string> = new Set()): Promise<IdentityExpr> {
+  async evalIdentity(id: string, _visited: Set<string> = new Set()): Promise<IdentityExpr> {
     // Use evalExpr with a fresh cache - simpler and consistent behavior
     return this.evalExpr({ kind: 'identity', id })
   }

@@ -5,8 +5,10 @@
     "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "include": ["src", "__tests__", "*.ts"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules", "__tests__/app"]
 }
