@@ -34,7 +34,7 @@ export async function resolveExpression(
     case 'identity':
       if ('jwt' in expr) {
         // Verify JWT and extract identity
-        const verified = await verifier.verify(expr.jwt)
+        const verified = await verifier.verifyToken(expr.jwt)
         return expr.scopes
           ? { kind: 'identity', id: verified.sub, scopes: expr.scopes }
           : { kind: 'identity', id: verified.sub }

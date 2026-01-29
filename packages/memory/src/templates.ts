@@ -77,6 +77,10 @@ class InMemoryEdgeTemplates implements EdgeTemplateProvider {
     return cmd('updateEdge', undefined, edgeType)
   }
 
+  updateById(edgeType: string): string {
+    return cmd('updateEdge', undefined, edgeType, { byId: true })
+  }
+
   deleteByEndpoints(edgeType: string): string {
     return cmd('deleteEdge', undefined, edgeType, { byEndpoints: true })
   }

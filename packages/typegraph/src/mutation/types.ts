@@ -253,6 +253,13 @@ export interface GraphMutations<S extends AnySchema> {
   /** Delete an edge by ID */
   unlinkById<E extends EdgeTypes<S>>(edge: E, edgeId: string): Promise<DeleteResult>
 
+  /** Update edge properties by edge ID (partial update) */
+  patchLinkById<E extends EdgeTypes<S>>(
+    edge: E,
+    edgeId: string,
+    data: Partial<EdgeInput<S, E>>,
+  ): Promise<EdgeResult<S, E>>
+
   // ---------------------------------------------------------------------------
   // HIERARCHY OPERATIONS
   // ---------------------------------------------------------------------------
@@ -318,7 +325,7 @@ export interface GraphMutations<S extends AnySchema> {
     label: N,
     ids: string[],
     options?: DeleteOptions,
-  ): Promise<DeleteResult>
+  ): Promise<BatchDeleteResult>
 
   /** Create multiple edges of the same type */
   linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E>[]): Promise<EdgeResult<S, E>[]>

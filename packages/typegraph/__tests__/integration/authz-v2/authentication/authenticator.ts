@@ -9,7 +9,7 @@
 import type { Grant, IdentityId } from '../types'
 import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
-import { type GrantResolver, validateGrantSecurity } from './grant-resolver'
+import { type GrantResolver, validateGrant } from './grant-resolver'
 
 // =============================================================================
 // AUTH CONTEXT
@@ -41,19 +41,19 @@ export async function authenticate(
   resolver: GrantResolver,
 ): Promise<AuthContext> {
   // 1. Verify JWT
-  const { payload } = verifier.verify(token)
+  const { payload } = verifier.verifyToken(token)
 
   // 2. Resolve principal from (iss, sub)
-  const principal = registry.resolveOrThrow(payload.iss, payload.sub)
+  const principal = registry.resolveIdentity(payload.iss, payload.sub)
 
   // 3. SECURITY SHORT-CIRCUIT
   // TODO: review if truly needed to short-circuit (it's already verified downstream)
   // External apps can ONLY embed kernel-signed tokens
   if (payload.iss !== KERNEL_ISSUER && payload.grant) {
-    validateGrantSecurity(payload.iss, payload.grant, verifier)
+    validateGrant(payload.iss, payload.grant, verifier)
   }
 
-  // 4. Determine origin
+  // 4. Determine originyeah y
   const origin: AuthContext['origin'] = payload.iss === KERNEL_ISSUER ? 'system' : 'backend'
 
   // 5. Resolve grant

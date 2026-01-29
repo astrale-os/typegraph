@@ -32,7 +32,7 @@ export interface VerifiedJwt {
  * Kernel implements this to verify tokens.
  */
 export interface JwtVerifier {
-  verify(jwt: string): Promise<VerifiedJwt>
+  verifyToken(jwt: string): Promise<VerifiedJwt>
 }
 
 // =============================================================================

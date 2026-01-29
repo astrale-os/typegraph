@@ -51,7 +51,7 @@ export class TokenVerifier {
    * 4. Check expiration
    * 5. Check audience
    */
-  verify(token: string): VerificationResult {
+  verifyToken(token: string): VerificationResult {
     // 1. Decode
     const payload = this.decodeToken(token)
 
@@ -82,7 +82,7 @@ export class TokenVerifier {
    * Verify that a token is kernel-issued.
    */
   verifyKernelIssued(token: string): VerificationResult {
-    const result = this.verify(token)
+    const result = this.verifyToken(token)
     if (result.payload.iss !== KERNEL_ISSUER) {
       throw new Error(`Token must be kernel-issued, got issuer: ${result.payload.iss}`)
     }

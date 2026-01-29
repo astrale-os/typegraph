@@ -152,7 +152,7 @@ export async function handleKernelCheckAccess(body: Record<string, unknown>): Pr
     perm,
   }
 
-  const result =
+  const { result } =
     mode === 'explain'
       ? await playgroundClient.explainAccess(params)
       : await playgroundClient.checkAccess(params)

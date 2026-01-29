@@ -208,6 +208,22 @@ describe('Mutation Specification', () => {
         expect(expectedQuery).toContain('r:authored {id: $edgeId}')
       })
     })
+
+    describe('patchLinkById()', () => {
+      it('generates UPDATE edge query by edge ID', () => {
+        // graph.mutate.patchLinkById('authored', 'edge_123', { role: 'editor' })
+        const expectedQuery = `
+          MATCH (a)-[r:authored {id: $edgeId}]->(b)
+          SET r += $props
+          RETURN r, a.id as fromId, b.id as toId
+        `.trim()
+
+        expect(expectedQuery).toContain('r:authored {id: $edgeId}')
+        expect(expectedQuery).toContain('SET r += $props')
+        expect(expectedQuery).toContain('a.id as fromId')
+        expect(expectedQuery).toContain('b.id as toId')
+      })
+    })
   })
 
   // ===========================================================================

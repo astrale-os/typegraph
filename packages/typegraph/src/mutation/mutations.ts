@@ -407,6 +407,37 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     }
   }
 
+  async patchLinkById<E extends EdgeTypes<S>>(
+    edge: E,
+    edgeId: string,
+    data: Partial<EdgeInput<S, E>>,
+  ): Promise<EdgeResult<S, E>> {
+    const safeEdge = this.sanitize(edge as string)
+
+    const query = this.templates.edge.updateById(safeEdge)
+    const params = this.buildParams({
+      edgeId,
+      props: data,
+    })
+
+    const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
+      query,
+      params,
+    )
+    const result = results[0]
+
+    if (!result) {
+      throw new Error(`Edge not found: ${edge} with id ${edgeId}`)
+    }
+
+    return {
+      id: edgeId,
+      from: result.fromId,
+      to: result.toId,
+      data: result.r,
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // HIERARCHY OPERATIONS
   // ---------------------------------------------------------------------------
@@ -758,7 +789,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     label: N,
     ids: string[],
     _options?: DeleteOptions,
-  ): Promise<DeleteResult> {
+  ): Promise<BatchDeleteResult> {
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
     const safeLabels = labels.map((l) => this.sanitize(l))
@@ -767,8 +798,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const results = await this.executor.run<{ deletedCount: number }>(query, { ids })
 
     return {
-      deleted: (results[0]?.deletedCount ?? 0) > 0,
-      id: ids.join(','),
+      deleted: results[0]?.deletedCount ?? 0,
     }
   }
 

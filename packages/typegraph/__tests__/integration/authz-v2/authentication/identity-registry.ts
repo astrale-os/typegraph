@@ -32,9 +32,9 @@ export class IdentityRegistry {
   }
 
   /**
-   * Resolve or throw if not found.
+   * Resolve identity from (iss, sub) or throw if not found.
    */
-  resolveOrThrow(iss: string, sub: string): IdentityId {
+  resolveIdentity(iss: string, sub: string): IdentityId {
     const id = this.resolve(iss, sub)
     if (!id) {
       throw new Error(`Unknown identity: ${iss}::${sub}`)

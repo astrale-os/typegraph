@@ -15,7 +15,7 @@ export interface AccessQueryPort {
     perm: PermissionT,
     principal: IdentityId | undefined,
   ): CypherFragment | null
-  executeCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean>
+  executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean>
   executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean>
   getTargetType(resourceId: NodeId): Promise<NodeId | null>
   queryLeafDetails(leaves: LeafEvaluation[], resourceId: NodeId, perm: PermissionT): Promise<void>

@@ -98,6 +98,13 @@ const edgeTemplates: EdgeTemplateProvider = {
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
 
+  updateById: (edgeType: string) =>
+    `
+    MATCH (a)-[r:${edgeType} {id: $edgeId}]->(b)
+    SET r += $props
+    RETURN r, a.id as fromId, b.id as toId
+  `.trim(),
+
   deleteByEndpoints: (edgeType: string) =>
     `
     MATCH (a {id: $fromId})-[r:${edgeType}]->(b {id: $toId})

@@ -42,6 +42,7 @@ export interface EdgeTemplateProvider {
   create(edgeType: string): string
   createNoProps(edgeType: string): string
   update(edgeType: string): string
+  updateById(edgeType: string): string
   deleteByEndpoints(edgeType: string): string
   deleteById(edgeType: string): string
   exists(edgeType: string): string

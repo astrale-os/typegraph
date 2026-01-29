@@ -11,15 +11,268 @@ import {
 } from '../../../integration/authz-v2/adapter/identity-evaluator'
 import { checkAccess } from '../../../integration/authz-v2/authorization/checker'
 import { explainAccess } from '../../../integration/authz-v2/authorization/explainer'
+import type { AccessQueryPort } from '../../../integration/authz-v2/authorization/access-query-port'
 import type {
   RawExecutor,
   Grant,
   NodeId,
   PermissionT,
   IdentityId,
+  IdentityExpr,
+  LeafEvaluation,
   AccessDecision,
   AccessExplanation,
+  UnresolvedGrant,
 } from '../../../integration/authz-v2/types'
+import type { CypherFragment } from '../../../integration/authz-v2/adapter/cypher'
+import type { MethodTiming, PerformanceProfile } from '../types/api'
+import {
+  TokenVerifier,
+  KERNEL_ISSUER,
+  type TokenPayload,
+} from '../../../integration/authz-v2/authentication/token-verifier'
+import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
+import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
+import {
+  GrantResolver,
+  validateGrant,
+  type ResolvedGrant,
+} from '../../../integration/authz-v2/authentication/grant-resolver'
+import {
+  type Scale,
+  type GraphMetadata,
+  type ProgressCallback,
+  SCALE_CONFIGS,
+  generateScaledGraph,
+} from '../performance'
+
+// =============================================================================
+// TIMED WRAPPERS FOR E2E FLOW
+// =============================================================================
+
+/**
+ * Timed TokenVerifier - instruments TRUST phase (verifyToken)
+ */
+class TimedTokenVerifier {
+  readonly calls: MethodTiming[] = []
+
+  constructor(private inner: TokenVerifier) {}
+
+  verifyToken(token: string): { payload: TokenPayload } {
+    const startMs = performance.now()
+    const result = this.inner.verifyToken(token)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'verifyToken',
+      phase: 'trust',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      metadata: { iss: result.payload.iss, sub: result.payload.sub },
+    })
+    return result
+  }
+
+  verifyKernelIssued(token: string): { payload: TokenPayload } {
+    const startMs = performance.now()
+    const result = this.inner.verifyKernelIssued(token)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'verifyKernelIssued',
+      phase: 'trust',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+    })
+    return result
+  }
+
+  decodeToken(token: string): TokenPayload {
+    return this.inner.decodeToken(token)
+  }
+}
+
+/**
+ * Timed IdentityRegistry - instruments TRUST phase (resolveIdentity)
+ */
+class TimedIdentityRegistry {
+  readonly calls: MethodTiming[] = []
+
+  constructor(private inner: IdentityRegistry) {}
+
+  resolveIdentity(iss: string, sub: string): IdentityId {
+    const startMs = performance.now()
+    const result = this.inner.resolveIdentity(iss, sub)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'resolveIdentity',
+      phase: 'trust',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      metadata: { iss, sub, resolved: result },
+    })
+    return result
+  }
+
+  resolve(iss: string, sub: string): IdentityId | undefined {
+    return this.inner.resolve(iss, sub)
+  }
+
+  register(iss: string, sub: string, identityId: IdentityId): void {
+    this.inner.register(iss, sub, identityId)
+  }
+}
+
+/**
+ * Timed GrantResolver - instruments RESOLVE phase
+ */
+class TimedGrantResolver {
+  readonly calls: MethodTiming[] = []
+
+  constructor(private inner: GrantResolver) {}
+
+  async resolveGrant(
+    grant: UnresolvedGrant | undefined,
+    principal: IdentityId,
+  ): Promise<ResolvedGrant> {
+    const startMs = performance.now()
+    const result = await this.inner.resolveGrant(grant, principal)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'resolveGrant',
+      phase: 'resolve',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      metadata: { principal, hasGrant: !!grant },
+    })
+    return result
+  }
+}
+
+// =============================================================================
+// TIMED IDENTITY EVALUATOR
+// =============================================================================
+
+class TimedIdentityEvaluator {
+  readonly calls: MethodTiming[] = []
+
+  constructor(private inner: IdentityEvaluator) {}
+
+  async evalExpr(expr: IdentityExpr): Promise<IdentityExpr> {
+    const startMs = performance.now()
+    const result = await this.inner.evalExpr(expr)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'evalExpr',
+      phase: 'resolve',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      metadata: { inputKind: expr.kind },
+    })
+    return result
+  }
+
+  clearCompositionCache(): void {
+    this.inner.clearCompositionCache()
+  }
+}
+
+// =============================================================================
+// TIMED ACCESS QUERY ADAPTER
+// =============================================================================
+
+class TimedAccessQueryAdapter implements AccessQueryPort {
+  readonly calls: MethodTiming[] = []
+
+  constructor(private inner: FalkorDBAccessQueryAdapter) {}
+
+  generateQuery(
+    expr: IdentityExpr,
+    targetVar: string,
+    perm: PermissionT,
+    principal: IdentityId | undefined,
+  ): CypherFragment | null {
+    const startMs = performance.now()
+    const result = this.inner.generateQuery(expr, targetVar, perm, principal)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'generateQuery',
+      phase: 'decide',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+    })
+    return result
+  }
+
+  async executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
+    const startMs = performance.now()
+    const result = await this.inner.executeResourceCheck(fragment, resourceId)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'executeResourceCheck',
+      phase: 'query',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      query: { cypher: fragment.condition, params: fragment.params },
+    })
+    return result
+  }
+
+  async executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean> {
+    const startMs = performance.now()
+    const result = await this.inner.executeTypeCheck(fragment, typeId)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'executeTypeCheck',
+      phase: 'query',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+      query: { cypher: fragment.condition, params: fragment.params },
+    })
+    return result
+  }
+
+  async getTargetType(resourceId: NodeId): Promise<NodeId | null> {
+    const startMs = performance.now()
+    const result = await this.inner.getTargetType(resourceId)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'getTargetType',
+      phase: 'query',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+    })
+    return result
+  }
+
+  async queryLeafDetails(
+    leaves: LeafEvaluation[],
+    resourceId: NodeId,
+    perm: PermissionT,
+  ): Promise<void> {
+    const startMs = performance.now()
+    await this.inner.queryLeafDetails(leaves, resourceId, perm)
+    const endMs = performance.now()
+    this.calls.push({
+      method: 'queryLeafDetails',
+      phase: 'query',
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
+    })
+  }
+
+  clearCache(): void {
+    this.inner.clearCache()
+  }
+}
 
 export class PlaygroundFalkorDBClient {
   private client: FalkorDB | null = null
@@ -303,11 +556,13 @@ export class PlaygroundFalkorDBClient {
     }))
   }
 
-  private async resolveGrant(grant: Grant): Promise<Grant> {
-    if (!this.identityEvaluator) return grant
+  private async resolveGrantTimed(
+    grant: Grant,
+    timedEvaluator: TimedIdentityEvaluator,
+  ): Promise<Grant> {
     const [forType, forResource] = await Promise.all([
-      this.identityEvaluator.evalExpr(grant.forType),
-      this.identityEvaluator.evalExpr(grant.forResource),
+      timedEvaluator.evalExpr(grant.forType),
+      timedEvaluator.evalExpr(grant.forResource),
     ])
     return { forType, forResource }
   }
@@ -317,11 +572,38 @@ export class PlaygroundFalkorDBClient {
     grant: Grant
     nodeId: NodeId
     perm: PermissionT
-  }): Promise<AccessDecision> {
+  }): Promise<{ result: AccessDecision; profile: PerformanceProfile }> {
     if (!this.executor) throw new Error('No graph selected')
-    const resolvedGrant = await this.resolveGrant(params.grant)
-    const queryPort = new FalkorDBAccessQueryAdapter(this.executor)
-    return checkAccess({ ...params, grant: resolvedGrant }, queryPort)
+    if (!this.identityEvaluator) throw new Error('No graph selected')
+
+    const t0 = performance.now()
+
+    // Create timed wrappers
+    const timedEvaluator = new TimedIdentityEvaluator(this.identityEvaluator)
+    const inner = new FalkorDBAccessQueryAdapter(this.executor)
+    const timedQuery = new TimedAccessQueryAdapter(inner)
+
+    // RESOLVE phase: evaluate grant expressions
+    const resolvedGrant = await this.resolveGrantTimed(params.grant, timedEvaluator)
+    const resolveGrantMs = performance.now() - t0
+
+    // DECIDE + QUERY phases: check access
+    const t1 = performance.now()
+    const result = await checkAccess({ ...params, grant: resolvedGrant }, timedQuery)
+    const authCheckMs = performance.now() - t1
+
+    // Combine all calls with proper timestamps
+    const allCalls = [...timedEvaluator.calls, ...timedQuery.calls]
+
+    return {
+      result,
+      profile: {
+        totalMs: performance.now() - t0,
+        resolveGrantMs,
+        authCheckMs,
+        calls: allCalls,
+      },
+    }
   }
 
   async explainAccess(params: {
@@ -329,11 +611,204 @@ export class PlaygroundFalkorDBClient {
     grant: Grant
     nodeId: NodeId
     perm: PermissionT
-  }): Promise<AccessExplanation> {
+  }): Promise<{ result: AccessExplanation; profile: PerformanceProfile }> {
     if (!this.executor) throw new Error('No graph selected')
-    const resolvedGrant = await this.resolveGrant(params.grant)
-    const queryPort = new FalkorDBAccessQueryAdapter(this.executor)
-    return explainAccess({ ...params, grant: resolvedGrant }, queryPort)
+    if (!this.identityEvaluator) throw new Error('No graph selected')
+
+    const t0 = performance.now()
+
+    // Create timed wrappers
+    const timedEvaluator = new TimedIdentityEvaluator(this.identityEvaluator)
+    const inner = new FalkorDBAccessQueryAdapter(this.executor)
+    const timedQuery = new TimedAccessQueryAdapter(inner)
+
+    // RESOLVE phase
+    const resolvedGrant = await this.resolveGrantTimed(params.grant, timedEvaluator)
+    const resolveGrantMs = performance.now() - t0
+
+    // DECIDE + QUERY phases
+    const t1 = performance.now()
+    const result = await explainAccess({ ...params, grant: resolvedGrant }, timedQuery)
+    const authCheckMs = performance.now() - t1
+
+    // Combine all calls
+    const allCalls = [...timedEvaluator.calls, ...timedQuery.calls]
+
+    return {
+      result,
+      profile: {
+        totalMs: performance.now() - t0,
+        resolveGrantMs,
+        authCheckMs,
+        calls: allCalls,
+      },
+    }
+  }
+
+  /**
+   * End-to-end access check starting from authentication.
+   *
+   * This is the full flow:
+   * 1. TRUST phase: Verify JWT, resolve principal
+   * 2. RESOLVE phase: Resolve grant expressions
+   * 3. DECIDE phase: Generate Cypher queries
+   * 4. QUERY phase: Execute queries against FalkorDB
+   *
+   * @param params.appId - The app identity (e.g., 'APP-gateway')
+   * @param params.grant - The grant with forType and forResource expressions
+   * @param params.nodeId - The resource to check access to
+   * @param params.perm - The permission to check
+   */
+  async checkAccessE2E(params: {
+    appId: IdentityId
+    grant: {
+      forType: IdentityExpr
+      forResource: IdentityExpr
+    }
+    nodeId: NodeId
+    perm: PermissionT
+  }): Promise<{ result: AccessDecision; profile: PerformanceProfile }> {
+    if (!this.executor) throw new Error('No graph selected')
+
+    const t0 = performance.now()
+    const allCalls: MethodTiming[] = []
+
+    // =========================================================================
+    // 1. SET UP AUTHENTICATION INFRASTRUCTURE
+    // =========================================================================
+    const keyStore = new IssuerKeyStore()
+    const registry = new IdentityRegistry()
+
+    // Register kernel as trusted issuer
+    keyStore.registerIssuer(KERNEL_ISSUER, 'kernel-key')
+
+    // Register the app as trusted issuer (apps self-sign their JWTs)
+    keyStore.registerIssuer(params.appId, 'app-key')
+
+    // Register app identity: when app self-signs, (appId, appId) → appId
+    registry.register(params.appId, params.appId, params.appId)
+
+    // Create timed wrappers for TRUST phase
+    const verifier = new TokenVerifier(keyStore)
+    const timedVerifier = new TimedTokenVerifier(verifier)
+    const timedRegistry = new TimedIdentityRegistry(registry)
+
+    // Create resolver for RESOLVE phase
+    const resolver = new GrantResolver(verifier, registry)
+    const timedResolver = new TimedGrantResolver(resolver)
+
+    // =========================================================================
+    // 2. CREATE APP JWT WITH USER GRANT
+    // =========================================================================
+    // App creates a JWT with the grant expressions embedded
+    const now = Math.floor(Date.now() / 1000)
+    const payload: TokenPayload = {
+      iss: params.appId,
+      sub: params.appId,
+      aud: KERNEL_ISSUER,
+      iat: now,
+      exp: now + 3600,
+      grant: {
+        v: 1,
+        // forType: app's identity for TYPE check
+        forType: params.grant.forType as any,
+        // forResource: user's identity expression for RESOURCE check
+        forResource: params.grant.forResource as any,
+      },
+    }
+    const token = TokenVerifier.createMockToken(payload)
+
+    // =========================================================================
+    // 3. AUTHENTICATE (TRUST + RESOLVE phases)
+    // =========================================================================
+    // Manually implement authenticate with timed wrappers
+    // (Can't use the original authenticate function as it doesn't accept our timed wrappers)
+
+    // TRUST: Verify JWT
+    const { payload: verifiedPayload } = timedVerifier.verifyToken(token)
+
+    // TRUST: Resolve principal from (iss, sub)
+    const principal = timedRegistry.resolveIdentity(verifiedPayload.iss, verifiedPayload.sub)
+
+    // TRUST: Security check (external apps can only embed kernel-signed tokens)
+    // In our case, the grant uses plain IDs, not JWTs, so this is a no-op
+    const validateSecurityStart = performance.now()
+    if (verifiedPayload.iss !== KERNEL_ISSUER && verifiedPayload.grant) {
+      validateGrant(verifiedPayload.iss, verifiedPayload.grant, verifier)
+    }
+    const validateSecurityEnd = performance.now()
+    if (validateSecurityEnd - validateSecurityStart > 0.001) {
+      allCalls.push({
+        method: 'validateGrant',
+        phase: 'trust',
+        startMs: validateSecurityStart,
+        endMs: validateSecurityEnd,
+        durationMs: validateSecurityEnd - validateSecurityStart,
+      })
+    }
+
+    // RESOLVE: Resolve grant expressions from JWT
+    const resolvedGrant = await timedResolver.resolveGrant(verifiedPayload.grant, principal)
+
+    // Collect TRUST phase calls
+    allCalls.push(...timedVerifier.calls)
+    allCalls.push(...timedRegistry.calls)
+    allCalls.push(...timedResolver.calls)
+
+    // =========================================================================
+    // 3b. IDENTITY EVALUATION (RESOLVE phase continued)
+    // =========================================================================
+    // Expand identity compositions from the graph.
+    // If USER-bob has unionWith edges to other identities, evalExpr will
+    // query the graph and build the expanded expression tree.
+    if (!this.identityEvaluator) throw new Error('No identity evaluator')
+    const timedEvaluator = new TimedIdentityEvaluator(this.identityEvaluator)
+
+    const [expandedForType, expandedForResource] = await Promise.all([
+      timedEvaluator.evalExpr(resolvedGrant.forType),
+      timedEvaluator.evalExpr(resolvedGrant.forResource),
+    ])
+
+    // Collect identity evaluation calls
+    allCalls.push(...timedEvaluator.calls)
+
+    const resolveGrantMs = performance.now() - t0
+
+    // =========================================================================
+    // 4. ACCESS CHECK (DECIDE + QUERY phases)
+    // =========================================================================
+    const grant: Grant = {
+      forType: expandedForType,
+      forResource: expandedForResource,
+    }
+
+    const inner = new FalkorDBAccessQueryAdapter(this.executor)
+    const timedQuery = new TimedAccessQueryAdapter(inner)
+
+    const t1 = performance.now()
+    const result = await checkAccess(
+      {
+        principal,
+        grant,
+        nodeId: params.nodeId,
+        perm: params.perm,
+      },
+      timedQuery,
+    )
+    const authCheckMs = performance.now() - t1
+
+    // Add DECIDE + QUERY phase calls
+    allCalls.push(...timedQuery.calls)
+
+    return {
+      result,
+      profile: {
+        totalMs: performance.now() - t0,
+        resolveGrantMs,
+        authCheckMs,
+        calls: allCalls,
+      },
+    }
   }
 
   async randomSeed(options?: {
@@ -458,6 +933,51 @@ export class PlaygroundFalkorDBClient {
       permissions: permEdges,
       compositions: compEdges,
     }
+  }
+
+  /**
+   * Generate a scaled graph for performance testing.
+   *
+   * Creates a new graph with the specified scale (small, medium, large)
+   * without affecting the base seed data.
+   *
+   * @param scale - The scale configuration to use
+   * @param options - Optional seed and progress callback
+   * @returns Graph metadata for scenario instantiation
+   */
+  async seedScaled(
+    scale: Scale,
+    options?: {
+      seed?: number
+      onProgress?: ProgressCallback
+    },
+  ): Promise<GraphMetadata> {
+    if (!this.client) throw new Error('Not connected')
+
+    const config = SCALE_CONFIGS[scale]
+
+    // Select the performance graph (creates it if it doesn't exist)
+    await this.selectGraph(config.graphName)
+
+    if (!this.executor) throw new Error('No executor available')
+
+    // Generate the scaled graph
+    const metadata = await generateScaledGraph(this.executor, scale, {
+      seed: options?.seed ?? 42,
+      onProgress: options?.onProgress,
+    })
+
+    // Clear any cached state
+    this.identityEvaluator?.clearCompositionCache()
+
+    return metadata
+  }
+
+  /**
+   * Get the executor for direct queries (used by graph generator).
+   */
+  getExecutor(): RawExecutor | null {
+    return this.executor
   }
 }
 

@@ -1,0 +1,4969 @@
+{
+  "metadata": {
+    "generatedAt": "2026-01-29T09:59:48.099Z",
+    "version": "1.0.0",
+    "totalScenarios": 6,
+    "passedScenarios": 6,
+    "failedScenarios": 0,
+    "totalTraces": 30,
+    "totalDurationMs": 17.11728799999994
+  },
+  "scenarios": [
+    {
+      "scenario": {
+        "id": "direct-permission",
+        "name": "Direct Permission",
+        "description": "APP1 type + USER1 resource grant for read on M1",
+        "principal": "USER1",
+        "nodeId": "M1",
+        "perm": "read",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "identity",
+            "id": "USER1"
+          }
+        },
+        "expectedGranted": true,
+        "thresholds": {
+          "checkAccess": {
+            "mean": 2000,
+            "p95": 5000,
+            "p99": 10000
+          },
+          "directPermission": {
+            "mean": 2000,
+            "p95": 5000
+          },
+          "hierarchicalDeep": {
+            "mean": 8000,
+            "p95": 15000
+          },
+          "phases": {
+            "trust": 10,
+            "resolve": 20,
+            "decide": 70
+          },
+          "cache": {
+            "minHitRate": 80
+          }
+        }
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788073",
+          "name": "Direct Permission",
+          "startMicros": 558068.083,
+          "endMicros": 558862.5,
+          "totalMicros": 794.4170000000158,
+          "spans": [
+            {
+              "id": "span_1_1769680788073",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 558071.042,
+              "endMicros": 558072.792,
+              "durationMicros": 1.75,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788073",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 558073.833,
+              "endMicros": 558360.7919999999,
+              "durationMicros": 286.95899999991525,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788073",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 558087.875,
+              "endMicros": 558551.792,
+              "durationMicros": 463.91700000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788074",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 558554.4169999999,
+              "endMicros": 558556.708,
+              "durationMicros": 2.2910000000847504,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788074",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 558558.167,
+              "endMicros": 558859.5830000001,
+              "durationMicros": 301.41600000008475,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788074",
+          "name": "Direct Permission",
+          "startMicros": 558865.833,
+          "endMicros": 559558.083,
+          "totalMicros": 692.25,
+          "spans": [
+            {
+              "id": "span_1_1769680788074",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 558874.875,
+              "endMicros": 558878.417,
+              "durationMicros": 3.5420000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788074",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 558879.875,
+              "endMicros": 559243.875,
+              "durationMicros": 364,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788074",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 558899.917,
+              "endMicros": 559305.375,
+              "durationMicros": 405.45799999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788075",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 559308.708,
+              "endMicros": 559312.167,
+              "durationMicros": 3.459000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788075",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 559313.417,
+              "endMicros": 559555.75,
+              "durationMicros": 242.33299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788075",
+          "name": "Direct Permission",
+          "startMicros": 559561.208,
+          "endMicros": 560182.833,
+          "totalMicros": 621.625,
+          "spans": [
+            {
+              "id": "span_1_1769680788075",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 559565,
+              "endMicros": 559567.2919999999,
+              "durationMicros": 2.291999999899417,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788075",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 559568.292,
+              "endMicros": 559864.417,
+              "durationMicros": 296.125,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788075",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 559574.875,
+              "endMicros": 559950.375,
+              "durationMicros": 375.5,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788075",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 559951.75,
+              "endMicros": 559953.708,
+              "durationMicros": 1.9579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788075",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 559954.5,
+              "endMicros": 560180.125,
+              "durationMicros": 225.625,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788076",
+          "name": "Direct Permission",
+          "startMicros": 560186,
+          "endMicros": 560771.833,
+          "totalMicros": 585.8329999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788076",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 560189.75,
+              "endMicros": 560192.958,
+              "durationMicros": 3.2079999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788076",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 560194.292,
+              "endMicros": 560521.667,
+              "durationMicros": 327.375,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788076",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 560204.4580000001,
+              "endMicros": 560538.875,
+              "durationMicros": 334.4169999998994,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788076",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 560540.5,
+              "endMicros": 560543.083,
+              "durationMicros": 2.5829999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788076",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 560544.167,
+              "endMicros": 560769.875,
+              "durationMicros": 225.70799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788076",
+          "name": "Direct Permission",
+          "startMicros": 560774.458,
+          "endMicros": 561406.875,
+          "totalMicros": 632.4170000000158,
+          "spans": [
+            {
+              "id": "span_1_1769680788076",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 560781.292,
+              "endMicros": 560784.042,
+              "durationMicros": 2.75,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788076",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 560785.167,
+              "endMicros": 561043.083,
+              "durationMicros": 257.91599999996834,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788076",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 560793.958,
+              "endMicros": 561103.583,
+              "durationMicros": 309.625,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788076",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 561105,
+              "endMicros": 561107.292,
+              "durationMicros": 2.2920000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788076",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 561108.083,
+              "endMicros": 561404.5,
+              "durationMicros": 296.41700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 585.8329999999842,
+          "max": 794.4170000000158,
+          "mean": 665.3084000000032,
+          "median": 632.4170000000158,
+          "p95": 692.25,
+          "p99": 692.25,
+          "stdDev": 81.70266709111392,
+          "total": 3326.542000000016
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 4.04100000008475,
+            "max": 7.0010000000474975,
+            "mean": 5.225,
+            "median": 5.0420000000158325,
+            "p95": 5.790999999968335,
+            "p99": 5.790999999968335,
+            "stdDev": 1.2104236861687514,
+            "total": 26.125
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 863.9579999999842,
+            "max": 1052.2920000000158,
+            "mean": 942.5581999999704,
+            "median": 897.25,
+            "p95": 1011.7909999999683,
+            "p99": 1011.7909999999683,
+            "stdDev": 83.81067544295058,
+            "total": 4712.790999999852
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.75,
+            "max": 3.5420000000158325,
+            "mean": 2.6125,
+            "median": 2.2920000000158325,
+            "p95": 3.459000000031665,
+            "p99": 3.459000000031665,
+            "stdDev": 0.617882450172961,
+            "total": 26.125
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 257.91599999996834,
+            "max": 364,
+            "mean": 306.4749999999767,
+            "median": 296.125,
+            "p95": 327.375,
+            "p99": 327.375,
+            "stdDev": 40.595285631481836,
+            "total": 1532.3749999998836
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 309.625,
+            "max": 463.91700000001583,
+            "mean": 377.7833999999799,
+            "median": 375.5,
+            "p95": 405.45799999998417,
+            "p99": 405.45799999998417,
+            "stdDev": 60.65539256572859,
+            "total": 1888.9169999998994
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 225.625,
+            "max": 301.41600000008475,
+            "mean": 258.29980000001376,
+            "median": 242.33299999998417,
+            "p95": 296.41700000001583,
+            "p99": 296.41700000001583,
+            "stdDev": 37.73835688927796,
+            "total": 1291.499000000069
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.5512864123356653,
+          "decide": 0,
+          "query": 99.44871358766434
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    },
+    {
+      "scenario": {
+        "id": "direct-permission-m2",
+        "name": "Direct Permission M2",
+        "description": "APP1 type + USER1 resource grant for read on M2",
+        "principal": "USER1",
+        "nodeId": "M2",
+        "perm": "read",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "identity",
+            "id": "USER1"
+          }
+        },
+        "expectedGranted": true
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788078",
+          "name": "Direct Permission M2",
+          "startMicros": 563113.375,
+          "endMicros": 563749.333,
+          "totalMicros": 635.9579999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788078",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 563119.833,
+              "endMicros": 563123.958,
+              "durationMicros": 4.125,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788078",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 563126.25,
+              "endMicros": 563479.792,
+              "durationMicros": 353.54200000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788078",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 563144.458,
+              "endMicros": 563525,
+              "durationMicros": 380.54200000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788079",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 563527.833,
+              "endMicros": 563531.583,
+              "durationMicros": 3.75,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788079",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 563534.9169999999,
+              "endMicros": 563747.4580000001,
+              "durationMicros": 212.54100000020117,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M2",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788079",
+          "name": "Direct Permission M2",
+          "startMicros": 563753.167,
+          "endMicros": 564314.875,
+          "totalMicros": 561.7079999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788079",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 563756.167,
+              "endMicros": 563758.417,
+              "durationMicros": 2.25,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788079",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 563759.458,
+              "endMicros": 564037.375,
+              "durationMicros": 277.91700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788079",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 563766.833,
+              "endMicros": 564100.458,
+              "durationMicros": 333.625,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788079",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 564102.4169999999,
+              "endMicros": 564106.8330000001,
+              "durationMicros": 4.416000000201166,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788079",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 564108,
+              "endMicros": 564313.083,
+              "durationMicros": 205.08299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M2",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788080",
+          "name": "Direct Permission M2",
+          "startMicros": 564318.4169999999,
+          "endMicros": 564894.083,
+          "totalMicros": 575.6660000000848,
+          "spans": [
+            {
+              "id": "span_1_1769680788080",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 564321.208,
+              "endMicros": 564328.167,
+              "durationMicros": 6.959000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788080",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 564329.25,
+              "endMicros": 564596.25,
+              "durationMicros": 267,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788080",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 564334.625,
+              "endMicros": 564663.75,
+              "durationMicros": 329.125,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788080",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 564664.9169999999,
+              "endMicros": 564666.708,
+              "durationMicros": 1.7910000000847504,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788080",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 564667.417,
+              "endMicros": 564892.125,
+              "durationMicros": 224.70799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M2",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788080",
+          "name": "Direct Permission M2",
+          "startMicros": 564896.4580000001,
+          "endMicros": 565446.042,
+          "totalMicros": 549.5839999999152,
+          "spans": [
+            {
+              "id": "span_1_1769680788080",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 564899.2080000001,
+              "endMicros": 564901.625,
+              "durationMicros": 2.416999999899417,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788080",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 564902.792,
+              "endMicros": 565177.125,
+              "durationMicros": 274.33299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788080",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 564910.708,
+              "endMicros": 565227.292,
+              "durationMicros": 316.58400000003166,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788081",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 565229.208,
+              "endMicros": 565231.083,
+              "durationMicros": 1.875,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788081",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 565231.875,
+              "endMicros": 565444.5419999999,
+              "durationMicros": 212.66699999989942,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M2",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788081",
+          "name": "Direct Permission M2",
+          "startMicros": 565448,
+          "endMicros": 565952.458,
+          "totalMicros": 504.45799999998417,
+          "spans": [
+            {
+              "id": "span_1_1769680788081",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 565450.083,
+              "endMicros": 565451.667,
+              "durationMicros": 1.584000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788081",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 565452.333,
+              "endMicros": 565686.333,
+              "durationMicros": 234,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788081",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 565456.667,
+              "endMicros": 565741.542,
+              "durationMicros": 284.875,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788081",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 565744.208,
+              "endMicros": 565748.292,
+              "durationMicros": 4.084000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788081",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 565749.917,
+              "endMicros": 565951.417,
+              "durationMicros": 201.5,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M2",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 504.45799999998417,
+          "max": 635.9579999999842,
+          "mean": 565.4747999999905,
+          "median": 561.7079999999842,
+          "p95": 575.6660000000848,
+          "p99": 575.6660000000848,
+          "stdDev": 47.59595105889849,
+          "total": 2827.3739999999525
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 4.291999999899417,
+            "max": 8.750000000116415,
+            "mean": 6.650200000056065,
+            "median": 6.666000000201166,
+            "p95": 7.875,
+            "p99": 7.875,
+            "stdDev": 1.763190914283337,
+            "total": 33.25100000028033
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 720.375,
+            "max": 946.6250000002328,
+            "mean": 821.6084000000264,
+            "median": 816.625,
+            "p95": 820.8329999999842,
+            "p99": 820.8329999999842,
+            "stdDev": 80.97478939037337,
+            "total": 4108.042000000132
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.584000000031665,
+            "max": 6.959000000031665,
+            "mean": 3.3251000000280326,
+            "median": 2.416999999899417,
+            "p95": 4.416000000201166,
+            "p99": 4.416000000201166,
+            "stdDev": 1.6753032528314749,
+            "total": 33.25100000028033
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 234,
+            "max": 353.54200000001583,
+            "mean": 281.35840000000314,
+            "median": 274.33299999998417,
+            "p95": 277.91700000001583,
+            "p99": 277.91700000001583,
+            "stdDev": 43.93362405152345,
+            "total": 1406.7920000000158
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 284.875,
+            "max": 380.54200000001583,
+            "mean": 328.9502000000095,
+            "median": 329.125,
+            "p95": 333.625,
+            "p99": 333.625,
+            "stdDev": 34.56567768321941,
+            "total": 1644.7510000000475
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 201.5,
+            "max": 224.70799999998417,
+            "mean": 211.2998000000138,
+            "median": 212.54100000020117,
+            "p95": 212.66699999989942,
+            "p99": 212.66699999989942,
+            "stdDev": 8.914515169093558,
+            "total": 1056.499000000069
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.8029134862053233,
+          "decide": 0,
+          "query": 99.19708651379467
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    },
+    {
+      "scenario": {
+        "id": "hierarchical-read-root",
+        "name": "Hierarchical Read (Root)",
+        "description": "USER1 has read on root, M1 inherits via workspace-1",
+        "principal": "USER1",
+        "nodeId": "M1",
+        "perm": "read",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "identity",
+            "id": "USER1"
+          }
+        },
+        "expectedGranted": true,
+        "thresholds": {
+          "checkAccess": {
+            "mean": 8000,
+            "p95": 15000,
+            "p99": 25000
+          },
+          "directPermission": {
+            "mean": 2000,
+            "p95": 5000
+          },
+          "hierarchicalDeep": {
+            "mean": 8000,
+            "p95": 15000
+          },
+          "phases": {
+            "trust": 10,
+            "resolve": 20,
+            "decide": 70
+          },
+          "cache": {
+            "minHitRate": 80
+          }
+        }
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788083",
+          "name": "Hierarchical Read (Root)",
+          "startMicros": 567582.042,
+          "endMicros": 568083.875,
+          "totalMicros": 501.83299999998417,
+          "spans": [
+            {
+              "id": "span_1_1769680788083",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 567585.1669999999,
+              "endMicros": 567587.083,
+              "durationMicros": 1.9160000000847504,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788083",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 567588.458,
+              "endMicros": 567836.958,
+              "durationMicros": 248.5,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788083",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 567593.4580000001,
+              "endMicros": 567904.125,
+              "durationMicros": 310.6669999998994,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788083",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 567905.667,
+              "endMicros": 567907.25,
+              "durationMicros": 1.5829999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788083",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 567908.125,
+              "endMicros": 568082.667,
+              "durationMicros": 174.54200000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788083",
+          "name": "Hierarchical Read (Root)",
+          "startMicros": 568085.75,
+          "endMicros": 568632.5,
+          "totalMicros": 546.75,
+          "spans": [
+            {
+              "id": "span_1_1769680788083",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 568087.375,
+              "endMicros": 568088.625,
+              "durationMicros": 1.25,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788083",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 568089.417,
+              "endMicros": 568394.417,
+              "durationMicros": 305,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788083",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 568094.542,
+              "endMicros": 568421.25,
+              "durationMicros": 326.70799999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788084",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 568423.5,
+              "endMicros": 568427.083,
+              "durationMicros": 3.5829999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788084",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 568428.583,
+              "endMicros": 568630.583,
+              "durationMicros": 202,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788084",
+          "name": "Hierarchical Read (Root)",
+          "startMicros": 568635.625,
+          "endMicros": 569135.333,
+          "totalMicros": 499.70799999998417,
+          "spans": [
+            {
+              "id": "span_1_1769680788084",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 568638.625,
+              "endMicros": 568640.8330000001,
+              "durationMicros": 2.208000000100583,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788084",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 568641.9580000001,
+              "endMicros": 568873.875,
+              "durationMicros": 231.91699999989942,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788084",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 568648,
+              "endMicros": 568938.542,
+              "durationMicros": 290.54200000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788084",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 568939.917,
+              "endMicros": 568942.2919999999,
+              "durationMicros": 2.3749999998835847,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788084",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 568945,
+              "endMicros": 569133.833,
+              "durationMicros": 188.83299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788084",
+          "name": "Hierarchical Read (Root)",
+          "startMicros": 569136.9580000001,
+          "endMicros": 569717.667,
+          "totalMicros": 580.7089999999152,
+          "spans": [
+            {
+              "id": "span_1_1769680788084",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 569139,
+              "endMicros": 569140.958,
+              "durationMicros": 1.9579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788084",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 569141.708,
+              "endMicros": 569396.667,
+              "durationMicros": 254.95900000003166,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788084",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 569148.833,
+              "endMicros": 569463.083,
+              "durationMicros": 314.25,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788085",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 569464.625,
+              "endMicros": 569470.417,
+              "durationMicros": 5.7920000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788085",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 569471.2919999999,
+              "endMicros": 569715.792,
+              "durationMicros": 244.50000000011642,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788085",
+          "name": "Hierarchical Read (Root)",
+          "startMicros": 569719.875,
+          "endMicros": 570244.917,
+          "totalMicros": 525.0420000000158,
+          "spans": [
+            {
+              "id": "span_1_1769680788085",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 569722.458,
+              "endMicros": 569725.083,
+              "durationMicros": 2.625,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788085",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 569726.2080000001,
+              "endMicros": 569991.042,
+              "durationMicros": 264.83399999991525,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788085",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 569735.833,
+              "endMicros": 570042.833,
+              "durationMicros": 307,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788085",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 570044.875,
+              "endMicros": 570047.875,
+              "durationMicros": 3,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788085",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 570049,
+              "endMicros": 570242.875,
+              "durationMicros": 193.875,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 499.70799999998417,
+          "max": 580.7089999999152,
+          "mean": 530.8083999999799,
+          "median": 525.0420000000158,
+          "p95": 546.75,
+          "p99": 546.75,
+          "stdDev": 33.85359857235735,
+          "total": 2654.0419999998994
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 3.499000000068918,
+            "max": 7.75,
+            "mean": 5.258000000007451,
+            "median": 4.8329999999841675,
+            "p95": 5.625,
+            "p99": 5.625,
+            "stdDev": 1.587063640799604,
+            "total": 26.290000000037253
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 711.2919999998994,
+            "max": 833.7079999999842,
+            "mean": 771.6253999999724,
+            "median": 765.7089999999152,
+            "p95": 813.7090000001481,
+            "p99": 813.7090000001481,
+            "stdDev": 51.812293293266954,
+            "total": 3858.126999999862
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.25,
+            "max": 5.7920000000158325,
+            "mean": 2.6290000000037255,
+            "median": 2.208000000100583,
+            "p95": 3.5829999999841675,
+            "p99": 3.5829999999841675,
+            "stdDev": 1.301642808145747,
+            "total": 26.290000000037253
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 231.91699999989942,
+            "max": 305,
+            "mean": 261.0419999999693,
+            "median": 254.95900000003166,
+            "p95": 264.83399999991525,
+            "p99": 264.83399999991525,
+            "stdDev": 27.337041290183684,
+            "total": 1305.2099999998463
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 290.54200000001583,
+            "max": 326.70799999998417,
+            "mean": 309.83339999997986,
+            "median": 310.6669999998994,
+            "p95": 314.25,
+            "p99": 314.25,
+            "stdDev": 13.087586095215258,
+            "total": 1549.1669999998994
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 174.54200000001583,
+            "max": 244.50000000011642,
+            "mean": 200.75000000002328,
+            "median": 193.875,
+            "p95": 202,
+            "p99": 202,
+            "stdDev": 26.41857669335033,
+            "total": 1003.7500000001164
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.6768068412850097,
+          "decide": 0,
+          "query": 99.323193158715
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    },
+    {
+      "scenario": {
+        "id": "hierarchical-read-root-ws2",
+        "name": "Hierarchical Read (Root via WS2)",
+        "description": "USER1 has read on root, M3 inherits via workspace-2",
+        "principal": "USER1",
+        "nodeId": "M3",
+        "perm": "read",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "identity",
+            "id": "USER1"
+          }
+        },
+        "expectedGranted": true
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788087",
+          "name": "Hierarchical Read (Root via WS2)",
+          "startMicros": 572044.625,
+          "endMicros": 572669.042,
+          "totalMicros": 624.4170000000158,
+          "spans": [
+            {
+              "id": "span_1_1769680788087",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 572050.417,
+              "endMicros": 572053.583,
+              "durationMicros": 3.165999999968335,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788087",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 572055.75,
+              "endMicros": 572341.875,
+              "durationMicros": 286.125,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788087",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 572066,
+              "endMicros": 572436.333,
+              "durationMicros": 370.33299999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788088",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 572439.125,
+              "endMicros": 572443.083,
+              "durationMicros": 3.9579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788088",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 572444.625,
+              "endMicros": 572666.625,
+              "durationMicros": 222,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788088",
+          "name": "Hierarchical Read (Root via WS2)",
+          "startMicros": 572672.042,
+          "endMicros": 573214.208,
+          "totalMicros": 542.1659999999683,
+          "spans": [
+            {
+              "id": "span_1_1769680788088",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 572674.875,
+              "endMicros": 572677.333,
+              "durationMicros": 2.4579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788088",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 572678.625,
+              "endMicros": 572941.75,
+              "durationMicros": 263.125,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788088",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 572686.292,
+              "endMicros": 573001.833,
+              "durationMicros": 315.54099999996834,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788088",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 573003.708,
+              "endMicros": 573005.708,
+              "durationMicros": 2,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788088",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 573006.667,
+              "endMicros": 573213.125,
+              "durationMicros": 206.45799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788089",
+          "name": "Hierarchical Read (Root via WS2)",
+          "startMicros": 573216.042,
+          "endMicros": 573698.375,
+          "totalMicros": 482.33299999998417,
+          "spans": [
+            {
+              "id": "span_1_1769680788089",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 573217.5,
+              "endMicros": 573219.125,
+              "durationMicros": 1.625,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788089",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 573221.083,
+              "endMicros": 573444.333,
+              "durationMicros": 223.25,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788089",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 573225.167,
+              "endMicros": 573512.25,
+              "durationMicros": 287.08299999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788089",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 573513.375,
+              "endMicros": 573514.75,
+              "durationMicros": 1.375,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788089",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 573515.4169999999,
+              "endMicros": 573697.167,
+              "durationMicros": 181.75000000011642,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788089",
+          "name": "Hierarchical Read (Root via WS2)",
+          "startMicros": 573700,
+          "endMicros": 574217.583,
+          "totalMicros": 517.5829999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788089",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 573701.7080000001,
+              "endMicros": 573704.833,
+              "durationMicros": 3.1249999998835847,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788089",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 573705.625,
+              "endMicros": 573939.042,
+              "durationMicros": 233.41700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788089",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 573709.667,
+              "endMicros": 574004.667,
+              "durationMicros": 295,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788089",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 574005.667,
+              "endMicros": 574007.292,
+              "durationMicros": 1.625,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788089",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 574007.917,
+              "endMicros": 574215.75,
+              "durationMicros": 207.83299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788090",
+          "name": "Hierarchical Read (Root via WS2)",
+          "startMicros": 574220.625,
+          "endMicros": 574750.875,
+          "totalMicros": 530.25,
+          "spans": [
+            {
+              "id": "span_1_1769680788090",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 574223.708,
+              "endMicros": 574226.542,
+              "durationMicros": 2.834000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 32,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788090",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 574227.792,
+              "endMicros": 574494.292,
+              "durationMicros": 266.5,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "read"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788090",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 574235.667,
+              "endMicros": 574547.833,
+              "durationMicros": 312.16599999996834,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788090",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 574549.375,
+              "endMicros": 574551.292,
+              "durationMicros": 1.9170000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788090",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 574552.167,
+              "endMicros": 574749.417,
+              "durationMicros": 197.25,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "read",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "identity",
+              "id": "USER1"
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 482.33299999998417,
+          "max": 624.4170000000158,
+          "mean": 539.3497999999905,
+          "median": 530.25,
+          "p95": 542.1659999999683,
+          "p99": 542.1659999999683,
+          "stdDev": 52.56394896410707,
+          "total": 2696.7489999999525
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 3,
+            "max": 7.1239999999525025,
+            "mean": 4.81659999997355,
+            "median": 4.749999999883585,
+            "p95": 4.7510000000474975,
+            "p99": 4.7510000000474975,
+            "stdDev": 1.479988445884075,
+            "total": 24.082999999867752
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 692.0830000001006,
+            "max": 878.4579999999842,
+            "mean": 773.5662000000011,
+            "median": 775.9159999999683,
+            "p95": 785.1239999999525,
+            "p99": 785.1239999999525,
+            "stdDev": 69.23403186435671,
+            "total": 3867.8310000000056
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.375,
+            "max": 3.9579999999841675,
+            "mean": 2.408299999986775,
+            "median": 2,
+            "p95": 3.165999999968335,
+            "p99": 3.165999999968335,
+            "stdDev": 0.841687465072788,
+            "total": 24.082999999867752
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 223.25,
+            "max": 286.125,
+            "mean": 254.48340000000317,
+            "median": 263.125,
+            "p95": 266.5,
+            "p99": 266.5,
+            "stdDev": 25.688447117329478,
+            "total": 1272.4170000000158
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 287.08299999998417,
+            "max": 370.33299999998417,
+            "mean": 316.024599999981,
+            "median": 312.16599999996834,
+            "p95": 315.54099999996834,
+            "p99": 315.54099999996834,
+            "stdDev": 32.573666470016356,
+            "total": 1580.122999999905
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 181.75000000011642,
+            "max": 222,
+            "mean": 203.05820000001694,
+            "median": 206.45799999998417,
+            "p95": 207.83299999998417,
+            "p99": 207.83299999998417,
+            "stdDev": 14.840179554125852,
+            "total": 1015.2910000000848
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.6187957904483125,
+          "decide": 0,
+          "query": 99.38120420955168
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    },
+    {
+      "scenario": {
+        "id": "composed-union-edit",
+        "name": "Composed Union Edit",
+        "description": "USER1 ∪ ROLE1 gets edit on M3 via ROLE1",
+        "principal": "USER1",
+        "nodeId": "M3",
+        "perm": "edit",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "union",
+            "left": {
+              "kind": "identity",
+              "id": "USER1"
+            },
+            "right": {
+              "kind": "identity",
+              "id": "ROLE1"
+            }
+          }
+        },
+        "expectedGranted": true
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788092",
+          "name": "Composed Union Edit",
+          "startMicros": 576471.375,
+          "endMicros": 577042.583,
+          "totalMicros": 571.2079999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788092",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 576474.75,
+              "endMicros": 576478.042,
+              "durationMicros": 3.2920000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788092",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 576479.25,
+              "endMicros": 576750.458,
+              "durationMicros": 271.20799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788092",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 576484.75,
+              "endMicros": 576803.542,
+              "durationMicros": 318.79200000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788092",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 576805.708,
+              "endMicros": 576808.042,
+              "durationMicros": 2.334000000031665,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788092",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 576810.417,
+              "endMicros": 577041.292,
+              "durationMicros": 230.875,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788092",
+          "name": "Composed Union Edit",
+          "startMicros": 577045.125,
+          "endMicros": 577620.5,
+          "totalMicros": 575.375,
+          "spans": [
+            {
+              "id": "span_1_1769680788092",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 577058.292,
+              "endMicros": 577062.042,
+              "durationMicros": 3.75,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788092",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 577063.458,
+              "endMicros": 577358.333,
+              "durationMicros": 294.875,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788092",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 577069.75,
+              "endMicros": 577419.833,
+              "durationMicros": 350.08299999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788093",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 577422.0830000001,
+              "endMicros": 577424,
+              "durationMicros": 1.9169999998994172,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788093",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 577425.208,
+              "endMicros": 577618.208,
+              "durationMicros": 193,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788093",
+          "name": "Composed Union Edit",
+          "startMicros": 577623.167,
+          "endMicros": 578147.958,
+          "totalMicros": 524.7909999999683,
+          "spans": [
+            {
+              "id": "span_1_1769680788093",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 577626.625,
+              "endMicros": 577631.083,
+              "durationMicros": 4.4579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788093",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 577632.292,
+              "endMicros": 577887.208,
+              "durationMicros": 254.91599999996834,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788093",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 577640.458,
+              "endMicros": 577956.375,
+              "durationMicros": 315.91700000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788093",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 577957.625,
+              "endMicros": 577959.0419999999,
+              "durationMicros": 1.4169999998994172,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788093",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 577959.75,
+              "endMicros": 578146.625,
+              "durationMicros": 186.875,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788093",
+          "name": "Composed Union Edit",
+          "startMicros": 578149.708,
+          "endMicros": 578706.583,
+          "totalMicros": 556.875,
+          "spans": [
+            {
+              "id": "span_1_1769680788093",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 578151.958,
+              "endMicros": 578155.083,
+              "durationMicros": 3.125,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788093",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 578155.917,
+              "endMicros": 578459.833,
+              "durationMicros": 303.91599999996834,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788093",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 578160.5,
+              "endMicros": 578505.667,
+              "durationMicros": 345.16700000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788094",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 578507.25,
+              "endMicros": 578508.6669999999,
+              "durationMicros": 1.4169999998994172,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788094",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 578509.333,
+              "endMicros": 578704.25,
+              "durationMicros": 194.91700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788094",
+          "name": "Composed Union Edit",
+          "startMicros": 578709.25,
+          "endMicros": 579292.0830000001,
+          "totalMicros": 582.8330000001006,
+          "spans": [
+            {
+              "id": "span_1_1769680788094",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 578712.583,
+              "endMicros": 578716.958,
+              "durationMicros": 4.375,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788094",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 578718,
+              "endMicros": 579036.25,
+              "durationMicros": 318.25,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788094",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 578725.667,
+              "endMicros": 579069.5419999999,
+              "durationMicros": 343.8749999998836,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788094",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 579071.042,
+              "endMicros": 579074.792,
+              "durationMicros": 3.75,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788094",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 579075.958,
+              "endMicros": 579290.75,
+              "durationMicros": 214.79200000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M3",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 524.7909999999683,
+          "max": 582.8330000001006,
+          "mean": 562.2164000000106,
+          "median": 571.2079999999842,
+          "p95": 575.375,
+          "p99": 575.375,
+          "stdDev": 22.95774890536,
+          "total": 2811.082000000053
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 4.541999999899417,
+            "max": 8.125,
+            "mean": 5.966999999945983,
+            "median": 5.666999999899417,
+            "p95": 5.874999999883585,
+            "p99": 5.874999999883585,
+            "stdDev": 1.3136146695602975,
+            "total": 29.834999999729916
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 757.7079999999842,
+            "max": 876.9169999998994,
+            "mean": 827.4915999999736,
+            "median": 837.9579999999842,
+            "p95": 844,
+            "p99": 844,
+            "stdDev": 43.98429603049233,
+            "total": 4137.457999999868
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.4169999998994172,
+            "max": 4.4579999999841675,
+            "mean": 2.9834999999729916,
+            "median": 3.125,
+            "p95": 4.375,
+            "p99": 4.375,
+            "stdDev": 1.1483214078126163,
+            "total": 29.834999999729916
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 254.91599999996834,
+            "max": 318.25,
+            "mean": 288.6329999999842,
+            "median": 294.875,
+            "p95": 303.91599999996834,
+            "p99": 303.91599999996834,
+            "stdDev": 25.446837013672834,
+            "total": 1443.1649999999208
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 315.91700000001583,
+            "max": 350.08299999998417,
+            "mean": 334.76679999998305,
+            "median": 343.8749999998836,
+            "p95": 345.16700000001583,
+            "p99": 345.16700000001583,
+            "stdDev": 16.095175090664757,
+            "total": 1673.8339999999152
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 186.875,
+            "max": 230.875,
+            "mean": 204.09180000000634,
+            "median": 194.91700000001583,
+            "p95": 214.79200000001583,
+            "p99": 214.79200000001583,
+            "stdDev": 18.271954375490655,
+            "total": 1020.4590000000317
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.7159323810380694,
+          "decide": 0,
+          "query": 99.28406761896194
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    },
+    {
+      "scenario": {
+        "id": "composed-union-edit-via-user",
+        "name": "Composed Union Edit (via USER1)",
+        "description": "USER1 ∪ ROLE1 gets edit on M1 via USER1",
+        "principal": "USER1",
+        "nodeId": "M1",
+        "perm": "edit",
+        "grant": {
+          "forType": {
+            "kind": "identity",
+            "id": "APP1"
+          },
+          "forResource": {
+            "kind": "union",
+            "left": {
+              "kind": "identity",
+              "id": "USER1"
+            },
+            "right": {
+              "kind": "identity",
+              "id": "ROLE1"
+            }
+          }
+        },
+        "expectedGranted": true
+      },
+      "traces": [
+        {
+          "id": "trace_1_1769680788096",
+          "name": "Composed Union Edit (via USER1)",
+          "startMicros": 581143.25,
+          "endMicros": 581710.792,
+          "totalMicros": 567.5420000000158,
+          "spans": [
+            {
+              "id": "span_1_1769680788096",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 581147.958,
+              "endMicros": 581151.4580000001,
+              "durationMicros": 3.5000000001164153,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788096",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 581153.333,
+              "endMicros": 581455.25,
+              "durationMicros": 301.91700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788096",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 581159.333,
+              "endMicros": 581521.75,
+              "durationMicros": 362.41700000001583,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788097",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 581524.5,
+              "endMicros": 581527.292,
+              "durationMicros": 2.7920000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788097",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 581528.7080000001,
+              "endMicros": 581708.9580000001,
+              "durationMicros": 180.25,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788097",
+          "name": "Composed Union Edit (via USER1)",
+          "startMicros": 581713.375,
+          "endMicros": 582285.9580000001,
+          "totalMicros": 572.5830000001006,
+          "spans": [
+            {
+              "id": "span_1_1769680788097",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 581716.625,
+              "endMicros": 581720.75,
+              "durationMicros": 4.125,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788097",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 581721.75,
+              "endMicros": 582051.5,
+              "durationMicros": 329.75,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788097",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 581729.75,
+              "endMicros": 582086.833,
+              "durationMicros": 357.08299999998417,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788097",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 582088.208,
+              "endMicros": 582089.75,
+              "durationMicros": 1.5420000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788097",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 582090.667,
+              "endMicros": 582284.625,
+              "durationMicros": 193.95799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788098",
+          "name": "Composed Union Edit (via USER1)",
+          "startMicros": 582288,
+          "endMicros": 582860.208,
+          "totalMicros": 572.2079999999842,
+          "spans": [
+            {
+              "id": "span_1_1769680788098",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 582289.875,
+              "endMicros": 582292.833,
+              "durationMicros": 2.9579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788098",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 582293.542,
+              "endMicros": 582644.5,
+              "durationMicros": 350.95799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788098",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 582299.833,
+              "endMicros": 582655.833,
+              "durationMicros": 356,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788098",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 582657.083,
+              "endMicros": 582659.125,
+              "durationMicros": 2.0420000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788098",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 582660.25,
+              "endMicros": 582858.75,
+              "durationMicros": 198.5,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788098",
+          "name": "Composed Union Edit (via USER1)",
+          "startMicros": 582862.042,
+          "endMicros": 583458.083,
+          "totalMicros": 596.0409999999683,
+          "spans": [
+            {
+              "id": "span_1_1769680788098",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 582864.333,
+              "endMicros": 582867.583,
+              "durationMicros": 3.25,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788098",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 582868.417,
+              "endMicros": 583219,
+              "durationMicros": 350.58299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788098",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 582873.5,
+              "endMicros": 583267,
+              "durationMicros": 393.5,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788099",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 583269.2919999999,
+              "endMicros": 583271.333,
+              "durationMicros": 2.0410000000847504,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788099",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 583272.25,
+              "endMicros": 583456.667,
+              "durationMicros": 184.41700000001583,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        },
+        {
+          "id": "trace_1_1769680788099",
+          "name": "Composed Union Edit (via USER1)",
+          "startMicros": 583459.625,
+          "endMicros": 583952.75,
+          "totalMicros": 493.125,
+          "spans": [
+            {
+              "id": "span_1_1769680788099",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 583461.458,
+              "endMicros": 583464.125,
+              "durationMicros": 2.6670000000158325,
+              "cached": false,
+              "metadata": {
+                "inputSize": 97,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }",
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_1}) WHERE $perm_1 IN hp.perms RETURN hp IS NOT NULL AS _c1 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0", "_c1"],
+                  "condition": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_2_1769680788099",
+              "parentId": null,
+              "name": "executeResourceCheck",
+              "phase": "query",
+              "startMicros": 583464.792,
+              "endMicros": 583755.875,
+              "durationMicros": 291.08299999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "(_c0 OR _c1)",
+                  "params": {
+                    "id_0": "USER1",
+                    "perm_0": "edit",
+                    "id_1": "ROLE1",
+                    "perm_1": "edit"
+                  }
+                },
+                "result": true
+              }
+            },
+            {
+              "id": "span_3_1769680788099",
+              "parentId": null,
+              "name": "getTargetType",
+              "phase": "query",
+              "startMicros": 583469.708,
+              "endMicros": 583791.833,
+              "durationMicros": 322.125,
+              "cached": false,
+              "metadata": {
+                "result": "T1"
+              }
+            },
+            {
+              "id": "span_4_1769680788099",
+              "parentId": null,
+              "name": "generateQuery",
+              "phase": "resolve",
+              "startMicros": 583793.167,
+              "endMicros": 583795.125,
+              "durationMicros": 1.9579999999841675,
+              "cached": false,
+              "metadata": {
+                "inputSize": 31,
+                "result": {
+                  "calls": [
+                    "CALL { WITH target OPTIONAL MATCH (target)-[:hasParent*0..10]->(n:Node)<-[hp:hasPerm]-(i:Identity {id: $id_0}) WHERE $perm_0 IN hp.perms RETURN hp IS NOT NULL AS _c0 LIMIT 1 }"
+                  ],
+                  "vars": ["_c0"],
+                  "condition": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                }
+              }
+            },
+            {
+              "id": "span_5_1769680788099",
+              "parentId": null,
+              "name": "executeTypeCheck",
+              "phase": "query",
+              "startMicros": 583796,
+              "endMicros": 583951.458,
+              "durationMicros": 155.45799999998417,
+              "cached": false,
+              "metadata": {
+                "query": {
+                  "cypher": "_c0",
+                  "params": {
+                    "id_0": "APP1",
+                    "perm_0": "use"
+                  }
+                },
+                "result": true
+              }
+            }
+          ],
+          "input": {
+            "principal": "USER1",
+            "nodeId": "M1",
+            "perm": "edit",
+            "forType": {
+              "kind": "identity",
+              "id": "APP1"
+            },
+            "forResource": {
+              "kind": "union",
+              "left": {
+                "kind": "identity",
+                "id": "USER1"
+              },
+              "right": {
+                "kind": "identity",
+                "id": "ROLE1"
+              }
+            }
+          },
+          "output": {
+            "granted": true
+          }
+        }
+      ],
+      "metrics": {
+        "overall": {
+          "count": 5,
+          "min": 493.125,
+          "max": 596.0409999999683,
+          "mean": 560.2998000000138,
+          "median": 572.2079999999842,
+          "p95": 572.5830000001006,
+          "p99": 572.5830000001006,
+          "stdDev": 39.16318048499145,
+          "total": 2801.499000000069
+        },
+        "byPhase": {
+          "trust": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "resolve": {
+            "count": 5,
+            "min": 4.625,
+            "max": 6.292000000132248,
+            "mean": 5.375000000046566,
+            "median": 5.29100000008475,
+            "p95": 5.6670000000158325,
+            "p99": 5.6670000000158325,
+            "stdDev": 0.6395963571342379,
+            "total": 26.87500000023283
+          },
+          "decide": {
+            "count": 0,
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "p95": 0,
+            "p99": 0,
+            "stdDev": 0,
+            "total": 0
+          },
+          "query": {
+            "count": 5,
+            "min": 768.6659999999683,
+            "max": 928.5,
+            "mean": 865.5997999999905,
+            "median": 880.7909999999683,
+            "p95": 905.4579999999842,
+            "p99": 905.4579999999842,
+            "stdDev": 62.47741443274238,
+            "total": 4327.9989999999525
+          }
+        },
+        "byMethod": {
+          "generateQuery": {
+            "count": 10,
+            "min": 1.5420000000158325,
+            "max": 4.125,
+            "mean": 2.687500000023283,
+            "median": 2.6670000000158325,
+            "p95": 3.5000000001164153,
+            "p99": 3.5000000001164153,
+            "stdDev": 0.8032193902623004,
+            "total": 26.87500000023283
+          },
+          "executeResourceCheck": {
+            "count": 5,
+            "min": 291.08299999998417,
+            "max": 350.95799999998417,
+            "mean": 324.85819999999364,
+            "median": 329.75,
+            "p95": 350.58299999998417,
+            "p99": 350.58299999998417,
+            "stdDev": 27.540685334604067,
+            "total": 1624.2909999999683
+          },
+          "getTargetType": {
+            "count": 5,
+            "min": 322.125,
+            "max": 393.5,
+            "mean": 358.225,
+            "median": 357.08299999998417,
+            "p95": 362.41700000001583,
+            "p99": 362.41700000001583,
+            "stdDev": 25.354305738868934,
+            "total": 1791.125
+          },
+          "executeTypeCheck": {
+            "count": 5,
+            "min": 155.45799999998417,
+            "max": 198.5,
+            "mean": 182.51659999999683,
+            "median": 184.41700000001583,
+            "p95": 193.95799999998417,
+            "p99": 193.95799999998417,
+            "stdDev": 16.787581267119414,
+            "total": 912.5829999999842
+          }
+        },
+        "cache": {
+          "hits": 0,
+          "misses": 25,
+          "hitRate": 0
+        },
+        "phaseDistribution": {
+          "trust": 0,
+          "resolve": 0.6171246286398111,
+          "decide": 0,
+          "query": 99.38287537136019
+        }
+      },
+      "passed": true,
+      "passedThresholds": true,
+      "thresholdViolations": []
+    }
+  ],
+  "aggregateMetrics": {
+    "overall": {
+      "count": 30,
+      "min": 482.33299999998417,
+      "max": 794.4170000000158,
+      "mean": 570.5762666666648,
+      "median": 567.5420000000158,
+      "p95": 635.9579999999842,
+      "p99": 692.25,
+      "stdDev": 63.87043615543871,
+      "total": 17117.287999999942
+    },
+    "byPhase": {
+      "trust": {
+        "count": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "p95": 0,
+        "p99": 0,
+        "stdDev": 0,
+        "total": 0
+      },
+      "resolve": {
+        "count": 30,
+        "min": 3,
+        "max": 8.750000000116415,
+        "mean": 5.54863333333827,
+        "median": 5.29100000008475,
+        "p95": 7.875,
+        "p99": 8.125,
+        "stdDev": 1.3944424540037923,
+        "total": 166.45900000014808
+      },
+      "decide": {
+        "count": 0,
+        "min": 0,
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "p95": 0,
+        "p99": 0,
+        "stdDev": 0,
+        "total": 0
+      },
+      "query": {
+        "count": 30,
+        "min": 692.0830000001006,
+        "max": 1052.2920000000158,
+        "mean": 833.741599999989,
+        "median": 820.875,
+        "p95": 946.6250000002328,
+        "p99": 1011.7909999999683,
+        "stdDev": 85.1362199891645,
+        "total": 25012.247999999672
+      }
+    },
+    "byMethod": {
+      "generateQuery": {
+        "count": 60,
+        "min": 1.25,
+        "max": 6.959000000031665,
+        "mean": 2.774316666669135,
+        "median": 2.4579999999841675,
+        "p95": 4.416000000201166,
+        "p99": 5.7920000000158325,
+        "stdDev": 1.1150259021443805,
+        "total": 166.45900000014808
+      },
+      "executeResourceCheck": {
+        "count": 30,
+        "min": 223.25,
+        "max": 364,
+        "mean": 286.141666666655,
+        "median": 277.91700000001583,
+        "p95": 350.95799999998417,
+        "p99": 353.54200000001583,
+        "stdDev": 38.70054158165064,
+        "total": 8584.24999999965
+      },
+      "getTargetType": {
+        "count": 30,
+        "min": 284.875,
+        "max": 463.91700000001583,
+        "mean": 337.5972333333222,
+        "median": 326.70799999998417,
+        "p95": 393.5,
+        "p99": 405.45799999998417,
+        "stdDev": 39.3172194545036,
+        "total": 10127.916999999667
+      },
+      "executeTypeCheck": {
+        "count": 30,
+        "min": 155.45799999998417,
+        "max": 301.41600000008475,
+        "mean": 210.00270000001183,
+        "median": 202,
+        "p95": 244.50000000011642,
+        "p99": 296.41700000001583,
+        "stdDev": 31.31751877162375,
+        "total": 6300.081000000355
+      }
+    },
+    "cache": {
+      "hits": 0,
+      "misses": 150,
+      "hitRate": 0
+    },
+    "phaseDistribution": {
+      "trust": 0,
+      "resolve": 0.66111019918596,
+      "decide": 0,
+      "query": 99.33888980081404
+    }
+  },
+  "config": {
+    "iterations": 5,
+    "warmupIterations": 3,
+    "thresholds": {
+      "checkAccess": {
+        "mean": 5000,
+        "p95": 10000,
+        "p99": 20000
+      },
+      "directPermission": {
+        "mean": 2000,
+        "p95": 5000
+      },
+      "hierarchicalDeep": {
+        "mean": 8000,
+        "p95": 15000
+      },
+      "phases": {
+        "trust": 10,
+        "resolve": 20,
+        "decide": 70
+      },
+      "cache": {
+        "minHitRate": 80
+      }
+    },
+    "clearCacheBetweenIterations": true
+  }
+}

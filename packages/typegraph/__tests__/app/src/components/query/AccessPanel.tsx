@@ -6,6 +6,7 @@ import { AccessQueryForm } from './AccessQueryForm'
 import { ResultDisplay } from './ResultDisplay'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { TimingBreakdown } from '@/components/ui/TimingBreakdown'
 import { PhaseCard } from '@/components/explain/PhaseCard'
 import { evaluateGranted } from '@authz/authorization/explainer'
 
@@ -14,8 +15,16 @@ type Mode = 'check' | 'explain'
 export function AccessPanel() {
   const [mode, setMode] = useState<Mode>('explain')
 
-  const { checkResult, explainResult, loading, error, runCheck, runExplain, clearResults } =
-    useQueryStore()
+  const {
+    checkResult,
+    explainResult,
+    profile,
+    loading,
+    error,
+    runCheck,
+    runExplain,
+    clearResults,
+  } = useQueryStore()
 
   const setHighlightedPaths = useGraphStore((s) => s.setHighlightedPaths)
   const clearHighlights = useGraphStore((s) => s.clearHighlights)
@@ -121,7 +130,12 @@ export function AccessPanel() {
       </div>
 
       {/* Check result */}
-      {mode === 'check' && <ResultDisplay result={checkResult} loading={loading} error={error} />}
+      {mode === 'check' && (
+        <>
+          <ResultDisplay result={checkResult} loading={loading} error={error} />
+          {profile && <TimingBreakdown profile={profile} />}
+        </>
+      )}
 
       {/* Explain result */}
       {mode === 'explain' && (
@@ -143,6 +157,8 @@ export function AccessPanel() {
                   {explainResult.resourceId} / {explainResult.perm}
                 </span>
               </div>
+
+              {profile && <TimingBreakdown profile={profile} />}
 
               <PhaseCard
                 title="Phase 1: Type Check"

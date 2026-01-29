@@ -21,7 +21,9 @@ export async function checkAccess(
   // Resource query has no dependency on typeId — start immediately
   const targetQuery = queryPort.generateQuery(forResource, 'target', perm, principal)
   const resourcePromise =
-    targetQuery === null ? Promise.resolve(false) : queryPort.executeCheck(targetQuery, nodeId)
+    targetQuery === null
+      ? Promise.resolve(false)
+      : queryPort.executeResourceCheck(targetQuery, nodeId)
 
   // Type check (only if target has a type)
   const typeId = await queryPort.getTargetType(nodeId)

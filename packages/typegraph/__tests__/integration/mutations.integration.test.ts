@@ -167,6 +167,40 @@ describe('Mutation Integration Tests', () => {
       // Verify removal - Alice should not have liked post-2 anymore
       // (She didn't actually like it in seed data, but this tests the operation)
     })
+
+    it('updates edge properties by ID (patchLinkById)', async () => {
+      // Create a fresh edge to test with
+      const user = await ctx.graph.mutate.create('user', {
+        email: 'patchbyid@example.com',
+        name: 'PatchById User',
+        status: 'active',
+      })
+
+      const post = await ctx.graph.mutate.create('post', {
+        title: 'PatchById Post',
+        views: 0,
+      })
+
+      const edge = await ctx.graph.mutate.link('authored', user.id, post.id, {
+        role: 'author',
+      })
+
+      // Update the edge by ID
+      const updated = await ctx.graph.mutate.patchLinkById('authored', edge.id, {
+        role: 'coauthor',
+      })
+
+      expect(updated.id).toBe(edge.id)
+      expect(updated.from).toBe(user.id)
+      expect(updated.to).toBe(post.id)
+      expect(updated.data.role).toBe('coauthor')
+    })
+
+    it('throws error when edge not found (patchLinkById)', async () => {
+      await expect(
+        ctx.graph.mutate.patchLinkById('authored', 'nonexistent-edge-id', { role: 'author' }),
+      ).rejects.toThrow()
+    })
   })
 
   // ===========================================================================
@@ -247,7 +281,7 @@ describe('Mutation Integration Tests', () => {
         tags.map((t) => t.id),
       )
 
-      expect(result.deleted).toBe(true)
+      expect(result.deleted).toBe(2)
     })
 
     describe('linkMany()', () => {

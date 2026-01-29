@@ -1,12 +1,55 @@
 import { useState } from 'react'
-import { BarChart3, Play } from 'lucide-react'
+import { BarChart3, Play, Timer } from 'lucide-react'
 import { usePerfStore } from '@/store/perf-store'
 import { useQueryStore } from '@/store/query-store'
 import { SizeChart } from './SizeChart'
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { LatencyProfiler } from './LatencyProfiler'
 import type { IdentityExpr } from '@/types/api'
 
+type PerfTab = 'encoding' | 'latency'
+
 export function PerfPanel() {
+  const [activeTab, setActiveTab] = useState<PerfTab>('latency')
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tab buttons */}
+      <div className="flex border-b border-slate-700 px-3 pt-2">
+        <button
+          onClick={() => setActiveTab('encoding')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] rounded-t border-b-2 ${
+            activeTab === 'encoding'
+              ? 'border-amber-500 text-slate-200 bg-slate-800'
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <BarChart3 className="w-3 h-3" />
+          Encoding
+        </button>
+        <button
+          onClick={() => setActiveTab('latency')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] rounded-t border-b-2 ${
+            activeTab === 'latency'
+              ? 'border-purple-500 text-slate-200 bg-slate-800'
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <Timer className="w-3 h-3" />
+          Latency
+        </button>
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === 'encoding' && <EncodingBenchmarks />}
+        {activeTab === 'latency' && <LatencyProfiler />}
+      </div>
+    </div>
+  )
+}
+
+function EncodingBenchmarks() {
   const { result, loading, error, runBenchmark, clear } = usePerfStore()
   const { forTypeExpr, forResourceExpr } = useQueryStore()
   const [jsonInput, setJsonInput] = useState('')

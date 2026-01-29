@@ -8,6 +8,13 @@ import {
   handleDecodeToken,
   handleKernelCheckAccess,
 } from './relay-service'
+import {
+  handleRunScenario,
+  handleGenerateGraph,
+  handleGetScenarios,
+  cachedMetadata,
+} from './perf-service'
+import { type Scale, serializeMetadata } from '../performance'
 
 type RouteHandler = (body: Record<string, unknown>, res: ServerResponse) => Promise<void>
 
@@ -106,13 +113,13 @@ const routes: Record<string, Record<string, RouteHandler>> = {
       if (!principal || !grant || !nodeId || !perm) {
         return error(res, 'principal, grant, nodeId, and perm are required')
       }
-      const result = await playgroundClient.checkAccess({
+      const { result, profile } = await playgroundClient.checkAccess({
         principal,
         grant: grant as any,
         nodeId,
         perm,
       })
-      json(res, result)
+      json(res, { ...result, profile })
     },
 
     '/api/explain-access': async (body, res) => {
@@ -125,13 +132,13 @@ const routes: Record<string, Record<string, RouteHandler>> = {
       if (!principal || !grant || !nodeId || !perm) {
         return error(res, 'principal, grant, nodeId, and perm are required')
       }
-      const result = await playgroundClient.explainAccess({
+      const { result, profile } = await playgroundClient.explainAccess({
         principal,
         grant: grant as any,
         nodeId,
         perm,
       })
-      json(res, result)
+      json(res, { ...result, profile })
     },
 
     '/api/relay/setup': async (body, res) => {
@@ -163,7 +170,39 @@ const routes: Record<string, Record<string, RouteHandler>> = {
       const result = await handleKernelCheckAccess(body)
       json(res, result)
     },
+
+    '/api/perf/run-scenario': async (body, res) => {
+      const result = await handleRunScenario(body, playgroundClient)
+      json(res, result)
+    },
+
+    '/api/perf/generate-graph': async (body, res) => {
+      const { scale, seed } = body as { scale: Scale; seed?: number }
+      if (!scale) {
+        return error(res, 'scale is required (small, medium, or large)')
+      }
+      if (!['small', 'medium', 'large'].includes(scale)) {
+        return error(res, 'scale must be small, medium, or large')
+      }
+      const result = await handleGenerateGraph(scale, seed, playgroundClient)
+      json(res, { ok: true, metadata: serializeMetadata(result) })
+    },
+
+    '/api/perf/scenarios': async (body, res) => {
+      const { scale, seed } = body as { scale: Scale | 'base'; seed?: number }
+      const result = await handleGetScenarios(scale, seed)
+      json(res, { scenarios: result })
+    },
   },
+}
+
+// Add GET endpoint for graph metadata
+routes.GET['/api/perf/graph-metadata'] = async (_body, res) => {
+  if (cachedMetadata) {
+    json(res, { metadata: serializeMetadata(cachedMetadata) })
+  } else {
+    json(res, { metadata: null })
+  }
 }
 
 export async function handleApiRequest(

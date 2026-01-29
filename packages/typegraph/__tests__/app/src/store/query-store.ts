@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
-import type { AccessDecision, AccessExplanation, IdentityExpr } from '@/types/api'
+import type {
+  AccessDecision,
+  AccessExplanation,
+  IdentityExpr,
+  PerformanceProfile,
+} from '@/types/api'
 
 interface QueryStore {
   targetNodeId: string
@@ -13,6 +18,7 @@ interface QueryStore {
 
   checkResult: AccessDecision | null
   explainResult: AccessExplanation | null
+  profile: PerformanceProfile | null
   loading: boolean
   error: string | null
 
@@ -38,6 +44,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   useResourcePrincipal: false,
   checkResult: null,
   explainResult: null,
+  profile: null,
   loading: false,
   error: null,
 
@@ -73,15 +80,15 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       ? { kind: 'identity', id: principal }
       : (forResourceExpr ?? { kind: 'identity', id: principal })
 
-    set({ loading: true, error: null, checkResult: null })
+    set({ loading: true, error: null, checkResult: null, profile: null })
     try {
-      const result = await api.checkAccess({
+      const { profile, ...result } = await api.checkAccess({
         principal,
         grant: { forType: effectiveForType, forResource: effectiveForResource },
         nodeId: targetNodeId,
         perm: permission,
       })
-      set({ checkResult: result, loading: false })
+      set({ checkResult: result, profile, loading: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
     }
@@ -111,19 +118,19 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       ? { kind: 'identity', id: principal }
       : (forResourceExpr ?? { kind: 'identity', id: principal })
 
-    set({ loading: true, error: null, explainResult: null })
+    set({ loading: true, error: null, explainResult: null, profile: null })
     try {
-      const result = await api.explainAccess({
+      const { profile, ...result } = await api.explainAccess({
         principal,
         grant: { forType: effectiveForType, forResource: effectiveForResource },
         nodeId: targetNodeId,
         perm: permission,
       })
-      set({ explainResult: result, loading: false })
+      set({ explainResult: result, profile, loading: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
     }
   },
 
-  clearResults: () => set({ checkResult: null, explainResult: null, error: null }),
+  clearResults: () => set({ checkResult: null, explainResult: null, profile: null, error: null }),
 }))

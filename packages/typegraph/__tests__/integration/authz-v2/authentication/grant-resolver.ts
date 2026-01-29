@@ -137,8 +137,8 @@ export class GrantResolver {
 
   private async resolveJwtIdentity(jwt: string, leafScopes?: Scope[]): Promise<IdentityExpr> {
     // Verify the JWT
-    const { payload } = this.verifier.verify(jwt)
-    const identityId = this.registry.resolveOrThrow(payload.iss, payload.sub)
+    const { payload } = this.verifier.verifyToken(jwt)
+    const identityId = this.registry.resolveIdentity(payload.iss, payload.sub)
 
     // If this is a kernel-issued token with a grant, extract and merge
     if (payload.iss === KERNEL_ISSUER && payload.grant?.forResource) {
@@ -173,7 +173,7 @@ export class GrantResolver {
  * If the JWT issuer is NOT the kernel, any embedded JWTs in the grant
  * MUST be kernel-signed. External apps cannot embed raw IdP tokens.
  */
-export function validateGrantSecurity(
+export function validateGrant(
   issuer: string,
   grant: UnresolvedGrant | undefined,
   verifier: TokenVerifier,

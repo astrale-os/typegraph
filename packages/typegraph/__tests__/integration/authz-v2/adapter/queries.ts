@@ -59,21 +59,42 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
     return toCypher(expr, targetVar, perm, principal, this.cypherOptions)
   }
 
-  async executeCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
-    const { query, params } = assembleQuery(fragment, 'target', this.vocab, 'resourceId')
-    const results = await this.executor.run<{ found: boolean }>(query, { resourceId, ...params })
-    return results[0]?.found ?? false
+  /**
+   * Execute permission check on a resource node (module).
+   * Used for forResource expression evaluation.
+   */
+  async executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
+    return this._executePermissionCheck(fragment, resourceId)
   }
 
+  /**
+   * Execute permission check on a type node.
+   * Used for forType expression evaluation. Results are cached.
+   */
   async executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean> {
     const paramsKey = JSON.stringify(fragment.params)
     const key = `${fragment.condition}|${paramsKey}|${typeId}`
     const cached = this.typeCheckCache.get(key)
     if (cached !== undefined) return cached
 
-    const result = await this.executeCheck(fragment, typeId)
+    const result = await this._executePermissionCheck(fragment, typeId)
     this.cacheSet(this.typeCheckCache, key, result)
     return result
+  }
+
+  /**
+   * Internal: execute the actual permission check query.
+   */
+  private async _executePermissionCheck(
+    fragment: CypherFragment,
+    nodeId: NodeId,
+  ): Promise<boolean> {
+    const { query, params } = assembleQuery(fragment, 'target', this.vocab, 'resourceId')
+    const results = await this.executor.run<{ found: boolean }>(query, {
+      resourceId: nodeId,
+      ...params,
+    })
+    return results[0]?.found ?? false
   }
 
   async getTargetType(resourceId: NodeId): Promise<NodeId | null> {

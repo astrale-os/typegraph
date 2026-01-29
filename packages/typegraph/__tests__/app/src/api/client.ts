@@ -6,6 +6,7 @@ import type {
   NodeId,
   PermissionT,
 } from '@authz/types'
+import type { PerformanceProfile } from '@/types/api'
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -75,14 +76,14 @@ export const api = {
     grant: Grant
     nodeId: NodeId
     perm: PermissionT
-  }) => post<AccessDecision>('/api/check-access', params),
+  }) => post<AccessDecision & { profile: PerformanceProfile }>('/api/check-access', params),
 
   explainAccess: (params: {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
     perm: PermissionT
-  }) => post<AccessExplanation>('/api/explain-access', params),
+  }) => post<AccessExplanation & { profile: PerformanceProfile }>('/api/explain-access', params),
 
   // Relay endpoints
   relaySetup: (identityIds?: string[]) =>
