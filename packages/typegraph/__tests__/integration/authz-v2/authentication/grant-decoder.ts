@@ -1,8 +1,12 @@
 /**
- * AUTH_V2 Grant Resolver
+ * AUTH_V2 Grant Decoder
  *
- * Single source of truth for resolving UnresolvedIdentityExpr → IdentityExpr.
+ * Single source of truth for decoding UnresolvedIdentityExpr → IdentityExpr.
  * Handles JWT verification, scope intersection, and security constraints.
+ *
+ * Semantic distinction:
+ * - "decode" = Parse/verify JWT, extract plain IDs (no DB access)
+ * - "resolve" = Full identity composition expansion via DB queries (what evalExpr does)
  */
 
 import type {
@@ -18,22 +22,24 @@ import { applyTopLevelScopes } from '../expression/scope'
 import type { PayloadCodec } from '../expression/codec'
 
 // =============================================================================
-// RESOLVED TYPES
+// DECODED TYPES
 // =============================================================================
 
 /**
- * Fully resolved grant with plain IDs and accumulated scopes.
+ * Fully decoded grant with plain IDs and accumulated scopes.
+ * "Decoded" means JWTs have been verified and extracted to plain IDs,
+ * but identity compositions have NOT been expanded from the DB.
  */
-export interface ResolvedGrant {
+export interface DecodedGrant {
   forType: IdentityExpr
   forResource: IdentityExpr
 }
 
 // =============================================================================
-// GRANT RESOLVER
+// GRANT DECODER
 // =============================================================================
 
-export class GrantResolver {
+export class GrantDecoder {
   constructor(
     private verifier: TokenVerifier,
     private registry: IdentityRegistry,
@@ -41,38 +47,40 @@ export class GrantResolver {
   ) {}
 
   /**
-   * Resolve an encoded identity expression to a fully resolved IdentityExpr.
+   * Decode an encoded identity expression to an IdentityExpr with plain IDs.
    *
-   * - JWTs are verified and resolved to plain IDs
+   * - JWTs are verified and decoded to plain IDs
    * - Kernel-issued tokens have their inner grants extracted
    * - Scopes are properly intersected (not concatenated)
    * - Expression structure is preserved
+   *
+   * Note: This does NOT expand identity compositions from the DB.
+   * For full resolution including DB composition expansion, use evalExpr().
    */
-  async resolve(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
-    return this.resolveExpr(expr)
+  async decode(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
+    return this.decodeExpr(expr)
   }
 
   /**
-   * Resolve an encoded grant to a fully resolved grant.
-   * Applies defaults (principal) for missing forType/forResource.
+   * Decode an encoded grant to a grant with plain IDs.
+   * Validates structure, then applies defaults for missing forType/forResource.
    */
-  async resolveGrant(
+  async decodeGrant(
     grant: UnresolvedGrant | undefined,
     principal: IdentityId,
-  ): Promise<ResolvedGrant> {
+  ): Promise<DecodedGrant> {
     const defaultExpr: IdentityExpr = { kind: 'identity', id: principal }
 
     if (!grant) {
       return { forType: defaultExpr, forResource: defaultExpr }
     }
 
-    if (grant.v !== 1) {
-      throw new Error(`Unsupported grant version: ${grant.v}`)
-    }
+    // Validate structure at the boundary
+    validateUnresolvedGrant(grant)
 
     const [forType, forResource] = await Promise.all([
-      grant.forType ? this.resolve(this.decodeField(grant.forType)) : defaultExpr,
-      grant.forResource ? this.resolve(this.decodeField(grant.forResource)) : defaultExpr,
+      grant.forType ? this.decode(this.decodeField(grant.forType)) : defaultExpr,
+      grant.forResource ? this.decode(this.decodeField(grant.forResource)) : defaultExpr,
     ])
 
     return { forType, forResource }
@@ -103,30 +111,30 @@ export class GrantResolver {
     return raw as UnresolvedIdentityExpr
   }
 
-  private async resolveExpr(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
+  private async decodeExpr(expr: UnresolvedIdentityExpr): Promise<IdentityExpr> {
     switch (expr.kind) {
       case 'identity':
-        return this.resolveIdentity(expr)
+        return this.decodeIdentity(expr)
 
       case 'union':
       case 'intersect':
       case 'exclude': {
         const [left, right] = await Promise.all([
-          this.resolveExpr(expr.left),
-          this.resolveExpr(expr.right),
+          this.decodeExpr(expr.left),
+          this.decodeExpr(expr.right),
         ])
         return { kind: expr.kind, left, right }
       }
     }
   }
 
-  private async resolveIdentity(
+  private async decodeIdentity(
     expr:
       | { kind: 'identity'; jwt: string; scopes?: Scope[] }
       | { kind: 'identity'; id: IdentityId; scopes?: Scope[] },
   ): Promise<IdentityExpr> {
     if ('jwt' in expr) {
-      return this.resolveJwtIdentity(expr.jwt, expr.scopes)
+      return this.decodeJwtIdentity(expr.jwt, expr.scopes)
     }
 
     // Plain ID - return as-is
@@ -135,7 +143,7 @@ export class GrantResolver {
       : { kind: 'identity', id: expr.id }
   }
 
-  private async resolveJwtIdentity(jwt: string, leafScopes?: Scope[]): Promise<IdentityExpr> {
+  private async decodeJwtIdentity(jwt: string, leafScopes?: Scope[]): Promise<IdentityExpr> {
     // Verify the JWT
     const { payload } = this.verifier.verifyToken(jwt)
     const identityId = this.registry.resolveIdentity(payload.iss, payload.sub)
@@ -144,18 +152,18 @@ export class GrantResolver {
     if (payload.iss === KERNEL_ISSUER && payload.grant?.forResource) {
       const inner = this.decodeField(payload.grant.forResource)
 
-      // Recursively resolve the inner expression
-      const resolvedInner = await this.resolveExpr(inner)
+      // Recursively decode the inner expression
+      const decodedInner = await this.decodeExpr(inner)
 
       // Apply leaf scopes via intersection (not concatenation)
       if (leafScopes && leafScopes.length > 0) {
-        return applyTopLevelScopes(resolvedInner, leafScopes)
+        return applyTopLevelScopes(decodedInner, leafScopes)
       }
 
-      return resolvedInner
+      return decodedInner
     }
 
-    // Regular JWT - create identity from resolved ID
+    // Regular JWT - create identity from decoded ID
     return leafScopes
       ? { kind: 'identity', id: identityId, scopes: leafScopes }
       : { kind: 'identity', id: identityId }
@@ -225,5 +233,77 @@ export function extractPrimaryIdentity(expr: IdentityExpr): IdentityId {
     case 'intersect':
     case 'exclude':
       return extractPrimaryIdentity(expr.left)
+  }
+}
+
+// =============================================================================
+// STRUCTURAL VALIDATION
+// =============================================================================
+
+/**
+ * Validate an UnresolvedGrant structure.
+ * Throws if invalid.
+ */
+export function validateUnresolvedGrant(grant: unknown): asserts grant is UnresolvedGrant {
+  if (typeof grant !== 'object' || grant === null) {
+    throw new Error('Grant must be an object')
+  }
+
+  const g = grant as Record<string, unknown>
+
+  if (g.v !== 1) {
+    throw new Error(`Unsupported grant version: ${g.v}`)
+  }
+
+  if (g.forType !== undefined) {
+    validateUnresolvedExpr(g.forType, 'forType')
+  }
+
+  if (g.forResource !== undefined) {
+    validateUnresolvedExpr(g.forResource, 'forResource')
+  }
+}
+
+/**
+ * Validate an UnresolvedIdentityExpr structure.
+ * Throws if invalid.
+ */
+export function validateUnresolvedExpr(
+  expr: unknown,
+  path: string,
+): asserts expr is UnresolvedIdentityExpr {
+  if (typeof expr !== 'object' || expr === null) {
+    throw new Error(`${path}: expression must be an object`)
+  }
+
+  const e = expr as Record<string, unknown>
+
+  if (e.kind === 'identity') {
+    const hasJwt = 'jwt' in e && typeof e.jwt === 'string'
+    const hasId = 'id' in e && typeof e.id === 'string'
+
+    if (!hasJwt && !hasId) {
+      throw new Error(`${path}: identity must have jwt or id`)
+    }
+    if (hasJwt && hasId) {
+      throw new Error(`${path}: identity cannot have both jwt and id`)
+    }
+
+    if (e.scopes !== undefined) {
+      if (!Array.isArray(e.scopes)) {
+        throw new Error(`${path}.scopes: must be an array`)
+      }
+    }
+  } else if (e.kind === 'union' || e.kind === 'intersect' || e.kind === 'exclude') {
+    if (!('left' in e)) {
+      throw new Error(`${path}: ${e.kind} must have left`)
+    }
+    if (!('right' in e)) {
+      throw new Error(`${path}: ${e.kind} must have right`)
+    }
+    validateUnresolvedExpr(e.left, `${path}.left`)
+    validateUnresolvedExpr(e.right, `${path}.right`)
+  } else {
+    throw new Error(`${path}: invalid kind: ${e.kind}`)
   }
 }

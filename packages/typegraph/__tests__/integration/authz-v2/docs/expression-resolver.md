@@ -133,7 +133,7 @@ type EncodedGrant = {
 ### 2.5 Resolved Grant
 
 ```typescript
-interface ResolvedGrant {
+interface DecodedGrant {
   forType: IdentityExpr
   forResource: IdentityExpr
 }
@@ -204,10 +204,10 @@ function resolveJwtIdentity(jwt: string, leafScopes?: Scope[]): IdentityExpr
         : { kind: 'identity', id: identityId }
 ```
 
-### 3.4 Grant Resolution: `resolveGrant(encoded, principal)`
+### 3.4 Grant Resolution: `decodeGrant(encoded, principal)`
 
 ```
-function resolveGrant(encoded: EncodedGrant | undefined, principal: IdentityId): ResolvedGrant
+function decodeGrant(encoded: EncodedGrant | undefined, principal: IdentityId): DecodedGrant
     defaultExpr = { kind: 'identity', id: principal }
 
     if not encoded:
@@ -507,7 +507,7 @@ async authenticate(token: string): Promise<AuthContext> {
   }
 
   // 3. Resolve the grant
-  const grant = await this.resolver.resolveGrant(payload.grant, identityId)
+  const grant = await this.resolver.decodeGrant(payload.grant, identityId)
 
   return { principal: identityId, grant, origin: determineOrigin(payload.iss) }
 }
@@ -648,7 +648,7 @@ class ExpressionResolver {
   resolve(expr: EncodedIdentityExpr): Promise<IdentityExpr>
 
   // Resolve an encoded grant with principal defaults
-  resolveGrant(encoded: EncodedGrant | undefined, principal: IdentityId): Promise<ResolvedGrant>
+  decodeGrant(encoded: EncodedGrant | undefined, principal: IdentityId): Promise<DecodedGrant>
 
   // Apply top-level scopes to all leaves in an expression
   applyScopes(expr: IdentityExpr, scopes: Scope[]): IdentityExpr

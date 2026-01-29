@@ -467,6 +467,7 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
   // Phase breakdown
   const phaseValues: Record<string, number[]> = {
     trust: [],
+    decode: [],
     resolve: [],
     decide: [],
     query: [],
@@ -505,7 +506,13 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
 
   // Phase distribution
   let grandTotal = 0
-  const phaseTotals: Record<string, number> = { trust: 0, resolve: 0, decide: 0, query: 0 }
+  const phaseTotals: Record<string, number> = {
+    trust: 0,
+    decode: 0,
+    resolve: 0,
+    decide: 0,
+    query: 0,
+  }
   for (const trace of traces) {
     for (const span of trace.spans) {
       phaseTotals[span.phase] = (phaseTotals[span.phase] ?? 0) + span.durationMicros

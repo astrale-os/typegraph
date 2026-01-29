@@ -495,7 +495,7 @@ These exist only in the prototype:
 | `jwt.ts` | TokenPayload, VerificationResult | token-verifier.ts |
 | `registry.ts` | IdentityRegistry.register(), resolve(), resolveOrThrow() | token-verifier.ts |
 | `issuer-trust.ts` | IssuerKeyStore.registerIssuer(), getKey(), isTrusted() | token-verifier.ts |
-| `resolver.ts` | ExpressionResolver.resolve(), resolveGrant(), applyScopes() | expression-resolver.ts |
+| `resolver.ts` | ExpressionResolver.resolve(), decodeGrant(), applyScopes() | expression-resolver.ts |
 | `resolver.ts` | resolveExpression(), decodeGrant() | grant-encoding.ts |
 | `resolver.ts` | identityExprToUnresolved(), encodeGrant() | grant-encoding.ts |
 | `resolver.ts` | applyTopLevelScopes(), extractPrimaryIdentity() | expression-resolver.ts |

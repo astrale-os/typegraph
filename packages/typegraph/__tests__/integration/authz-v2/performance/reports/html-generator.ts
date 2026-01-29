@@ -215,6 +215,7 @@ export function generateHtmlReport(report: LatencyReport): string {
     }
 
     .timeline-segment.trust { background: var(--accent-blue); }
+    .timeline-segment.decode { background: #06b6d4; }
     .timeline-segment.resolve { background: var(--accent-purple); }
     .timeline-segment.decide { background: var(--accent-green); }
     .timeline-segment.query { background: var(--accent-amber); }
@@ -418,6 +419,7 @@ export function generateHtmlReport(report: LatencyReport): string {
         <div class="chart-title">Execution Timeline</div>
         <div class="legend">
           <div class="legend-item"><div class="legend-dot" style="background: var(--accent-blue)"></div> Trust</div>
+          <div class="legend-item"><div class="legend-dot" style="background: #06b6d4"></div> Decode</div>
           <div class="legend-item"><div class="legend-dot" style="background: var(--accent-purple)"></div> Resolve</div>
           <div class="legend-item"><div class="legend-dot" style="background: var(--accent-green)"></div> Decide</div>
           <div class="legend-item"><div class="legend-dot" style="background: var(--accent-amber)"></div> Query</div>
@@ -483,10 +485,10 @@ export function generateHtmlReport(report: LatencyReport): string {
     new Chart(document.getElementById('phaseChart'), {
       type: 'doughnut',
       data: {
-        labels: ['Trust', 'Resolve', 'Decide', 'Query'],
+        labels: ['Trust', 'Decode', 'Resolve', 'Decide', 'Query'],
         datasets: [{
-          data: [phaseData.trust, phaseData.resolve, phaseData.decide, phaseData.query],
-          backgroundColor: ['#3b82f6', '#8b5cf6', '#22c55e', '#f59e0b'],
+          data: [phaseData.trust, phaseData.decode, phaseData.resolve, phaseData.decide, phaseData.query],
+          backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#22c55e', '#f59e0b'],
           borderWidth: 0
         }]
       },
@@ -572,7 +574,7 @@ export function generateHtmlReport(report: LatencyReport): string {
     });
 
     // Phase bar chart
-    const phases = ['trust', 'resolve', 'decide', 'query'];
+    const phases = ['trust', 'decode', 'resolve', 'decide', 'query'];
     const phaseByPhase = report.aggregateMetrics.byPhase;
     new Chart(document.getElementById('phaseBarChart'), {
       type: 'bar',
@@ -581,7 +583,7 @@ export function generateHtmlReport(report: LatencyReport): string {
         datasets: [{
           label: 'Mean (µs)',
           data: phases.map(p => phaseByPhase[p]?.mean || 0),
-          backgroundColor: ['#3b82f6', '#8b5cf6', '#22c55e', '#f59e0b'],
+          backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#22c55e', '#f59e0b'],
           borderWidth: 0
         }]
       },

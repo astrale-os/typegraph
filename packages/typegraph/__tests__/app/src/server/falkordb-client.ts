@@ -34,10 +34,10 @@ import {
 import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
 import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
 import {
-  GrantResolver,
+  GrantDecoder,
   validateGrant,
-  type ResolvedGrant,
-} from '../../../integration/authz-v2/authentication/grant-resolver'
+  type DecodedGrant,
+} from '../../../integration/authz-v2/authentication/grant-decoder'
 import {
   type Scale,
   type GraphMetadata,
@@ -125,23 +125,23 @@ class TimedIdentityRegistry {
 }
 
 /**
- * Timed GrantResolver - instruments RESOLVE phase
+ * Timed GrantDecoder - instruments DECODE phase (JWT → plain IDs)
  */
-class TimedGrantResolver {
+class TimedGrantDecoder {
   readonly calls: MethodTiming[] = []
 
-  constructor(private inner: GrantResolver) {}
+  constructor(private inner: GrantDecoder) {}
 
-  async resolveGrant(
+  async decodeGrant(
     grant: UnresolvedGrant | undefined,
     principal: IdentityId,
-  ): Promise<ResolvedGrant> {
+  ): Promise<DecodedGrant> {
     const startMs = performance.now()
-    const result = await this.inner.resolveGrant(grant, principal)
+    const result = await this.inner.decodeGrant(grant, principal)
     const endMs = performance.now()
     this.calls.push({
-      method: 'resolveGrant',
-      phase: 'resolve',
+      method: 'decodeGrant',
+      phase: 'decode',
       startMs,
       endMs,
       durationMs: endMs - startMs,
@@ -754,9 +754,9 @@ export class PlaygroundFalkorDBClient {
     const timedVerifier = new TimedTokenVerifier(verifier)
     const timedRegistry = new TimedIdentityRegistry(registry)
 
-    // Create resolver for RESOLVE phase
-    const resolver = new GrantResolver(verifier, registry)
-    const timedResolver = new TimedGrantResolver(resolver)
+    // Create decoder for DECODE phase (JWT → plain IDs)
+    const decoder = new GrantDecoder(verifier, registry)
+    const timedDecoder = new TimedGrantDecoder(decoder)
 
     // =========================================================================
     // 2. CREATE APP JWT WITH USER GRANT
@@ -808,13 +808,13 @@ export class PlaygroundFalkorDBClient {
       })
     }
 
-    // RESOLVE: Resolve grant expressions from JWT
-    const resolvedGrant = await timedResolver.resolveGrant(verifiedPayload.grant, principal)
+    // DECODE: Decode grant expressions from JWT (verify JWTs, extract plain IDs)
+    const decodedGrant = await timedDecoder.decodeGrant(verifiedPayload.grant, principal)
 
-    // Collect TRUST phase calls
+    // Collect TRUST + DECODE phase calls
     allCalls.push(...timedVerifier.calls)
     allCalls.push(...timedRegistry.calls)
-    allCalls.push(...timedResolver.calls)
+    allCalls.push(...timedDecoder.calls)
 
     // =========================================================================
     // 3b. IDENTITY EVALUATION (RESOLVE phase continued)
@@ -826,8 +826,8 @@ export class PlaygroundFalkorDBClient {
     const timedEvaluator = new TimedIdentityEvaluator(this.identityEvaluator)
 
     const [expandedForType, expandedForResource] = await Promise.all([
-      timedEvaluator.evalExpr(resolvedGrant.forType),
-      timedEvaluator.evalExpr(resolvedGrant.forResource),
+      timedEvaluator.evalExpr(decodedGrant.forType),
+      timedEvaluator.evalExpr(decodedGrant.forResource),
     ])
 
     // Collect identity evaluation calls

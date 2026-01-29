@@ -214,7 +214,7 @@ RelayToken endpoint:
 
 Authenticate endpoint:
   6. Verify the kernel-signed JWT
-  7. RESOLVE AGAIN: resolveGrant() walks the expression tree
+  7. RESOLVE AGAIN: decodeGrant() walks the expression tree
      - But all leaves are already plain IDs (no JWTs to verify)
      - This is a no-op tree walk that reconstructs the same structure
 ```

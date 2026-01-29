@@ -14,7 +14,7 @@ export type {
 
 export type MethodTiming = {
   method: string
-  phase: 'trust' | 'resolve' | 'decide' | 'query'
+  phase: 'trust' | 'decode' | 'resolve' | 'decide' | 'query'
   startMs: number // Wall clock start time (performance.now)
   endMs: number // Wall clock end time
   durationMs: number

@@ -227,7 +227,7 @@ export async function handleRunScenario(
 
 interface ProfileCall {
   method: string
-  phase: 'trust' | 'resolve' | 'decide' | 'query'
+  phase: 'trust' | 'decode' | 'resolve' | 'decide' | 'query'
   startMs: number
   endMs: number
   durationMs: number
@@ -291,8 +291,12 @@ function inferPhase(method: string): Phase {
   ) {
     return 'trust'
   }
-  // RESOLVE phase: grant resolution, identity expression evaluation
-  if (method === 'resolveGrant' || method === 'evalExpr') {
+  // DECODE phase: JWT → plain IDs
+  if (method === 'decodeGrant') {
+    return 'decode'
+  }
+  // RESOLVE phase: identity composition expansion from DB
+  if (method === 'evalExpr') {
     return 'resolve'
   }
   // QUERY phase: database operations
@@ -360,6 +364,7 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
   // Phase breakdown
   const phaseValues: Record<Phase, number[]> = {
     trust: [],
+    decode: [],
     resolve: [],
     decide: [],
     query: [],
@@ -388,6 +393,7 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
 
   const byPhase: Record<Phase, Stats> = {
     trust: calculateStats(phaseValues.trust),
+    decode: calculateStats(phaseValues.decode),
     resolve: calculateStats(phaseValues.resolve),
     decide: calculateStats(phaseValues.decide),
     query: calculateStats(phaseValues.query),
@@ -400,7 +406,13 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
 
   // Phase distribution
   let grandTotal = 0
-  const phaseTotals: Record<Phase, number> = { trust: 0, resolve: 0, decide: 0, query: 0 }
+  const phaseTotals: Record<Phase, number> = {
+    trust: 0,
+    decode: 0,
+    resolve: 0,
+    decide: 0,
+    query: 0,
+  }
   for (const trace of traces) {
     for (const span of trace.spans) {
       phaseTotals[span.phase] += span.durationMicros
@@ -410,6 +422,7 @@ function calculateMetrics(traces: Trace[]): TraceMetrics {
 
   const phaseDistribution: Record<Phase, number> = {
     trust: grandTotal > 0 ? (phaseTotals.trust / grandTotal) * 100 : 0,
+    decode: grandTotal > 0 ? (phaseTotals.decode / grandTotal) * 100 : 0,
     resolve: grandTotal > 0 ? (phaseTotals.resolve / grandTotal) * 100 : 0,
     decide: grandTotal > 0 ? (phaseTotals.decide / grandTotal) * 100 : 0,
     query: grandTotal > 0 ? (phaseTotals.query / grandTotal) * 100 : 0,

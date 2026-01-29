@@ -9,7 +9,7 @@
 import type { Grant, IdentityId } from '../types'
 import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
-import { type GrantResolver, validateGrant } from './grant-resolver'
+import { type GrantDecoder, validateGrant } from './grant-decoder'
 
 // =============================================================================
 // AUTH CONTEXT
@@ -38,7 +38,7 @@ export async function authenticate(
   token: string,
   verifier: TokenVerifier,
   registry: IdentityRegistry,
-  resolver: GrantResolver,
+  decoder: GrantDecoder,
 ): Promise<AuthContext> {
   // 1. Verify JWT
   const { payload } = verifier.verifyToken(token)
@@ -56,11 +56,11 @@ export async function authenticate(
   // 4. Determine originyeah y
   const origin: AuthContext['origin'] = payload.iss === KERNEL_ISSUER ? 'system' : 'backend'
 
-  // 5. Resolve grant
-  const resolvedGrant = await resolver.resolveGrant(payload.grant, principal)
+  // 5. Decode grant
+  const decodedGrant = await decoder.decodeGrant(payload.grant, principal)
   const grant: Grant = {
-    forType: resolvedGrant.forType,
-    forResource: resolvedGrant.forResource,
+    forType: decodedGrant.forType,
+    forResource: decodedGrant.forResource,
   }
 
   return { origin, principal, grant }

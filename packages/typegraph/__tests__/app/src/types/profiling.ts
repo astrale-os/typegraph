@@ -8,7 +8,7 @@
 // SPAN & TRACE TYPES
 // =============================================================================
 
-export type Phase = 'trust' | 'resolve' | 'decide' | 'query'
+export type Phase = 'trust' | 'decode' | 'resolve' | 'decide' | 'query'
 
 export interface Span {
   id: string
@@ -156,7 +156,7 @@ export interface PerformanceThresholds {
   checkAccess: { mean: number; p95: number; p99: number }
   directPermission: { mean: number; p95: number }
   hierarchicalDeep: { mean: number; p95: number }
-  phases: { trust: number; resolve: number; decide: number }
+  phases: { trust: number; decode: number; resolve: number; decide: number }
   cache: { minHitRate: number }
 }
 
@@ -225,6 +225,8 @@ export function getPhaseColor(phase: Phase): string {
   switch (phase) {
     case 'trust':
       return '#3b82f6' // blue
+    case 'decode':
+      return '#06b6d4' // cyan
     case 'resolve':
       return '#8b5cf6' // purple
     case 'decide':
@@ -258,9 +260,9 @@ export function emptyMetrics(): TraceMetrics {
   const stats = emptyStats()
   return {
     overall: stats,
-    byPhase: { trust: stats, resolve: stats, decide: stats, query: stats },
+    byPhase: { trust: stats, decode: stats, resolve: stats, decide: stats, query: stats },
     byMethod: {},
     cache: { hits: 0, misses: 0, hitRate: 0 },
-    phaseDistribution: { trust: 0, resolve: 0, decide: 0, query: 0 },
+    phaseDistribution: { trust: 0, decode: 0, resolve: 0, decide: 0, query: 0 },
   }
 }

@@ -14,7 +14,7 @@ import type {
 import { TokenVerifier, KERNEL_ISSUER, type TokenPayload } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
 import type { IssuerKeyStore } from './issuer-key-store'
-import { GrantResolver, extractPrimaryIdentity } from './grant-resolver'
+import { GrantDecoder, extractPrimaryIdentity } from './grant-decoder'
 import { authenticate as authenticateImpl, type AuthContext } from './authenticator'
 import {
   type ExpressionEncoding,
@@ -28,7 +28,7 @@ import {
 // =============================================================================
 
 export { KERNEL_ISSUER } from './token-verifier'
-export { extractPrimaryIdentity } from './grant-resolver'
+export { extractPrimaryIdentity } from './grant-decoder'
 
 // =============================================================================
 // RE-EXPORT AUTH CONTEXT
@@ -65,7 +65,7 @@ const defaultConfig: KernelServiceConfig = {
  */
 export class KernelService {
   private verifier: TokenVerifier
-  private resolver: GrantResolver
+  private decoder: GrantDecoder
   private config: KernelServiceConfig
 
   private get codec(): PayloadCodec {
@@ -82,7 +82,7 @@ export class KernelService {
     const codecOpts = { dedup: this.config.dedup }
     const codec =
       this.config.encoding !== 'json' ? getCodec(this.config.encoding, codecOpts) : undefined
-    this.resolver = new GrantResolver(this.verifier, registry, codec)
+    this.decoder = new GrantDecoder(this.verifier, registry, codec)
   }
 
   // ===========================================================================
@@ -90,20 +90,18 @@ export class KernelService {
   // ===========================================================================
 
   /**
-   * RelayToken endpoint: resolve expression, optionally apply scopes, return kernel-signed JWT.
+   * RelayToken endpoint: decode expression, optionally apply scopes, return kernel-signed JWT.
    *
-   * 1. Resolve expression: JWTs → plain IDs (preserve structure)
+   * 1. Decode expression: JWTs → plain IDs (preserve structure)
    * 2. Apply top-level scopes via intersection (if provided)
    * 3. Issue kernel-signed JWT for forwarding
    */
   async relayToken(request: RelayTokenRequest): Promise<RelayTokenResponse> {
-    // 1. Resolve expression
-    const resolved = await this.resolver.resolve(request.expression as UnresolvedIdentityExpr)
+    // 1. Decode expression
+    const decoded = await this.decoder.decode(request.expression as UnresolvedIdentityExpr)
 
     // 2. Apply top-level scopes
-    const withScopes = request.scopes
-      ? this.resolver.applyScopes(resolved, request.scopes)
-      : resolved
+    const withScopes = request.scopes ? this.decoder.applyScopes(decoded, request.scopes) : decoded
 
     // 3. Build kernel-signed token
     const now = Math.floor(Date.now() / 1000)
@@ -115,7 +113,7 @@ export class KernelService {
     // NOTE: Relay tokens only embed forResource, not forType.
     // This is intentional: relay tokens are for resource-scoped delegation.
     // When authenticated, the missing forType defaults to the principal's own
-    // identity via resolveGrant(), meaning the type check uses the principal
+    // identity via decodeGrant(), meaning the type check uses the principal
     // (caller) identity rather than the delegated expression.
     const payload: TokenPayload = {
       iss: KERNEL_ISSUER,
@@ -142,7 +140,7 @@ export class KernelService {
    * Authenticate a JWT and return the AuthContext.
    */
   async authenticate(token: string): Promise<AuthContext> {
-    return authenticateImpl(token, this.verifier, this.registry, this.resolver)
+    return authenticateImpl(token, this.verifier, this.registry, this.decoder)
   }
 
   // ===========================================================================

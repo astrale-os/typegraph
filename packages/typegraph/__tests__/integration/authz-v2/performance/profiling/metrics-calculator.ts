@@ -100,9 +100,10 @@ export function calculateTraceMetrics(traces: Trace[]): TraceMetrics {
  * Calculate statistics grouped by phase.
  */
 function calculatePhaseStats(traces: Trace[]): Record<Phase, Stats> {
-  const phases: Phase[] = ['trust', 'resolve', 'decide', 'query']
+  const phases: Phase[] = ['trust', 'decode', 'resolve', 'decide', 'query']
   const phaseValues: Record<Phase, number[]> = {
     trust: [],
+    decode: [],
     resolve: [],
     decide: [],
     query: [],
@@ -112,6 +113,7 @@ function calculatePhaseStats(traces: Trace[]): Record<Phase, Stats> {
     // Aggregate span durations by phase for this trace
     const tracePhaseTotals: Record<Phase, number> = {
       trust: 0,
+      decode: 0,
       resolve: 0,
       decide: 0,
       query: 0,
@@ -187,9 +189,10 @@ function calculateCacheStats(traces: Trace[]): { hits: number; misses: number; h
  * Calculate phase distribution as percentage of total time.
  */
 function calculatePhaseDistribution(traces: Trace[]): Record<Phase, number> {
-  const phases: Phase[] = ['trust', 'resolve', 'decide', 'query']
+  const phases: Phase[] = ['trust', 'decode', 'resolve', 'decide', 'query']
   const phaseTotals: Record<Phase, number> = {
     trust: 0,
+    decode: 0,
     resolve: 0,
     decide: 0,
     query: 0,

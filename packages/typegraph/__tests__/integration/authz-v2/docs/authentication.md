@@ -205,7 +205,7 @@ See [expression-resolver.md](./expression-resolver.md) for the full specificatio
 ### 5.3 Grant Resolution
 
 ```typescript
-resolveGrant(encoded: EncodedGrant | undefined, principal: IdentityId): ResolvedGrant
+decodeGrant(encoded: EncodedGrant | undefined, principal: IdentityId): DecodedGrant
 ```
 
 Resolves an encoded grant from a JWT payload:
@@ -340,7 +340,7 @@ RelayToken:
   3. Embed in kernel JWT
 
 Authenticate:
-  4. resolveGrant() → walks the tree again
+  4. decodeGrant() → walks the tree again
   5. But every leaf already has plain ID → no-op tree walk
 ```
 
@@ -400,7 +400,7 @@ Input: JWT string
    origin = payload.iss === KERNEL_ISSUER ? 'system' : 'backend'
 
 4. Resolve grant
-   resolvedGrant = resolver.resolveGrant(payload.grant, identityId)
+   resolvedGrant = resolver.decodeGrant(payload.grant, identityId)
    grant = {
      forType: resolvedGrant.forType,
      forResource: resolvedGrant.forResource
@@ -557,7 +557,7 @@ authentication/
 │
 ├── issuer-trust.ts   # IssuerKeyStore: registerIssuer(), getKey(), isTrusted()
 │
-├── resolver.ts       # ExpressionResolver: resolve(), resolveGrant(), applyScopes()
+├── resolver.ts       # ExpressionResolver: resolve(), decodeGrant(), applyScopes()
 │                     # resolveExpression(), decodeGrant(), identityExprToUnresolved()
 │                     # applyTopLevelScopes(), extractPrimaryIdentity()
 │
@@ -603,7 +603,7 @@ authentication/ is depended on by:
 
 ## 15. Open Questions
 
-1. **Double-resolution fix**: Should kernel tokens carry `IdentityExpr` directly (avoiding re-encoding as `UnresolvedIdentityExpr`), or should `resolveGrant` detect kernel tokens and skip re-resolution?
+1. **Double-resolution fix**: Should kernel tokens carry `IdentityExpr` directly (avoiding re-encoding as `UnresolvedIdentityExpr`), or should `decodeGrant` detect kernel tokens and skip re-resolution?
 
 2. **Token caching**: Should `TokenVerifier` cache verification results for repeated JWTs within the same request? Relevant for expressions with shared subtrees.
 

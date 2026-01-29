@@ -12,7 +12,7 @@ interface PhaseBreakdownProps {
 }
 
 export function PhaseBreakdown({ metrics }: PhaseBreakdownProps) {
-  const phases: Phase[] = ['trust', 'resolve', 'decide', 'query']
+  const phases: Phase[] = ['trust', 'decode', 'resolve', 'decide', 'query']
   const phaseData = phases.map((phase) => ({
     phase,
     percentage: metrics.phaseDistribution[phase],

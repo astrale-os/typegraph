@@ -155,7 +155,7 @@ export function WaterfallChart({ results }: WaterfallChartProps) {
 
       {/* Legend */}
       <div className="flex gap-3 text-[9px] border-t border-slate-700 pt-2">
-        {(['trust', 'resolve', 'decide', 'query'] as Phase[]).map((phase) => (
+        {(['trust', 'decode', 'resolve', 'decide', 'query'] as Phase[]).map((phase) => (
           <div key={phase} className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: getPhaseColor(phase) }} />
             <span className="text-slate-400 capitalize">{phase}</span>
