@@ -20,10 +20,10 @@ export async function checkAccess(
 
   // Resource query has no dependency on typeId — start immediately
   const targetQuery = queryPort.generateQuery(forResource, 'target', perm, principal)
-  // const resourcePromise =
-  //   targetQuery === null
-  //     ? Promise.resolve(false)
-  //     : queryPort.executeResourceCheck(targetQuery, nodeId)
+  const resourcePromise =
+    targetQuery === null
+      ? Promise.resolve(false)
+      : queryPort.executeResourceCheck(targetQuery, nodeId)
 
   // Type check (only if target has a type)
   const typeId = await queryPort.getTargetType(nodeId)
@@ -34,16 +34,17 @@ export async function checkAccess(
       return { granted: false, deniedBy: 'type' }
     }
 
-    // // Run type execution in parallel with already-started resource execution
-    // const [typeGranted, targetGranted] = await Promise.all([
-    //   queryPort.executeTypeCheck(typeQuery, typeId),
-    //   resourcePromise,
-    // ])
+    // Run type execution in parallel with already-started resource execution
+    const [typeGranted, targetGranted] = await Promise.all([
+      queryPort.executeTypeCheck(typeQuery, typeId),
+      resourcePromise,
+    ])
 
-    // if (!typeGranted) return { granted: false, deniedBy: 'type' }
-    return { granted: true }
+    if (!typeGranted) return { granted: false, deniedBy: 'type' }
+    return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
   }
 
   // No type — just await resource
-  return { granted: true }
+  const targetGranted = await resourcePromise
+  return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
 }
