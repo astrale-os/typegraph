@@ -26,6 +26,8 @@ import type {
   MultiEdgeBidirectional,
   EdgeOutboundCardinality,
   EdgeInboundCardinality,
+  QueryContext,
+  InferReturnType,
 } from '@astrale/typegraph-core'
 
 // Forward declarations
@@ -35,6 +37,13 @@ import type { ReturningBuilder } from './returning'
 import type { QueryExecutor } from './entry'
 import { extractNodeFromRecord } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
+import {
+  createQueryContext,
+  parseReturnSpec,
+  transformReturnResult,
+  type AliasInfo,
+  type EdgeAliasInfo,
+} from './proxy'
 
 /**
  * Builder for queries that return zero or one node.
@@ -133,6 +142,134 @@ export class OptionalNodeBuilder<
       this._executor,
       collectSpecs as ExtractCollectSpecs<Args>,
     )
+  }
+
+  /**
+   * Define the return shape using a typed callback.
+   * The return type is inferred from the callback's return expression.
+   *
+   * This is the preferred way to specify return values as it provides:
+   * - Full IDE autocomplete for node properties
+   * - Compile-time validation of alias references
+   * - Typed `collect()` aggregations
+   *
+   * @param selector - Callback receiving query context with typed alias proxies
+   * @returns A ReturningBuilder with inferred return type
+   *
+   * @example
+   * ```typescript
+   * // Return full nodes and specific properties
+   * .return(q => ({
+   *   author: q.u,           // Full User node
+   *   postTitle: q.p.title   // Just the string property
+   * }))
+   *
+   * // With collect aggregation
+   * .return(q => ({
+   *   author: q.u,
+   *   posts: collect(q.p)    // Post[]
+   * }))
+   * ```
+   */
+  async return<R extends Record<string, unknown>>(
+    selector: (q: QueryContext<S, Aliases, Record<string, never>, EdgeAliases>) => R,
+  ): Promise<
+    ReturningBuilder<S, Aliases, EdgeAliases, Record<string, never>> & {
+      execute(): Promise<Array<InferReturnType<R>>>
+    }
+  > {
+    // Build alias info maps for the proxy
+    const nodeAliasInfo = new Map<string, AliasInfo>()
+    const optionalAliasInfo = new Map<string, AliasInfo>()
+    const edgeAliasInfo = new Map<string, EdgeAliasInfo>()
+
+    // Get internal aliases from AST
+    const astAliases = this._ast.userAliases
+
+    // Build node alias info
+    for (const [userAlias, label] of Object.entries(this._aliases)) {
+      const internalAlias = astAliases.get(userAlias) ?? userAlias
+      nodeAliasInfo.set(userAlias, {
+        userAlias,
+        internalAlias,
+        label: label as string,
+        isOptional: false,
+      })
+    }
+
+    // Build edge alias info
+    for (const [userAlias, edgeType] of Object.entries(this._edgeAliases)) {
+      const internalAlias = astAliases.get(userAlias) ?? userAlias
+      edgeAliasInfo.set(userAlias, {
+        userAlias,
+        internalAlias,
+        edgeType: edgeType as string,
+        isOptional: false,
+      })
+    }
+
+    // Create the query context proxy
+    const context = createQueryContext<S, Aliases, Record<string, never>, EdgeAliases>(
+      nodeAliasInfo,
+      optionalAliasInfo,
+      edgeAliasInfo,
+    )
+
+    // Execute the selector to get the return spec
+    const returnResult = selector(context)
+
+    // Parse the return specification
+    const returnSpec = parseReturnSpec(returnResult)
+
+    // Build AST projection from the return spec
+    const nodeAliasNames = [...returnSpec.nodeFields.values()].map((f) => f.alias)
+    const edgeAliasNames: string[] = []
+    const collectAliases: Record<string, { sourceAlias: string; distinct?: boolean }> = {}
+
+    // Add property fields as node aliases (they need the node in the result)
+    for (const field of returnSpec.propertyFields.values()) {
+      if (!nodeAliasNames.includes(field.alias)) {
+        nodeAliasNames.push(field.alias)
+      }
+    }
+
+    // Add collect fields
+    for (const [outputKey, field] of returnSpec.collectFields) {
+      collectAliases[outputKey] = {
+        sourceAlias: field.alias,
+        distinct: field.distinct,
+      }
+    }
+
+    const newAst = this._ast.setMultiNodeProjection(
+      nodeAliasNames,
+      edgeAliasNames,
+      Object.keys(collectAliases).length > 0 ? collectAliases : undefined,
+    )
+
+    // Dynamic import to avoid circular dependency
+    const { ReturningBuilder } = await import('./returning')
+
+    // Store the return spec for result transformation
+    const returningBuilder = new ReturningBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+      {} as Record<string, never>,
+    )
+
+    // Override execute to transform results according to returnSpec
+    const originalExecute = returningBuilder.execute.bind(returningBuilder)
+    ;(returningBuilder as any).execute = async () => {
+      const rawResults = await originalExecute()
+      return rawResults.map((row: Record<string, unknown>) =>
+        transformReturnResult(row, returnSpec, returnResult),
+      )
+    }
+
+    return returningBuilder as any
   }
 
   // ===========================================================================

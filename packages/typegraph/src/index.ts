@@ -158,5 +158,6 @@ export type {
 // Note: Errors, AST, Schema, and Type Inference utilities are all re-exported
 // from '@astrale/typegraph-core' above
 
-// Export collect-related types
-export type { CollectSpec, CollectSpecToReturnType } from './query'
+// Export collect-related types and functions
+export type { CollectSpec, CollectSpecToReturnType, CollectMarker } from './query'
+export { collect, collectDistinct, isCollectMarker } from './query'

@@ -63,4 +63,11 @@ export type {
   EdgeOutboundCardinality,
   EdgeInboundCardinality,
   CardinalityToBuilder,
+  NodeProxy,
+  OptionalNodeProxy,
+  EdgeProxy,
+  OptionalEdgeProxy,
+  QueryContext,
+  ResolveProxy,
+  InferReturnType,
 } from './inference'

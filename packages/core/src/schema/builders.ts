@@ -131,7 +131,10 @@ function validateIndexes(
 /**
  * Configuration options for node definition.
  */
-export interface NodeConfig<TProps extends z.ZodRawShape> {
+export interface NodeConfig<
+  TProps extends z.ZodRawShape,
+  TLabels extends readonly string[] = readonly string[],
+> {
   /**
    * Zod shape defining node properties.
    * Do NOT include `id` - it is implicit on all nodes.
@@ -168,7 +171,7 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
    * Node types that this node also acts as (IS-A relationship).
    * Each entry references another node type key in the schema.
    */
-  labels?: readonly string[]
+  labels?: TLabels
 }
 
 /**
@@ -189,9 +192,10 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
  * });
  * ```
  */
-export function node<TProps extends z.ZodRawShape>(
-  config: NodeConfig<TProps>,
-): NodeDefinition<TProps> {
+export function node<
+  TProps extends z.ZodRawShape,
+  const TLabels extends readonly string[] = readonly string[],
+>(config: NodeConfig<TProps, TLabels>): NodeDefinition<TProps, TLabels> {
   // Validate index configurations
   const propertyNames = Object.keys(config.properties)
   validateIndexes(config.indexes as IndexEntry[] | undefined, propertyNames, 'node properties')
@@ -199,7 +203,7 @@ export function node<TProps extends z.ZodRawShape>(
   return {
     _type: 'node',
     properties: z.object(config.properties),
-    indexes: (config.indexes ?? []) as NodeDefinition<TProps>['indexes'],
+    indexes: (config.indexes ?? []) as NodeDefinition<TProps, TLabels>['indexes'],
     description: config.description,
     labels: config.labels,
   }

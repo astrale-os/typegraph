@@ -130,6 +130,7 @@ describe('Schema Validation', () => {
       defineSchema({
         nodes: { folder: node({ properties: {} }) },
         edges: {},
+        // @ts-expect-error - intentionally referencing non-existent edge for runtime validation test
         hierarchy: { defaultEdge: 'hasParent', direction: 'up' },
       }),
     ).toThrow(/Hierarchy defaultEdge 'hasParent' does not exist/)

@@ -4,8 +4,8 @@
  * Transforms AST into Cypher query strings for Neo4j/Memgraph.
  */
 
-import type { QueryAST } from '../../ast'
-import type { SchemaDefinition, AnySchema } from '../../schema'
+import type { QueryAST } from '@astrale/typegraph-core'
+import type { SchemaDefinition, AnySchema } from '@astrale/typegraph-core'
 import { resolveNodeLabels, formatLabels } from '@astrale/typegraph-core'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
@@ -32,7 +32,7 @@ import type {
   ReachableStep,
   Projection,
   ForkStep,
-} from '../../ast'
+} from '@astrale/typegraph-core'
 
 /**
  * Cypher compiler implementation.

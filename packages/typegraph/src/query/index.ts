@@ -51,3 +51,7 @@ export type {
   QueryCompilerConfig,
   QueryExecutor,
 } from './entry'
+
+// Typed return helpers
+export { collect, collectDistinct, isCollectMarker } from './collect'
+export type { CollectMarker } from './collect'

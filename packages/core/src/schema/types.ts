@@ -111,7 +111,10 @@ export function isSinglePropertyIndex(
  *
  * @template TProps - Zod shape defining additional node properties
  */
-export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
+export interface NodeDefinition<
+  TProps extends z.ZodRawShape = z.ZodRawShape,
+  TLabels extends readonly string[] = readonly string[],
+> {
   readonly _type: 'node'
 
   /**
@@ -145,7 +148,7 @@ export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
    * - Adds PascalCase Cypher labels for each referenced type
    * - Allows this node to satisfy edges expecting those types
    */
-  readonly labels?: readonly string[]
+  readonly labels?: TLabels
 }
 
 // =============================================================================
