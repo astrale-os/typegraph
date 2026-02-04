@@ -65,7 +65,6 @@ export type {
   CollectionBuilder,
   OptionalNodeBuilder,
   PathBuilder,
-  ReturningBuilder,
   GroupedBuilder,
   QueryFragment,
   EdgeFilterOptions,
@@ -159,5 +158,5 @@ export type {
 // from '@astrale/typegraph-core' above
 
 // Export collect-related types and functions
-export type { CollectSpec, CollectSpecToReturnType, CollectMarker } from './query'
-export { collect, collectDistinct, isCollectMarker } from './query'
+export type { CollectMarker } from './query'
+export { collect, collectDistinct, isCollectMarker, TypedReturningBuilder } from './query'

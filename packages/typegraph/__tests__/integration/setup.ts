@@ -165,13 +165,11 @@ class Neo4jAdapter implements DatabaseAdapter {
 
   createQueryExecutor(): QueryExecutor {
     if (!this.connection) throw new Error('Not connected')
+    const connection = this.connection
     return {
       async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
-        const { records } = await this.connection.run<Record<string, unknown>>(
-          cypher,
-          params ?? {},
-        )
-        return records.map((r) => transformNeo4jResult<T>(r))
+        const { records } = await connection.run(cypher, params ?? {})
+        return records.map((r: Record<string, unknown>) => transformNeo4jResult<T>(r))
       },
     }
   }
@@ -182,16 +180,16 @@ class Neo4jAdapter implements DatabaseAdapter {
 
     return {
       async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
-        const { records } = await connection.run<Record<string, unknown>>(cypher, params ?? {})
-        return records.map((r) => transformNeo4jResult<T>(r))
+        const { records } = await connection.run(cypher, params ?? {})
+        return records.map((r: Record<string, unknown>) => transformNeo4jResult<T>(r))
       },
 
       async runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T> {
         return connection.transaction(async (ctx: any) => {
           const runner: TransactionRunner = {
             async run<R>(cypher: string, params: Record<string, unknown>): Promise<R[]> {
-              const records = await ctx.run<Record<string, unknown>>(cypher, params)
-              return records.map((r) => transformNeo4jResult<R>(r))
+              const records = await ctx.run(cypher, params)
+              return records.map((r: Record<string, unknown>) => transformNeo4jResult<R>(r))
             },
           }
           return fn(runner)
@@ -202,65 +200,64 @@ class Neo4jAdapter implements DatabaseAdapter {
 }
 
 // =============================================================================
-// FALKORDB ADAPTER (Redis Protocol)
+// FALKORDB ADAPTER (Using official @astrale/typegraph-adapter-falkordb)
 // =============================================================================
 
 class FalkorDBAdapter implements DatabaseAdapter {
-  private client: any = null
-  private graph: any = null
+  private instance: any = null
 
   async connect(): Promise<void> {
-    const { FalkorDB } = await import('falkordb')
+    // @ts-ignore - FalkorDB adapter doesn't have type declarations
+    const { createFalkorDBGraph } = await import('@astrale/typegraph-adapter-falkordb')
     const host = process.env.FALKORDB_HOST ?? 'localhost'
     const port = parseInt(process.env.FALKORDB_PORT ?? '6379')
-
-    this.client = await FalkorDB.connect({ socket: { host, port } })
     const graphName = process.env.FALKORDB_GRAPH ?? 'test'
-    this.graph = this.client.selectGraph(graphName)
+
+    this.instance = await createFalkorDBGraph(testSchema, {
+      host,
+      port,
+      graphName,
+    })
   }
 
   async close(): Promise<void> {
-    if (this.client) {
-      await this.client.close()
+    if (this.instance) {
+      await this.instance.close()
     }
   }
 
   async clearDatabase(): Promise<void> {
-    if (!this.graph) throw new Error('Not connected')
-    // Delete all nodes and edges
-    await this.graph.query('MATCH (n) DETACH DELETE n')
+    if (!this.instance) throw new Error('Not connected')
+    await this.instance.driver.graph.query('MATCH (n) DETACH DELETE n')
   }
 
   createQueryExecutor(): QueryExecutor {
-    if (!this.graph) throw new Error('Not connected')
-    const graph = this.graph
+    if (!this.instance) throw new Error('Not connected')
+    const graph = this.instance.driver.graph
 
     return {
       async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
-        const result = await graph.roQuery(
-          cypher,
-          params ? { params: params as any } : undefined,
-        )
+        const result = await graph.roQuery(cypher, params ? { params } : undefined)
         return transformFalkorDBResults(result.data) as T[]
       },
     }
   }
 
   createMutationExecutor(): MutationExecutor {
-    if (!this.graph) throw new Error('Not connected')
-    const graph = this.graph
+    if (!this.instance) throw new Error('Not connected')
+    const graph = this.instance.driver.graph
 
     return {
       async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
-        const result = await graph.query(cypher, params ? { params: params as any } : undefined)
+        const result = await graph.query(cypher, params ? { params } : undefined)
         return transformFalkorDBResults(result.data) as T[]
       },
 
       async runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T> {
-        // FalkorDB doesn't have explicit transactions
+        // FalkorDB doesn't have explicit transactions, run sequentially
         const runner: TransactionRunner = {
           async run<R>(cypher: string, params: Record<string, unknown>): Promise<R[]> {
-            const result = await graph.query(cypher, { params: params as any })
+            const result = await graph.query(cypher, { params })
             return transformFalkorDBResults(result.data) as R[]
           },
         }
@@ -268,6 +265,69 @@ class FalkorDBAdapter implements DatabaseAdapter {
       },
     }
   }
+}
+
+/**
+ * Extract properties from a FalkorDB Node or Edge object.
+ * FalkorDB returns properties as a Map or plain object.
+ */
+function extractFalkorDBProperties(val: unknown): Record<string, unknown> {
+  if (!val || typeof val !== 'object') return val as Record<string, unknown>
+
+  const obj = val as Record<string, unknown>
+
+  // Check if it's a FalkorDB Node/Edge with properties
+  const props = obj.properties
+  if (props !== undefined) {
+    // FalkorDB returns properties as a Map
+    if (props instanceof Map) {
+      const result: Record<string, unknown> = {}
+      props.forEach((value, key) => {
+        result[key] = value
+      })
+      return result
+    }
+    // In case properties is already a plain object
+    if (typeof props === 'object' && props !== null) {
+      return props as Record<string, unknown>
+    }
+  }
+
+  return val as Record<string, unknown>
+}
+
+/**
+ * Transform FalkorDB results to plain objects.
+ * FalkorDB returns arrays where each element is a row object with internal aliases as keys.
+ * We need to extract properties from Node/Edge objects in each row.
+ */
+function transformFalkorDBResults(data: unknown[]): Record<string, unknown>[] {
+  if (!data || data.length === 0) return []
+
+  return data.map((row) => {
+    // Handle case where row is already a plain object (FalkorDB format)
+    if (row && typeof row === 'object' && !Array.isArray(row)) {
+      const result: Record<string, unknown> = {}
+      for (const [key, val] of Object.entries(row as Record<string, unknown>)) {
+        result[key] = extractFalkorDBProperties(val)
+      }
+      return result
+    }
+
+    // Handle legacy array format
+    if (Array.isArray(row)) {
+      if (row.length === 1) {
+        return extractFalkorDBProperties(row[0])
+      }
+      const result: Record<string, unknown> = {}
+      row.forEach((val, idx) => {
+        result[`col${idx}`] = extractFalkorDBProperties(val)
+      })
+      return result
+    }
+
+    return row as Record<string, unknown>
+  })
 }
 
 // =============================================================================
@@ -316,41 +376,7 @@ function transformNeo4jResult<T>(record: Record<string, unknown>): T {
   return result as T
 }
 
-/**
- * Transform FalkorDB results to plain objects.
- * FalkorDB returns arrays of values that need to be mapped to header names.
- */
-function transformFalkorDBResults(data: any): any[] {
-  if (!Array.isArray(data)) return []
-
-  return data.map((row: any) => {
-    if (Array.isArray(row)) {
-      // Row is an array of values, map to object
-      return row.reduce((acc: any, val: any, idx: number) => {
-        acc[`col${idx}`] = extractFalkorDBValue(val)
-        return acc
-      }, {})
-    }
-    return extractFalkorDBValue(row)
-  })
-}
-
-function extractFalkorDBValue(val: any): any {
-  if (val === null || val === undefined) return val
-  if (typeof val !== 'object') return val
-
-  // Handle FalkorDB Node
-  if (val.properties) {
-    return val.properties
-  }
-
-  // Handle FalkorDB Edge
-  if (val.relationship && val.relationship.properties) {
-    return val.relationship.properties
-  }
-
-  return val
-}
+// FalkorDB result transformation is handled by @astrale/typegraph-adapter-falkordb
 
 // =============================================================================
 // TEST GRAPH INSTANCE
@@ -364,6 +390,7 @@ export function createTestGraph(adapter: DatabaseAdapter): GraphQuery<TestSchema
   // that doesn't perfectly match our concrete schema type
   return createGraph(testSchema, {
     uri: 'test://database', // Dummy URI since we provide executors
+    queryExecutor,
     mutationExecutor,
     rawExecutor: queryExecutor,
   }) as unknown as GraphQuery<TestSchema>
@@ -373,10 +400,10 @@ export function createTestGraph(adapter: DatabaseAdapter): GraphQuery<TestSchema
 // TEST UTILITIES
 // =============================================================================
 
-export async function seedTestData(mutationExecutor: MutationExecutor): Promise<TestData> {
+export async function seedTestData(executor: MutationExecutor): Promise<TestData> {
   // Create users
-  const [user1] = await mutationExecutor.run<{ id: string }>(
-    `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+  const [user1] = await executor.run<{ id: string }>(
+    `CREATE (u:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
     {
       id: 'user-1',
       email: 'alice@example.com',
@@ -385,207 +412,186 @@ export async function seedTestData(mutationExecutor: MutationExecutor): Promise<
     },
   )
 
-  const [user2] = await executor
-    .run<{
-      id: string
-    }>(
-      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
-      {
-        id: 'user-2',
-        email: 'bob@example.com',
-        name: 'Bob',
-        status: 'active',
-      },
-    )
-    
+  const [user2] = await executor.run<{ id: string }>(
+    `CREATE (u:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+    {
+      id: 'user-2',
+      email: 'bob@example.com',
+      name: 'Bob',
+      status: 'active',
+    },
+  )
 
-  const [user3] = await executor
-    .run<{
-      id: string
-    }>(
-      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
-      {
-        id: 'user-3',
-        email: 'charlie@example.com',
-        name: 'Charlie',
-        status: 'inactive',
-      },
-    )
-    
+  const [user3] = await executor.run<{ id: string }>(
+    `CREATE (u:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+    {
+      id: 'user-3',
+      email: 'charlie@example.com',
+      name: 'Charlie',
+      status: 'inactive',
+    },
+  )
 
   // Create posts
-  const [post1] = await executor
-    .run<{
-      id: string
-    }>(
-      `CREATE (p:Node:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
-      {
-        id: 'post-1',
-        title: 'Hello World',
-        content: 'My first post',
-        views: 100,
-      },
-    )
-    
+  const [post1] = await executor.run<{ id: string }>(
+    `CREATE (p:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
+    {
+      id: 'post-1',
+      title: 'Hello World',
+      content: 'My first post',
+      views: 100,
+    },
+  )
 
-  const [post2] = await executor
-    .run<{
-      id: string
-    }>(
-      `CREATE (p:Node:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
-      {
-        id: 'post-2',
-        title: 'GraphQL vs REST',
-        content: 'A comparison',
-        views: 250,
-      },
-    )
-    
+  const [post2] = await executor.run<{ id: string }>(
+    `CREATE (p:Post {id: $id, title: $title, content: $content, views: $views}) RETURN p.id as id`,
+    {
+      id: 'post-2',
+      title: 'GraphQL vs REST',
+      content: 'A comparison',
+      views: 250,
+    },
+  )
 
-  const [post3] = await executor
-    .run<{
-      id: string
-    }>(`CREATE (p:Node:Post {id: $id, title: $title, views: $views}) RETURN p.id as id`, {
+  const [post3] = await executor.run<{ id: string }>(
+    `CREATE (p:Post {id: $id, title: $title, views: $views}) RETURN p.id as id`,
+    {
       id: 'post-3',
       title: 'Draft Post',
       views: 0,
-    })
-    
+    },
+  )
 
   // Create comments
-  const [comment1] = await executor
-    .run<{
-      id: string
-    }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
+  const [comment1] = await executor.run<{ id: string }>(
+    `CREATE (c:Comment {id: $id, text: $text}) RETURN c.id as id`,
+    {
       id: 'comment-1',
       text: 'Great post!',
-    })
-    
+    },
+  )
 
-  const [comment2] = await executor
-    .run<{
-      id: string
-    }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
+  const [comment2] = await executor.run<{ id: string }>(
+    `CREATE (c:Comment {id: $id, text: $text}) RETURN c.id as id`,
+    {
       id: 'comment-2',
       text: 'Thanks for sharing',
-    })
-    
+    },
+  )
 
   // Create tags
-  const [tag1] = await executor
-    .run<{
-      id: string
-    }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
+  const [tag1] = await executor.run<{ id: string }>(
+    `CREATE (t:Tag {id: $id, name: $name}) RETURN t.id as id`,
+    {
       id: 'tag-1',
       name: 'tech',
-    })
-    
+    },
+  )
 
-  const [tag2] = await executor
-    .run<{
-      id: string
-    }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
+  const [tag2] = await executor.run<{ id: string }>(
+    `CREATE (t:Tag {id: $id, name: $name}) RETURN t.id as id`,
+    {
       id: 'tag-2',
       name: 'tutorial',
-    })
-    
+    },
+  )
 
   // Create folders (hierarchy)
   await executor.run(
-    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
     { id: 'folder-root', name: 'Root', path: '/' },
   )
 
   await executor.run(
-    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
     { id: 'folder-docs', name: 'Documents', path: '/documents' },
   )
 
   await executor.run(
-    `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
+    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
     { id: 'folder-work', name: 'Work', path: '/documents/work' },
   )
 
   // Create relationships
   // User -> authored -> Post
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-1' },
   )
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-2' },
   )
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-2', postId: 'post-3' },
   )
 
   // User -> likes -> Post
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     { userId: 'user-2', postId: 'post-1' },
   )
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     { userId: 'user-3', postId: 'post-1' },
   )
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
+    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
     { userId: 'user-1', postId: 'post-2' },
   )
 
   // User -> follows -> User
   await executor.run(
-    `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
+    `MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
     { fromId: 'user-2', toId: 'user-1' },
   )
   await executor.run(
-    `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
+    `MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
     { fromId: 'user-3', toId: 'user-1' },
   )
 
   // Post -> hasComment -> Comment
   await executor.run(
-    `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
+    `MATCH (p:Post {id: $postId}), (c:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
     { postId: 'post-1', commentId: 'comment-1' },
   )
   await executor.run(
-    `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
+    `MATCH (p:Post {id: $postId}), (c:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
     { postId: 'post-1', commentId: 'comment-2' },
   )
 
   // User -> wroteComment -> Comment
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
+    `MATCH (u:User {id: $userId}), (c:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
     { userId: 'user-2', commentId: 'comment-1' },
   )
   await executor.run(
-    `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
+    `MATCH (u:User {id: $userId}), (c:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
     { userId: 'user-3', commentId: 'comment-2' },
   )
 
   // Post -> tagged -> Tag
   await executor.run(
-    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     { postId: 'post-1', tagId: 'tag-1' },
   )
   await executor.run(
-    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     { postId: 'post-2', tagId: 'tag-1' },
   )
   await executor.run(
-    `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
+    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
     { postId: 'post-2', tagId: 'tag-2' },
   )
 
   // Folder hierarchy
   await executor.run(
-    `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
+    `MATCH (child:Folder {id: $childId}), (parent:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-docs', parentId: 'folder-root' },
   )
   await executor.run(
-    `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
+    `MATCH (child:Folder {id: $childId}), (parent:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-work', parentId: 'folder-docs' },
   )
 
@@ -613,6 +619,8 @@ export interface TestData {
 export interface TestContext {
   adapter: DatabaseAdapter
   executor: QueryExecutor
+  /** Raw connection for direct Cypher queries (escape hatch) */
+  connection: MutationExecutor
   graph: GraphQuery<TestSchema>
   data: TestData
 }
@@ -622,12 +630,13 @@ export async function setupIntegrationTest(): Promise<TestContext> {
   await adapter.connect()
 
   await adapter.clearDatabase()
-  const executor = adapter.createQueryExecutor()
-  const data = await seedTestData(executor)
+  const mutationExecutor = adapter.createMutationExecutor()
+  const queryExecutor = adapter.createQueryExecutor()
+  const data = await seedTestData(mutationExecutor)
 
   const graph = createTestGraph(adapter)
 
-  return { adapter, executor, graph, data }
+  return { adapter, executor: queryExecutor, connection: mutationExecutor, graph, data }
 }
 
 export async function teardownIntegrationTest(ctx: TestContext): Promise<void> {

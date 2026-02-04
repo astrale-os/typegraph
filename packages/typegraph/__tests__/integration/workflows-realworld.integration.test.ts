@@ -21,21 +21,21 @@ describe('Real-World Workflows', () => {
 
   it('soft delete pattern - preserve but mark as deleted', async () => {
     // Create post
-    const post = await ctx.graph.create('post', {
-      id: 'soft-delete-post',
-      title: 'Soft Delete Test',
-      content: 'This will be soft deleted',
-      views: 10,
-    })
+    const post = await ctx.graph.mutate.create(
+      'post',
+      {
+        title: 'Soft Delete Test',
+        content: 'This will be soft deleted',
+        views: 10,
+      },
+      { id: 'soft-delete-post' },
+    )
 
     // Mark as deleted (via raw update since schema doesn't have deletedAt)
-    await ctx.connection.run(
-      `MATCH (n:Node:Post {id: $id}) SET n.deletedAt = $deletedAt`,
-      {
-        id: post.id,
-        deletedAt: new Date().toISOString(),
-      },
-    )
+    await ctx.connection.run(`MATCH (n:Node:Post {id: $id}) SET n.deletedAt = $deletedAt`, {
+      id: post.id,
+      deletedAt: new Date().toISOString(),
+    })
 
     // Query excluding soft-deleted using raw WHERE
     const activePostsQuery = await ctx.graph.raw<{ id: string; title: string }>(
@@ -97,9 +97,12 @@ describe('Real-World Workflows', () => {
       updatedBy: string
       createdAt: string
       updatedAt: string
-    }>(`MATCH (p:Node:Post {id: $id}) RETURN p.createdBy as createdBy, p.updatedBy as updatedBy, p.createdAt as createdAt, p.updatedAt as updatedAt`, {
-      id: 'audit-post',
-    })
+    }>(
+      `MATCH (p:Node:Post {id: $id}) RETURN p.createdBy as createdBy, p.updatedBy as updatedBy, p.createdAt as createdAt, p.updatedAt as updatedAt`,
+      {
+        id: 'audit-post',
+      },
+    )
 
     expect(result).toBeDefined()
     expect(result!.createdBy).toBe('user-1')
@@ -110,31 +113,37 @@ describe('Real-World Workflows', () => {
 
   it('versioning - track document revisions', async () => {
     // Create document
-    const doc = await ctx.graph.create('post', {
-      id: 'versioned-doc',
-      title: 'Document v1',
-      content: 'Initial content',
-      views: 0,
-    })
+    const doc = await ctx.graph.mutate.create(
+      'post',
+      {
+        title: 'Document v1',
+        content: 'Initial content',
+        views: 0,
+      },
+      { id: 'versioned-doc' },
+    )
 
     // Add version metadata via raw
-    await ctx.connection.run(
-      `MATCH (p:Node:Post {id: $id}) SET p.version = $version`,
-      { id: doc.id, version: 1 },
-    )
-
-    // Create new version
-    const docV2 = await ctx.graph.create('post', {
-      id: 'versioned-doc-v2',
-      title: 'Document v2',
-      content: 'Updated content',
-      views: 0,
+    await ctx.connection.run(`MATCH (p:Node:Post {id: $id}) SET p.version = $version`, {
+      id: doc.id,
+      version: 1,
     })
 
-    await ctx.connection.run(
-      `MATCH (p:Node:Post {id: $id}) SET p.version = $version`,
-      { id: docV2.id, version: 2 },
+    // Create new version
+    const docV2 = await ctx.graph.mutate.create(
+      'post',
+      {
+        title: 'Document v2',
+        content: 'Updated content',
+        views: 0,
+      },
+      { id: 'versioned-doc-v2' },
     )
+
+    await ctx.connection.run(`MATCH (p:Node:Post {id: $id}) SET p.version = $version`, {
+      id: docV2.id,
+      version: 2,
+    })
 
     // Link versions with custom edge (using raw since not in schema)
     await ctx.connection.run(
@@ -274,12 +283,15 @@ describe('Real-World Workflows', () => {
   })
 
   it('content moderation - flag and review workflow', async () => {
-    const post = await ctx.graph.create('post', {
-      id: 'moderation-post',
-      title: 'Potentially Problematic Post',
-      content: 'Some content',
-      views: 0,
-    })
+    const post = await ctx.graph.mutate.create(
+      'post',
+      {
+        title: 'Potentially Problematic Post',
+        content: 'Some content',
+        views: 0,
+      },
+      { id: 'moderation-post' },
+    )
 
     // Flag for moderation
     await ctx.connection.run(
@@ -299,7 +311,10 @@ describe('Real-World Workflows', () => {
       id: string
       title: string
       flagReason: string
-    }>(`MATCH (p:Node:Post) WHERE p.flagged = true RETURN p.id as id, p.title as title, p.flagReason as flagReason`, {})
+    }>(
+      `MATCH (p:Node:Post) WHERE p.flagged = true RETURN p.id as id, p.title as title, p.flagReason as flagReason`,
+      {},
+    )
 
     expect(flagged.some((p) => p.id === post.id)).toBe(true)
     expect(flagged.find((p) => p.id === post.id)?.flagReason).toBe('Spam')
@@ -330,10 +345,10 @@ describe('Real-World Workflows', () => {
 
   it('search relevance - weighted scoring', async () => {
     // Create posts with different relevance
-    const posts = await ctx.graph.createMany('post', [
-      { id: 'search-1', title: 'Graph Databases', content: 'All about graphs', views: 100 },
-      { id: 'search-2', title: 'Introduction to Graphs', content: 'Graph theory', views: 50 },
-      { id: 'search-3', title: 'Data Structures', content: 'Including graphs', views: 75 },
+    await ctx.graph.mutate.createMany('post', [
+      { title: 'Graph Databases', content: 'All about graphs', views: 100 },
+      { title: 'Introduction to Graphs', content: 'Graph theory', views: 50 },
+      { title: 'Data Structures', content: 'Including graphs', views: 75 },
     ])
 
     // Query with relevance scoring (title match = 2x, content match = 1x)
@@ -368,8 +383,8 @@ describe('Real-World Workflows', () => {
     const charlie = ctx.data.users.charlie
 
     // Ensure relationships
-    await ctx.graph.link('follows', alice, bob)
-    await ctx.graph.link('follows', bob, charlie)
+    await ctx.graph.mutate.link('follows', alice, bob)
+    await ctx.graph.mutate.link('follows', bob, charlie)
 
     // Find users Alice might want to follow (friends of friends, not already following)
     const suggestions = await ctx.graph.raw<{ id: string; name: string; mutualFriends: number }>(
@@ -419,20 +434,21 @@ describe('Real-World Workflows', () => {
 
   it('permission inheritance - folder permissions cascade', async () => {
     // Create folder hierarchy with permissions
-    const workspace = await ctx.graph.create('folder', {
-      id: 'workspace-perm',
-      name: 'Workspace',
-      path: '/workspace',
-    })
+    const workspace = await ctx.graph.mutate.create(
+      'folder',
+      {
+        name: 'Workspace',
+        path: '/workspace',
+      },
+      { id: 'workspace-perm' },
+    )
 
-    const project = await ctx.graph.createChild('folder', workspace.id, {
-      id: 'project-perm',
+    const project = await ctx.graph.mutate.createChild('folder', workspace.id, {
       name: 'Project',
       path: '/workspace/project',
     })
 
-    const file = await ctx.graph.createChild('folder', project.id, {
-      id: 'file-perm',
+    const file = await ctx.graph.mutate.createChild('folder', project.id, {
       name: 'File',
       path: '/workspace/project/file',
     })

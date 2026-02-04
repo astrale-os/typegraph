@@ -1,12 +1,24 @@
 /**
  * Type-level tests for cardinality inference.
- * These tests verify that the TypeScript types correctly infer
- * the return type of traversal methods based on edge cardinality.
+ *
+ * These tests verify that TypeScript types correctly infer:
+ * 1. The BUILDER TYPE returned by traversal methods (SingleNodeBuilder vs OptionalNodeBuilder vs CollectionBuilder)
+ * 2. The EXECUTE RETURN TYPE based on builder type (T vs T | null vs T[])
+ *
+ * Uses STRICT assertions (toEqualTypeOf) to catch any type mismatches.
  */
 
 import { describe, it, expectTypeOf } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge, type GraphQuery } from '../../src'
+import {
+  defineSchema,
+  node,
+  edge,
+  createGraph,
+  type SingleNodeBuilder,
+  type OptionalNodeBuilder,
+  type CollectionBuilder,
+} from '../../src'
 
 // Define a test schema with all cardinality combinations
 const testSchema = defineSchema({
@@ -46,65 +58,251 @@ const testSchema = defineSchema({
 
 type TestSchema = typeof testSchema
 
-declare const graph: GraphQuery<TestSchema>
+// Create graph for runtime tests (without executor - compile-only)
+const graph = createGraph(testSchema, {})
 
 describe('Cardinality Type Inference', () => {
-  describe('SingleNodeBuilder.to()', () => {
+  describe('SingleNodeBuilder.to() - Builder Type Tests', () => {
     it('returns SingleNodeBuilder for outbound: one', () => {
-      const query = graph.node('user').byId('1').to('hasProfile')
-      // Should return single profile, not array
-      // @ts-expect-error - Type inference for execute() needs improvement
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; bio: string }>()
+      const builder = graph.node('user').byId('1').to('hasProfile')
+
+      // STRICT: Verify the BUILDER TYPE, not just execute return
+      type BuilderType = typeof builder
+      type IsSingleNodeBuilder = BuilderType extends SingleNodeBuilder<TestSchema, 'profile', any, any>
+        ? true
+        : false
+      expectTypeOf<IsSingleNodeBuilder>().toEqualTypeOf<true>()
+
+      // STRICT: NOT an OptionalNodeBuilder
+      type IsOptionalNodeBuilder = BuilderType extends OptionalNodeBuilder<TestSchema, any, any, any>
+        ? true
+        : false
+      expectTypeOf<IsOptionalNodeBuilder>().toEqualTypeOf<false>()
+
+      // STRICT: NOT a CollectionBuilder
+      type IsCollectionBuilder = BuilderType extends CollectionBuilder<TestSchema, any, any, any>
+        ? true
+        : false
+      expectTypeOf<IsCollectionBuilder>().toEqualTypeOf<false>()
     })
 
     it('returns OptionalNodeBuilder for outbound: optional', () => {
-      const query = graph.node('comment').byId('1').to('replyTo')
-      // Should return single comment or null, not array
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; text: string } | null>()
+      const builder = graph.node('comment').byId('1').to('replyTo')
+
+      // STRICT: Verify builder type is OptionalNodeBuilder
+      type BuilderType = typeof builder
+      type IsOptionalNodeBuilder = BuilderType extends OptionalNodeBuilder<TestSchema, 'comment', any, any>
+        ? true
+        : false
+      expectTypeOf<IsOptionalNodeBuilder>().toEqualTypeOf<true>()
+
+      // STRICT: NOT a SingleNodeBuilder (it's optional, not required)
+      // Note: OptionalNodeBuilder might extend SingleNodeBuilder internally, so check specific
+      type NodeLabel = BuilderType extends OptionalNodeBuilder<TestSchema, infer N, any, any> ? N : never
+      expectTypeOf<NodeLabel>().toEqualTypeOf<'comment'>()
     })
 
     it('returns CollectionBuilder for outbound: many', () => {
-      const query = graph.node('user').byId('1').to('likes')
-      // Should return array of posts
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<Array<{ id: string; title: string }>>()
+      const builder = graph.node('user').byId('1').to('likes')
+
+      // STRICT: Verify builder type is CollectionBuilder
+      type BuilderType = typeof builder
+      type IsCollectionBuilder = BuilderType extends CollectionBuilder<TestSchema, 'post', any, any>
+        ? true
+        : false
+      expectTypeOf<IsCollectionBuilder>().toEqualTypeOf<true>()
+
+      // STRICT: Node label is 'post'
+      type NodeLabel = BuilderType extends CollectionBuilder<TestSchema, infer N, any, any> ? N : never
+      expectTypeOf<NodeLabel>().toEqualTypeOf<'post'>()
     })
   })
 
-  describe('SingleNodeBuilder.from()', () => {
+  describe('SingleNodeBuilder.to() - Execute Return Type Tests', () => {
+    it('one cardinality: execute returns single node (not array, not nullable)', () => {
+      const query = graph.node('user').byId('1').to('hasProfile')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: Result should NOT include null
+      type HasNull = null extends Result ? true : false
+      expectTypeOf<HasNull>().toEqualTypeOf<false>()
+
+      // STRICT: Result should NOT be an array
+      type IsArray = Result extends Array<any> ? true : false
+      expectTypeOf<IsArray>().toEqualTypeOf<false>()
+
+      // STRICT: Result should have profile properties
+      expectTypeOf<Result['bio']>().toEqualTypeOf<string>()
+    })
+
+    it('optional cardinality: execute returns T | null', () => {
+      const query = graph.node('comment').byId('1').to('replyTo')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: Result MUST include null
+      type HasNull = null extends Result ? true : false
+      expectTypeOf<HasNull>().toEqualTypeOf<true>()
+
+      // STRICT: Non-null part has correct properties
+      type NonNullPart = Exclude<Result, null>
+      expectTypeOf<NonNullPart['text']>().toEqualTypeOf<string>()
+
+      // STRICT: Result should NOT be an array
+      type IsArray = NonNullPart extends Array<any> ? true : false
+      expectTypeOf<IsArray>().toEqualTypeOf<false>()
+    })
+
+    it('many cardinality: execute returns array', () => {
+      const query = graph.node('user').byId('1').to('likes')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: Result MUST be an array
+      type IsArray = Result extends Array<any> ? true : false
+      expectTypeOf<IsArray>().toEqualTypeOf<true>()
+
+      // STRICT: Array element has correct properties
+      type Element = Result extends Array<infer E> ? E : never
+      expectTypeOf<Element['title']>().toEqualTypeOf<string>()
+    })
+  })
+
+  describe('SingleNodeBuilder.from() - Builder Type Tests', () => {
     it('returns SingleNodeBuilder for inbound: one', () => {
-      const query = graph.node('profile').byId('1').from('hasProfile')
-      // Should return single user, not array
-      // @ts-expect-error - Type inference for execute() needs improvement
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; name: string }>()
+      const builder = graph.node('profile').byId('1').from('hasProfile')
+
+      // STRICT: Verify builder type
+      type BuilderType = typeof builder
+      type IsSingleNodeBuilder = BuilderType extends SingleNodeBuilder<TestSchema, 'user', any, any>
+        ? true
+        : false
+      expectTypeOf<IsSingleNodeBuilder>().toEqualTypeOf<true>()
     })
 
     it('returns OptionalNodeBuilder for inbound: optional', () => {
-      const query = graph.node('post').byId('1').from('authored')
-      // Should return single user or null, not array
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; name: string } | null>()
+      const builder = graph.node('post').byId('1').from('authored')
+
+      // STRICT: Verify builder type is OptionalNodeBuilder
+      type BuilderType = typeof builder
+      type IsOptionalNodeBuilder = BuilderType extends OptionalNodeBuilder<TestSchema, 'user', any, any>
+        ? true
+        : false
+      expectTypeOf<IsOptionalNodeBuilder>().toEqualTypeOf<true>()
     })
 
     it('returns CollectionBuilder for inbound: many', () => {
-      const query = graph.node('post').byId('1').from('likes')
-      // Should return array of users
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<Array<{ id: string; name: string }>>()
+      const builder = graph.node('post').byId('1').from('likes')
+
+      // STRICT: Verify builder type is CollectionBuilder
+      type BuilderType = typeof builder
+      type IsCollectionBuilder = BuilderType extends CollectionBuilder<TestSchema, 'user', any, any>
+        ? true
+        : false
+      expectTypeOf<IsCollectionBuilder>().toEqualTypeOf<true>()
     })
   })
 
-  describe('OptionalNodeBuilder.to()', () => {
-    it('returns OptionalNodeBuilder for outbound: one (from optional context)', () => {
-      // Start from optional context (replyTo has outbound: optional)
-      // Then traverse to another edge with outbound: one
-      // The result should still be optional because we started from optional
-      const query = graph.node('comment').byId('1').to('replyTo').to('replyTo')
-      // Should return single comment or null (optional -> optional = optional)
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; text: string } | null>()
+  describe('SingleNodeBuilder.from() - Execute Return Type Tests', () => {
+    it('one cardinality: execute returns single node', () => {
+      const query = graph.node('profile').byId('1').from('hasProfile')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: NOT nullable
+      type HasNull = null extends Result ? true : false
+      expectTypeOf<HasNull>().toEqualTypeOf<false>()
+
+      // STRICT: Has user properties
+      expectTypeOf<Result['name']>().toEqualTypeOf<string>()
     })
 
-    it('returns OptionalNodeBuilder for outbound: optional', () => {
-      const query = graph.node('comment').byId('1').to('replyTo')
-      // Should return single comment or null
-      expectTypeOf(query.execute()).resolves.toMatchTypeOf<{ id: string; text: string } | null>()
+    it('optional cardinality: execute returns T | null', () => {
+      const query = graph.node('post').byId('1').from('authored')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: MUST be nullable
+      type HasNull = null extends Result ? true : false
+      expectTypeOf<HasNull>().toEqualTypeOf<true>()
+
+      // STRICT: Non-null part has correct properties
+      type NonNullPart = Exclude<Result, null>
+      expectTypeOf<NonNullPart['name']>().toEqualTypeOf<string>()
+    })
+
+    it('many cardinality: execute returns array', () => {
+      const query = graph.node('post').byId('1').from('likes')
+
+      type Result = Awaited<ReturnType<typeof query.execute>>
+
+      // STRICT: MUST be array
+      type IsArray = Result extends Array<any> ? true : false
+      expectTypeOf<IsArray>().toEqualTypeOf<true>()
+
+      // STRICT: Element has correct properties
+      type Element = Result extends Array<infer E> ? E : never
+      expectTypeOf<Element['name']>().toEqualTypeOf<string>()
+    })
+  })
+
+  describe('OptionalNodeBuilder traversal', () => {
+    it.skip('chained optional traversal preserves optionality (runtime not implemented)', () => {
+      // NOTE: OptionalNodeBuilder.to() throws "Not implemented" at runtime
+      // This test verifies the TYPE is correct even though runtime isn't ready
+      const builder = graph.node('comment').byId('1').to('replyTo').to('replyTo')
+
+      // Type should still be OptionalNodeBuilder (optional -> optional = optional)
+      type BuilderType = typeof builder
+      type IsOptional = BuilderType extends OptionalNodeBuilder<TestSchema, 'comment', any, any>
+        ? true
+        : false
+      expectTypeOf<IsOptional>().toEqualTypeOf<true>()
+    })
+  })
+
+  describe('Negative tests - compile-time type errors', () => {
+    it('traversing edge with wrong direction is a compile-time error', () => {
+      // hasProfile goes FROM user TO profile
+      // Type-level check: hasProfile should NOT be in OutgoingEdges from profile
+      type ProfileBuilder = ReturnType<typeof graph.node<'profile'>>['byId']
+      type ProfileSingleBuilder = ReturnType<ProfileBuilder>
+      type ValidOutgoingEdges = Parameters<ProfileSingleBuilder['to']>[0]
+
+      // hasProfile should NOT be a valid outgoing edge from profile
+      type HasProfileIsValid = 'hasProfile' extends ValidOutgoingEdges ? true : false
+      expectTypeOf<HasProfileIsValid>().toEqualTypeOf<false>()
+    })
+
+    it('traversing non-existent edge is a compile-time error', () => {
+      // Type-level check: 'invalid' should not be a valid edge
+      type UserSingleBuilder = ReturnType<ReturnType<typeof graph.node<'user'>>['byId']>
+      type ValidEdges = Parameters<UserSingleBuilder['to']>[0]
+
+      // 'invalid' should NOT extend ValidEdges
+      type InvalidIsValid = 'invalid' extends ValidEdges ? true : false
+      expectTypeOf<InvalidIsValid>().toEqualTypeOf<false>()
+
+      // But valid edges should work
+      type HasProfileIsValid = 'hasProfile' extends ValidEdges ? true : false
+      expectTypeOf<HasProfileIsValid>().toEqualTypeOf<true>()
+    })
+
+    it('traversing edge not connected to current node is a compile-time error', () => {
+      // replyTo is between comments, not users
+      type UserSingleBuilder = ReturnType<ReturnType<typeof graph.node<'user'>>['byId']>
+      type ValidEdges = Parameters<UserSingleBuilder['to']>[0]
+
+      // replyTo should NOT be valid from user
+      type ReplyToIsValid = 'replyTo' extends ValidEdges ? true : false
+      expectTypeOf<ReplyToIsValid>().toEqualTypeOf<false>()
+
+      // But it should be valid from comment
+      type CommentSingleBuilder = ReturnType<ReturnType<typeof graph.node<'comment'>>['byId']>
+      type CommentValidEdges = Parameters<CommentSingleBuilder['to']>[0]
+      type ReplyToValidFromComment = 'replyTo' extends CommentValidEdges ? true : false
+      expectTypeOf<ReplyToValidFromComment>().toEqualTypeOf<true>()
     })
   })
 })

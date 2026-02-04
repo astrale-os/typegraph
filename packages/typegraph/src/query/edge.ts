@@ -5,7 +5,6 @@
  */
 
 import { type CollectionBuilder } from './collection'
-import { ReturningBuilder } from './returning'
 import { type QueryAST } from '@astrale/typegraph-core'
 import { CypherCompiler } from '../compiler'
 import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
@@ -51,7 +50,7 @@ export interface EdgeWhereBuilder<S extends AnySchema, E extends EdgeTypes<S>> {
  *   .edge('authored').as('rel')
  *   .withSource().as('author')
  *   .withTarget().as('post')
- *   .returning('author', 'rel', 'post')
+ *   .return(q => ({ author: q.author, rel: q.rel, post: q.post }))
  *   .execute();
  * ```
  */
@@ -161,40 +160,6 @@ export class EdgeBuilder<
     _builder: (w: EdgeWhereBuilder<S, E>) => WhereCondition,
   ): EdgeBuilder<S, E, Aliases, EdgeAliases> {
     throw new Error('Not implemented')
-  }
-
-  // ===========================================================================
-  // RETURNING
-  // ===========================================================================
-
-  /**
-   * Specify which aliased nodes and edges to return.
-   */
-  returning<NA extends keyof Aliases & string, EA extends keyof EdgeAliases & string>(
-    ...aliases: (NA | EA)[]
-  ): ReturningBuilder<S, Pick<Aliases, NA>, Pick<EdgeAliases, EA>> {
-    const nodeAliases = aliases.filter((a) => a in this._aliases) as NA[]
-    const edgeAliases = aliases.filter((a) => a in this._edgeAliases) as EA[]
-
-    const newAst = this._ast.setMultiNodeProjection(nodeAliases, edgeAliases)
-
-    const selectedNodeAliases = {} as Pick<Aliases, NA>
-    for (const alias of nodeAliases) {
-      selectedNodeAliases[alias] = this._aliases[alias]
-    }
-
-    const selectedEdgeAliases = {} as Pick<EdgeAliases, EA>
-    for (const alias of edgeAliases) {
-      selectedEdgeAliases[alias] = this._edgeAliases[alias]
-    }
-
-    return new ReturningBuilder(
-      newAst,
-      this._schema,
-      selectedNodeAliases,
-      selectedEdgeAliases,
-      this._executor,
-    )
   }
 
   // ===========================================================================
@@ -348,15 +313,6 @@ export class EdgeWithEndpointsBuilder<
   edgeAs<A extends string>(
     _alias: A,
   ): EdgeWithEndpointsBuilder<S, E, Aliases, EdgeAliases & { [K in A]: E }> {
-    throw new Error('Not implemented')
-  }
-
-  /**
-   * Specify which aliased nodes and edges to return.
-   */
-  returning<NA extends keyof Aliases & string, EA extends keyof EdgeAliases & string>(
-    ..._aliases: (NA | EA)[]
-  ): ReturningBuilder<S, Pick<Aliases, NA>, Pick<EdgeAliases, EA>> {
     throw new Error('Not implemented')
   }
 

@@ -12,8 +12,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge } from '../../src/schema/builders'
-import { createGraph } from '../../src/query/entry'
+import { defineSchema, node, edge, createGraph, collect, collectDistinct } from '../../src'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
@@ -132,15 +131,19 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Basic Fork Patterns', () => {
-    it('compiles fork with two branches', () => {
-      const query = graph
+    it('compiles fork with two branches', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
           (q) => q.to('authored').as('post'),
           (q) => q.from('follows').as('follower'),
         )
-        .returning('user', 'post', 'follower')
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          follower: q.follower,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -160,15 +163,19 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS follower')
     })
 
-    it('compiles fork with optional traversals', () => {
-      const query = graph
+    it('compiles fork with optional traversals', async () => {
+      const query = await graph
         .nodeByIdWithLabel('post', 'post-1')
         .as('post')
         .fork(
           (q) => q.fromOptional('authored').as('author'),
           (q) => q.toOptional('hasComment').as('comment'),
         )
-        .returning('post', 'author', 'comment')
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+          comment: q.comment,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -178,15 +185,19 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(optionalMatchCount).toBeGreaterThanOrEqual(2)
     })
 
-    it('compiles fork with collect aggregation', () => {
-      const query = graph
+    it('compiles fork with collect aggregation', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
           (q) => q.to('authored').as('post'),
           (q) => q.from('follows').as('follower'),
         )
-        .returning('user', { posts: { collect: 'post' } }, { followers: { collect: 'follower' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          followers: collect(q.follower),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -197,12 +208,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS followers')
     })
 
-    it('compiles fork with distinct collect', () => {
-      const query = graph
+    it('compiles fork with distinct collect', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post', distinct: true } })
+        .return((q) => ({
+          user: q.user,
+          posts: collectDistinct(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -217,16 +231,20 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Complex Fork Patterns (Chat-like)', () => {
-    it('compiles listMessages pattern: message with replyTo and reactions', () => {
+    it('compiles listMessages pattern: message with replyTo and reactions', async () => {
       // This mirrors the chat-message listMessages endpoint pattern
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('message', 'msg-1')
         .as('msg')
         .fork(
           (q) => q.toOptional('replyTo').as('replyTo'),
           (q) => q.to('hasReaction').as('reaction'),
         )
-        .returning('msg', 'replyTo', { reactions: { collect: 'reaction' } })
+        .return((q) => ({
+          msg: q.msg,
+          replyTo: q.replyTo,
+          reactions: collect(q.reaction),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -238,8 +256,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS reactions')
     })
 
-    it('compiles message with incoming replies (for reply count)', () => {
-      const query = graph
+    it('compiles message with incoming replies (for reply count)', async () => {
+      const query = await graph
         .nodeByIdWithLabel('message', 'msg-1')
         .as('msg')
         .fork(
@@ -247,12 +265,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.from('replyTo').as('reply'), // Messages that reply to this one
           (q) => q.to('hasReaction').as('reaction'),
         )
-        .returning(
-          'msg',
-          'replyTo',
-          { replies: { collect: 'reply' } },
-          { reactions: { collect: 'reaction' } },
-        )
+        .return((q) => ({
+          msg: q.msg,
+          replyTo: q.replyTo,
+          replies: collect(q.reply),
+          reactions: collect(q.reaction),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -265,8 +283,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS reactions')
     })
 
-    it('compiles three-way fork', () => {
-      const query = graph
+    it('compiles three-way fork', async () => {
+      const query = await graph
         .nodeByIdWithLabel('post', 'post-1')
         .as('post')
         .fork(
@@ -274,12 +292,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.to('hasComment').as('comment'),
           (q) => q.to('tagged').as('tag'),
         )
-        .returning(
-          'post',
-          'author',
-          { comments: { collect: 'comment' } },
-          { tags: { collect: 'tag' } },
-        )
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+          comments: collect(q.comment),
+          tags: collect(q.tag),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -289,8 +307,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':tagged')
     })
 
-    it('compiles four-way fork', () => {
-      const query = graph
+    it('compiles four-way fork', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
@@ -299,13 +317,13 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.to('follows').as('following'),
           (q) => q.to('wroteComment').as('comment'),
         )
-        .returning(
-          'user',
-          { posts: { collect: 'post' } },
-          { followers: { collect: 'follower' } },
-          { following: { collect: 'following' } },
-          { comments: { collect: 'comment' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          followers: collect(q.follower),
+          following: collect(q.following),
+          comments: collect(q.comment),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -321,13 +339,16 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork with Filtering', () => {
-    it('compiles where filter before fork', () => {
-      const query = graph
+    it('compiles where filter before fork', async () => {
+      const query = await graph
         .node('user')
         .where('status', 'eq', 'active')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -339,12 +360,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('status')
     })
 
-    it('compiles where filter inside fork branch', () => {
-      const query = graph
+    it('compiles where filter inside fork branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').where('content', 'isNotNull').as('publishedPost'))
-        .returning('user', { publishedPosts: { collect: 'publishedPost' } })
+        .return((q) => ({
+          user: q.user,
+          publishedPosts: collect(q.publishedPost),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -352,13 +376,16 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('IS NOT NULL')
     })
 
-    it('compiles hasEdge filter before fork', () => {
-      const query = graph
+    it('compiles hasEdge filter before fork', async () => {
+      const query = await graph
         .node('user')
         .hasEdge('authored', 'out')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -373,13 +400,16 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork with Ordering and Pagination', () => {
-    it('compiles orderBy before fork', () => {
-      const query = graph
+    it('compiles orderBy before fork', async () => {
+      const query = await graph
         .node('user')
         .orderBy('name', 'ASC')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -388,14 +418,17 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('ASC')
     })
 
-    it('compiles limit before fork', () => {
-      const query = graph
+    it('compiles limit before fork', async () => {
+      const query = await graph
         .node('user')
         .orderBy('name', 'ASC')
         .limit(10)
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -403,15 +436,18 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('LIMIT 10')
     })
 
-    it('compiles skip and limit before fork', () => {
-      const query = graph
+    it('compiles skip and limit before fork', async () => {
+      const query = await graph
         .node('user')
         .orderBy('name', 'ASC')
         .skip(5)
         .limit(10)
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -426,12 +462,16 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork with Chained Traversals', () => {
-    it('compiles chained traversals inside fork branch', () => {
-      const query = graph
+    it('compiles chained traversals inside fork branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post').to('hasComment').as('postComment'))
-        .returning('user', { posts: { collect: 'post' } }, { comments: { collect: 'postComment' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          comments: collect(q.postComment),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -441,21 +481,21 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':hasComment')
     })
 
-    it('compiles multiple chained traversals in different branches', () => {
-      const query = graph
+    it('compiles multiple chained traversals in different branches', async () => {
+      const query = await graph
         .nodeByIdWithLabel('post', 'post-1')
         .as('post')
         .fork(
           (q) => q.from('authored').as('author').from('follows').as('authorFollower'),
           (q) => q.to('hasComment').as('comment').from('wroteComment').as('commenter'),
         )
-        .returning(
-          'post',
-          'author',
-          { authorFollowers: { collect: 'authorFollower' } },
-          { comments: { collect: 'comment' } },
-          { commenters: { collect: 'commenter' } },
-        )
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+          authorFollowers: collect(q.authorFollower),
+          comments: collect(q.comment),
+          commenters: collect(q.commenter),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -467,8 +507,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':wroteComment')
     })
 
-    it('compiles deep chained traversal (3 levels)', () => {
-      const query = graph
+    it('compiles deep chained traversal (3 levels)', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) =>
@@ -480,12 +520,12 @@ describe('Query Compilation: Fork Patterns', () => {
             .from('wroteComment')
             .as('commenter'),
         )
-        .returning(
-          'user',
-          { posts: { collect: 'post' } },
-          { comments: { collect: 'comment' } },
-          { commenters: { collect: 'commenter' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          comments: collect(q.comment),
+          commenters: collect(q.commenter),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -501,15 +541,19 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork from Collection', () => {
-    it('compiles fork from collection of nodes', () => {
-      const query = graph
+    it('compiles fork from collection of nodes', async () => {
+      const query = await graph
         .node('post')
         .as('post')
         .fork(
           (q) => q.from('authored').as('author'),
           (q) => q.to('hasComment').as('comment'),
         )
-        .returning('post', 'author', { comments: { collect: 'comment' } })
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+          comments: collect(q.comment),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -520,13 +564,16 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('OPTIONAL MATCH')
     })
 
-    it('compiles fork from filtered collection', () => {
-      const query = graph
+    it('compiles fork from filtered collection', async () => {
+      const query = await graph
         .node('post')
         .where('views', 'gt', 50)
         .as('post')
         .fork((q) => q.from('authored').as('author'))
-        .returning('post', 'author')
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -541,12 +588,16 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork with Edge Properties', () => {
-    it('compiles edge alias capture in fork branch', () => {
-      const query = graph
+    it('compiles edge alias capture in fork branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored', { edgeAs: 'authorship' }).as('post'))
-        .returning('user', 'post', 'authorship')
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          authorship: q.authorship,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -561,19 +612,19 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Fork with Hierarchy', () => {
-    it('compiles fork with ancestors traversal', () => {
-      const query = graph
+    it('compiles fork with ancestors traversal', async () => {
+      const query = await graph
         .nodeByIdWithLabel('folder', 'folder-1')
         .as('folder')
         .fork(
           (q) => q.ancestors().as('ancestor'),
           (q) => q.children().as('child'),
         )
-        .returning(
-          'folder',
-          { ancestors: { collect: 'ancestor' } },
-          { children: { collect: 'child' } },
-        )
+        .return((q) => ({
+          folder: q.folder,
+          ancestors: collect(q.ancestor),
+          children: collect(q.child),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -587,15 +638,19 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Alias Preservation', () => {
-    it('preserves user-defined aliases in RETURN', () => {
-      const query = graph
+    it('preserves user-defined aliases in RETURN', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('myUser')
         .fork(
           (q) => q.to('authored').as('myPost'),
           (q) => q.from('follows').as('myFollower'),
         )
-        .returning('myUser', 'myPost', 'myFollower')
+        .return((q) => ({
+          myUser: q.myUser,
+          myPost: q.myPost,
+          myFollower: q.myFollower,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -605,12 +660,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS myFollower')
     })
 
-    it('preserves collect result aliases', () => {
-      const query = graph
+    it('preserves collect result aliases', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { allPosts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          allPosts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -624,12 +682,15 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Edge Cases', () => {
-    it('compiles single-branch fork', () => {
-      const query = graph
+    it('compiles single-branch fork', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -638,20 +699,20 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':authored')
     })
 
-    it('compiles fork with same edge type in multiple branches', () => {
+    it('compiles fork with same edge type in multiple branches', async () => {
       // Different directions of the same edge
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
           (q) => q.to('follows').as('following'),
           (q) => q.from('follows').as('follower'),
         )
-        .returning(
-          'user',
-          { following: { collect: 'following' } },
-          { followers: { collect: 'follower' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          following: collect(q.following),
+          followers: collect(q.follower),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -667,12 +728,15 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Parameter Handling', () => {
-    it('generates correct parameters for fork with ID', () => {
-      const query = graph
+    it('generates correct parameters for fork with ID', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-123')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
 
@@ -680,8 +744,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(Object.values(compiled.params)).toContain('user-123')
     })
 
-    it('generates correct parameters for fork with where clause', () => {
-      const query = graph
+    it('generates correct parameters for fork with where clause', async () => {
+      const query = await graph
         .node('user')
         .where('status', 'eq', 'active')
         .as('user')
@@ -691,7 +755,10 @@ describe('Query Compilation: Fork Patterns', () => {
             .where('views', 'gt', 100 as number)
             .as('popularPost'),
         )
-        .returning('user', { popularPosts: { collect: 'popularPost' } })
+        .return((q) => ({
+          user: q.user,
+          popularPosts: collect(q.popularPost),
+        }))
 
       const compiled = query.compile()
 
@@ -706,9 +773,9 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Advanced Patterns', () => {
-    it('compiles fork after traversal (not just from root)', () => {
+    it('compiles fork after traversal (not just from root)', async () => {
       // Start from user, traverse to post, then fork from post
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .to('authored')
@@ -717,12 +784,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.to('hasComment').as('comment'),
           (q) => q.to('tagged').as('tag'),
         )
-        .returning(
-          'user',
-          'post',
-          { comments: { collect: 'comment' } },
-          { tags: { collect: 'tag' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          comments: collect(q.comment),
+          tags: collect(q.tag),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -735,9 +802,9 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':tagged')
     })
 
-    it('compiles nested fork pattern (fork inside fork branch)', () => {
+    it('compiles nested fork pattern (fork inside fork branch)', async () => {
       // This tests if fork can be chained
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) =>
@@ -749,12 +816,12 @@ describe('Query Compilation: Fork Patterns', () => {
               (q2) => q2.to('tagged').as('tag'),
             ),
         )
-        .returning(
-          'user',
-          { posts: { collect: 'post' } },
-          { comments: { collect: 'comment' } },
-          { tags: { collect: 'tag' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          comments: collect(q.comment),
+          tags: collect(q.tag),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -763,8 +830,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':authored')
     })
 
-    it('compiles fork with multiple where clauses in same branch', () => {
-      const query = graph
+    it('compiles fork with multiple where clauses in same branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) =>
@@ -774,7 +841,10 @@ describe('Query Compilation: Fork Patterns', () => {
             .where('content', 'isNotNull')
             .as('popularPost'),
         )
-        .returning('user', { popularPosts: { collect: 'popularPost' } })
+        .return((q) => ({
+          user: q.user,
+          popularPosts: collect(q.popularPost),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -784,12 +854,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('IS NOT NULL')
     })
 
-    it('compiles fork with orderBy in branch', () => {
-      const query = graph
+    it('compiles fork with orderBy in branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').orderBy('views', 'DESC').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -799,12 +872,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':authored')
     })
 
-    it('compiles fork with limit in branch', () => {
-      const query = graph
+    it('compiles fork with limit in branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').limit(5).as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -813,12 +889,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':authored')
     })
 
-    it('compiles fork with distinct in branch', () => {
-      const query = graph
+    it('compiles fork with distinct in branch', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').distinct().as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -832,11 +911,11 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Complex Real-World Patterns', () => {
-    it('compiles full listMessages pattern with all relations', () => {
+    it('compiles full listMessages pattern with all relations', async () => {
       // Complete pattern from chat-message endpoint:
       // - Get messages
       // - For each message: replyTo target, reply count, reactions
-      const query = graph
+      const query = await graph
         .node('message')
         .orderBy('createdAt', 'ASC')
         .limit(50)
@@ -846,12 +925,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.from('replyTo').as('reply'),
           (q) => q.to('hasReaction').as('reaction'),
         )
-        .returning(
-          'msg',
-          'replyTo',
-          { replies: { collect: 'reply' } },
-          { reactions: { collect: 'reaction' } },
-        )
+        .return((q) => ({
+          msg: q.msg,
+          replyTo: q.replyTo,
+          replies: collect(q.reply),
+          reactions: collect(q.reaction),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -867,8 +946,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('collect(')
     })
 
-    it('compiles social feed pattern: posts with author, likes, comments', () => {
-      const query = graph
+    it('compiles social feed pattern: posts with author, likes, comments', async () => {
+      const query = await graph
         .node('post')
         .where('views', 'gt', 0)
         .orderBy('views', 'DESC')
@@ -880,13 +959,13 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.to('hasComment').as('comment'),
           (q) => q.to('tagged').as('tag'),
         )
-        .returning(
-          'post',
-          'author',
-          { likers: { collect: 'liker', distinct: true } },
-          { comments: { collect: 'comment' } },
-          { tags: { collect: 'tag' } },
-        )
+        .return((q) => ({
+          post: q.post,
+          author: q.author,
+          likers: collectDistinct(q.liker),
+          comments: collect(q.comment),
+          tags: collect(q.tag),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -897,8 +976,8 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('collect(DISTINCT')
     })
 
-    it('compiles user profile pattern: user with posts, followers, following', () => {
-      const query = graph
+    it('compiles user profile pattern: user with posts, followers, following', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
@@ -907,13 +986,13 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.to('follows').as('following'),
           (q) => q.to('likes').as('likedPost'),
         )
-        .returning(
-          'user',
-          { topPosts: { collect: 'topPost' } },
-          { followers: { collect: 'follower', distinct: true } },
-          { following: { collect: 'following', distinct: true } },
-          { likedPosts: { collect: 'likedPost' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          topPosts: collect(q.topPost),
+          followers: collectDistinct(q.follower),
+          following: collectDistinct(q.following),
+          likedPosts: collect(q.likedPost),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -924,12 +1003,12 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain(':likes')
     })
 
-    it('compiles thread view pattern: message with full context', () => {
+    it('compiles thread view pattern: message with full context', async () => {
       // Get a message with:
       // - What it replies to (and that message's author)
       // - Messages that reply to it
       // - Reactions
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('message', 'msg-1')
         .as('msg')
         .fork(
@@ -937,12 +1016,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.from('replyTo').as('childMsg'),
           (q) => q.to('hasReaction').as('reaction'),
         )
-        .returning(
-          'msg',
-          'parentMsg',
-          { childMessages: { collect: 'childMsg' } },
-          { reactions: { collect: 'reaction' } },
-        )
+        .return((q) => ({
+          msg: q.msg,
+          parentMsg: q.parentMsg,
+          childMessages: collect(q.childMsg),
+          reactions: collect(q.reaction),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -958,8 +1037,8 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Cypher Structure Verification', () => {
-    it('generates OPTIONAL MATCH for all fork branches', () => {
-      const query = graph
+    it('generates OPTIONAL MATCH for all fork branches', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
@@ -967,7 +1046,12 @@ describe('Query Compilation: Fork Patterns', () => {
           (q) => q.from('follows').as('follower'),
           (q) => q.to('follows').as('following'),
         )
-        .returning('user', 'post', 'follower', 'following')
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          follower: q.follower,
+          following: q.following,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -977,12 +1061,15 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(optionalMatchCount).toBe(3)
     })
 
-    it('maintains correct node alias references across fork', () => {
-      const query = graph
+    it('maintains correct node alias references across fork', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', 'post')
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -993,15 +1080,19 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toMatch(/\(n\d+\)-\[.*:authored.*\]->\(n\d+/)
     })
 
-    it('generates correct RETURN clause with all aliases', () => {
-      const query = graph
+    it('generates correct RETURN clause with all aliases', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
           (q) => q.to('authored').as('post'),
           (q) => q.from('follows').as('follower'),
         )
-        .returning('user', 'post', { followers: { collect: 'follower' } })
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          followers: collect(q.follower),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -1013,14 +1104,17 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS followers')
     })
 
-    it('places ORDER BY and LIMIT before fork branches', () => {
-      const query = graph
+    it('places ORDER BY and LIMIT before fork branches', async () => {
+      const query = await graph
         .node('user')
         .orderBy('name', 'ASC')
         .limit(10)
         .as('user')
         .fork((q) => q.to('authored').as('post'))
-        .returning('user', { posts: { collect: 'post' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -1037,29 +1131,19 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Error Cases', () => {
-    it('silently ignores non-existent alias in returning (TypeScript catches this)', () => {
-      // Note: The implementation doesn't throw at runtime for invalid aliases
-      // TypeScript type checking catches this at compile time
-      // This test documents the current behavior
-      const query = graph
-        .nodeByIdWithLabel('user', 'user-1')
-        .as('user')
-        .fork((q) => q.to('authored').as('post'))
-        .returning('user', 'nonExistent')
-
-      // Should compile without runtime error
-      const compiled = query.compile()
-      expect(compiled.cypher).toContain('RETURN')
-    })
-
-    it('throws error when collect references non-existent alias', () => {
-      expect(() => {
-        graph
+    it('throws error when collect references non-existent alias', async () => {
+      // With the new typed API, invalid alias references throw at runtime when the proxy is accessed
+      await expect(async () => {
+        await graph
           .nodeByIdWithLabel('user', 'user-1')
           .as('user')
           .fork((q) => q.to('authored').as('post'))
-          .returning('user', { posts: { collect: 'nonExistent' } })
-      }).toThrow()
+          .return((q) => ({
+            user: q.user,
+            // @ts-expect-error - nonExistent alias doesn't exist
+            posts: collect(q.nonExistent),
+          }))
+      }).rejects.toThrow()
     })
   })
 
@@ -1068,16 +1152,20 @@ describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================
 
   describe('Semantic Correctness', () => {
-    it('fork branches start from the correct source node', () => {
+    it('fork branches start from the correct source node', async () => {
       // When we fork from a node, each branch should start from that node
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
           (q) => q.to('authored').as('post'),
           (q) => q.to('follows').as('following'),
         )
-        .returning('user', 'post', 'following')
+        .return((q) => ({
+          user: q.user,
+          post: q.post,
+          following: q.following,
+        }))
 
       const compiled = query.compile()
       const cypher = compiled.cypher
@@ -1094,12 +1182,15 @@ describe('Query Compilation: Fork Patterns', () => {
       }
     })
 
-    it('fork preserves aliases from before the fork', () => {
-      const query = graph
+    it('fork preserves aliases from before the fork', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('originalUser')
         .fork((q) => q.to('authored').as('post'))
-        .returning('originalUser', { posts: { collect: 'post' } })
+        .return((q) => ({
+          originalUser: q.originalUser,
+          posts: collect(q.post),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)
@@ -1108,12 +1199,16 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(cypher).toContain('AS originalUser')
     })
 
-    it('fork with chained traversal maintains correct node references', () => {
-      const query = graph
+    it('fork with chained traversal maintains correct node references', async () => {
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork((q) => q.to('authored').as('post').to('hasComment').as('comment'))
-        .returning('user', { posts: { collect: 'post' } }, { comments: { collect: 'comment' } })
+        .return((q) => ({
+          user: q.user,
+          posts: collect(q.post),
+          comments: collect(q.comment),
+        }))
 
       const compiled = query.compile()
       const cypher = compiled.cypher
@@ -1131,9 +1226,9 @@ describe('Query Compilation: Fork Patterns', () => {
       expect(hasCommentLine).toBeDefined()
     })
 
-    it('multiple forks from same node produce independent branches', () => {
+    it('multiple forks from same node produce independent branches', async () => {
       // This tests that fork branches don't interfere with each other
-      const query = graph
+      const query = await graph
         .nodeByIdWithLabel('user', 'user-1')
         .as('user')
         .fork(
@@ -1148,11 +1243,11 @@ describe('Query Compilation: Fork Patterns', () => {
               .where('views', 'lt', 10 as number)
               .as('unpopularPost'),
         )
-        .returning(
-          'user',
-          { popularPosts: { collect: 'popularPost' } },
-          { unpopularPosts: { collect: 'unpopularPost' } },
-        )
+        .return((q) => ({
+          user: q.user,
+          popularPosts: collect(q.popularPost),
+          unpopularPosts: collect(q.unpopularPost),
+        }))
 
       const compiled = query.compile()
       const cypher = normalizeCypher(compiled.cypher)

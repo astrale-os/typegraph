@@ -131,7 +131,7 @@ export function extractProperties(data: unknown): Record<string, unknown> {
 
 /**
  * Extract a value from a multi-alias result, handling arrays and nulls.
- * Used by transformMultiAliasResults for .returning() queries with collect().
+ * Used by transformMultiAliasResults for .return() queries with collect().
  *
  * @param data - Value from a query result (can be node, array, or null)
  * @returns Extracted value preserving nulls and arrays
@@ -187,7 +187,7 @@ export function transformResults<T = Record<string, unknown>>(
 }
 
 /**
- * Transform a multi-alias result set (from .returning() queries).
+ * Transform a multi-alias result set (from .return() queries).
  *
  * @param results - Array of query result records
  * @param aliases - Array of alias names to extract

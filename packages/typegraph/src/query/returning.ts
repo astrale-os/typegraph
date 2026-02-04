@@ -1,8 +1,9 @@
 /**
- * Returning Builder
+ * Returning Builder (Internal)
  *
  * Handles queries that return multiple aliased nodes.
- * Created by calling `.returning()` on other builders.
+ * Used internally by TypedReturningBuilder for .return() queries.
+ * @internal
  */
 
 import type { QueryAST } from '@astrale/typegraph-core'

@@ -46,6 +46,7 @@ export type {
   EdgeSource,
   EdgeCardinality,
   InferSchema,
+  Infer,
   AliasMap,
   AliasMapToReturnType,
   EdgeAliasMap,
@@ -70,4 +71,5 @@ export type {
   QueryContext,
   ResolveProxy,
   InferReturnType,
+  TypedReturnQuery,
 } from './inference'

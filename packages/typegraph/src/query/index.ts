@@ -12,8 +12,6 @@ export { SingleNodeBuilder } from './single-node'
 export { CollectionBuilder } from './collection'
 export { OptionalNodeBuilder } from './optional-node'
 export { PathBuilder } from './path'
-export { ReturningBuilder } from './returning'
-export type { CollectSpec, CollectSpecToReturnType } from './returning'
 export { GroupedBuilder } from './grouped'
 export { EdgeBuilder, EdgeWithEndpointsBuilder } from './edge'
 export { BaseBuilder } from './base'
@@ -55,3 +53,4 @@ export type {
 // Typed return helpers
 export { collect, collectDistinct, isCollectMarker } from './collect'
 export type { CollectMarker } from './collect'
+export { TypedReturningBuilder } from './typed-returning'

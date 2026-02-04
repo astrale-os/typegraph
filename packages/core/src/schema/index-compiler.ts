@@ -6,7 +6,6 @@
  */
 
 import type { AnySchema, NodeDefinition, EdgeDefinition } from './types'
-import { isCompositeIndex, isSinglePropertyIndex } from './types'
 import { toPascalCase } from './labels'
 
 // =============================================================================
@@ -152,13 +151,12 @@ function compileNodeIndex(
 
   // Object config
   if (typeof indexEntry === 'object' && indexEntry !== null) {
-    const config = indexEntry as Record<string, unknown>
-
-    // Single property index: { property: 'email', type: 'unique' }
-    if (isSinglePropertyIndex(config as unknown as Parameters<typeof isSinglePropertyIndex>[0])) {
-      const prop = config.property as string
+    // Type-safe check: does it have a 'property' field?
+    if ('property' in indexEntry && typeof indexEntry.property === 'string') {
+      const config = indexEntry as { property: string; type?: string; name?: string }
+      const prop = config.property
       const type = (config.type as 'btree' | 'fulltext' | 'unique') ?? 'btree'
-      const name = (config.name as string) ?? `idx_${label.toLowerCase()}_${prop}`
+      const name = config.name ?? `idx_${label.toLowerCase()}_${prop}`
 
       if (type === 'unique') {
         return {
@@ -197,11 +195,17 @@ function compileNodeIndex(
     }
 
     // Composite index: { properties: ['firstName', 'lastName'], type: 'btree' }
-    if (isCompositeIndex(config as unknown as Parameters<typeof isCompositeIndex>[0])) {
-      const props = config.properties as readonly string[]
+    if ('properties' in indexEntry && Array.isArray(indexEntry.properties)) {
+      const config = indexEntry as {
+        properties: readonly string[]
+        type?: string
+        order?: Record<string, 'ASC' | 'DESC'>
+        name?: string
+      }
+      const props = config.properties
       const type = (config.type as 'btree' | 'unique') ?? 'btree'
-      const order = config.order as Record<string, 'ASC' | 'DESC'> | undefined
-      const name = (config.name as string) ?? `idx_${label.toLowerCase()}_${props.join('_')}`
+      const order = config.order
+      const name = config.name ?? `idx_${label.toLowerCase()}_${props.join('_')}`
 
       // Build property list with optional ordering
       const propList = props
@@ -267,13 +271,12 @@ function compileRelationshipIndex(
 
   // Object config
   if (typeof indexEntry === 'object' && indexEntry !== null) {
-    const config = indexEntry as Record<string, unknown>
-
     // Single property index
-    if (isSinglePropertyIndex(config as unknown as Parameters<typeof isSinglePropertyIndex>[0])) {
-      const prop = config.property as string
+    if ('property' in indexEntry && typeof indexEntry.property === 'string') {
+      const config = indexEntry as { property: string; type?: string; name?: string }
+      const prop = config.property
       const type = (config.type as 'btree' | 'fulltext' | 'unique') ?? 'btree'
-      const name = (config.name as string) ?? `idx_rel_${relType.toLowerCase()}_${prop}`
+      const name = config.name ?? `idx_rel_${relType.toLowerCase()}_${prop}`
 
       // Note: Relationship unique constraints and fulltext indexes have different syntax
       // For simplicity, we only generate btree indexes for relationships
@@ -289,10 +292,11 @@ function compileRelationshipIndex(
     }
 
     // Composite index for relationships
-    if (isCompositeIndex(config as unknown as Parameters<typeof isCompositeIndex>[0])) {
-      const props = config.properties as readonly string[]
+    if ('properties' in indexEntry && Array.isArray(indexEntry.properties)) {
+      const config = indexEntry as { properties: readonly string[]; type?: string; name?: string }
+      const props = config.properties
       const type = (config.type as 'btree' | 'unique') ?? 'btree'
-      const name = (config.name as string) ?? `idx_rel_${relType.toLowerCase()}_${props.join('_')}`
+      const name = config.name ?? `idx_rel_${relType.toLowerCase()}_${props.join('_')}`
 
       const propList = props.map((p) => `r.${p}`).join(', ')
 

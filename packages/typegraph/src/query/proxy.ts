@@ -57,10 +57,19 @@ export interface NodeReferenceMarker {
 }
 
 /**
+ * Marker for a full edge reference within a return expression.
+ * @internal
+ */
+export interface EdgeReferenceMarker {
+  readonly __edgeReference: true
+  readonly __alias: string
+}
+
+/**
  * Union of all return expression markers.
  * @internal
  */
-export type ReturnMarker = PropertyAccessMarker | NodeReferenceMarker
+export type ReturnMarker = PropertyAccessMarker | NodeReferenceMarker | EdgeReferenceMarker
 
 // =============================================================================
 // TYPE GUARDS
@@ -92,6 +101,19 @@ export function isNodeReference(value: unknown): value is NodeReferenceMarker {
   )
 }
 
+/**
+ * Check if a value is an edge reference marker.
+ * @internal
+ */
+export function isEdgeReference(value: unknown): value is EdgeReferenceMarker {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__edgeReference' in value &&
+    (value as EdgeReferenceMarker).__edgeReference === true
+  )
+}
+
 // =============================================================================
 // PROXY CREATION
 // =============================================================================
@@ -106,9 +128,10 @@ export function isNodeReference(value: unknown): value is NodeReferenceMarker {
  * @internal
  */
 function createNodeProxy(aliasInfo: AliasInfo): unknown {
+  // Use USER alias in markers - AST builder will convert to internal aliases
   const marker: NodeReferenceMarker = {
     __nodeReference: true,
-    __alias: aliasInfo.internalAlias,
+    __alias: aliasInfo.userAlias,
   }
 
   return new Proxy(marker, {
@@ -129,9 +152,10 @@ function createNodeProxy(aliasInfo: AliasInfo): unknown {
       }
 
       // Property access - return a PropertyAccessMarker
+      // Use USER alias - AST builder will convert to internal aliases
       return {
         __propertyAccess: true,
-        __alias: aliasInfo.internalAlias,
+        __alias: aliasInfo.userAlias,
         __property: prop,
       } as PropertyAccessMarker
     },
@@ -145,9 +169,10 @@ function createNodeProxy(aliasInfo: AliasInfo): unknown {
  * @internal
  */
 function createEdgeProxy(aliasInfo: EdgeAliasInfo): unknown {
+  // Use USER alias in markers - AST builder will convert to internal aliases
   const marker = {
     __edgeReference: true,
-    __alias: aliasInfo.internalAlias,
+    __alias: aliasInfo.userAlias,
   }
 
   return new Proxy(marker, {
@@ -164,10 +189,10 @@ function createEdgeProxy(aliasInfo: EdgeAliasInfo): unknown {
         return undefined
       }
 
-      // Edge property access
+      // Edge property access - use USER alias
       return {
         __propertyAccess: true,
-        __alias: aliasInfo.internalAlias,
+        __alias: aliasInfo.userAlias,
         __property: prop,
       } as PropertyAccessMarker
     },
@@ -226,7 +251,7 @@ export function createQueryContext<
         if (!proxy) {
           throw new Error(
             `Unknown alias '${prop}' in return expression. ` +
-              `Available aliases: ${[...aliasProxies.keys()].join(', ') || '(none)'}`
+              `Available aliases: ${[...aliasProxies.keys()].join(', ') || '(none)'}`,
           )
         }
 
@@ -256,7 +281,7 @@ export function createQueryContext<
         }
         return undefined
       },
-    }
+    },
   ) as QueryContext<S, Aliases, OptionalAliases, EdgeAliases>
 }
 
@@ -269,6 +294,8 @@ export function createQueryContext<
 export interface ReturnSpec {
   /** Fields that return full nodes */
   nodeFields: Map<string, { outputKey: string; alias: string }>
+  /** Fields that return full edges */
+  edgeFields: Map<string, { outputKey: string; alias: string }>
   /** Fields that return specific properties */
   propertyFields: Map<string, { outputKey: string; alias: string; property: string }>
   /** Fields that collect into arrays */
@@ -282,6 +309,7 @@ export interface ReturnSpec {
 export function parseReturnSpec(result: Record<string, unknown>): ReturnSpec {
   const spec: ReturnSpec = {
     nodeFields: new Map(),
+    edgeFields: new Map(),
     propertyFields: new Map(),
     collectFields: new Map(),
   }
@@ -325,15 +353,41 @@ export function parseReturnSpec(result: Record<string, unknown>): ReturnSpec {
       continue
     }
 
+    // Check for edge reference
+    if (isEdgeReference(value)) {
+      spec.edgeFields.set(key, {
+        outputKey: key,
+        alias: value.__alias,
+      })
+      continue
+    }
+
     // Unknown value type - might be a literal or nested object
     // For now, we'll throw an error for unsupported types
     throw new Error(
       `Unsupported value in return expression for key '${key}'. ` +
-        `Expected q.alias, q.alias.property, or collect(q.alias).`
+        `Expected q.alias, q.alias.property, or collect(q.alias).`,
     )
   }
 
   return spec
+}
+
+/**
+ * Extract properties from a Neo4j node/relationship response.
+ * Handles { properties: {...} } wrapper.
+ * @internal
+ */
+function extractPropertiesFromResponse(data: unknown): Record<string, unknown> {
+  if (!data || typeof data !== 'object') {
+    return {}
+  }
+  const obj = data as Record<string, unknown>
+  // Neo4j responses wrap properties in a "properties" field
+  if ('properties' in obj && typeof obj.properties === 'object') {
+    return obj.properties as Record<string, unknown>
+  }
+  return obj
 }
 
 /**
@@ -349,18 +403,28 @@ export function transformReturnResult(
 
   // Handle node reference fields (full nodes)
   for (const [outputKey, field] of spec.nodeFields) {
-    result[outputKey] = row[field.alias]
+    result[outputKey] = extractPropertiesFromResponse(row[field.alias])
+  }
+
+  // Handle edge reference fields (full edges)
+  for (const [outputKey, field] of spec.edgeFields) {
+    result[outputKey] = extractPropertiesFromResponse(row[field.alias])
   }
 
   // Handle property access fields (specific properties)
   for (const [outputKey, field] of spec.propertyFields) {
-    const node = row[field.alias] as Record<string, unknown> | undefined
-    result[outputKey] = node?.[field.property]
+    const node = extractPropertiesFromResponse(row[field.alias])
+    result[outputKey] = node[field.property]
   }
 
   // Handle collect fields (arrays)
   for (const [outputKey, field] of spec.collectFields) {
-    result[outputKey] = row[outputKey] ?? row[field.alias] ?? []
+    const rawValue = row[outputKey] ?? row[field.alias]
+    if (Array.isArray(rawValue)) {
+      result[outputKey] = rawValue.map((item) => extractPropertiesFromResponse(item))
+    } else {
+      result[outputKey] = []
+    }
   }
 
   return result

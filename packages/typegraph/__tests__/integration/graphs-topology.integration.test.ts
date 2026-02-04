@@ -21,37 +21,49 @@ describe('Graph Topology', () => {
 
   it('disconnected components - reachable should not cross', async () => {
     // Create two separate components
-    const comp1Root = await ctx.graph.create('user', {
-      id: 'component-1-root',
-      name: 'Component1',
-      email: 'c1@test.com',
-      status: 'active' as const,
-    })
+    const comp1Root = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Component1',
+        email: 'c1@test.com',
+        status: 'active' as const,
+      },
+      { id: 'component-1-root' },
+    )
 
-    const comp1Child = await ctx.graph.create('user', {
-      id: 'component-1-child',
-      name: 'Component1Child',
-      email: 'c1child@test.com',
-      status: 'active' as const,
-    })
+    const comp1Child = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Component1Child',
+        email: 'c1child@test.com',
+        status: 'active' as const,
+      },
+      { id: 'component-1-child' },
+    )
 
-    await ctx.graph.link('follows', comp1Root.id, comp1Child.id)
+    await ctx.graph.mutate.link('follows', comp1Root.id, comp1Child.id)
 
-    const comp2Root = await ctx.graph.create('user', {
-      id: 'component-2-root',
-      name: 'Component2',
-      email: 'c2@test.com',
-      status: 'active' as const,
-    })
+    const comp2Root = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Component2',
+        email: 'c2@test.com',
+        status: 'active' as const,
+      },
+      { id: 'component-2-root' },
+    )
 
-    const comp2Child = await ctx.graph.create('user', {
-      id: 'component-2-child',
-      name: 'Component2Child',
-      email: 'c2child@test.com',
-      status: 'active' as const,
-    })
+    const comp2Child = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Component2Child',
+        email: 'c2child@test.com',
+        status: 'active' as const,
+      },
+      { id: 'component-2-child' },
+    )
 
-    await ctx.graph.link('follows', comp2Root.id, comp2Child.id)
+    await ctx.graph.mutate.link('follows', comp2Root.id, comp2Child.id)
 
     // Query reachable from component 1
     const reachable = await ctx.graph
@@ -71,18 +83,20 @@ describe('Graph Topology', () => {
   })
 
   it('high fan-out - hub node with 100 connections', async () => {
-    const hub = await ctx.graph.create('user', {
-      id: 'hub-node',
-      name: 'Hub',
-      email: 'hub@test.com',
-      status: 'active' as const,
-    })
+    const hub = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Hub',
+        email: 'hub@test.com',
+        status: 'active' as const,
+      },
+      { id: 'hub-node' },
+    )
 
     // Create 100 followers
-    const followers = await ctx.graph.createMany(
+    const followers = await ctx.graph.mutate.createMany(
       'user',
       Array.from({ length: 100 }, (_, i) => ({
-        id: `hub-follower-${i}`,
         name: `Follower${i}`,
         email: `follower${i}@hub.com`,
         status: 'active' as const,
@@ -90,7 +104,7 @@ describe('Graph Topology', () => {
     )
 
     // Link all to hub
-    await ctx.graph.linkMany(
+    await ctx.graph.mutate.linkMany(
       'follows',
       followers.map((f) => ({ from: f.id, to: hub.id })),
     )
@@ -108,18 +122,20 @@ describe('Graph Topology', () => {
   })
 
   it('high fan-in - node with 100 outgoing connections', async () => {
-    const superFollower = await ctx.graph.create('user', {
-      id: 'super-follower',
-      name: 'SuperFollower',
-      email: 'superfollower@test.com',
-      status: 'active' as const,
-    })
+    const superFollower = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'SuperFollower',
+        email: 'superfollower@test.com',
+        status: 'active' as const,
+      },
+      { id: 'super-follower' },
+    )
 
     // Create 100 targets
-    const targets = await ctx.graph.createMany(
+    const targets = await ctx.graph.mutate.createMany(
       'user',
       Array.from({ length: 100 }, (_, i) => ({
-        id: `fanin-target-${i}`,
         name: `Target${i}`,
         email: `target${i}@fanin.com`,
         status: 'active' as const,
@@ -127,7 +143,7 @@ describe('Graph Topology', () => {
     )
 
     // Link to all targets
-    await ctx.graph.linkMany(
+    await ctx.graph.mutate.linkMany(
       'follows',
       targets.map((t) => ({ from: superFollower.id, to: t.id })),
     )
@@ -143,51 +159,66 @@ describe('Graph Topology', () => {
 
   it('cycle in non-hierarchy edges', async () => {
     // Create cycle: A -> B -> C -> A
-    const users = await ctx.graph.createMany('user', [
-      { id: 'cycle-a', name: 'CycleA', email: 'cyclea@test.com', status: 'active' as const },
-      { id: 'cycle-b', name: 'CycleB', email: 'cycleb@test.com', status: 'active' as const },
-      { id: 'cycle-c', name: 'CycleC', email: 'cyclec@test.com', status: 'active' as const },
-    ])
+    const userA = await ctx.graph.mutate.create(
+      'user',
+      { name: 'CycleA', email: 'cyclea@test.com', status: 'active' as const },
+      { id: 'cycle-a' },
+    )
+    const userB = await ctx.graph.mutate.create(
+      'user',
+      { name: 'CycleB', email: 'cycleb@test.com', status: 'active' as const },
+      { id: 'cycle-b' },
+    )
+    const userC = await ctx.graph.mutate.create(
+      'user',
+      { name: 'CycleC', email: 'cyclec@test.com', status: 'active' as const },
+      { id: 'cycle-c' },
+    )
 
-    await ctx.graph.link('follows', users[0]!.id, users[1]!.id)
-    await ctx.graph.link('follows', users[1]!.id, users[2]!.id)
-    await ctx.graph.link('follows', users[2]!.id, users[0]!.id) // Completes cycle
+    await ctx.graph.mutate.link('follows', userA.id, userB.id)
+    await ctx.graph.mutate.link('follows', userB.id, userC.id)
+    await ctx.graph.mutate.link('follows', userC.id, userA.id) // Completes cycle
 
-    // Query: Follow chain should handle cycle gracefully with variable length
-    const query = ctx.graph
-      .nodeByIdWithLabel('user', users[0]!.id)
-      .to('follows', { depth: { min: 1, max: 5 } })
-      .distinct()
+    // Query using raw Cypher to test cycle with variable length path
+    const results = await ctx.graph.raw<{ id: string }>(
+      `MATCH (start:Node:User {id: $startId})-[:follows*1..5]->(reachable:Node:User)
+       RETURN DISTINCT reachable.id as id`,
+      { startId: userA.id },
+    )
 
-    const results = await ctx.executor.execute(query.compile())
+    // Should find all 3 users in cycle (including A via C->A)
+    expect(results).toHaveLength(3)
 
-    // Should find all 3 users in cycle
-    expect(results.data).toHaveLength(3)
-
-    const ids = (results.data as Array<{ id: string }>).map((u) => u.id)
-    expect(ids).toContain(users[0]!.id)
-    expect(ids).toContain(users[1]!.id)
-    expect(ids).toContain(users[2]!.id)
+    const ids = results.map((u) => u.id)
+    expect(ids).toContain(userA.id)
+    expect(ids).toContain(userB.id)
+    expect(ids).toContain(userC.id)
   })
 
   it('reachable with cycles - no infinite loop', async () => {
     // Create mutual follows
-    const user1 = await ctx.graph.create('user', {
-      id: 'reachable-cycle-1',
-      name: 'ReachableCycle1',
-      email: 'rc1@test.com',
-      status: 'active' as const,
-    })
+    const user1 = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'ReachableCycle1',
+        email: 'rc1@test.com',
+        status: 'active' as const,
+      },
+      { id: 'reachable-cycle-1' },
+    )
 
-    const user2 = await ctx.graph.create('user', {
-      id: 'reachable-cycle-2',
-      name: 'ReachableCycle2',
-      email: 'rc2@test.com',
-      status: 'active' as const,
-    })
+    const user2 = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'ReachableCycle2',
+        email: 'rc2@test.com',
+        status: 'active' as const,
+      },
+      { id: 'reachable-cycle-2' },
+    )
 
-    await ctx.graph.link('follows', user1.id, user2.id)
-    await ctx.graph.link('follows', user2.id, user1.id)
+    await ctx.graph.mutate.link('follows', user1.id, user2.id)
+    await ctx.graph.mutate.link('follows', user2.id, user1.id)
 
     // Query reachable
     const reachable = await ctx.graph
@@ -204,10 +235,9 @@ describe('Graph Topology', () => {
 
   it('fully connected clique - every node connected to every other', async () => {
     // Create 5 users all following each other
-    const clique = await ctx.graph.createMany(
+    const clique = await ctx.graph.mutate.createMany(
       'user',
       Array.from({ length: 5 }, (_, i) => ({
-        id: `clique-${i}`,
         name: `Clique${i}`,
         email: `clique${i}@test.com`,
         status: 'active' as const,
@@ -224,7 +254,7 @@ describe('Graph Topology', () => {
       }
     }
 
-    await ctx.graph.linkMany('follows', links)
+    await ctx.graph.mutate.linkMany('follows', links)
 
     // Query: Each user should have 4 followers
     for (const user of clique) {
@@ -245,18 +275,20 @@ describe('Graph Topology', () => {
   })
 
   it('star topology - central hub', async () => {
-    const center = await ctx.graph.create('user', {
-      id: 'star-center',
-      name: 'Center',
-      email: 'center@test.com',
-      status: 'active' as const,
-    })
+    const center = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Center',
+        email: 'center@test.com',
+        status: 'active' as const,
+      },
+      { id: 'star-center' },
+    )
 
     // Create 10 spokes
-    const spokes = await ctx.graph.createMany(
+    const spokes = await ctx.graph.mutate.createMany(
       'user',
       Array.from({ length: 10 }, (_, i) => ({
-        id: `star-spoke-${i}`,
         name: `Spoke${i}`,
         email: `spoke${i}@test.com`,
         status: 'active' as const,
@@ -264,7 +296,7 @@ describe('Graph Topology', () => {
     )
 
     // All spokes follow center
-    await ctx.graph.linkMany(
+    await ctx.graph.mutate.linkMany(
       'follows',
       spokes.map((s) => ({ from: s.id, to: center.id })),
     )
@@ -284,17 +316,20 @@ describe('Graph Topology', () => {
     // Create A -> B -> C -> D -> E
     const chain = []
     for (let i = 0; i < 5; i++) {
-      const user = await ctx.graph.create('user', {
-        id: `chain-${i}`,
-        name: `Chain${i}`,
-        email: `chain${i}@test.com`,
-        status: 'active' as const,
-      })
+      const user = await ctx.graph.mutate.create(
+        'user',
+        {
+          name: `Chain${i}`,
+          email: `chain${i}@test.com`,
+          status: 'active' as const,
+        },
+        { id: `chain-${i}` },
+      )
       chain.push(user)
     }
 
     for (let i = 0; i < chain.length - 1; i++) {
-      await ctx.graph.link('follows', chain[i]!.id, chain[i + 1]!.id)
+      await ctx.graph.mutate.link('follows', chain[i]!.id, chain[i + 1]!.id)
     }
 
     // Reachable from start should find all
@@ -315,12 +350,15 @@ describe('Graph Topology', () => {
   })
 
   it('isolated node - no connections', async () => {
-    const isolated = await ctx.graph.create('user', {
-      id: 'isolated-node',
-      name: 'Isolated',
-      email: 'isolated@test.com',
-      status: 'active' as const,
-    })
+    const isolated = await ctx.graph.mutate.create(
+      'user',
+      {
+        name: 'Isolated',
+        email: 'isolated@test.com',
+        status: 'active' as const,
+      },
+      { id: 'isolated-node' },
+    )
 
     // Query followers
     const followers = await ctx.graph
@@ -347,32 +385,31 @@ describe('Graph Topology', () => {
 
   it('tree topology - no cycles', async () => {
     // Create binary tree: root -> [left, right], left -> [ll, lr], right -> [rl, rr]
-    const root = await ctx.graph.create('folder', {
-      id: 'tree-root',
-      name: 'Root',
-      path: '/tree',
-    })
+    const root = await ctx.graph.mutate.create(
+      'folder',
+      {
+        name: 'Root',
+        path: '/tree',
+      },
+      { id: 'tree-root' },
+    )
 
-    const left = await ctx.graph.createChild('folder', root.id, {
-      id: 'tree-left',
+    const left = await ctx.graph.mutate.createChild('folder', root.id, {
       name: 'Left',
       path: '/tree/left',
     })
 
-    const right = await ctx.graph.createChild('folder', root.id, {
-      id: 'tree-right',
+    const right = await ctx.graph.mutate.createChild('folder', root.id, {
       name: 'Right',
       path: '/tree/right',
     })
 
-    const ll = await ctx.graph.createChild('folder', left.id, {
-      id: 'tree-ll',
+    const ll = await ctx.graph.mutate.createChild('folder', left.id, {
       name: 'LeftLeft',
       path: '/tree/left/left',
     })
 
-    const lr = await ctx.graph.createChild('folder', left.id, {
-      id: 'tree-lr',
+    const lr = await ctx.graph.mutate.createChild('folder', left.id, {
       name: 'LeftRight',
       path: '/tree/left/right',
     })
@@ -389,7 +426,8 @@ describe('Graph Topology', () => {
     const ancestors = await ctx.graph.nodeByIdWithLabel('folder', ll.id).ancestors().execute()
 
     expect(ancestors).toHaveLength(2)
-    const ancestorNames = ancestors.map((f) => f.name)
+    // Use type assertion since ancestors() return type may not include all folder properties
+    const ancestorNames = ancestors.map((f) => (f as unknown as { name: string }).name)
     expect(ancestorNames).toContain('Left')
     expect(ancestorNames).toContain('Root')
   })

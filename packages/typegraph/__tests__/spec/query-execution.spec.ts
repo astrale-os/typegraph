@@ -264,13 +264,16 @@ describe('Query Execution', () => {
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
       const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
-      const result = await graph
+      const query = await graph
         .node('user')
         .as('author')
         .to('authored')
         .as('post')
-        .returning('author', 'post')
-        .execute()
+        .return((q) => ({
+          author: q.author,
+          post: q.post,
+        }))
+      const result = await query.execute()
 
       expect(result).toHaveLength(2)
       expect(result[0]).toEqual({
@@ -282,9 +285,8 @@ describe('Query Execution', () => {
     it('should throw ExecutionError when no executor', async () => {
       const graph = createGraph(testSchema, {})
 
-      await expect(graph.node('user').as('u').returning('u').execute()).rejects.toThrow(
-        ExecutionError,
-      )
+      const query = await graph.node('user').as('u').return((q) => ({ u: q.u }))
+      await expect(query.execute()).rejects.toThrow(ExecutionError)
     })
   })
 })

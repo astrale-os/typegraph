@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Astrale OS Base",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022"
+    ],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "sourceMap": true,
+    "emitDeclarationOnly": false,
+    "incremental": true,
+    "tsBuildInfoFile": "/Users/bryandjafer/Documents/astrale/workspace/typegraph/node_modules/.pnpm/vitest@2.1.9_@types+node@22.19.7/node_modules/vitest/dist/chunks/tsconfig.tmp.tsbuildinfo"
+  },
+  "include": [
+    "src",
+    "__tests__",
+    "*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "__tests__/app"
+  ]
+}

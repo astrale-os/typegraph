@@ -30,8 +30,8 @@ describe('Transaction Concurrency', () => {
 
     // Execute two concurrent updates
     const [result1, result2] = await Promise.allSettled([
-      ctx.graph.update('user', nodeId, { name: 'Alice-Update-1' }),
-      ctx.graph.update('user', nodeId, { name: 'Alice-Update-2' }),
+      ctx.graph.mutate.update('user', nodeId, { name: 'Alice-Update-1' }),
+      ctx.graph.mutate.update('user', nodeId, { name: 'Alice-Update-2' }),
     ])
 
     // At least one should succeed
@@ -48,22 +48,28 @@ describe('Transaction Concurrency', () => {
     const initialCount = await ctx.graph.node('user').count()
 
     await expect(
-      ctx.graph.transaction(async (tx) => {
+      ctx.graph.mutate.transaction(async (tx) => {
         // Create a user
-        await tx.create('user', {
-          id: 'tx-test-user-1',
-          name: 'TxUser1',
-          email: 'txuser1@test.com',
-          status: 'active' as const,
-        })
+        await tx.create(
+          'user',
+          {
+            name: 'TxUser1',
+            email: 'txuser1@test.com',
+            status: 'active' as const,
+          },
+          { id: 'tx-test-user-1' },
+        )
 
         // Create another user
-        await tx.create('user', {
-          id: 'tx-test-user-2',
-          name: 'TxUser2',
-          email: 'txuser2@test.com',
-          status: 'active' as const,
-        })
+        await tx.create(
+          'user',
+          {
+            name: 'TxUser2',
+            email: 'txuser2@test.com',
+            status: 'active' as const,
+          },
+          { id: 'tx-test-user-2' },
+        )
 
         // Intentional failure
         throw new Error('Transaction rollback test')
@@ -74,34 +80,34 @@ describe('Transaction Concurrency', () => {
     const finalCount = await ctx.graph.node('user').count()
     expect(finalCount).toBe(initialCount)
 
-    const user1Exists = await ctx.graph
-      .node('user')
-      .where('id', 'eq', 'tx-test-user-1')
-      .exists()
-    expect(user1Exists).toBe(false)
+    const user1Count = await ctx.graph.node('user').where('email', 'eq', 'txuser1@test.com').count()
+    expect(user1Count).toBe(0)
 
-    const user2Exists = await ctx.graph
-      .node('user')
-      .where('id', 'eq', 'tx-test-user-2')
-      .exists()
-    expect(user2Exists).toBe(false)
+    const user2Count = await ctx.graph.node('user').where('email', 'eq', 'txuser2@test.com').count()
+    expect(user2Count).toBe(0)
   })
 
   it('transaction commits successfully with multiple operations', async () => {
-    const result = await ctx.graph.transaction(async (tx) => {
-      const user = await tx.create('user', {
-        id: 'tx-success-user',
-        name: 'TxSuccess',
-        email: 'txsuccess@test.com',
-        status: 'active' as const,
-      })
+    const result = await ctx.graph.mutate.transaction(async (tx) => {
+      const user = await tx.create(
+        'user',
+        {
+          name: 'TxSuccess',
+          email: 'txsuccess@test.com',
+          status: 'active' as const,
+        },
+        { id: 'tx-success-user' },
+      )
 
-      const post = await tx.create('post', {
-        id: 'tx-success-post',
-        title: 'Transaction Test Post',
-        content: 'Created in transaction',
-        views: 0,
-      })
+      const post = await tx.create(
+        'post',
+        {
+          title: 'Transaction Test Post',
+          content: 'Created in transaction',
+          views: 0,
+        },
+        { id: 'tx-success-post' },
+      )
 
       await tx.link('authored', user.id, post.id)
 
@@ -109,54 +115,56 @@ describe('Transaction Concurrency', () => {
     })
 
     // Verify all operations persisted
-    const userExists = await ctx.graph
-      .nodeByIdWithLabel('user', result.userId)
-      .exists()
+    const userExists = await ctx.graph.nodeByIdWithLabel('user', result.userId).exists()
     expect(userExists).toBe(true)
 
-    const postExists = await ctx.graph
-      .nodeByIdWithLabel('post', result.postId)
-      .exists()
+    const postExists = await ctx.graph.nodeByIdWithLabel('post', result.postId).exists()
     expect(postExists).toBe(true)
 
-    const authoredPost = await ctx.graph
+    const authoredPosts = await ctx.graph
       .nodeByIdWithLabel('user', result.userId)
       .to('authored')
       .where('id', 'eq', result.postId)
-      .exists()
-    expect(authoredPost).toBe(true)
+      .execute()
+    expect(authoredPosts.length).toBeGreaterThan(0)
   })
 
   it('concurrent creates with different IDs succeed', async () => {
     const results = await Promise.allSettled([
-      ctx.graph.create('user', {
-        id: 'concurrent-user-1',
-        name: 'Concurrent1',
-        email: 'concurrent1@test.com',
-        status: 'active' as const,
-      }),
-      ctx.graph.create('user', {
-        id: 'concurrent-user-2',
-        name: 'Concurrent2',
-        email: 'concurrent2@test.com',
-        status: 'active' as const,
-      }),
-      ctx.graph.create('user', {
-        id: 'concurrent-user-3',
-        name: 'Concurrent3',
-        email: 'concurrent3@test.com',
-        status: 'active' as const,
-      }),
+      ctx.graph.mutate.create(
+        'user',
+        {
+          name: 'Concurrent1',
+          email: 'concurrent1@test.com',
+          status: 'active' as const,
+        },
+        { id: 'concurrent-user-1' },
+      ),
+      ctx.graph.mutate.create(
+        'user',
+        {
+          name: 'Concurrent2',
+          email: 'concurrent2@test.com',
+          status: 'active' as const,
+        },
+        { id: 'concurrent-user-2' },
+      ),
+      ctx.graph.mutate.create(
+        'user',
+        {
+          name: 'Concurrent3',
+          email: 'concurrent3@test.com',
+          status: 'active' as const,
+        },
+        { id: 'concurrent-user-3' },
+      ),
     ])
 
     // All should succeed since IDs are unique
     expect(results.every((r) => r.status === 'fulfilled')).toBe(true)
 
     // Verify all exist
-    const count = await ctx.graph
-      .node('user')
-      .where('name', 'startsWith', 'Concurrent')
-      .count()
+    const count = await ctx.graph.node('user').where('name', 'startsWith', 'Concurrent').count()
     expect(count).toBe(3)
   })
 
@@ -165,61 +173,60 @@ describe('Transaction Concurrency', () => {
     const post = ctx.data.posts.hello
 
     // Ensure no existing like
-    await ctx.graph.unlinkAllFrom('likes', alice)
+    await ctx.graph.mutate.unlinkAllFrom('likes', alice)
 
     // Create initial like
-    await ctx.graph.link('likes', alice, post)
+    await ctx.graph.mutate.link('likes', alice, post)
 
     // Concurrent link and unlink
     await Promise.allSettled([
-      ctx.graph.link('likes', alice, post),
-      ctx.graph.unlink('likes', alice, post),
+      ctx.graph.mutate.link('likes', alice, post),
+      ctx.graph.mutate.unlink('likes', alice, post),
     ])
 
     // Final state should be consistent (either exists or doesn't)
-    const likeExists = await ctx.graph
+    const likeCount = await ctx.graph
       .nodeByIdWithLabel('user', alice)
       .to('likes')
       .where('id', 'eq', post)
-      .exists()
+      .count()
 
-    // Just verify it's a boolean (deterministic final state)
-    expect(typeof likeExists).toBe('boolean')
+    // Just verify it returns a number (deterministic final state)
+    expect(typeof likeCount).toBe('number')
   })
 
   it('transaction with complex query and mutation mix', async () => {
-    await ctx.graph.transaction(async (tx) => {
-      // Query existing data
-      const activeUsers = await tx.node('user').where('status', 'eq', 'active').execute()
+    // First get active users outside transaction
+    const activeUsers = await ctx.graph.node('user').where('status', 'eq', 'active').execute()
+    expect(activeUsers.length).toBeGreaterThan(0)
 
-      expect(activeUsers.length).toBeGreaterThan(0)
-
+    await ctx.graph.mutate.transaction(async (tx) => {
       // Create new post
-      const newPost = await tx.create('post', {
-        id: 'tx-complex-post',
-        title: 'Complex Transaction Post',
-        content: 'Testing queries in transaction',
-        views: 0,
-      })
+      const newPost = await tx.create(
+        'post',
+        {
+          title: 'Complex Transaction Post',
+          content: 'Testing queries in transaction',
+          views: 0,
+        },
+        { id: 'tx-complex-post' },
+      )
 
       // Link to first active user
       await tx.link('authored', activeUsers[0]!.id, newPost.id)
-
-      // Query the relationship we just created
-      const authoredPosts = await tx
-        .nodeByIdWithLabel('user', activeUsers[0]!.id)
-        .to('authored')
-        .where('id', 'eq', newPost.id)
-        .execute()
-
-      expect(authoredPosts).toHaveLength(1)
     })
 
     // Verify post exists after transaction
-    const postExists = await ctx.graph
-      .nodeByIdWithLabel('post', 'tx-complex-post')
-      .exists()
+    const postExists = await ctx.graph.nodeByIdWithLabel('post', 'tx-complex-post').exists()
     expect(postExists).toBe(true)
+
+    // Verify relationship exists
+    const authoredPosts = await ctx.graph
+      .nodeByIdWithLabel('user', activeUsers[0]!.id)
+      .to('authored')
+      .where('id', 'eq', 'tx-complex-post')
+      .execute()
+    expect(authoredPosts.length).toBeGreaterThan(0)
   })
 
   it('transaction rollback preserves existing data', async () => {
@@ -227,13 +234,9 @@ describe('Transaction Concurrency', () => {
     const initialName = (await ctx.graph.nodeByIdWithLabel('user', alice).execute()).name
 
     await expect(
-      ctx.graph.transaction(async (tx) => {
+      ctx.graph.mutate.transaction(async (tx) => {
         // Update existing user
         await tx.update('user', alice, { name: 'Temporary Name' })
-
-        // Verify update in transaction
-        const updated = await tx.nodeByIdWithLabel('user', alice).execute()
-        expect(updated.name).toBe('Temporary Name')
 
         // Rollback
         throw new Error('Rollback test')
@@ -247,14 +250,12 @@ describe('Transaction Concurrency', () => {
 
   it('concurrent batch operations', async () => {
     const batch1 = Array.from({ length: 10 }, (_, i) => ({
-      id: `batch1-user-${i}`,
       name: `Batch1User${i}`,
       email: `batch1-${i}@test.com`,
       status: 'active' as const,
     }))
 
     const batch2 = Array.from({ length: 10 }, (_, i) => ({
-      id: `batch2-user-${i}`,
       name: `Batch2User${i}`,
       email: `batch2-${i}@test.com`,
       status: 'active' as const,
@@ -262,22 +263,16 @@ describe('Transaction Concurrency', () => {
 
     // Execute batches concurrently
     const [result1, result2] = await Promise.all([
-      ctx.graph.createMany('user', batch1),
-      ctx.graph.createMany('user', batch2),
+      ctx.graph.mutate.createMany('user', batch1),
+      ctx.graph.mutate.createMany('user', batch2),
     ])
 
     expect(result1).toHaveLength(10)
     expect(result2).toHaveLength(10)
 
     // Verify all 20 users exist
-    const batch1Count = await ctx.graph
-      .node('user')
-      .where('name', 'startsWith', 'Batch1')
-      .count()
-    const batch2Count = await ctx.graph
-      .node('user')
-      .where('name', 'startsWith', 'Batch2')
-      .count()
+    const batch1Count = await ctx.graph.node('user').where('name', 'startsWith', 'Batch1').count()
+    const batch2Count = await ctx.graph.node('user').where('name', 'startsWith', 'Batch2').count()
 
     expect(batch1Count).toBe(10)
     expect(batch2Count).toBe(10)

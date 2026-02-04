@@ -17,6 +17,7 @@ import {
   getNodesSatisfying,
   compileSchemaIndexes,
   generateIndexMigration,
+  SchemaValidationError,
 } from '../src'
 
 // =============================================================================
@@ -134,6 +135,54 @@ describe('Schema Validation', () => {
         hierarchy: { defaultEdge: 'hasParent', direction: 'up' },
       }),
     ).toThrow(/Hierarchy defaultEdge 'hasParent' does not exist/)
+  })
+
+  it('throws SchemaValidationError with proper fields for edge reference errors', () => {
+    try {
+      defineSchema({
+        nodes: { post: node({ properties: {} }) },
+        edges: {
+          authored: edge({
+            from: 'user', // doesn't exist
+            to: 'post',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
+        },
+      })
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaValidationError)
+      const schemaError = error as SchemaValidationError
+      expect(schemaError.field).toBe('from')
+      expect(schemaError.received).toBe('user')
+      expect(schemaError.expected).toContain('post')
+      expect(schemaError.message).toContain('Available nodes:')
+    }
+  })
+
+  it('throws SchemaValidationError with proper fields for hierarchy errors', () => {
+    try {
+      defineSchema({
+        nodes: { folder: node({ properties: {} }) },
+        edges: {
+          contains: edge({
+            from: 'folder',
+            to: 'folder',
+            cardinality: { outbound: 'many', inbound: 'optional' },
+          }),
+        },
+        // @ts-expect-error - intentionally referencing non-existent edge
+        hierarchy: { defaultEdge: 'hasParent', direction: 'up' },
+      })
+      expect.fail('Should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaValidationError)
+      const schemaError = error as SchemaValidationError
+      expect(schemaError.field).toBe('hierarchy.defaultEdge')
+      expect(schemaError.received).toBe('hasParent')
+      expect(schemaError.expected).toContain('contains')
+      expect(schemaError.message).toContain('Available edges:')
+    }
   })
 })
 

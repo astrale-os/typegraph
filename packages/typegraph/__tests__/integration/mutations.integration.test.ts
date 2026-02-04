@@ -27,7 +27,7 @@ describe('Mutation Integration Tests', () => {
   // Reset data before each test to ensure isolation
   beforeEach(async () => {
     await clearDatabase(ctx.adapter)
-    const executor = ctx.adapter.createQueryExecutor()
+    const executor = ctx.adapter.createMutationExecutor()
     ctx.data = await seedTestData(executor)
   })
 
@@ -48,10 +48,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.data.email).toBe('dave@example.com')
 
       // Verify it was created
-      const query = ctx.graph.nodeByIdWithLabel('user', result.id)
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeSingle(compiled)
-      expect(fetched.data).toMatchObject({ name: 'Dave' })
+      const fetched = await ctx.graph.nodeByIdWithLabel('user', result.id).execute()
+      expect(fetched).toMatchObject({ name: 'Dave' })
     })
 
     it('creates a node with custom ID', async () => {
@@ -73,10 +71,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.data.name).toBe('Alice Updated')
 
       // Verify the update
-      const query = ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice)
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeSingle(compiled)
-      expect(fetched.data).toMatchObject({ name: 'Alice Updated' })
+      const fetched = await ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice).execute()
+      expect(fetched).toMatchObject({ name: 'Alice Updated' })
     })
 
     it('deletes a node', async () => {
@@ -91,10 +87,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.deleted).toBe(true)
 
       // Verify deletion
-      const query = ctx.graph.nodeByIdWithLabel('user', newUser.id)
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeOptional(compiled)
-      expect(fetched.data).toBeNull()
+      const count = await ctx.graph.node('user').where('id', 'eq', newUser.id).count()
+      expect(count).toBe(0)
     })
 
     it('deletes a node with DETACH (removes relationships)', async () => {
@@ -103,10 +97,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.deleted).toBe(true)
 
       // Verify deletion
-      const query = ctx.graph.nodeByIdWithLabel('user', ctx.data.users.charlie)
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeOptional(compiled)
-      expect(fetched.data).toBeNull()
+      const count = await ctx.graph.node('user').where('id', 'eq', ctx.data.users.charlie).count()
+      expect(count).toBe(0)
     })
   })
 
@@ -137,10 +129,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.to).toBe(newPost.id)
 
       // Verify the relationship
-      const query = ctx.graph.nodeByIdWithLabel('user', newUser.id).to('authored')
-      const compiled = query.compile()
-      const posts = await ctx.executor.execute(compiled)
-      expect(posts.data).toHaveLength(1)
+      const posts = await ctx.graph.nodeByIdWithLabel('user', newUser.id).to('authored').execute()
+      expect(posts).toHaveLength(1)
     })
 
     it('creates an edge without properties', async () => {
@@ -221,10 +211,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.data.name).toBe('Projects')
 
       // Verify parent relationship
-      const query = ctx.graph.nodeByIdWithLabel('folder', result.id).ancestors()
-      const compiled = query.compile()
-      const ancestors = await ctx.executor.execute(compiled)
-      expect(ancestors.data.length).toBeGreaterThanOrEqual(1)
+      const ancestors = await ctx.graph.nodeByIdWithLabel('folder', result.id).ancestors().execute()
+      expect(ancestors.length).toBeGreaterThanOrEqual(1)
     })
 
     it('moves a node to new parent', async () => {
@@ -236,13 +224,14 @@ describe('Mutation Integration Tests', () => {
       expect(result.moved).toBe(true)
 
       // Verify new parent
-      const query = ctx.graph.nodeByIdWithLabel('folder', ctx.data.folders.work).ancestors()
-      const compiled = query.compile()
-      const ancestors = await ctx.executor.execute(compiled)
+      const ancestors = await ctx.graph
+        .nodeByIdWithLabel('folder', ctx.data.folders.work)
+        .ancestors()
+        .execute()
 
       // Should only have root as ancestor now (not docs)
-      expect(ancestors.data).toHaveLength(1)
-      expect((ancestors.data[0] as { name: string }).name).toBe('Root')
+      expect(ancestors).toHaveLength(1)
+      expect((ancestors[0] as unknown as { name: string }).name).toBe('Root')
     })
   })
 
@@ -305,12 +294,13 @@ describe('Mutation Integration Tests', () => {
         expect(results.every((r) => r.from === ctx.data.posts.hello)).toBe(true)
 
         // Verify the edges were created by querying
-        const query = ctx.graph.nodeByIdWithLabel('post', ctx.data.posts.hello).to('tagged')
-        const compiled = query.compile()
-        const linkedTags = await ctx.executor.execute(compiled)
+        const linkedTags = await ctx.graph
+          .nodeByIdWithLabel('post', ctx.data.posts.hello)
+          .to('tagged')
+          .execute()
 
         // Should have original tag (tech) + 3 new tags = 4 total
-        expect(linkedTags.data.length).toBeGreaterThanOrEqual(3)
+        expect(linkedTags.length).toBeGreaterThanOrEqual(3)
       })
 
       it('handles empty array (no-op)', async () => {
@@ -366,10 +356,11 @@ describe('Mutation Integration Tests', () => {
         expect(result.deleted).toBe(2)
 
         // Verify edges are gone
-        const query = ctx.graph.nodeByIdWithLabel('post', ctx.data.posts.draft).to('tagged')
-        const compiled = query.compile()
-        const linkedTags = await ctx.executor.execute(compiled)
-        const tagIds = (linkedTags.data as Array<{ id: string }>).map((t) => t.id)
+        const linkedTags = await ctx.graph
+          .nodeByIdWithLabel('post', ctx.data.posts.draft)
+          .to('tagged')
+          .execute()
+        const tagIds = linkedTags.map((t) => t.id)
 
         expect(tagIds).not.toContain(tags[0]!.id)
         expect(tagIds).not.toContain(tags[1]!.id)
@@ -410,10 +401,11 @@ describe('Mutation Integration Tests', () => {
         )
 
         // Verify edges exist
-        const beforeQuery = ctx.graph.nodeByIdWithLabel('post', testPost.id).to('tagged')
-        const beforeCompiled = beforeQuery.compile()
-        const beforeTags = await ctx.executor.execute(beforeCompiled)
-        expect(beforeTags.data).toHaveLength(3)
+        const beforeTags = await ctx.graph
+          .nodeByIdWithLabel('post', testPost.id)
+          .to('tagged')
+          .execute()
+        expect(beforeTags).toHaveLength(3)
 
         // Delete all tagged edges from this post
         const result = await ctx.graph.mutate.unlinkAllFrom('tagged', testPost.id)
@@ -421,8 +413,11 @@ describe('Mutation Integration Tests', () => {
         expect(result.deleted).toBe(3)
 
         // Verify all edges are gone
-        const afterTags = await ctx.executor.execute(beforeCompiled)
-        expect(afterTags.data).toHaveLength(0)
+        const afterTags = await ctx.graph
+          .nodeByIdWithLabel('post', testPost.id)
+          .to('tagged')
+          .execute()
+        expect(afterTags).toHaveLength(0)
       })
 
       it('returns 0 when no edges exist', async () => {
@@ -441,19 +436,21 @@ describe('Mutation Integration Tests', () => {
         // unlinkAllFrom('likes', alice) should only remove likes, not authored
 
         // First verify Alice has authored edges
-        const authoredQuery = ctx.graph
+        const authoredBefore = await ctx.graph
           .nodeByIdWithLabel('user', ctx.data.users.alice)
           .to('authored')
-        const authoredCompiled = authoredQuery.compile()
-        const authoredBefore = await ctx.executor.execute(authoredCompiled)
-        expect(authoredBefore.data.length).toBeGreaterThan(0)
+          .execute()
+        expect(authoredBefore.length).toBeGreaterThan(0)
 
         // Remove all likes from Alice
         await ctx.graph.mutate.unlinkAllFrom('likes', ctx.data.users.alice)
 
         // Verify authored edges still exist
-        const authoredAfter = await ctx.executor.execute(authoredCompiled)
-        expect(authoredAfter.data.length).toBe(authoredBefore.data.length)
+        const authoredAfter = await ctx.graph
+          .nodeByIdWithLabel('user', ctx.data.users.alice)
+          .to('authored')
+          .execute()
+        expect(authoredAfter.length).toBe(authoredBefore.length)
       })
     })
 
@@ -470,10 +467,11 @@ describe('Mutation Integration Tests', () => {
         ])
 
         // Verify edges exist
-        const beforeQuery = ctx.graph.nodeByIdWithLabel('tag', popularTag.id).from('tagged')
-        const beforeCompiled = beforeQuery.compile()
-        const beforePosts = await ctx.executor.execute(beforeCompiled)
-        expect(beforePosts.data).toHaveLength(3)
+        const beforePosts = await ctx.graph
+          .nodeByIdWithLabel('tag', popularTag.id)
+          .from('tagged')
+          .execute()
+        expect(beforePosts).toHaveLength(3)
 
         // Delete all incoming tagged edges to this tag
         const result = await ctx.graph.mutate.unlinkAllTo('tagged', popularTag.id)
@@ -481,8 +479,11 @@ describe('Mutation Integration Tests', () => {
         expect(result.deleted).toBe(3)
 
         // Verify all edges are gone
-        const afterPosts = await ctx.executor.execute(beforeCompiled)
-        expect(afterPosts.data).toHaveLength(0)
+        const afterPosts = await ctx.graph
+          .nodeByIdWithLabel('tag', popularTag.id)
+          .from('tagged')
+          .execute()
+        expect(afterPosts).toHaveLength(0)
       })
 
       it('returns 0 when no edges exist', async () => {
@@ -498,19 +499,21 @@ describe('Mutation Integration Tests', () => {
         // unlinkAllTo should only affect incoming edges of the specified type
 
         // Verify post-1 has comments (outgoing hasComment)
-        const commentsQuery = ctx.graph
+        const commentsBefore = await ctx.graph
           .nodeByIdWithLabel('post', ctx.data.posts.hello)
           .to('hasComment')
-        const commentsCompiled = commentsQuery.compile()
-        const commentsBefore = await ctx.executor.execute(commentsCompiled)
-        expect(commentsBefore.data.length).toBeGreaterThan(0)
+          .execute()
+        expect(commentsBefore.length).toBeGreaterThan(0)
 
         // Remove all incoming 'likes' to post-1
         await ctx.graph.mutate.unlinkAllTo('likes', ctx.data.posts.hello)
 
         // Verify hasComment edges still exist (different edge type)
-        const commentsAfter = await ctx.executor.execute(commentsCompiled)
-        expect(commentsAfter.data.length).toBe(commentsBefore.data.length)
+        const commentsAfter = await ctx.graph
+          .nodeByIdWithLabel('post', ctx.data.posts.hello)
+          .to('hasComment')
+          .execute()
+        expect(commentsAfter.length).toBe(commentsBefore.length)
       })
     })
   })
@@ -537,10 +540,15 @@ describe('Mutation Integration Tests', () => {
       })
 
       // Verify user was created
-      const query = ctx.graph.node('user').where('email', 'eq', 'tx-user@example.com')
-      const compiled = query.compile()
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
+      const result = await ctx.graph
+        .node('user')
+        .where('email', 'eq', 'tx-user@example.com')
+        .execute()
+      expect(result).toHaveLength(1)
+
+      // Reach post through authored edge
+      const post = await ctx.graph.nodeByIdWithLabel('user', result[0]!.id).to('authored').execute()
+      expect(post).toHaveLength(1)
     })
 
     it('rolls back failed transaction', async () => {
@@ -560,10 +568,11 @@ describe('Mutation Integration Tests', () => {
       }
 
       // Verify user was NOT created (rolled back)
-      const query = ctx.graph.node('user').where('email', 'eq', 'rollback@example.com')
-      const compiled = query.compile()
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(0)
+      const result = await ctx.graph
+        .node('user')
+        .where('email', 'eq', 'rollback@example.com')
+        .execute()
+      expect(result).toHaveLength(0)
     })
   })
 
@@ -584,10 +593,8 @@ describe('Mutation Integration Tests', () => {
       expect(result.created).toBe(true)
 
       // Verify it was created
-      const query = ctx.graph.nodeByIdWithLabel('user', 'upsert-new-user')
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeSingle(compiled)
-      expect(fetched.data).toMatchObject({ name: 'Upsert New' })
+      const fetched = await ctx.graph.nodeByIdWithLabel('user', 'upsert-new-user').execute()
+      expect(fetched).toMatchObject({ name: 'Upsert New' })
     })
 
     it('updates an existing node when it exists', async () => {
@@ -617,10 +624,8 @@ describe('Mutation Integration Tests', () => {
       })
 
       // Verify it was created
-      const query = ctx.graph.nodeByIdWithLabel('tag', 'tx-upsert-tag')
-      const compiled = query.compile()
-      const fetched = await ctx.executor.executeSingle(compiled)
-      expect(fetched.data).toMatchObject({ name: 'tx-upsert-test' })
+      const fetched = await ctx.graph.nodeByIdWithLabel('tag', 'tx-upsert-tag').execute()
+      expect(fetched).toMatchObject({ name: 'tx-upsert-test' })
     })
   })
 })

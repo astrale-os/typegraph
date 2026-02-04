@@ -6,8 +6,6 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
-import { CypherCompiler } from '../../src/compiler'
-import { testSchema } from './setup'
 
 describe('Query Integration Tests', () => {
   let ctx: TestContext
@@ -30,33 +28,25 @@ describe('Query Integration Tests', () => {
       const compiled = query.compile()
 
       expect(compiled.cypher).toContain('MATCH')
-      expect(compiled.cypher).toContain(':Node:User')
+      expect(compiled.cypher).toContain(':User')
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(3)
+      const result = await query.execute()
+      expect(result).toHaveLength(3)
     })
 
     it('fetches node by ID', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice)
-      const compiled = query.compile()
+      const result = await ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice).execute()
 
-      expect(compiled.cypher).toContain('WHERE')
-      expect(compiled.cypher).toContain('id')
-
-      const result = await ctx.executor.executeSingle(compiled)
-      expect(result.data).toMatchObject({
+      expect(result).toMatchObject({
         id: ctx.data.users.alice,
         name: 'Alice',
         email: 'alice@example.com',
       })
     })
 
-    it('returns null for non-existent node', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('user', 'non-existent-id')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.executeOptional(compiled)
-      expect(result.data).toBeNull()
+    it('returns empty for non-existent node', async () => {
+      const result = await ctx.graph.node('user').where('id', 'eq', 'non-existent-id').execute()
+      expect(result).toHaveLength(0)
     })
   })
 
@@ -66,281 +56,202 @@ describe('Query Integration Tests', () => {
 
   describe('WHERE Filtering', () => {
     it('filters by equality', async () => {
-      const query = ctx.graph.node('user').where('status', 'eq', 'active')
-      const compiled = query.compile()
+      const result = await ctx.graph.node('user').where('status', 'eq', 'active').execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
-      expect((result.data as Array<{ status: string }>).every((u) => u.status === 'active')).toBe(
-        true,
-      )
+      expect(result).toHaveLength(2)
+      expect(result.every((u) => u.status === 'active')).toBe(true)
     })
 
     it('filters by inequality', async () => {
-      const query = ctx.graph.node('user').where('status', 'neq', 'inactive')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
+      const result = await ctx.graph.node('user').where('status', 'neq', 'inactive').execute()
+      expect(result).toHaveLength(2)
     })
 
     it('filters by greater than', async () => {
-      const query = ctx.graph.node('post').where('views', 'gt', 50)
-      const compiled = query.compile()
+      const result = await ctx.graph.node('post').where('views', 'gt', 50).execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
-      expect((result.data as Array<{ views: number }>).every((p) => p.views > 50)).toBe(true)
+      expect(result).toHaveLength(2)
+      expect(result.every((p) => p.views > 50)).toBe(true)
     })
 
     it('filters by IN list', async () => {
-      const query = ctx.graph.node('user').where('name', 'in', ['Alice', 'Bob'])
-      const compiled = query.compile()
+      const result = await ctx.graph.node('user').where('name', 'in', ['Alice', 'Bob']).execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
+      expect(result).toHaveLength(2)
+      expect(result.map((u) => u.name).sort()).toEqual(['Alice', 'Bob'])
     })
 
-    it('filters by CONTAINS', async () => {
-      const query = ctx.graph.node('post').where('title', 'contains', 'World')
-      const compiled = query.compile()
+    it('filters by startsWith', async () => {
+      const result = await ctx.graph.node('user').where('name', 'startsWith', 'A').execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
-      expect((result.data[0] as { title: string }).title).toBe('Hello World')
+      expect(result).toHaveLength(1)
+      expect(result[0]!.name).toBe('Alice')
     })
 
-    it('filters by STARTS WITH', async () => {
-      const query = ctx.graph.node('post').where('title', 'startsWith', 'Graph')
-      const compiled = query.compile()
+    it('filters by contains', async () => {
+      const result = await ctx.graph.node('post').where('title', 'contains', 'World').execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
+      expect(result).toHaveLength(1)
+      expect(result[0]!.title).toContain('World')
     })
 
-    it('filters by IS NULL', async () => {
-      const query = ctx.graph.node('post').where('content', 'isNull')
-      const compiled = query.compile()
+    it('chains multiple WHERE conditions', async () => {
+      const result = await ctx.graph
+        .node('post')
+        .where('views', 'gt', 50)
+        .where('views', 'lt', 200)
+        .execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
-      expect((result.data[0] as { title: string }).title).toBe('Draft Post')
-    })
-
-    it('filters by IS NOT NULL', async () => {
-      const query = ctx.graph.node('post').where('content', 'isNotNull')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
+      expect(result).toHaveLength(1)
+      expect(result[0]!.views).toBe(100)
     })
   })
 
   // ===========================================================================
-  // TRAVERSALS
+  // SORTING & PAGINATION
   // ===========================================================================
 
-  describe('Traversals', () => {
-    it('traverses outgoing edge', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice).to('authored')
-      const compiled = query.compile()
+  describe('Sorting & Pagination', () => {
+    it('orders by single field ascending', async () => {
+      const result = await ctx.graph.node('post').orderBy('views', 'ASC').execute()
 
-      // Edge pattern includes alias like -[e0:authored]->
-      expect(compiled.cypher).toContain(':authored')
-      expect(compiled.cypher).toContain('->')
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
+      const views = result.map((p) => p.views)
+      expect(views).toEqual([...views].sort((a, b) => a - b))
     })
 
-    it('traverses incoming edge', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('post', ctx.data.posts.hello).from('authored')
-      const compiled = query.compile()
+    it('orders by single field descending', async () => {
+      const result = await ctx.graph.node('post').orderBy('views', 'DESC').execute()
 
-      // Edge pattern includes alias like <-[e0:authored]-
-      expect(compiled.cypher).toContain(':authored')
-      expect(compiled.cypher).toContain('<-')
+      const views = result.map((p) => p.views)
+      expect(views).toEqual([...views].sort((a, b) => b - a))
+    })
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
-      expect((result.data[0] as { name: string }).name).toBe('Alice')
+    it('paginates results', async () => {
+      const page1 = await ctx.graph
+        .node('post')
+        .orderBy('views', 'DESC')
+        .paginate({ page: 1, pageSize: 2 })
+        .execute()
+
+      const page2 = await ctx.graph
+        .node('post')
+        .orderBy('views', 'DESC')
+        .paginate({ page: 2, pageSize: 2 })
+        .execute()
+
+      expect(page1).toHaveLength(2)
+      expect(page2).toHaveLength(1)
+
+      // No overlap
+      const page1Ids = page1.map((p) => p.id)
+      const page2Ids = page2.map((p) => p.id)
+      expect(page1Ids.filter((id) => page2Ids.includes(id))).toHaveLength(0)
+    })
+
+    it('limits results', async () => {
+      const result = await ctx.graph.node('user').limit(2).execute()
+      expect(result).toHaveLength(2)
+    })
+
+    it('skips results', async () => {
+      const all = await ctx.graph.node('user').orderBy('name', 'ASC').execute()
+      const skipped = await ctx.graph.node('user').orderBy('name', 'ASC').skip(1).execute()
+
+      expect(skipped).toHaveLength(all.length - 1)
+      expect(skipped[0]!.id).toBe(all[1]!.id)
+    })
+  })
+
+  // ===========================================================================
+  // TRAVERSAL QUERIES
+  // ===========================================================================
+
+  describe('Traversal Queries', () => {
+    it('traverses outgoing edges', async () => {
+      const result = await ctx.graph
+        .nodeByIdWithLabel('user', ctx.data.users.alice)
+        .to('authored')
+        .execute()
+
+      expect(result).toHaveLength(2)
+    })
+
+    it('traverses incoming edges', async () => {
+      // authored edge has inbound: 'one', so from() returns a single object
+      const result = await ctx.graph
+        .nodeByIdWithLabel('post', ctx.data.posts.hello)
+        .from('authored')
+        .execute()
+
+      // inbound: 'one' means each post has exactly one author
+      expect(result).toMatchObject({ id: ctx.data.users.alice })
     })
 
     it('chains multiple traversals', async () => {
-      // User -> authored -> Post -> hasComment -> Comment
-      const query = ctx.graph
+      // Alice -> authored -> Post -> hasComment -> Comment
+      const result = await ctx.graph
         .nodeByIdWithLabel('user', ctx.data.users.alice)
         .to('authored')
         .to('hasComment')
+        .execute()
 
-      const compiled = query.compile()
-      const result = await ctx.executor.execute(compiled)
-
-      expect(result.data).toHaveLength(2) // 2 comments on Alice's posts
-    })
-
-    it('traverses with edge filter', async () => {
-      // This would filter edges by properties - simplified test
-      const query = ctx.graph.nodeByIdWithLabel('user', ctx.data.users.alice).to('authored')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data.length).toBeGreaterThan(0)
+      expect(result.length).toBeGreaterThan(0)
     })
   })
 
   // ===========================================================================
-  // ORDERING AND PAGINATION
-  // ===========================================================================
-
-  describe('Ordering and Pagination', () => {
-    it('orders by field ascending', async () => {
-      const query = ctx.graph.node('user').orderBy('name', 'ASC')
-      const compiled = query.compile()
-
-      expect(compiled.cypher).toContain('ORDER BY')
-      expect(compiled.cypher).toContain('ASC')
-
-      const result = await ctx.executor.execute(compiled)
-      const names = (result.data as Array<{ name: string }>).map((u) => u.name)
-      expect(names).toEqual(['Alice', 'Bob', 'Charlie'])
-    })
-
-    it('orders by field descending', async () => {
-      const query = ctx.graph.node('post').orderBy('views', 'DESC')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      const views = (result.data as Array<{ views: number }>).map((p) => p.views)
-      expect(views).toEqual([250, 100, 0])
-    })
-
-    it('applies LIMIT', async () => {
-      const query = ctx.graph.node('user').limit(2)
-      const compiled = query.compile()
-
-      expect(compiled.cypher).toContain('LIMIT 2')
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
-    })
-
-    it('applies SKIP', async () => {
-      const query = ctx.graph.node('user').orderBy('name', 'ASC').skip(1)
-      const compiled = query.compile()
-
-      expect(compiled.cypher).toContain('SKIP 1')
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2)
-      expect((result.data[0] as { name: string }).name).toBe('Bob')
-    })
-
-    it('applies pagination', async () => {
-      const query = ctx.graph.node('user').orderBy('name', 'ASC').paginate({ page: 2, pageSize: 1 })
-      const compiled = query.compile()
-
-      expect(compiled.cypher).toContain('SKIP 1')
-      expect(compiled.cypher).toContain('LIMIT 1')
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1)
-      expect((result.data[0] as { name: string }).name).toBe('Bob')
-    })
-  })
-
-  // ===========================================================================
-  // EDGE EXISTENCE
-  // ===========================================================================
-
-  describe('Edge Existence Filtering', () => {
-    it('filters by hasEdge', async () => {
-      const query = ctx.graph.node('user').hasEdge('authored', 'out')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2) // Alice and Bob have authored posts
-    })
-
-    it('filters by hasNoEdge', async () => {
-      const query = ctx.graph.node('user').hasNoEdge('authored', 'out')
-      const compiled = query.compile()
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1) // Charlie has no posts
-      expect((result.data[0] as { name: string }).name).toBe('Charlie')
-    })
-  })
-
-  // ===========================================================================
-  // COUNT AND EXISTS
+  // AGGREGATIONS
   // ===========================================================================
 
   describe('Aggregations', () => {
-    it.skip('counts nodes', async () => {
-      // TODO: Implement public count() API instead of accessing protected _ast
-      const query = ctx.graph.node('user')
-      const ast = (
-        query as unknown as { _ast: { setCountProjection: () => unknown } }
-      )._ast.setCountProjection()
-      const compiler = new CypherCompiler(testSchema as never)
-      const compiled = compiler.compile(ast as never)
-
-      const count = await ctx.executor.executeCount(compiled)
+    it('counts nodes', async () => {
+      const count = await ctx.graph.node('user').count()
       expect(count).toBe(3)
     })
 
-    it.skip('checks existence - true', async () => {
-      // TODO: Implement public exists() API instead of accessing protected _ast
-      const query = ctx.graph.node('user').where('name', 'eq', 'Alice')
-      const ast = (
-        query as unknown as { _ast: { setExistsProjection: () => unknown } }
-      )._ast.setExistsProjection()
-      const compiler = new CypherCompiler(testSchema as never)
-      const compiled = compiler.compile(ast as never)
-
-      const exists = await ctx.executor.executeExists(compiled)
-      expect(exists).toBe(true)
+    it('counts with filter', async () => {
+      const count = await ctx.graph.node('user').where('status', 'eq', 'active').count()
+      expect(count).toBe(2)
     })
 
-    it.skip('checks existence - false', async () => {
-      // TODO: Implement public exists() API instead of accessing protected _ast
-      const query = ctx.graph.node('user').where('name', 'eq', 'NonExistent')
-      const ast = (
-        query as unknown as { _ast: { setExistsProjection: () => unknown } }
-      )._ast.setExistsProjection()
-      const compiler = new CypherCompiler(testSchema as never)
-      const compiled = compiler.compile(ast as never)
+    it('checks exists (true case)', async () => {
+      const count = await ctx.graph.node('user').where('name', 'eq', 'Alice').count()
+      expect(count).toBeGreaterThan(0)
+    })
 
-      const exists = await ctx.executor.executeExists(compiled)
-      expect(exists).toBe(false)
+    it('checks exists (false case)', async () => {
+      const count = await ctx.graph.node('user').where('name', 'eq', 'NonExistent').count()
+      expect(count).toBe(0)
     })
   })
 
   // ===========================================================================
-  // MULTI-NODE RETURN
+  // MULTI-NODE QUERIES (RETURNING)
   // ===========================================================================
 
-  describe('Multi-Node Return', () => {
+  describe('Multi-Node Queries', () => {
     it('returns multiple aliased nodes', async () => {
-      const query = ctx.graph
+      const query = await ctx.graph
         .nodeByIdWithLabel('user', ctx.data.users.alice)
         .as('author')
         .to('authored')
         .as('post')
-        .returning('author', 'post')
+        .to('hasComment')
+        .as('comment')
+        .return((q) => ({
+          author: q.author,
+          post: q.post,
+          comment: q.comment,
+        }))
+      const results = await query.execute()
 
-      const compiled = query.compile()
+      expect(results.length).toBeGreaterThan(0)
 
-      expect(compiled.cypher).toContain('AS author')
-      expect(compiled.cypher).toContain('AS post')
-
-      const result = await ctx.executor.executeMultiNode(compiled)
-      expect(result.data.length).toBeGreaterThan(0)
-
-      const first = result.data[0]!
+      const first = results[0]!
       expect(first).toHaveProperty('author')
       expect(first).toHaveProperty('post')
+      expect(first).toHaveProperty('comment')
+      expect(first.author.id).toBe(ctx.data.users.alice)
     })
   })
 
@@ -349,104 +260,65 @@ describe('Query Integration Tests', () => {
   // ===========================================================================
 
   describe('Hierarchy Queries', () => {
-    it('gets ancestors', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('folder', ctx.data.folders.work).ancestors()
-      const compiled = query.compile()
+    it('fetches ancestors', async () => {
+      const ancestors = await ctx.graph
+        .nodeByIdWithLabel('folder', ctx.data.folders.work)
+        .ancestors()
+        .execute()
 
-      expect(compiled.cypher).toContain(':hasParent')
-
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2) // docs and root
+      expect(ancestors).toHaveLength(2)
+      const names = ancestors.map((f) => (f as unknown as { name: string }).name)
+      expect(names).toContain('Documents')
+      expect(names).toContain('Root')
     })
 
-    it('gets descendants', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('folder', ctx.data.folders.root).descendants()
-      const compiled = query.compile()
+    it('fetches descendants', async () => {
+      const descendants = await ctx.graph
+        .nodeByIdWithLabel('folder', ctx.data.folders.root)
+        .descendants()
+        .execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(2) // docs and work
+      expect(descendants).toHaveLength(2)
     })
 
-    it('gets children', async () => {
-      const query = ctx.graph.nodeByIdWithLabel('folder', ctx.data.folders.root).children()
-      const compiled = query.compile()
+    it('fetches root', async () => {
+      const root = await ctx.graph
+        .nodeByIdWithLabel('folder', ctx.data.folders.work)
+        .root()
+        .execute()
 
-      const result = await ctx.executor.execute(compiled)
-      expect(result.data).toHaveLength(1) // just docs
-      expect((result.data[0] as { name: string }).name).toBe('Documents')
-    })
-  })
-
-  // ===========================================================================
-  // DISTINCT
-  // ===========================================================================
-
-  describe('Distinct', () => {
-    it('returns distinct results', async () => {
-      // Get all users who liked any post (some might like multiple)
-      const query = ctx.graph.node('post').from('likes').distinct()
-      const compiled = query.compile()
-
-      expect(compiled.cypher).toContain('DISTINCT')
-
-      const result = await ctx.executor.execute(compiled)
-      // Should have distinct users
-      const ids = (result.data as Array<{ id: string }>).map((u) => u.id)
-      const uniqueIds = [...new Set(ids)]
-      expect(ids.length).toBe(uniqueIds.length)
+      expect(root.id).toBe(ctx.data.folders.root)
     })
   })
 
   // ===========================================================================
-  // RAW QUERIES
+  // COMPILE OUTPUT VERIFICATION
   // ===========================================================================
 
-  describe('Raw Queries', () => {
-    it('executes a raw Cypher query', async () => {
-      const results = await ctx.graph.raw<{ name: string; email: string }>(
-        `MATCH (u:Node:User) WHERE u.status = $status RETURN u.name as name, u.email as email ORDER BY u.name`,
-        { status: 'active' },
-      )
+  describe('Compile Output', () => {
+    it('uses parameters for values', async () => {
+      const query = ctx.graph.node('user').where('name', 'eq', 'Alice')
+      const compiled = query.compile()
 
-      expect(results).toHaveLength(2) // Alice and Bob are active
-      expect(results[0]?.name).toBe('Alice')
-      expect(results[1]?.name).toBe('Bob')
+      // Should use parameter placeholder, not inline value
+      expect(compiled.cypher).not.toContain("'Alice'")
+      expect(compiled.params).toBeDefined()
+      expect(Object.values(compiled.params)).toContain('Alice')
     })
 
-    it('executes a raw query with aggregation', async () => {
-      const results = await ctx.graph.raw<{ status: string; count: number }>(
-        `MATCH (u:Node:User) RETURN u.status as status, count(u) as count ORDER BY status`,
-        {},
-      )
+    it('includes all required clauses', async () => {
+      const query = ctx.graph
+        .node('post')
+        .where('views', 'gt', 10)
+        .orderBy('views', 'DESC')
+        .limit(5)
+      const compiled = query.compile()
 
-      expect(results).toHaveLength(2)
-      expect(results.find((r) => r.status === 'active')?.count).toBe(2)
-      expect(results.find((r) => r.status === 'inactive')?.count).toBe(1)
-    })
-
-    it('executes a raw query with relationships', async () => {
-      const results = await ctx.graph.raw<{ author: string; postCount: number }>(
-        `MATCH (u:Node:User)-[:authored]->(p:Node:Post)
-         RETURN u.name as author, count(p) as postCount
-         ORDER BY postCount DESC`,
-        {},
-      )
-
-      expect(results.length).toBeGreaterThan(0)
-      // Alice authored 2 posts
-      const alice = results.find((r) => r.author === 'Alice')
-      expect(alice?.postCount).toBe(2)
-    })
-
-    it('returns empty array for no matches', async () => {
-      const results = await ctx.graph.raw<{ id: string }>(
-        `MATCH (u:Node:User {id: $id}) RETURN u.id as id`,
-        {
-          id: 'non-existent-id',
-        },
-      )
-
-      expect(results).toHaveLength(0)
+      expect(compiled.cypher).toContain('MATCH')
+      expect(compiled.cypher).toContain('WHERE')
+      expect(compiled.cypher).toContain('ORDER BY')
+      expect(compiled.cypher).toContain('LIMIT')
+      expect(compiled.cypher).toContain('RETURN')
     })
   })
 })

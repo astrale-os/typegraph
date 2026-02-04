@@ -527,6 +527,105 @@ export type InferSchema<S extends AnySchema> = {
   }
 }
 
+/**
+ * Infer all TypeScript types from a schema in a single, discoverable namespace.
+ * This is the recommended DX API for type extraction.
+ *
+ * Provides a unified interface for accessing:
+ * - Node output types (what you get from queries)
+ * - Node input types (what you provide to mutations)
+ * - Node user properties (excluding structural fields)
+ * - Edge output/input types
+ * - Union types of all nodes/edges
+ * - Node and edge name unions
+ *
+ * @example
+ * ```typescript
+ * const schema = defineSchema({
+ *   nodes: {
+ *     user: node({
+ *       properties: {
+ *         email: z.string(),
+ *         name: z.string(),
+ *       }
+ *     })
+ *   },
+ *   edges: {
+ *     follows: edge({
+ *       from: 'user',
+ *       to: 'user',
+ *       cardinality: { outbound: 'many', inbound: 'many' }
+ *     })
+ *   }
+ * })
+ *
+ * type Types = Infer<typeof schema>
+ *
+ * // Access types via discoverable namespace:
+ * type User = Types['nodes']['user']
+ * // { id: string; kind: 'user'; email: string; name: string }
+ *
+ * type UserInput = Types['nodesInput']['user']
+ * // { id: string; email: string; name: string }
+ *
+ * type Follows = Types['edges']['follows']
+ * // { id: string; kind: 'follows' }
+ *
+ * type AllNodes = Types['nodeUnion']
+ * // Union of all node types
+ *
+ * type NodeNames = Types['nodeNames']
+ * // 'user'
+ * ```
+ */
+export type Infer<S extends AnySchema> = {
+  /** Node output types (what you get from queries) - includes id, kind, and all properties */
+  nodes: {
+    [N in NodeLabels<S>]: NodeProps<S, N>
+  }
+
+  /** Node input types (what you provide to mutations) - includes id but not kind */
+  nodesInput: {
+    [N in NodeLabels<S>]: NodeInputProps<S, N>
+  }
+
+  /** Node properties only (excludes id and kind) - useful for comparisons, updates, serialization */
+  nodesProps: {
+    [N in NodeLabels<S>]: NodeUserProps<S, N>
+  }
+
+  /** Edge output types (what you get from queries) - includes id, kind, and all properties */
+  edges: {
+    [E in EdgeTypes<S>]: EdgeProps<S, E>
+  }
+
+  /** Edge input types (what you provide to mutations) - includes id but not kind */
+  edgesInput: {
+    [E in EdgeTypes<S>]: EdgeInputProps<S, E>
+  }
+
+  /** Edge properties only (excludes id and kind) - useful for comparisons, updates, serialization */
+  edgesProps: {
+    [E in EdgeTypes<S>]: EdgeUserProps<S, E>
+  }
+
+  /** Union of all node output types - useful for discriminated unions */
+  nodeUnion: {
+    [N in NodeLabels<S>]: NodeProps<S, N>
+  }[NodeLabels<S>]
+
+  /** Union of all edge output types */
+  edgeUnion: {
+    [E in EdgeTypes<S>]: EdgeProps<S, E>
+  }[EdgeTypes<S>]
+
+  /** Union of all node label names as string literals */
+  nodeNames: NodeLabels<S>
+
+  /** Union of all edge type names as string literals */
+  edgeNames: EdgeTypes<S>
+}
+
 // =============================================================================
 // ALIAS TRACKING (For multi-node returns)
 // =============================================================================
@@ -653,10 +752,11 @@ export type ValidateEdgeReferences<S extends AnySchema, E extends EdgeTypes<S>> 
 // =============================================================================
 
 /**
- * Symbol brand for NodeProxy to enable type-level detection.
+ * Brand key for NodeProxy to enable type-level detection.
+ * Using a string literal brand is more reliable than unique symbol for conditional types.
  * @internal
  */
-declare const NODE_PROXY_BRAND: unique symbol
+export type NodeProxyBrand = '__nodeProxyBrand__'
 
 /**
  * A proxy type representing a matched node in a query.
@@ -673,7 +773,7 @@ declare const NODE_PROXY_BRAND: unique symbol
  * ```
  */
 export type NodeProxy<S extends AnySchema, N extends NodeLabels<S>> = NodeProps<S, N> & {
-  readonly [NODE_PROXY_BRAND]: { schema: S; label: N }
+  readonly __nodeProxyBrand__: { schema: S; label: N }
 }
 
 /**
@@ -685,17 +785,17 @@ export type OptionalNodeProxy<S extends AnySchema, N extends NodeLabels<S>> =
   | undefined
 
 /**
- * Symbol brand for EdgeProxy to enable type-level detection.
+ * Brand key for EdgeProxy to enable type-level detection.
  * @internal
  */
-declare const EDGE_PROXY_BRAND: unique symbol
+export type EdgeProxyBrand = '__edgeProxyBrand__'
 
 /**
  * A proxy type representing a matched edge in a query.
  * Similar to NodeProxy but for edges.
  */
 export type EdgeProxy<S extends AnySchema, E extends EdgeTypes<S>> = EdgeProps<S, E> & {
-  readonly [EDGE_PROXY_BRAND]: { schema: S; edge: E }
+  readonly __edgeProxyBrand__: { schema: S; edge: E }
 }
 
 /**
@@ -746,13 +846,13 @@ export type QueryContext<
  *
  * @internal
  */
-export type ResolveProxy<T> = T extends { readonly [NODE_PROXY_BRAND]: { schema: infer S; label: infer N } }
+export type ResolveProxy<T> = T extends { readonly __nodeProxyBrand__: { schema: infer S; label: infer N } }
   ? S extends AnySchema
     ? N extends NodeLabels<S>
       ? NodeProps<S, N>
       : never
     : never
-  : T extends { readonly [EDGE_PROXY_BRAND]: { schema: infer S; edge: infer E } }
+  : T extends { readonly __edgeProxyBrand__: { schema: infer S; edge: infer E } }
     ? S extends AnySchema
       ? E extends EdgeTypes<S>
         ? EdgeProps<S, E>
@@ -777,4 +877,16 @@ export type ResolveProxy<T> = T extends { readonly [NODE_PROXY_BRAND]: { schema:
  */
 export type InferReturnType<T> = {
   [K in keyof T]: ResolveProxy<T[K]>
+}
+
+/**
+ * Interface for a typed return query result.
+ * Used by `.return()` to provide properly typed execute().
+ *
+ * @template T - The inferred return type from the callback
+ */
+export interface TypedReturnQuery<T> {
+  execute(): Promise<Array<T>>
+  compile(): { cypher: string; params: Record<string, unknown> }
+  toCypher(): string
 }

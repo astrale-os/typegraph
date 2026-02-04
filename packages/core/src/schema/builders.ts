@@ -304,11 +304,11 @@ export interface EdgeConfig<
  * ```
  */
 export function edge<
-  TFrom extends string | readonly string[],
-  TTo extends string | readonly string[],
+  const TFrom extends string | readonly string[],
+  const TTo extends string | readonly string[],
   TProps extends z.ZodRawShape = Record<string, never>,
-  TOutbound extends Cardinality = Cardinality,
-  TInbound extends Cardinality = Cardinality,
+  const TOutbound extends Cardinality = Cardinality,
+  const TInbound extends Cardinality = Cardinality,
 >(
   config: EdgeConfig<TFrom, TTo, TProps, TOutbound, TInbound>,
 ): EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound> {
@@ -435,13 +435,23 @@ export function defineSchema<
 
     for (const from of fromLabels) {
       if (!nodeLabels.has(from)) {
-        throw new Error(`Edge '${edgeName}' references unknown source node '${from}'`)
+        throw new SchemaValidationError(
+          `Edge '${edgeName}' references unknown source node '${from}'. Available nodes: ${[...nodeLabels].join(', ')}`,
+          'from',
+          [...nodeLabels].join(', '),
+          from,
+        )
       }
     }
 
     for (const to of toLabels) {
       if (!nodeLabels.has(to)) {
-        throw new Error(`Edge '${edgeName}' references unknown target node '${to}'`)
+        throw new SchemaValidationError(
+          `Edge '${edgeName}' references unknown target node '${to}'. Available nodes: ${[...nodeLabels].join(', ')}`,
+          'to',
+          [...nodeLabels].join(', '),
+          to,
+        )
       }
     }
   }
@@ -449,8 +459,11 @@ export function defineSchema<
   // Validate hierarchy edge exists
   if (config.hierarchy) {
     if (!config.edges[config.hierarchy.defaultEdge]) {
-      throw new Error(
-        `Hierarchy defaultEdge '${config.hierarchy.defaultEdge}' does not exist in edges`,
+      throw new SchemaValidationError(
+        `Hierarchy defaultEdge '${config.hierarchy.defaultEdge}' does not exist in edges. Available edges: ${Object.keys(config.edges).join(', ')}`,
+        'hierarchy.defaultEdge',
+        Object.keys(config.edges).join(', '),
+        config.hierarchy.defaultEdge,
       )
     }
   }

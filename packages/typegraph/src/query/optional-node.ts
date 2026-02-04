@@ -28,19 +28,19 @@ import type {
   EdgeInboundCardinality,
   QueryContext,
   InferReturnType,
+  TypedReturnQuery,
 } from '@astrale/typegraph-core'
 
 // Forward declarations
 import type { SingleNodeBuilder } from './single-node'
-import type { CollectionBuilder, ExtractCollectSpecs } from './collection'
-import type { ReturningBuilder } from './returning'
+import type { CollectionBuilder } from './collection'
+import { TypedReturningBuilder } from './typed-returning'
 import type { QueryExecutor } from './entry'
 import { extractNodeFromRecord } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
 import {
   createQueryContext,
   parseReturnSpec,
-  transformReturnResult,
   type AliasInfo,
   type EdgeAliasInfo,
 } from './proxy'
@@ -97,54 +97,6 @@ export class OptionalNodeBuilder<
   }
 
   /**
-   * Specify which aliased nodes and edges to return.
-   */
-  async returning<
-    const Args extends Array<string | Record<string, { collect: string; distinct?: boolean }>>,
-  >(
-    ...aliasesOrSpecs: Args
-  ): Promise<ReturningBuilder<S, Aliases, EdgeAliases, ExtractCollectSpecs<Args>>> {
-    const nodeAliases: string[] = []
-    const edgeAliases: string[] = []
-    let collectSpecs: Record<string, { collect: string; distinct?: boolean }> = {}
-
-    for (const item of aliasesOrSpecs) {
-      if (typeof item === 'string') {
-        if (item in this._aliases) {
-          nodeAliases.push(item)
-        } else if (item in this._edgeAliases) {
-          edgeAliases.push(item)
-        }
-      } else if (typeof item === 'object' && item !== null) {
-        collectSpecs = { ...collectSpecs, ...item }
-      }
-    }
-
-    const collectAliases: Record<string, { sourceAlias: string; distinct?: boolean }> | undefined =
-      Object.keys(collectSpecs).length > 0
-        ? Object.fromEntries(
-            Object.entries(collectSpecs).map(([resultAlias, spec]) => [
-              resultAlias,
-              { sourceAlias: spec.collect, distinct: spec.distinct },
-            ]),
-          )
-        : undefined
-
-    const newAst = this._ast.setMultiNodeProjection(nodeAliases, edgeAliases, collectAliases)
-
-    // Dynamic import to avoid circular dependency
-    const { ReturningBuilder } = await import('./returning')
-    return new ReturningBuilder(
-      newAst,
-      this._schema,
-      this._aliases,
-      this._edgeAliases,
-      this._executor,
-      collectSpecs as ExtractCollectSpecs<Args>,
-    )
-  }
-
-  /**
    * Define the return shape using a typed callback.
    * The return type is inferred from the callback's return expression.
    *
@@ -173,11 +125,7 @@ export class OptionalNodeBuilder<
    */
   async return<R extends Record<string, unknown>>(
     selector: (q: QueryContext<S, Aliases, Record<string, never>, EdgeAliases>) => R,
-  ): Promise<
-    ReturningBuilder<S, Aliases, EdgeAliases, Record<string, never>> & {
-      execute(): Promise<Array<InferReturnType<R>>>
-    }
-  > {
+  ): Promise<TypedReturnQuery<InferReturnType<R>>> {
     // Build alias info maps for the proxy
     const nodeAliasInfo = new Map<string, AliasInfo>()
     const optionalAliasInfo = new Map<string, AliasInfo>()
@@ -223,7 +171,7 @@ export class OptionalNodeBuilder<
 
     // Build AST projection from the return spec
     const nodeAliasNames = [...returnSpec.nodeFields.values()].map((f) => f.alias)
-    const edgeAliasNames: string[] = []
+    const edgeAliasNames = [...returnSpec.edgeFields.values()].map((f) => f.alias)
     const collectAliases: Record<string, { sourceAlias: string; distinct?: boolean }> = {}
 
     // Add property fields as node aliases (they need the node in the result)
@@ -250,8 +198,8 @@ export class OptionalNodeBuilder<
     // Dynamic import to avoid circular dependency
     const { ReturningBuilder } = await import('./returning')
 
-    // Store the return spec for result transformation
-    const returningBuilder = new ReturningBuilder(
+    // Create the inner builder for query compilation
+    const innerBuilder = new ReturningBuilder(
       newAst,
       this._schema,
       this._aliases,
@@ -260,16 +208,13 @@ export class OptionalNodeBuilder<
       {} as Record<string, never>,
     )
 
-    // Override execute to transform results according to returnSpec
-    const originalExecute = returningBuilder.execute.bind(returningBuilder)
-    ;(returningBuilder as any).execute = async () => {
-      const rawResults = await originalExecute()
-      return rawResults.map((row: Record<string, unknown>) =>
-        transformReturnResult(row, returnSpec, returnResult),
-      )
-    }
-
-    return returningBuilder as any
+    // Return a typed wrapper that transforms results
+    return new TypedReturningBuilder<InferReturnType<R>>(
+      innerBuilder as any,
+      returnSpec,
+      returnResult,
+      this._executor,
+    )
   }
 
   // ===========================================================================
