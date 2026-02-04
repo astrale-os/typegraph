@@ -10,10 +10,119 @@ import type {
   NodeDefinition,
   EdgeDefinition,
   Cardinality,
-  IndexConfig,
+  SinglePropertyIndex,
+  CompositeIndex,
   HierarchyConfig,
-  LabelConfig,
 } from './types'
+import { SchemaValidationError } from '../errors'
+
+// =============================================================================
+// INDEX VALIDATION
+// =============================================================================
+
+/**
+ * Index entry type for validation (matches what users pass in).
+ */
+type IndexEntry =
+  | string
+  | { property: string; type?: string; name?: string }
+  | { properties: readonly string[]; type?: string; order?: Record<string, string>; name?: string }
+
+/**
+ * Validates index configurations in node/edge definitions.
+ *
+ * Checks:
+ * - Property names exist in the definition
+ * - Fulltext indexes are not composite
+ * - Composite indexes have at least 2 properties
+ * - Order properties match index properties (if specified)
+ *
+ * @throws SchemaValidationError with educational messages including valid options
+ */
+function validateIndexes(
+  indexes: readonly IndexEntry[] | undefined,
+  propertyNames: string[],
+  context: string,
+): void {
+  if (!indexes) return
+
+  for (const idx of indexes) {
+    // Simple string index: 'email'
+    if (typeof idx === 'string') {
+      if (!propertyNames.includes(idx)) {
+        throw new SchemaValidationError(
+          `Index property '${idx}' not found in ${context}. Available: ${propertyNames.join(', ')}`,
+          'indexes',
+          propertyNames.join(', '),
+          idx,
+        )
+      }
+      continue
+    }
+
+    // Single property index: { property: 'email', type: 'unique' }
+    if ('property' in idx && typeof idx.property === 'string') {
+      if (!propertyNames.includes(idx.property)) {
+        throw new SchemaValidationError(
+          `Index property '${idx.property}' not found in ${context}. Available: ${propertyNames.join(', ')}`,
+          'indexes',
+          propertyNames.join(', '),
+          idx.property,
+        )
+      }
+      continue
+    }
+
+    // Composite index: { properties: ['firstName', 'lastName'], type: 'btree' }
+    if ('properties' in idx && Array.isArray(idx.properties)) {
+      // Validate fulltext not allowed for composite
+      if (idx.type === 'fulltext') {
+        throw new SchemaValidationError(
+          'Fulltext indexes cannot be composite. Use a single property instead.',
+          'indexes',
+          'btree or unique',
+          'fulltext',
+        )
+      }
+
+      // Validate at least 2 properties
+      if (idx.properties.length < 2) {
+        throw new SchemaValidationError(
+          `Composite indexes require at least 2 properties. Use simple syntax for single property: '${idx.properties[0] ?? 'property'}'`,
+          'indexes',
+          '2 or more properties',
+          String(idx.properties.length),
+        )
+      }
+
+      // Validate all properties exist
+      for (const prop of idx.properties) {
+        if (!propertyNames.includes(prop)) {
+          throw new SchemaValidationError(
+            `Composite index property '${prop}' not found in ${context}. Available: ${propertyNames.join(', ')}`,
+            'indexes',
+            propertyNames.join(', '),
+            prop,
+          )
+        }
+      }
+
+      // Validate order properties match index properties
+      if (idx.order) {
+        for (const orderProp of Object.keys(idx.order)) {
+          if (!idx.properties.includes(orderProp)) {
+            throw new SchemaValidationError(
+              `Order property '${orderProp}' not in composite index properties. Index properties: ${idx.properties.join(', ')}`,
+              'indexes',
+              idx.properties.join(', '),
+              orderProp,
+            )
+          }
+        }
+      }
+    }
+  }
+}
 
 // =============================================================================
 // NODE BUILDER
@@ -29,8 +138,28 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
    */
   properties: TProps
 
-  /** Properties to index (string keys or full config) */
-  indexes?: Array<keyof TProps | (IndexConfig & { property: keyof TProps })>
+  /**
+   * Properties to index (in addition to `id` which is always indexed).
+   *
+   * Supports three formats:
+   * - Simple string: `'email'`
+   * - Single property config: `{ property: 'email', type: 'unique' }`
+   * - Composite index: `{ properties: ['firstName', 'lastName'], type: 'btree' }`
+   *
+   * @example
+   * ```typescript
+   * indexes: [
+   *   'email',                                          // Simple btree index
+   *   { property: 'name', type: 'fulltext' },          // Fulltext search
+   *   { properties: ['tenantId', 'email'], type: 'unique' },  // Composite unique
+   * ]
+   * ```
+   */
+  indexes?: Array<
+    | keyof TProps
+    | (Omit<SinglePropertyIndex, 'property'> & { property: keyof TProps })
+    | (Omit<CompositeIndex, 'properties'> & { properties: readonly (keyof TProps)[] })
+  >
 
   /** Optional description */
   description?: string
@@ -63,6 +192,10 @@ export interface NodeConfig<TProps extends z.ZodRawShape> {
 export function node<TProps extends z.ZodRawShape>(
   config: NodeConfig<TProps>,
 ): NodeDefinition<TProps> {
+  // Validate index configurations
+  const propertyNames = Object.keys(config.properties)
+  validateIndexes(config.indexes as IndexEntry[] | undefined, propertyNames, 'node properties')
+
   return {
     _type: 'node',
     properties: z.object(config.properties),
@@ -109,8 +242,19 @@ export interface EdgeConfig<
    */
   properties?: TProps
 
-  /** Properties to index (string keys or full config) */
-  indexes?: Array<keyof TProps | (IndexConfig & { property: keyof TProps })>
+  /**
+   * Properties to index (in addition to `id` which is always indexed).
+   *
+   * Supports three formats:
+   * - Simple string: `'since'`
+   * - Single property config: `{ property: 'since', type: 'btree' }`
+   * - Composite index: `{ properties: ['type', 'since'], type: 'btree' }`
+   */
+  indexes?: Array<
+    | keyof TProps
+    | (Omit<SinglePropertyIndex, 'property'> & { property: keyof TProps })
+    | (Omit<CompositeIndex, 'properties'> & { properties: readonly (keyof TProps)[] })
+  >
 
   /** Optional description */
   description?: string
@@ -164,6 +308,9 @@ export function edge<
 >(
   config: EdgeConfig<TFrom, TTo, TProps, TOutbound, TInbound>,
 ): EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound> {
+  const propertyNames = Object.keys(config.properties ?? {})
+  validateIndexes(config.indexes as IndexEntry[] | undefined, propertyNames, 'edge properties')
+
   return {
     _type: 'edge',
     from: config.from,
@@ -172,6 +319,55 @@ export function edge<
     properties: z.object(config.properties ?? ({} as TProps)),
     indexes: config.indexes as EdgeDefinition<TFrom, TTo, TProps, TOutbound, TInbound>['indexes'],
     description: config.description,
+  }
+}
+
+// =============================================================================
+// LABEL INHERITANCE VALIDATION
+// =============================================================================
+
+/**
+ * Validates label references exist and detects cycles in label inheritance.
+ *
+ * @throws SchemaValidationError if a label references a non-existent node
+ * @throws SchemaValidationError if circular label dependencies exist
+ */
+function validateLabelInheritance(
+  nodes: Record<string, NodeDefinition>,
+  nodeLabels: Set<string>,
+): void {
+  const visited = new Set<string>()
+  const visiting = new Set<string>()
+
+  function visit(nodeKey: string, path: string[]): void {
+    if (visited.has(nodeKey)) return
+
+    if (visiting.has(nodeKey)) {
+      throw new SchemaValidationError(
+        `Circular label inheritance: ${[...path, nodeKey].join(' -> ')}`,
+        'labels',
+      )
+    }
+
+    visiting.add(nodeKey)
+
+    const nodeDef = nodes[nodeKey]
+    for (const ref of nodeDef?.labels ?? []) {
+      if (!nodeLabels.has(ref)) {
+        throw new SchemaValidationError(
+          `Node '${nodeKey}' references unknown label '${ref}'. Available: ${[...nodeLabels].join(', ')}`,
+          'labels',
+        )
+      }
+      visit(ref, [...path, nodeKey])
+    }
+
+    visiting.delete(nodeKey)
+    visited.add(nodeKey)
+  }
+
+  for (const nodeKey of nodeLabels) {
+    visit(nodeKey, [])
   }
 }
 
@@ -192,16 +388,6 @@ export interface SchemaConfig<
   nodes: TNodes
   edges: TEdges
   hierarchy?: HierarchyConfig<keyof TEdges & string>
-  /**
-   * Label configuration for universal node labels.
-   * Default: all nodes get :Node label for O(1) universal lookups.
-   */
-  labels?: LabelConfig
-  version?: string
-  meta?: {
-    name?: string
-    description?: string
-  }
 }
 
 /**
@@ -209,8 +395,10 @@ export interface SchemaConfig<
  *
  * Validates:
  * - All edge from/to references exist in nodes
- * - No duplicate node labels or edge types
- * - Index properties exist in node properties
+ * - All label references in nodes exist and form no cycles
+ * - Hierarchy edge exists if specified
+ *
+ * @throws SchemaValidationError if label references are invalid or circular
  *
  * @example
  * ```typescript
@@ -262,12 +450,12 @@ export function defineSchema<
     }
   }
 
+  // Validate label references exist and detect cycles
+  validateLabelInheritance(config.nodes, nodeLabels)
+
   return {
     nodes: config.nodes,
     edges: config.edges,
     hierarchy: config.hierarchy,
-    labels: config.labels,
-    version: config.version,
-    meta: config.meta,
   }
 }

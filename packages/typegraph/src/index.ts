@@ -57,7 +57,6 @@ export {
   resolveNodeLabels,
   formatLabels,
   getNodesSatisfying,
-  DEFAULT_BASE_LABELS,
 } from './schema'
 export type {
   SchemaDefinition,
@@ -67,7 +66,6 @@ export type {
   Cardinality,
   PropertyType,
   HierarchyConfig,
-  LabelConfig,
   HasHierarchy,
   HierarchyEdge,
   HierarchyDirection,

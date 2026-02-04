@@ -53,8 +53,7 @@ describe('GroupBy Core', () => {
   it('groups by single field with count', () => {
     const cypher = graph.node('post').groupBy('status').count().toCypher()
 
-    // Now includes :Node base label and PascalCase
-    expect(cypher).toContain('MATCH (n0:Node:Post)')
+    expect(cypher).toContain('MATCH (n0:Post)')
     expect(cypher).toContain('RETURN n0.status, count(n0) AS count')
   })
 

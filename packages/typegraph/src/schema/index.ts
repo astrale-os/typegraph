@@ -10,9 +10,7 @@ export {
   resolveNodeLabels,
   formatLabels,
   getNodesSatisfying,
-  getBaseLabelForIdLookup,
   toPascalCase,
-  DEFAULT_BASE_LABELS,
 } from './labels'
 export type {
   SchemaDefinition,
@@ -22,13 +20,31 @@ export type {
   PropertyType,
   Cardinality,
   IndexConfig,
+  BaseIndexConfig,
+  SinglePropertyIndex,
+  CompositeIndex,
   HierarchyConfig,
-  LabelConfig,
   HasHierarchy,
   HierarchyEdge,
   HierarchyDirection,
   ResolveHierarchyEdge,
 } from './types'
+export { isCompositeIndex, isSinglePropertyIndex } from './types'
+
+// Schema serialization
+export { toSchema } from './serializer'
+export type { SerializedSchema, SerializedNodeDef, SerializedEdgeDef } from './serializer'
+
+// Index compiler utilities
+export {
+  compileSchemaIndexes,
+  generateIndexMigration,
+} from './index-compiler'
+export type {
+  IndexCompilerOptions,
+  CompiledIndex,
+  IndexMigration,
+} from './index-compiler'
 export type {
   NodeLabels,
   EdgeTypes,

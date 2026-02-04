@@ -42,7 +42,7 @@ describe('Query Compilation: whereConnectedTo Optimization', () => {
       console.log('Params:', compiled.params)
 
       // Document current output (with :Node base label and PascalCase)
-      expect(compiled.cypher).toContain('MATCH (n0:Node:Post)')
+      expect(compiled.cypher).toContain('MATCH (n0:Post)')
       expect(compiled.params).toHaveProperty('p0', 'cat_123')
     })
 
@@ -256,14 +256,13 @@ describe('Query Compilation: whereConnectedTo Optimization', () => {
       expect(matchCount).toBe(2)
     })
 
-    it('should use named target node in MATCH pattern with :Node label', () => {
+    it('should use named target node in MATCH pattern', () => {
       const compiled = graph.node('post').whereConnectedTo('categorizedAs', 'cat_123').compile()
 
-      // The pattern should have a named node with :Node label like (ct1:Node {id: $p0})
-      // This enables O(1) index lookup via the :Node index
-      const hasNamedTargetWithLabel = /\(ct\d+:Node \{id: \$p\d+\}\)/.test(compiled.cypher)
+      // The pattern should have a named node like (ct1 {id: $p0})
+      const hasNamedTarget = /\(ct\d+ \{id: \$p\d+\}\)/.test(compiled.cypher)
 
-      expect(hasNamedTargetWithLabel).toBe(true)
+      expect(hasNamedTarget).toBe(true)
     })
 
     it('should handle multiple whereConnectedTo with separate MATCH clauses', () => {
@@ -277,9 +276,9 @@ describe('Query Compilation: whereConnectedTo Optimization', () => {
       const matchCount = (compiled.cypher.match(/MATCH/g) || []).length
       expect(matchCount).toBe(3)
 
-      // Both target nodes should be named with :Node label for index lookup
-      expect(compiled.cypher).toContain('(ct1:Node {id: $p0})')
-      expect(compiled.cypher).toContain('(ct2:Node {id: $p1})')
+      // Both target nodes should be named for clarity
+      expect(compiled.cypher).toContain('(ct1 {id: $p0})')
+      expect(compiled.cypher).toContain('(ct2 {id: $p1})')
     })
 
     it('should NOT put connectedTo conditions in WHERE clause', () => {
@@ -345,10 +344,10 @@ describe('Complex Multi-Constraint Queries', () => {
     const matchCount = (compiled.cypher.match(/MATCH/g) || []).length
     expect(matchCount).toBe(4)
 
-    // Each constraint should have its own named target with :Node label
-    expect(compiled.cypher).toContain('(ct1:Node {id: $p0})')
-    expect(compiled.cypher).toContain('(ct2:Node {id: $p1})')
-    expect(compiled.cypher).toContain('(ct3:Node {id: $p2})')
+    // Each constraint should have its own named target
+    expect(compiled.cypher).toContain('(ct1 {id: $p0})')
+    expect(compiled.cypher).toContain('(ct2 {id: $p1})')
+    expect(compiled.cypher).toContain('(ct3 {id: $p2})')
   })
 
   it('handles 5 whereConnectedTo constraints', () => {
@@ -422,7 +421,7 @@ describe('Complex Multi-Constraint Queries', () => {
     console.log('After traversal + multi-constraint:\n', compiled.cypher)
 
     // Verify structure (now includes :Node base label and PascalCase)
-    expect(compiled.cypher).toContain('MATCH (n0:Node:User)')
+    expect(compiled.cypher).toContain('MATCH (n0:User)')
     expect(compiled.cypher).toContain('-[e2:authored]->')
     expect(compiled.cypher).toContain('(ct')
   })

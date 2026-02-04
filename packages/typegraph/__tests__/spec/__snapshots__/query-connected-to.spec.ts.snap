@@ -2,8 +2,8 @@
 
 exports[`Compilation Snapshots > snapshot: chained whereConnectedTo 1`] = `
 {
-  "cypher": "MATCH (n0:Node:Folder)
-MATCH (n0)-[:hasParent]->(ct1:Node {id: $p0})
+  "cypher": "MATCH (n0:Folder)
+MATCH (n0)-[:hasParent]->(ct1 {id: $p0})
 WHERE n0.name = $p1
 RETURN n0",
   "meta": {
@@ -23,8 +23,8 @@ RETURN n0",
 
 exports[`Compilation Snapshots > snapshot: simple whereConnectedTo 1`] = `
 {
-  "cypher": "MATCH (n0:Node:Post)
-MATCH (n0)-[:categorizedAs]->(ct1:Node {id: $p0})
+  "cypher": "MATCH (n0:Post)
+MATCH (n0)-[:categorizedAs]->(ct1 {id: $p0})
 RETURN n0",
   "meta": {
     "complexity": 1,
@@ -42,8 +42,8 @@ RETURN n0",
 
 exports[`Compilation Snapshots > snapshot: whereConnectedFrom 1`] = `
 {
-  "cypher": "MATCH (n0:Node:Category)
-MATCH (n0)<-[:categorizedAs]-(ct1:Node {id: $p0})
+  "cypher": "MATCH (n0:Category)
+MATCH (n0)<-[:categorizedAs]-(ct1 {id: $p0})
 RETURN n0",
   "meta": {
     "complexity": 1,

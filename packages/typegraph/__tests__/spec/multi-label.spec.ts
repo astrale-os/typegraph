@@ -102,30 +102,28 @@ describe('Multi-Label Support', () => {
   describe('resolveNodeLabels with labels array', () => {
     it('includes trait labels in resolution', () => {
       const labels = resolveNodeLabels(multiLabelSchema, 'agent')
-      expect(labels).toContain('Node')
       expect(labels).toContain('Agent')
       expect(labels).toContain('Module')
       expect(labels).toContain('Identity')
     })
 
-    it('maintains correct label order: base > own > traits', () => {
+    it('maintains correct label order: own > traits (depth-first)', () => {
       const labels = resolveNodeLabels(multiLabelSchema, 'agent')
-      // Order should be: ['Node', 'Agent', 'Module', 'Identity']
-      expect(labels[0]).toBe('Node')
-      expect(labels[1]).toBe('Agent')
-      expect(labels.indexOf('Module')).toBeGreaterThan(1)
-      expect(labels.indexOf('Identity')).toBeGreaterThan(1)
+      // Order should be: ['Agent', 'Module', 'Identity']
+      expect(labels[0]).toBe('Agent')
+      expect(labels.indexOf('Module')).toBeGreaterThan(0)
+      expect(labels.indexOf('Identity')).toBeGreaterThan(0)
     })
 
     it('resolves standard nodes without traits correctly', () => {
       const labels = resolveNodeLabels(multiLabelSchema, 'module')
-      expect(labels).toEqual(['Node', 'Module'])
+      expect(labels).toEqual(['Module'])
     })
 
     it('formats multi-label correctly for Cypher', () => {
       const labels = resolveNodeLabels(multiLabelSchema, 'agent')
       const formatted = formatLabels(labels)
-      expect(formatted).toBe(':Node:Agent:Module:Identity')
+      expect(formatted).toBe(':Agent:Module:Identity')
     })
   })
 
@@ -337,7 +335,7 @@ describe('Cypher Compilation with Labels', () => {
         .setProjection({ type: 'node', nodeAliases: ['n0'], edgeAliases: [] })
 
       const result = compiler.compile(ast)
-      expect(result.cypher).toContain(':Node:Agent:Module:Identity')
+      expect(result.cypher).toContain(':Agent:Module:Identity')
     })
 
     it('uses single label for standard node', () => {
@@ -346,7 +344,7 @@ describe('Cypher Compilation with Labels', () => {
         .setProjection({ type: 'node', nodeAliases: ['n0'], edgeAliases: [] })
 
       const result = compiler.compile(ast)
-      expect(result.cypher).toContain(':Node:Module')
+      expect(result.cypher).toContain(':Module')
       expect(result.cypher).not.toContain(':Identity')
     })
   })
@@ -416,7 +414,7 @@ describe('Schema Definition with labels', () => {
     })
 
     const labels = resolveNodeLabels(schema, 'agent')
-    expect(labels).toEqual(['Node', 'Agent', 'Module', 'Identity'])
+    expect(labels).toEqual(['Agent', 'Module', 'Identity'])
   })
 
   it('allows nodes without labels', () => {
@@ -429,6 +427,6 @@ describe('Schema Definition with labels', () => {
 
     expect(schema.nodes.simple.labels).toBeUndefined()
     const labels = resolveNodeLabels(schema, 'simple')
-    expect(labels).toEqual(['Node', 'Simple'])
+    expect(labels).toEqual(['Simple'])
   })
 })

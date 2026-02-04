@@ -6,7 +6,7 @@
 
 import type { QueryAST } from '../../ast'
 import type { SchemaDefinition, AnySchema } from '../../schema'
-import { resolveNodeLabels, formatLabels, getBaseLabelForIdLookup } from '../../schema/labels'
+import { resolveNodeLabels, formatLabels } from '../../schema/labels'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 import type {
@@ -233,9 +233,7 @@ export class CypherCompiler implements QueryCompilerProvider {
 
   private compileMatchById(step: MatchByIdStep): void {
     const paramRef = this.addParam(step.id)
-    // Use base label (e.g., :Node) for O(1) index lookup when available
-    const baseLabel = getBaseLabelForIdLookup(this.schema)
-    this.clauses.push(`MATCH (${step.alias}${baseLabel} {id: ${paramRef}})`)
+    this.clauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)
   }
 
   private compileTraversal(step: TraversalStep): void {
@@ -397,12 +395,11 @@ export class CypherCompiler implements QueryCompilerProvider {
    *   WHERE (n0)-[:EDGE]->({id: $p0})
    *
    * We generate an explicit MATCH clause:
-   *   MATCH (n0)-[:EDGE]->(target0:Node {id: $p0})
+   *   MATCH (n0)-[:EDGE]->(target0 {id: $p0})
    *
    * This is more efficient because:
-   * 1. The query planner can use index lookup on target0.id via :Node index
-   * 2. Traversal starts from the known node, not from a label scan
-   * 3. The pattern is explicit, giving better hints to the optimizer
+   * 1. Traversal starts from the known node, not from a label scan
+   * 2. The pattern is explicit, giving better hints to the optimizer
    */
   private compileConnectedToAsMatch(condition: ConnectedToCondition): void {
     const { edge, direction, nodeId, target } = condition
@@ -413,12 +410,9 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     const [leftArrow, rightArrow] = this.getArrow(direction)
 
-    // Use base label (e.g., :Node) for O(1) index lookup when available
-    const baseLabel = getBaseLabelForIdLookup(this.schema)
-
-    // Generate: MATCH (source)-[:EDGE]->(targetAlias:Node {id: $param})
-    // or:       MATCH (source)<-[:EDGE]-(targetAlias:Node {id: $param})
-    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}(${targetAlias}${baseLabel} {id: ${paramRef}})`
+    // Generate: MATCH (source)-[:EDGE]->(targetAlias {id: $param})
+    // or:       MATCH (source)<-[:EDGE]-(targetAlias {id: $param})
+    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}(${targetAlias} {id: ${paramRef}})`
     this.clauses.push(`MATCH ${pattern}`)
   }
 
@@ -638,8 +632,7 @@ export class CypherCompiler implements QueryCompilerProvider {
         }
         case 'matchById': {
           const paramRef = this.addParam(step.id)
-          const baseLabel = getBaseLabelForIdLookup(this.schema)
-          branchClauses.push(`MATCH (${step.alias}${baseLabel} {id: ${paramRef}})`)
+          branchClauses.push(`MATCH (${step.alias} {id: ${paramRef}})`)
           break
         }
         case 'where': {

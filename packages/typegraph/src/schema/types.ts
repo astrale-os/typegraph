@@ -28,13 +28,75 @@ export type PropertyType =
   | 'number[]'
 
 /**
- * Index configuration for a property.
+ * Base index configuration shared by all index types.
  */
-export interface IndexConfig {
-  /** Index type: btree for range queries, fulltext for search */
+export interface BaseIndexConfig {
+  /** Index type: btree for range queries, fulltext for search, unique for constraints */
   type: 'btree' | 'fulltext' | 'unique'
   /** Optional index name (auto-generated if not provided) */
   name?: string
+}
+
+/**
+ * Single-property index configuration.
+ * Used when indexing a single property with optional type and name.
+ */
+export interface SinglePropertyIndex extends BaseIndexConfig {
+  /** The property to index */
+  property: string
+}
+
+/**
+ * Composite index configuration for multiple properties.
+ * Used for multi-column indexes that improve query performance on combined filters.
+ *
+ * Note: fulltext indexes cannot be composite - only 'btree' and 'unique' are supported.
+ *
+ * @example
+ * ```typescript
+ * // Composite btree for queries like WHERE firstName = 'John' AND lastName = 'Doe'
+ * { properties: ['firstName', 'lastName'], type: 'btree' }
+ *
+ * // Composite unique for multi-tenant uniqueness
+ * { properties: ['tenantId', 'email'], type: 'unique' }
+ *
+ * // With ordering for range queries (Neo4j 5.x)
+ * { properties: ['userId', 'createdAt'], type: 'btree', order: { createdAt: 'DESC' } }
+ * ```
+ */
+export interface CompositeIndex {
+  /** Index type: only 'btree' and 'unique' supported for composite indexes */
+  type: 'btree' | 'unique'
+  /** Properties to include in the composite index (order matters for query optimization) */
+  properties: readonly string[]
+  /** Optional ordering for each property (defaults to ASC). Only supported in Neo4j 5.x+ */
+  order?: Partial<Record<string, 'ASC' | 'DESC'>>
+  /** Optional index name (auto-generated if not provided) */
+  name?: string
+}
+
+/**
+ * Union type for all index configurations.
+ * Backwards compatible - existing code using IndexConfig continues to work.
+ */
+export type IndexConfig = BaseIndexConfig | SinglePropertyIndex | CompositeIndex
+
+/**
+ * Type guard to check if an index config is a composite index.
+ */
+export function isCompositeIndex(
+  config: IndexConfig | (IndexConfig & { property?: string; properties?: readonly string[] }),
+): config is CompositeIndex {
+  return 'properties' in config && Array.isArray(config.properties)
+}
+
+/**
+ * Type guard to check if an index config is a single-property index with explicit property field.
+ */
+export function isSinglePropertyIndex(
+  config: IndexConfig | (IndexConfig & { property?: string; properties?: readonly string[] }),
+): config is SinglePropertyIndex {
+  return 'property' in config && typeof config.property === 'string'
 }
 
 // =============================================================================
@@ -58,8 +120,19 @@ export interface NodeDefinition<TProps extends z.ZodRawShape = z.ZodRawShape> {
    */
   readonly properties: z.ZodObject<TProps>
 
-  /** Properties that should be indexed (in addition to `id` which is always indexed) */
-  readonly indexes: Array<keyof TProps | (IndexConfig & { property: keyof TProps })>
+  /**
+   * Properties that should be indexed (in addition to `id` which is always indexed).
+   *
+   * Supports three formats:
+   * - Simple string: `'email'` - Creates a btree index on the property
+   * - Single property config: `{ property: 'email', type: 'unique' }`
+   * - Composite index: `{ properties: ['firstName', 'lastName'], type: 'btree' }`
+   */
+  readonly indexes: Array<
+    | keyof TProps
+    | (Omit<SinglePropertyIndex, 'property'> & { property: keyof TProps })
+    | (Omit<CompositeIndex, 'properties'> & { properties: readonly (keyof TProps)[] })
+  >
 
   /** Optional description for documentation */
   readonly description?: string
@@ -149,41 +222,22 @@ export interface EdgeDefinition<
    */
   readonly properties: z.ZodObject<TProps>
 
-  /** Properties that should be indexed (in addition to `id` which is always indexed) */
-  readonly indexes?: Array<keyof TProps | (IndexConfig & { property: keyof TProps })>
+  /**
+   * Properties that should be indexed (in addition to `id` which is always indexed).
+   *
+   * Supports three formats:
+   * - Simple string: `'since'` - Creates a btree index on the property
+   * - Single property config: `{ property: 'since', type: 'btree' }`
+   * - Composite index: `{ properties: ['type', 'since'], type: 'btree' }`
+   */
+  readonly indexes?: Array<
+    | keyof TProps
+    | (Omit<SinglePropertyIndex, 'property'> & { property: keyof TProps })
+    | (Omit<CompositeIndex, 'properties'> & { properties: readonly (keyof TProps)[] })
+  >
 
   /** Optional description for documentation */
   readonly description?: string
-}
-
-// =============================================================================
-// LABEL CONFIGURATION
-// =============================================================================
-
-/**
- * Configuration for node labels applied to all nodes.
- * By default, all nodes get a `:Node` label automatically (like implicit `id`),
- *
- * @example
- * ```typescript
- * // Default: all nodes get :Node label
- * const schema = defineSchema({
- *   nodes: { user: node({ properties: {...} }) },
- *   edges: {...}
- * })
- * // Opt-out
- * const schema = defineSchema({
- *   labels: { includeBaseLabels: false },
- *   nodes: {...},
- *   edges: {...}
- * })
- * ```
- */
-export interface LabelConfig {
-  /** Base labels applied to ALL nodes. Default: ['Node'] */
-  readonly baseLabels?: readonly string[]
-  /** Whether to include base labels. Default: true */
-  readonly includeBaseLabels?: boolean
 }
 
 // =============================================================================
@@ -272,18 +326,6 @@ export interface SchemaDefinition<
 
   /** Optional hierarchy configuration for tree-structured graphs */
   readonly hierarchy?: HierarchyConfig<keyof TEdges & string>
-
-  /** Label configuration for universal node labels. Default: all nodes get :Node label for O(1) universal lookups. */
-  readonly labels?: LabelConfig
-
-  /** Schema version for migrations */
-  readonly version?: string
-
-  /** Optional schema-level metadata */
-  readonly meta?: {
-    name?: string
-    description?: string
-  }
 }
 
 // =============================================================================

@@ -2,24 +2,30 @@
  * Label Utilities
  *
  * Utilities for resolving and formatting node labels.
- * Enables universal :Node label for O(1) lookups via index.
+ * Supports transitive label inheritance via node.labels property.
  */
 
-import type { AnySchema, NodeDefinition } from './types'
+import type { AnySchema } from './types'
 
 /**
- * Default base labels applied to ALL nodes.
- * Enables universal lookups: MATCH (n:Node {id: $id})
+ * Memoization cache for resolveNodeLabels.
+ * WeakMap allows garbage collection when schema is no longer referenced.
  */
-export const DEFAULT_BASE_LABELS = ['Node'] as const
+const labelCache = new WeakMap<AnySchema, Map<string, readonly string[]>>()
 
 /**
- * Resolve the full set of labels for a node type.
+ * Memoization cache for getNodesSatisfying.
+ */
+const satisfiesCache = new WeakMap<AnySchema, Map<string, readonly string[]>>()
+
+/**
+ * Resolve the full set of labels for a node type, including transitive inheritance.
  *
  * Labels are resolved in order:
- * 1. Base labels (default: ['Node']) - unless includeBaseLabels is false
- * 2. The node's own label (PascalCase)
- * 3. Labels from referenced node types in `labels` array (PascalCase)
+ * 1. The node's own label (PascalCase)
+ * 2. Labels from referenced node types transitively (depth-first)
+ *
+ * Results are memoized per schema. Returns a fresh copy to prevent mutation bugs.
  *
  * @param schema - The schema definition
  * @param nodeLabel - The node type label (e.g., 'user')
@@ -27,50 +33,57 @@ export const DEFAULT_BASE_LABELS = ['Node'] as const
  *
  * @example
  * ```typescript
- * // Default schema
- * resolveNodeLabels(schema, 'user')  // ['Node', 'User']
+ * // Simple node
+ * resolveNodeLabels(schema, 'user')  // ['User']
  *
- * // With labels referencing other node types
- * resolveNodeLabels(schema, 'agent') // ['Node', 'Agent', 'Module', 'Identity']
- *
- * // With custom base labels
- * resolveNodeLabels(schemaWithCustomLabels, 'user') // ['Entity', 'Auditable', 'User']
+ * // With transitive labels: admin -> user -> entity
+ * resolveNodeLabels(schema, 'admin') // ['Admin', 'User', 'Entity']
  * ```
  */
 export function resolveNodeLabels<S extends AnySchema>(schema: S, nodeLabel: string): string[] {
-  const config = schema.labels ?? {}
-  const nodeDef = schema.nodes[nodeLabel]
-  const labels: string[] = []
-
-  // Add base labels (default: ['Node'])
-  if (config.includeBaseLabels !== false) {
-    labels.push(...(config.baseLabels ?? DEFAULT_BASE_LABELS))
+  // Check cache
+  let schemaCache = labelCache.get(schema)
+  if (!schemaCache) {
+    schemaCache = new Map()
+    labelCache.set(schema, schemaCache)
   }
+  const cached = schemaCache.get(nodeLabel)
+  if (cached) return [...cached] // Return copy to prevent mutation
 
-  // Add the node's own label (PascalCase)
-  labels.push(toPascalCase(nodeLabel))
+  const result: string[] = []
+  const seen = new Set<string>() // Dedup + cycle protection
 
-  // Add labels from referenced node types (IS-A relationships)
-  if (nodeDef?.labels) {
-    for (const ref of nodeDef.labels) {
-      labels.push(toPascalCase(ref))
+  function collect(label: string): void {
+    if (seen.has(label)) return
+    seen.add(label)
+    result.push(toPascalCase(label))
+
+    const nodeDef = schema.nodes[label]
+    for (const ref of nodeDef?.labels ?? []) {
+      collect(ref)
     }
   }
 
-  return labels
+  // Collect node label and all transitive labels (depth-first)
+  collect(nodeLabel)
+
+  // Cache and return copy
+  schemaCache.set(nodeLabel, result)
+  return [...result]
 }
 
 /**
  * Format an array of labels into a Cypher label string.
  *
  * @param labels - Array of label strings
- * @returns Cypher label format (e.g., ':Node:User:Privileged')
+ * @returns Cypher label format (e.g., ':User:Entity')
  *
  * @example
  * ```typescript
- * formatLabels(['Node', 'User'])           // ':Node:User'
- * formatLabels(['Entity', 'User', 'Admin']) // ':Entity:User:Admin'
- * formatLabels([])                          // ''
+ * formatLabels(['User'])                  // ':User'
+ * formatLabels(['User', 'Entity'])        // ':User:Entity'
+ * formatLabels(['Admin', 'User', 'Entity']) // ':Admin:User:Entity'
+ * formatLabels([])                        // ''
  * ```
  */
 export function formatLabels(labels: string[]): string {
@@ -79,61 +92,54 @@ export function formatLabels(labels: string[]): string {
 }
 
 /**
- * Get all node types that satisfy a given edge endpoint requirement.
+ * Get all node types that transitively satisfy a given edge endpoint requirement.
  *
  * A node satisfies an endpoint if:
  * 1. It matches the endpoint directly (same label), OR
- * 2. It has the endpoint in its `labels` array
+ * 2. Any node in its transitive labels chain includes the endpoint
  *
- * This enables multi-label nodes (e.g., 'agent') to be used as targets
- * for edges that expect 'module' or 'identity'.
+ * This enables multi-label nodes (e.g., 'admin' with labels ['user'])
+ * to be used as targets for edges that expect 'user'.
+ *
+ * Results are memoized per schema. Returns a fresh copy to prevent mutation bugs.
  *
  * @param schema - The schema definition
  * @param targetLabel - The node type label expected by an edge endpoint
  * @returns Array of node types that can satisfy this endpoint
+ *
+ * @example
+ * ```typescript
+ * // Given: admin -> user -> entity
+ * getNodesSatisfying(schema, 'entity') // ['entity', 'user', 'admin']
+ * ```
  */
 export function getNodesSatisfying<S extends AnySchema>(schema: S, targetLabel: string): string[] {
-  const satisfyingNodes: string[] = [targetLabel] // Always includes self
+  // Check cache
+  let schemaCache = satisfiesCache.get(schema)
+  if (!schemaCache) {
+    schemaCache = new Map()
+    satisfiesCache.set(schema, schemaCache)
+  }
+  const cached = schemaCache.get(targetLabel)
+  if (cached) return [...cached] // Return copy to prevent mutation
 
-  for (const [nodeKey, nodeDef] of Object.entries(schema.nodes) as [string, NodeDefinition][]) {
-    // Skip if it's the target itself (already added)
+  // Find all nodes that transitively satisfy target
+  const result: string[] = [targetLabel]
+  const targetPascal = toPascalCase(targetLabel)
+
+  for (const nodeKey of Object.keys(schema.nodes)) {
     if (nodeKey === targetLabel) continue
 
-    // Check if this node's labels include the target (IS-A relationship)
-    if (nodeDef?.labels?.includes(targetLabel)) {
-      satisfyingNodes.push(nodeKey)
+    // Check if this node's resolved labels include the target
+    const labels = resolveNodeLabels(schema, nodeKey)
+    if (labels.includes(targetPascal)) {
+      result.push(nodeKey)
     }
   }
 
-  return satisfyingNodes
-}
-
-/**
- * Get the base label for ID lookups (e.g., ':Node').
- *
- * Returns the formatted base label string if base labels are enabled,
- * otherwise returns an empty string.
- *
- * This is used by the query compiler to optimize ID lookups:
- * - With base labels: `MATCH (n:Node {id: $id})` → O(1) index lookup
- * - Without base labels: `MATCH (n {id: $id})` → full scan
- *
- * @param schema - The schema definition (optional)
- * @returns Formatted base label string (e.g., ':Node') or empty string
- */
-export function getBaseLabelForIdLookup<S extends AnySchema>(schema: S | undefined): string {
-  if (!schema) return ''
-
-  const config = schema.labels ?? {}
-
-  // If base labels are disabled, return empty string
-  if (config.includeBaseLabels === false) return ''
-
-  // Get the first base label (typically 'Node')
-  const baseLabels = config.baseLabels ?? DEFAULT_BASE_LABELS
-  if (baseLabels.length === 0) return ''
-
-  return `:${baseLabels[0]}`
+  // Cache and return copy
+  schemaCache.set(targetLabel, result)
+  return [...result]
 }
 
 /**
