@@ -6,11 +6,11 @@
 
 import { type CollectionBuilder } from './collection'
 import { ReturningBuilder } from './returning'
-import { type QueryAST } from '../ast'
+import { type QueryAST } from '@astrale/typegraph-core'
 import { CypherCompiler } from '../compiler'
-import type { ComparisonOperator, WhereCondition } from '../ast'
-import type { AnySchema, EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '../schema'
-import type { AliasMap, EdgeAliasMap } from '../schema/inference'
+import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
+import type { AnySchema, EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '@astrale/typegraph-core'
+import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
 import type { QueryExecutor } from './entry'
 
 /**
@@ -366,9 +366,9 @@ export class EdgeWithEndpointsBuilder<
   async execute(): Promise<
     Array<{
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      source: import('../schema').NodeProps<S, any>
+      source: import('@astrale/typegraph-core').NodeProps<S, any>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      target: import('../schema').NodeProps<S, any>
+      target: import('@astrale/typegraph-core').NodeProps<S, any>
       edge: EdgeProps<S, E>
     }>
   > {

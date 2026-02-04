@@ -5,8 +5,8 @@
  * Allows plugging different query languages (Cypher, Gremlin, SQL, etc.)
  */
 
-import type { QueryAST } from '../ast'
-import type { SchemaDefinition } from '../schema'
+import type { QueryAST } from '@astrale/typegraph-core'
+import type { SchemaDefinition } from '@astrale/typegraph-core'
 import type { CompiledQuery, CompilerOptions } from './types'
 
 // =============================================================================

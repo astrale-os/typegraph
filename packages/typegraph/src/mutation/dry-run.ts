@@ -5,7 +5,7 @@
  * Useful for validation, debugging, and testing.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps, EdgeProps } from '../schema'
+import type { AnySchema, NodeLabels, EdgeTypes, NodeProps, EdgeProps } from '@astrale/typegraph-core'
 import type {
   NodeInput,
   EdgeInput,

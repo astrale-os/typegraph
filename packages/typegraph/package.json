@@ -60,6 +60,7 @@
     "directory": "packages/typegraph"
   },
   "dependencies": {
+    "@astrale/typegraph-core": "workspace:*",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,15 +1,38 @@
 /**
  * Integration Test Setup
  *
- * Provides utilities for testing against a real Memgraph instance.
+ * Database-agnostic test utilities that work with any executor adapter.
+ * Supports Neo4j, Memgraph, FalkorDB, and other graph databases.
  */
 
 import { z } from 'zod'
-import { defineSchema, node, edge } from '../../src/schema/builders'
-import { ConnectionManager } from '../../src/executor/connection'
-import { QueryExecutor } from '../../src/executor/executor'
+import { defineSchema, node, edge } from '@astrale/typegraph-core'
 import { type GraphQuery, createGraph } from '../../src/query/entry'
-import type { MutationExecutor, TransactionRunner } from '../../src/mutation/mutations'
+
+// =============================================================================
+// EXECUTOR INTERFACES (Database-Agnostic)
+// =============================================================================
+
+export interface QueryExecutor {
+  run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
+}
+
+export interface MutationExecutor {
+  run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
+  runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T>
+}
+
+export interface TransactionRunner {
+  run<R>(cypher: string, params: Record<string, unknown>): Promise<R[]>
+}
+
+export interface DatabaseAdapter {
+  connect(): Promise<void>
+  close(): Promise<void>
+  clearDatabase(): Promise<void>
+  createQueryExecutor(): QueryExecutor
+  createMutationExecutor(): MutationExecutor
+}
 
 // =============================================================================
 // TEST SCHEMA
@@ -102,26 +125,169 @@ export const testSchema = defineSchema({
 export type TestSchema = typeof testSchema
 
 // =============================================================================
-// TEST CONNECTION
+// DATABASE ADAPTER SELECTION
 // =============================================================================
 
-const MEMGRAPH_URI = process.env.MEMGRAPH_URI ?? 'bolt://localhost:7687'
-const MEMGRAPH_USER = process.env.MEMGRAPH_USER ?? ''
-const MEMGRAPH_PASSWORD = process.env.MEMGRAPH_PASSWORD ?? ''
+type DatabaseType = 'neo4j' | 'memgraph' | 'falkordb'
 
-export function createTestConnection(): ConnectionManager {
-  return new ConnectionManager({
-    uri: MEMGRAPH_URI,
-    auth: MEMGRAPH_USER ? { username: MEMGRAPH_USER, password: MEMGRAPH_PASSWORD } : undefined,
-  })
-}
+const DB_TYPE = (process.env.TEST_DB_TYPE as DatabaseType) || 'memgraph'
 
-export function createTestExecutor(connection: ConnectionManager): QueryExecutor {
-  return new QueryExecutor(connection)
+// =============================================================================
+// NEO4J/MEMGRAPH ADAPTER (Bolt Protocol)
+// =============================================================================
+
+class Neo4jAdapter implements DatabaseAdapter {
+  private connection: any = null
+
+  async connect(): Promise<void> {
+    const { ConnectionManager } = await import('../../src/executor/connection')
+    const uri = process.env.MEMGRAPH_URI ?? 'bolt://localhost:7687'
+    const user = process.env.MEMGRAPH_USER ?? ''
+    const password = process.env.MEMGRAPH_PASSWORD ?? ''
+
+    this.connection = new ConnectionManager({
+      uri,
+      auth: user ? { username: user, password } : undefined,
+    })
+    await this.connection.connect()
+  }
+
+  async close(): Promise<void> {
+    if (this.connection) {
+      await this.connection.close()
+    }
+  }
+
+  async clearDatabase(): Promise<void> {
+    if (!this.connection) throw new Error('Not connected')
+    await this.connection.run('MATCH (n) DETACH DELETE n', {})
+  }
+
+  createQueryExecutor(): QueryExecutor {
+    if (!this.connection) throw new Error('Not connected')
+    return {
+      async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+        const { records } = await this.connection.run<Record<string, unknown>>(
+          cypher,
+          params ?? {},
+        )
+        return records.map((r) => transformNeo4jResult<T>(r))
+      },
+    }
+  }
+
+  createMutationExecutor(): MutationExecutor {
+    if (!this.connection) throw new Error('Not connected')
+    const connection = this.connection
+
+    return {
+      async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+        const { records } = await connection.run<Record<string, unknown>>(cypher, params ?? {})
+        return records.map((r) => transformNeo4jResult<T>(r))
+      },
+
+      async runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T> {
+        return connection.transaction(async (ctx: any) => {
+          const runner: TransactionRunner = {
+            async run<R>(cypher: string, params: Record<string, unknown>): Promise<R[]> {
+              const records = await ctx.run<Record<string, unknown>>(cypher, params)
+              return records.map((r) => transformNeo4jResult<R>(r))
+            },
+          }
+          return fn(runner)
+        })
+      },
+    }
+  }
 }
 
 // =============================================================================
-// MUTATION EXECUTOR ADAPTER
+// FALKORDB ADAPTER (Redis Protocol)
+// =============================================================================
+
+class FalkorDBAdapter implements DatabaseAdapter {
+  private client: any = null
+  private graph: any = null
+
+  async connect(): Promise<void> {
+    const { FalkorDB } = await import('falkordb')
+    const host = process.env.FALKORDB_HOST ?? 'localhost'
+    const port = parseInt(process.env.FALKORDB_PORT ?? '6379')
+
+    this.client = await FalkorDB.connect({ socket: { host, port } })
+    const graphName = process.env.FALKORDB_GRAPH ?? 'test'
+    this.graph = this.client.selectGraph(graphName)
+  }
+
+  async close(): Promise<void> {
+    if (this.client) {
+      await this.client.close()
+    }
+  }
+
+  async clearDatabase(): Promise<void> {
+    if (!this.graph) throw new Error('Not connected')
+    // Delete all nodes and edges
+    await this.graph.query('MATCH (n) DETACH DELETE n')
+  }
+
+  createQueryExecutor(): QueryExecutor {
+    if (!this.graph) throw new Error('Not connected')
+    const graph = this.graph
+
+    return {
+      async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+        const result = await graph.roQuery(
+          cypher,
+          params ? { params: params as any } : undefined,
+        )
+        return transformFalkorDBResults(result.data) as T[]
+      },
+    }
+  }
+
+  createMutationExecutor(): MutationExecutor {
+    if (!this.graph) throw new Error('Not connected')
+    const graph = this.graph
+
+    return {
+      async run<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
+        const result = await graph.query(cypher, params ? { params: params as any } : undefined)
+        return transformFalkorDBResults(result.data) as T[]
+      },
+
+      async runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T> {
+        // FalkorDB doesn't have explicit transactions
+        const runner: TransactionRunner = {
+          async run<R>(cypher: string, params: Record<string, unknown>): Promise<R[]> {
+            const result = await graph.query(cypher, { params: params as any })
+            return transformFalkorDBResults(result.data) as R[]
+          },
+        }
+        return fn(runner)
+      },
+    }
+  }
+}
+
+// =============================================================================
+// ADAPTER FACTORY
+// =============================================================================
+
+export async function createDatabaseAdapter(): Promise<DatabaseAdapter> {
+  switch (DB_TYPE) {
+    case 'neo4j':
+    case 'memgraph':
+      return new Neo4jAdapter()
+    case 'falkordb':
+      return new FalkorDBAdapter()
+    default:
+      throw new Error(`Unknown database type: ${DB_TYPE}`)
+  }
+}
+
+// =============================================================================
+// RESULT TRANSFORMERS
 // =============================================================================
 
 /**
@@ -150,54 +316,56 @@ function transformNeo4jResult<T>(record: Record<string, unknown>): T {
   return result as T
 }
 
-export function createMutationExecutor(connection: ConnectionManager): MutationExecutor {
-  return {
-    async run<T>(query: string, params: Record<string, unknown>): Promise<T[]> {
-      const { records } = await connection.run<Record<string, unknown>>(query, params)
-      return records.map((r) => transformNeo4jResult<T>(r))
-    },
+/**
+ * Transform FalkorDB results to plain objects.
+ * FalkorDB returns arrays of values that need to be mapped to header names.
+ */
+function transformFalkorDBResults(data: any): any[] {
+  if (!Array.isArray(data)) return []
 
-    async runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T> {
-      return connection.transaction(async (ctx) => {
-        const runner: TransactionRunner = {
-          async run<R>(query: string, params: Record<string, unknown>): Promise<R[]> {
-            const records = await ctx.run<Record<string, unknown>>(query, params)
-            return records.map((r) => transformNeo4jResult<R>(r))
-          },
-        }
-        return fn(runner)
-      })
-    },
-  }
+  return data.map((row: any) => {
+    if (Array.isArray(row)) {
+      // Row is an array of values, map to object
+      return row.reduce((acc: any, val: any, idx: number) => {
+        acc[`col${idx}`] = extractFalkorDBValue(val)
+        return acc
+      }, {})
+    }
+    return extractFalkorDBValue(row)
+  })
 }
 
-// =============================================================================
-// RAW QUERY EXECUTOR
-// =============================================================================
+function extractFalkorDBValue(val: any): any {
+  if (val === null || val === undefined) return val
+  if (typeof val !== 'object') return val
 
-export function createRawExecutor(connection: ConnectionManager) {
-  return {
-    async run<T>(query: string, params?: Record<string, unknown>): Promise<T[]> {
-      const { records } = await connection.run<Record<string, unknown>>(query, params ?? {})
-      return records.map((r) => transformNeo4jResult<T>(r))
-    },
+  // Handle FalkorDB Node
+  if (val.properties) {
+    return val.properties
   }
+
+  // Handle FalkorDB Edge
+  if (val.relationship && val.relationship.properties) {
+    return val.relationship.properties
+  }
+
+  return val
 }
 
 // =============================================================================
 // TEST GRAPH INSTANCE
 // =============================================================================
 
-export function createTestGraph(connection: ConnectionManager): GraphQuery<TestSchema> {
-  const mutationExecutor = createMutationExecutor(connection)
-  const rawExecutor = createRawExecutor(connection)
+export function createTestGraph(adapter: DatabaseAdapter): GraphQuery<TestSchema> {
+  const mutationExecutor = adapter.createMutationExecutor()
+  const queryExecutor = adapter.createQueryExecutor()
 
   // Type assertion needed because createGraph has a generic constraint
   // that doesn't perfectly match our concrete schema type
   return createGraph(testSchema, {
-    uri: MEMGRAPH_URI,
+    uri: 'test://database', // Dummy URI since we provide executors
     mutationExecutor,
-    rawExecutor,
+    rawExecutor: queryExecutor,
   }) as unknown as GraphQuery<TestSchema>
 }
 
@@ -205,27 +373,19 @@ export function createTestGraph(connection: ConnectionManager): GraphQuery<TestS
 // TEST UTILITIES
 // =============================================================================
 
-export async function clearDatabase(connection: ConnectionManager): Promise<void> {
-  await connection.run('MATCH (n) DETACH DELETE n', {})
-}
-
-export async function seedTestData(connection: ConnectionManager): Promise<TestData> {
+export async function seedTestData(mutationExecutor: MutationExecutor): Promise<TestData> {
   // Create users
-  const [user1] = await connection
-    .run<{
-      id: string
-    }>(
-      `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
-      {
-        id: 'user-1',
-        email: 'alice@example.com',
-        name: 'Alice',
-        status: 'active',
-      },
-    )
-    .then((r) => r.records)
+  const [user1] = await mutationExecutor.run<{ id: string }>(
+    `CREATE (u:Node:User {id: $id, email: $email, name: $name, status: $status}) RETURN u.id as id`,
+    {
+      id: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      status: 'active',
+    },
+  )
 
-  const [user2] = await connection
+  const [user2] = await executor
     .run<{
       id: string
     }>(
@@ -237,9 +397,9 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
         status: 'active',
       },
     )
-    .then((r) => r.records)
+    
 
-  const [user3] = await connection
+  const [user3] = await executor
     .run<{
       id: string
     }>(
@@ -251,10 +411,10 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
         status: 'inactive',
       },
     )
-    .then((r) => r.records)
+    
 
   // Create posts
-  const [post1] = await connection
+  const [post1] = await executor
     .run<{
       id: string
     }>(
@@ -266,9 +426,9 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
         views: 100,
       },
     )
-    .then((r) => r.records)
+    
 
-  const [post2] = await connection
+  const [post2] = await executor
     .run<{
       id: string
     }>(
@@ -280,9 +440,9 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
         views: 250,
       },
     )
-    .then((r) => r.records)
+    
 
-  const [post3] = await connection
+  const [post3] = await executor
     .run<{
       id: string
     }>(`CREATE (p:Node:Post {id: $id, title: $title, views: $views}) RETURN p.id as id`, {
@@ -290,189 +450,141 @@ export async function seedTestData(connection: ConnectionManager): Promise<TestD
       title: 'Draft Post',
       views: 0,
     })
-    .then((r) => r.records)
+    
 
   // Create comments
-  const [comment1] = await connection
+  const [comment1] = await executor
     .run<{
       id: string
     }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
       id: 'comment-1',
       text: 'Great post!',
     })
-    .then((r) => r.records)
+    
 
-  const [comment2] = await connection
+  const [comment2] = await executor
     .run<{
       id: string
     }>(`CREATE (c:Node:Comment {id: $id, text: $text}) RETURN c.id as id`, {
       id: 'comment-2',
       text: 'Thanks for sharing',
     })
-    .then((r) => r.records)
+    
 
   // Create tags
-  const [tag1] = await connection
+  const [tag1] = await executor
     .run<{
       id: string
     }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
       id: 'tag-1',
       name: 'tech',
     })
-    .then((r) => r.records)
+    
 
-  const [tag2] = await connection
+  const [tag2] = await executor
     .run<{
       id: string
     }>(`CREATE (t:Node:Tag {id: $id, name: $name}) RETURN t.id as id`, {
       id: 'tag-2',
       name: 'tutorial',
     })
-    .then((r) => r.records)
+    
 
   // Create folders (hierarchy)
-  await connection.run(
+  await executor.run(
     `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    {
-      id: 'folder-root',
-      name: 'Root',
-      path: '/',
-    },
+    { id: 'folder-root', name: 'Root', path: '/' },
   )
 
-  await connection.run(
+  await executor.run(
     `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    {
-      id: 'folder-docs',
-      name: 'Documents',
-      path: '/documents',
-    },
+    { id: 'folder-docs', name: 'Documents', path: '/documents' },
   )
 
-  await connection.run(
+  await executor.run(
     `CREATE (f:Node:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    {
-      id: 'folder-work',
-      name: 'Work',
-      path: '/documents/work',
-    },
+    { id: 'folder-work', name: 'Work', path: '/documents/work' },
   )
 
   // Create relationships
   // User -> authored -> Post
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-1', postId: 'post-2' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:authored {role: 'author'}]->(p)`,
     { userId: 'user-2', postId: 'post-3' },
   )
 
   // User -> likes -> Post
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    {
-      userId: 'user-2',
-      postId: 'post-1',
-    },
+    { userId: 'user-2', postId: 'post-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    {
-      userId: 'user-3',
-      postId: 'post-1',
-    },
+    { userId: 'user-3', postId: 'post-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (p:Node:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    {
-      userId: 'user-1',
-      postId: 'post-2',
-    },
+    { userId: 'user-1', postId: 'post-2' },
   )
 
   // User -> follows -> User
-  await connection.run(
+  await executor.run(
     `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
-    {
-      fromId: 'user-2',
-      toId: 'user-1',
-    },
+    { fromId: 'user-2', toId: 'user-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u1:Node:User {id: $fromId}), (u2:Node:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
-    {
-      fromId: 'user-3',
-      toId: 'user-1',
-    },
+    { fromId: 'user-3', toId: 'user-1' },
   )
 
   // Post -> hasComment -> Comment
-  await connection.run(
+  await executor.run(
     `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
-    {
-      postId: 'post-1',
-      commentId: 'comment-1',
-    },
+    { postId: 'post-1', commentId: 'comment-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (p:Node:Post {id: $postId}), (c:Node:Comment {id: $commentId}) CREATE (p)-[:hasComment]->(c)`,
-    {
-      postId: 'post-1',
-      commentId: 'comment-2',
-    },
+    { postId: 'post-1', commentId: 'comment-2' },
   )
 
   // User -> wroteComment -> Comment
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
-    {
-      userId: 'user-2',
-      commentId: 'comment-1',
-    },
+    { userId: 'user-2', commentId: 'comment-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (u:Node:User {id: $userId}), (c:Node:Comment {id: $commentId}) CREATE (u)-[:wroteComment]->(c)`,
-    {
-      userId: 'user-3',
-      commentId: 'comment-2',
-    },
+    { userId: 'user-3', commentId: 'comment-2' },
   )
 
   // Post -> tagged -> Tag
-  await connection.run(
+  await executor.run(
     `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
-    {
-      postId: 'post-1',
-      tagId: 'tag-1',
-    },
+    { postId: 'post-1', tagId: 'tag-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
-    {
-      postId: 'post-2',
-      tagId: 'tag-1',
-    },
+    { postId: 'post-2', tagId: 'tag-1' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (p:Node:Post {id: $postId}), (t:Node:Tag {id: $tagId}) CREATE (p)-[:tagged]->(t)`,
-    {
-      postId: 'post-2',
-      tagId: 'tag-2',
-    },
+    { postId: 'post-2', tagId: 'tag-2' },
   )
 
   // Folder hierarchy
-  await connection.run(
+  await executor.run(
     `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-docs', parentId: 'folder-root' },
   )
-  await connection.run(
+  await executor.run(
     `MATCH (child:Node:Folder {id: $childId}), (parent:Node:Folder {id: $parentId}) CREATE (child)-[:hasParent]->(parent)`,
     { childId: 'folder-work', parentId: 'folder-docs' },
   )
@@ -499,26 +611,30 @@ export interface TestData {
 // =============================================================================
 
 export interface TestContext {
-  connection: ConnectionManager
+  adapter: DatabaseAdapter
   executor: QueryExecutor
   graph: GraphQuery<TestSchema>
   data: TestData
 }
 
 export async function setupIntegrationTest(): Promise<TestContext> {
-  const connection = createTestConnection()
-  await connection.connect()
+  const adapter = await createDatabaseAdapter()
+  await adapter.connect()
 
-  await clearDatabase(connection)
-  const data = await seedTestData(connection)
+  await adapter.clearDatabase()
+  const executor = adapter.createQueryExecutor()
+  const data = await seedTestData(executor)
 
-  const executor = createTestExecutor(connection)
-  const graph = createTestGraph(connection)
+  const graph = createTestGraph(adapter)
 
-  return { connection, executor, graph, data }
+  return { adapter, executor, graph, data }
 }
 
 export async function teardownIntegrationTest(ctx: TestContext): Promise<void> {
-  await clearDatabase(ctx.connection)
-  await ctx.connection.close()
+  await ctx.adapter.clearDatabase()
+  await ctx.adapter.close()
+}
+
+export async function clearDatabase(adapter: DatabaseAdapter): Promise<void> {
+  await adapter.clearDatabase()
 }

@@ -5,19 +5,19 @@
  * Created by calling `.returning()` on other builders.
  */
 
-import type { QueryAST } from '../ast'
+import type { QueryAST } from '@astrale/typegraph-core'
 import type { CompiledQuery } from '../compiler'
 import { CypherCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, NodeProps } from '../schema'
+import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
 import type {
   AliasMap,
   AliasMapToReturnType,
   EdgeAliasMap,
   EdgeAliasMapToReturnType,
-} from '../schema/inference'
+} from '@astrale/typegraph-core'
 import type { QueryExecutor } from './entry'
 import { transformMultiAliasResults } from '../utils'
-import { ExecutionError } from '../errors'
+import { ExecutionError } from '@astrale/typegraph-core'
 
 /**
  * Type for collect specifications.

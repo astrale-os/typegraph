@@ -1,0 +1,87 @@
+/**
+ * Mutation examples for FalkorDB adapter.
+ */
+
+import { defineSchema, node, edge } from '@astrale/typegraph'
+import { createFalkorDBGraph, clearGraph } from '../src/index'
+import { z } from 'zod'
+
+const schema = defineSchema({
+  nodes: {
+    entity: node({
+      properties: {
+        id: z.string(),
+      },
+    }),
+    product: node({
+      properties: {
+        name: z.string(),
+        price: z.number(),
+        stock: z.number(),
+      },
+      labels: ['entity'],
+    }),
+    category: node({
+      properties: {
+        name: z.string(),
+      },
+    }),
+  },
+  edges: {
+    inCategory: edge({
+      from: 'product',
+      to: 'category',
+      cardinality: { outbound: 'optional', inbound: 'many' },
+    }),
+  },
+})
+
+async function main() {
+  const config = {
+    host: 'localhost' as const,
+    port: 6379,
+    graphName: 'shop',
+  }
+
+  // Clear existing data
+  await clearGraph(config)
+
+  const { graph, close } = await createFalkorDBGraph(schema, config)
+
+  // Batch create
+  const products = await Promise.all([
+    graph.mutate.create('product', { name: 'Laptop', price: 999, stock: 10 }),
+    graph.mutate.create('product', { name: 'Mouse', price: 29, stock: 50 }),
+    graph.mutate.create('product', { name: 'Keyboard', price: 79, stock: 30 }),
+  ])
+
+  console.log('Created products:', products.length)
+
+  // Update
+  const updated = await graph.mutate.update('product', products[0]!.id, {
+    price: 899, // Price drop!
+  })
+  console.log('Updated product:', updated.data.name, '- new price:', updated.data.price)
+
+  // Delete
+  await graph.mutate.delete('product', products[2]!.id)
+  console.log('Deleted keyboard')
+
+  // Verify deletion
+  const remainingProducts = await graph.node('product').execute()
+  console.log('Remaining products:', remainingProducts.length)
+
+  // Create category and link
+  const electronics = await graph.mutate.create('category', { name: 'Electronics' })
+  await graph.mutate.link('inCategory', products[0]!.id, electronics.id)
+  await graph.mutate.link('inCategory', products[1]!.id, electronics.id)
+
+  // Query products in category
+  const electronicsProducts = await graph.nodeById(electronics.id).from('inCategory').execute()
+
+  console.log('Electronics products:', electronicsProducts.length)
+
+  await close()
+}
+
+main().catch(console.error)

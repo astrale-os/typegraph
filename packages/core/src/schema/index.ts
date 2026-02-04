@@ -6,12 +6,7 @@
  */
 
 export { node, edge, defineSchema } from './builders'
-export {
-  resolveNodeLabels,
-  formatLabels,
-  getNodesSatisfying,
-  toPascalCase,
-} from './labels'
+export { resolveNodeLabels, formatLabels, getNodesSatisfying, toPascalCase } from './labels'
 export type {
   SchemaDefinition,
   AnySchema,
@@ -36,20 +31,15 @@ export { toSchema } from './serializer'
 export type { SerializedSchema, SerializedNodeDef, SerializedEdgeDef } from './serializer'
 
 // Index compiler utilities
-export {
-  compileSchemaIndexes,
-  generateIndexMigration,
-} from './index-compiler'
-export type {
-  IndexCompilerOptions,
-  CompiledIndex,
-  IndexMigration,
-} from './index-compiler'
+export { compileSchemaIndexes, generateIndexMigration } from './index-compiler'
+export type { IndexCompilerOptions, CompiledIndex, IndexMigration } from './index-compiler'
 export type {
   NodeLabels,
   EdgeTypes,
   NodeProps,
+  NodeInputProps,
   EdgeProps,
+  EdgeInputProps,
   OutgoingEdges,
   IncomingEdges,
   EdgeTarget,
@@ -66,4 +56,11 @@ export type {
   HierarchyChildren,
   HierarchyParent,
   ResolveHierarchyEdgeType,
+  MultiEdgeTargets,
+  MultiEdgeSources,
+  MultiEdgeBidirectional,
+  AncestorResult,
+  EdgeOutboundCardinality,
+  EdgeInboundCardinality,
+  CardinalityToBuilder,
 } from './inference'

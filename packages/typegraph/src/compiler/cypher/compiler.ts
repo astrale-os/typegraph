@@ -6,7 +6,7 @@
 
 import type { QueryAST } from '../../ast'
 import type { SchemaDefinition, AnySchema } from '../../schema'
-import { resolveNodeLabels, formatLabels } from '../../schema/labels'
+import { resolveNodeLabels, formatLabels } from '@astrale/typegraph-core'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 import type {

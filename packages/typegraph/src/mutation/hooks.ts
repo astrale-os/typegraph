@@ -5,7 +5,7 @@
  * Allows intercepting and modifying mutations at various stages.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
 import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from './types'
 
 // =============================================================================

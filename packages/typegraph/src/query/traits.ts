@@ -5,10 +5,10 @@
  * Uses TypeScript mixins to avoid code duplication.
  */
 
-import type { QueryAST } from '../ast'
-import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '../ast'
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
-import type { AliasMap, EdgeAliasMap } from '../schema/inference'
+import type { QueryAST } from '@astrale/typegraph-core'
+import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '@astrale/typegraph-core'
+import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '@astrale/typegraph-core'
+import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
 
 // =============================================================================
 // CONSTRUCTOR TYPE FOR MIXINS

@@ -4,7 +4,15 @@
  * Types for the mutation API - create, update, delete, link, hierarchy operations.
  */
 
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
+import type {
+  AnySchema,
+  NodeLabels,
+  NodeProps,
+  NodeInputProps,
+  EdgeTypes,
+  EdgeProps,
+  EdgeInputProps,
+} from '@astrale/typegraph-core'
 
 // =============================================================================
 // INPUT TYPES (What user provides)
@@ -12,13 +20,21 @@ import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../
 
 /**
  * Node input - excludes 'id' which is generated.
+ * Uses z.input types so fields with .optional().default() are optional for input.
  */
-export type NodeInput<S extends AnySchema, N extends NodeLabels<S>> = Omit<NodeProps<S, N>, 'id'>
+export type NodeInput<S extends AnySchema, N extends NodeLabels<S>> = Omit<
+  NodeInputProps<S, N>,
+  'id'
+>
 
 /**
  * Edge input - excludes 'id' which is generated.
+ * Uses z.input types so fields with .optional().default() are optional for input.
  */
-export type EdgeInput<S extends AnySchema, E extends EdgeTypes<S>> = Omit<EdgeProps<S, E>, 'id'>
+export type EdgeInput<S extends AnySchema, E extends EdgeTypes<S>> = Omit<
+  EdgeInputProps<S, E>,
+  'id'
+>
 
 /**
  * Input for batch link operations.

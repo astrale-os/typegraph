@@ -4,10 +4,10 @@
  * Shared foundation for all builder types.
  */
 
-import { type QueryAST } from '../ast'
+import { type QueryAST } from '@astrale/typegraph-core'
 import { CypherCompiler } from '../compiler'
 import type { CompiledQuery } from '../compiler'
-import type { AnySchema, NodeLabels } from '../schema'
+import type { AnySchema, NodeLabels } from '@astrale/typegraph-core'
 
 // Re-export shared types from traits
 export type {

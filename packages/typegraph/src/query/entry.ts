@@ -8,8 +8,8 @@ import { CollectionBuilder } from './collection'
 import { SingleNodeBuilder } from './single-node'
 import { type PathBuilder } from './path'
 import { EdgeBuilder } from './edge'
-import { QueryAST, createEdgeProjection } from '../ast'
-import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
+import { QueryAST, createEdgeProjection } from '@astrale/typegraph-core'
+import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
 import type { ConnectionConfig } from '../executor'
 import type {
   GraphMutations,
@@ -389,7 +389,7 @@ export class GraphQuery<S extends AnySchema> {
   validateNode<N extends NodeLabels<S>>(
     _label: N,
     _data: unknown,
-  ): import('zod').SafeParseReturnType<unknown, import('../schema').NodeProps<S, N>> {
+  ): unknown {
     throw new Error('Not implemented')
   }
 }

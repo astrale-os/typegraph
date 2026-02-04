@@ -47,30 +47,11 @@
  */
 
 // =============================================================================
-// SCHEMA
+// RE-EXPORT CORE (Schema, AST, Errors, Type Inference)
+// For backward compatibility, all core exports are re-exported here
 // =============================================================================
 
-export {
-  defineSchema,
-  node,
-  edge,
-  resolveNodeLabels,
-  formatLabels,
-  getNodesSatisfying,
-} from './schema'
-export type {
-  SchemaDefinition,
-  AnySchema,
-  NodeDefinition,
-  EdgeDefinition,
-  Cardinality,
-  PropertyType,
-  HierarchyConfig,
-  HasHierarchy,
-  HierarchyEdge,
-  HierarchyDirection,
-  ResolveHierarchyEdge,
-} from './schema'
+export * from '@astrale/typegraph-core'
 
 // =============================================================================
 // QUERY BUILDERS
@@ -174,87 +155,8 @@ export type {
   TransactionContext,
 } from './executor'
 
-// =============================================================================
-// ERRORS
-// =============================================================================
-
-export {
-  GraphQueryError,
-  SchemaValidationError,
-  CardinalityError,
-  NotFoundError,
-  ConnectionError,
-  CompilationError,
-  ExecutionError,
-  TimeoutError,
-  AliasError,
-} from './errors'
-
-// =============================================================================
-// TYPE INFERENCE UTILITIES
-// =============================================================================
-
-export type {
-  NodeLabels,
-  EdgeTypes,
-  NodeProps,
-  EdgeProps,
-  OutgoingEdges,
-  IncomingEdges,
-  EdgeTarget,
-  EdgeSource,
-  EdgeOutboundCardinality,
-  EdgeInboundCardinality,
-  EdgeCardinality,
-  EdgeTargetsFrom,
-  EdgeSourcesTo,
-  InferSchema,
-  AliasMap,
-  AliasMapToReturnType,
-  EdgeAliasMap,
-  EdgeAliasMapToReturnType,
-  NormalizeEdgeEndpoint,
-  MultiEdgeTargets,
-  MultiEdgeSources,
-  MultiEdgeBidirectional,
-  CardinalityToBuilder,
-} from './schema/inference'
-
-// =============================================================================
-// AST (for custom query engines and compilers)
-// =============================================================================
-
-export { QueryAST } from './ast'
-export type {
-  ASTNode,
-  MatchStep,
-  TraversalStep,
-  WhereStep,
-  BranchStep,
-  PathStep,
-  AggregateStep,
-  OrderByStep,
-  LimitStep,
-  SkipStep,
-  AliasStep,
-  HierarchyStep,
-  CursorStep,
-  FirstStep,
-  DistinctStep,
-  ReachableStep,
-  MatchByIdStep,
-  ForkStep,
-  Projection,
-  ProjectionType,
-  WhereCondition,
-  ComparisonCondition,
-  LogicalCondition,
-  ExistsCondition,
-  ConnectedToCondition,
-  EdgeWhereCondition,
-  ComparisonOperator,
-  VariableLengthConfig,
-} from './ast'
+// Note: Errors, AST, Schema, and Type Inference utilities are all re-exported
+// from '@astrale/typegraph-core' above
 
 // Export collect-related types
 export type { CollectSpec, CollectSpecToReturnType } from './query'

@@ -26,8 +26,9 @@ describe('Mutation Integration Tests', () => {
 
   // Reset data before each test to ensure isolation
   beforeEach(async () => {
-    await clearDatabase(ctx.connection)
-    ctx.data = await seedTestData(ctx.connection)
+    await clearDatabase(ctx.adapter)
+    const executor = ctx.adapter.createQueryExecutor()
+    ctx.data = await seedTestData(executor)
   })
 
   // ===========================================================================

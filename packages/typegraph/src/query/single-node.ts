@@ -19,14 +19,14 @@ import type {
   HierarchyTraversalOptions,
 } from './traits'
 import * as shared from './shared'
-import type { QueryAST } from '../ast'
+import type { QueryAST } from '@astrale/typegraph-core'
 import type {
   ComparisonOperator,
   WhereCondition,
   ComparisonCondition,
   ExistsCondition,
   ConnectedToCondition,
-} from '../ast'
+} from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
@@ -36,7 +36,7 @@ import type {
   EdgeTypes,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from '../schema'
+} from '@astrale/typegraph-core'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -48,7 +48,7 @@ import type {
   HierarchyChildren,
   HierarchyParent,
   AncestorResult,
-} from '../schema/inference'
+} from '@astrale/typegraph-core'
 
 // Direct imports
 import { CollectionBuilder, type ExtractCollectSpecs } from './collection'
@@ -56,7 +56,7 @@ import { OptionalNodeBuilder } from './optional-node'
 import { ReturningBuilder } from './returning'
 import type { QueryExecutor } from './entry'
 import { extractNodeFromRecord } from '../utils'
-import { CardinalityError, ExecutionError } from '../errors'
+import { CardinalityError, ExecutionError } from '@astrale/typegraph-core'
 
 /**
  * Builder for queries that return exactly one node.
@@ -1014,10 +1014,10 @@ export class SingleNodeBuilder<
 
   private buildEdgeWhere(
     where?: Record<string, unknown>,
-  ): import('../ast').EdgeWhereCondition[] | undefined {
+  ): import('@astrale/typegraph-core').EdgeWhereCondition[] | undefined {
     if (!where) return undefined
 
-    const conditions: import('../ast').EdgeWhereCondition[] = []
+    const conditions: import('@astrale/typegraph-core').EdgeWhereCondition[] = []
     for (const [field, ops] of Object.entries(where)) {
       if (typeof ops === 'object' && ops !== null) {
         for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
@@ -1052,15 +1052,15 @@ export class SingleNodeBuilder<
           target,
         }) as ComparisonCondition,
       and: (...conditions: WhereCondition[]) =>
-        ({ type: 'logical', operator: 'AND', conditions }) as import('../ast').LogicalCondition,
+        ({ type: 'logical', operator: 'AND', conditions }) as import('@astrale/typegraph-core').LogicalCondition,
       or: (...conditions: WhereCondition[]) =>
-        ({ type: 'logical', operator: 'OR', conditions }) as import('../ast').LogicalCondition,
+        ({ type: 'logical', operator: 'OR', conditions }) as import('@astrale/typegraph-core').LogicalCondition,
       not: (condition: WhereCondition) =>
         ({
           type: 'logical',
           operator: 'NOT',
           conditions: [condition],
-        }) as import('../ast').LogicalCondition,
+        }) as import('@astrale/typegraph-core').LogicalCondition,
     } as WhereBuilder<S, N>
   }
 }

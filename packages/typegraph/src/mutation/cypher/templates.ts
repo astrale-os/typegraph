@@ -12,7 +12,7 @@ import type {
   BatchTemplateProvider,
   TemplateUtils,
 } from '../template-provider'
-import { formatLabels } from '../../schema/labels'
+import { formatLabels } from '@astrale/typegraph-core'
 
 // =============================================================================
 // NODE OPERATIONS

@@ -4,7 +4,7 @@
  * Specific error types for mutation operations.
  */
 
-import { GraphQueryError } from '../errors'
+import { GraphQueryError } from '@astrale/typegraph-core'
 
 /**
  * Base error for mutation operations.

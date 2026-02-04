@@ -5,10 +5,10 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST } from '../ast'
+import type { QueryAST } from '@astrale/typegraph-core'
 import type { CompiledQuery } from '../compiler'
 import { CypherCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps } from '../schema'
+import type { AnySchema, NodeLabels, EdgeTypes, NodeProps } from '@astrale/typegraph-core'
 
 /**
  * A single node in a path.
@@ -63,7 +63,7 @@ export class PathBuilder<
 
   whereEdge<K extends string>(
     _field: K,
-    _operator: import('../ast').ComparisonOperator,
+    _operator: import('@astrale/typegraph-core').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd> {
     throw new Error('Not implemented')
@@ -71,7 +71,7 @@ export class PathBuilder<
 
   whereIntermediateNode<K extends string>(
     _field: K,
-    _operator: import('../ast').ComparisonOperator,
+    _operator: import('@astrale/typegraph-core').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd> {
     throw new Error('Not implemented')

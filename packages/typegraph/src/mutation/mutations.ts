@@ -5,8 +5,14 @@
  * Uses pluggable template providers for query generation.
  */
 
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../schema'
-import { resolveNodeLabels } from '../schema/labels'
+import type {
+  AnySchema,
+  NodeLabels,
+  NodeProps,
+  EdgeTypes,
+  EdgeProps,
+} from '@astrale/typegraph-core'
+import { resolveNodeLabels } from '@astrale/typegraph-core'
 import type {
   GraphMutations,
   MutationTransaction,

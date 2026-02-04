@@ -7,8 +7,8 @@
 
 import { BaseBuilder, type QueryFragment } from './base'
 import type { TraversalOptions, WhereBuilder } from './traits'
-import type { QueryAST } from '../ast'
-import type { ComparisonOperator, WhereCondition } from '../ast'
+import type { QueryAST } from '@astrale/typegraph-core'
+import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
@@ -17,7 +17,7 @@ import type {
   IncomingEdges,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from '../schema'
+} from '@astrale/typegraph-core'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -26,7 +26,7 @@ import type {
   MultiEdgeBidirectional,
   EdgeOutboundCardinality,
   EdgeInboundCardinality,
-} from '../schema/inference'
+} from '@astrale/typegraph-core'
 
 // Forward declarations
 import type { SingleNodeBuilder } from './single-node'
@@ -34,7 +34,7 @@ import type { CollectionBuilder, ExtractCollectSpecs } from './collection'
 import type { ReturningBuilder } from './returning'
 import type { QueryExecutor } from './entry'
 import { extractNodeFromRecord } from '../utils'
-import { ExecutionError } from '../errors'
+import { ExecutionError } from '@astrale/typegraph-core'
 
 /**
  * Builder for queries that return zero or one node.

@@ -377,13 +377,15 @@ function validateLabelInheritance(
 
 /**
  * Configuration for schema definition.
+ *
+ * Uses `any` in constraints to avoid TypeScript variance issues while still
+ * preserving the specific types through inference.
  */
 export interface SchemaConfig<
-  TNodes extends Record<string, NodeDefinition>,
-  TEdges extends Record<
-    string,
-    EdgeDefinition<string | readonly string[], string | readonly string[], z.ZodRawShape>
-  >,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TNodes extends Record<string, NodeDefinition<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TEdges extends Record<string, EdgeDefinition<any, any, any, any, any>>,
 > {
   nodes: TNodes
   edges: TEdges
@@ -415,11 +417,10 @@ export interface SchemaConfig<
  * ```
  */
 export function defineSchema<
-  TNodes extends Record<string, NodeDefinition>,
-  TEdges extends Record<
-    string,
-    EdgeDefinition<string | readonly string[], string | readonly string[], z.ZodRawShape>
-  >,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TNodes extends Record<string, NodeDefinition<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TEdges extends Record<string, EdgeDefinition<any, any, any, any, any>>,
 >(config: SchemaConfig<TNodes, TEdges>): SchemaDefinition<TNodes, TEdges> {
   const nodeLabels = new Set(Object.keys(config.nodes))
 

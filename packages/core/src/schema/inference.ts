@@ -53,7 +53,7 @@ export type EdgeTypes<S extends AnySchema> = keyof S['edges'] & string
 // =============================================================================
 
 /**
- * Extract the inferred TypeScript type of a node's properties.
+ * Extract the inferred TypeScript type of a node's properties (output type).
  * Includes the implicit `id` field.
  *
  * @example
@@ -65,7 +65,19 @@ export type NodeProps<S extends AnySchema, N extends NodeLabels<S>> =
     : never
 
 /**
- * Extract the inferred TypeScript type of an edge's properties.
+ * Extract the INPUT TypeScript type of a node's properties.
+ * Uses z.input which respects .optional().default() - fields with defaults are optional for input.
+ *
+ * @example
+ * NodeInputProps<typeof schema, 'identity'> // { id: string; iss: string; sub: string; frozen?: boolean }
+ */
+export type NodeInputProps<S extends AnySchema, N extends NodeLabels<S>> =
+  S['nodes'][N] extends NodeDefinition<infer TProps>
+    ? BaseNodeProps & z.input<z.ZodObject<TProps>>
+    : never
+
+/**
+ * Extract the inferred TypeScript type of an edge's properties (output type).
  * Includes the implicit `id` field.
  *
  * @example
@@ -75,6 +87,16 @@ export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? BaseEdgeProps & z.infer<z.ZodObject<TProps>>
+    : never
+
+/**
+ * Extract the INPUT TypeScript type of an edge's properties.
+ * Uses z.input which respects .optional().default() - fields with defaults are optional for input.
+ */
+export type EdgeInputProps<S extends AnySchema, E extends EdgeTypes<S>> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
+    ? BaseEdgeProps & z.input<z.ZodObject<TProps>>
     : never
 
 /**

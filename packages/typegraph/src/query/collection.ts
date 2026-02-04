@@ -12,7 +12,7 @@ import type {
   HierarchyTraversalOptions,
 } from './traits'
 import * as shared from './shared'
-import type { QueryAST } from '../ast'
+import type { QueryAST } from '@astrale/typegraph-core'
 import { CypherCompiler } from '../compiler'
 import type {
   ComparisonOperator,
@@ -21,7 +21,7 @@ import type {
   ExistsCondition,
   ConnectedToCondition,
   EdgeWhereCondition,
-} from '../ast'
+} from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
@@ -31,7 +31,7 @@ import type {
   EdgeTypes,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from '../schema'
+} from '@astrale/typegraph-core'
 import type {
   AliasMap,
   EdgeAliasMap,
@@ -40,13 +40,13 @@ import type {
   MultiEdgeBidirectional,
   HierarchyChildren,
   AncestorResult,
-} from '../schema/inference'
+} from '@astrale/typegraph-core'
 
 // Forward declarations
 import { GroupedBuilder } from './grouped'
 import type { QueryExecutor } from './entry'
 import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
-import { ExecutionError } from '../errors'
+import { ExecutionError } from '@astrale/typegraph-core'
 
 // =============================================================================
 // Type Helpers
@@ -1200,15 +1200,23 @@ export class CollectionBuilder<
           target,
         }) as ComparisonCondition,
       and: (...conditions: WhereCondition[]) =>
-        ({ type: 'logical', operator: 'AND', conditions }) as import('../ast').LogicalCondition,
+        ({
+          type: 'logical',
+          operator: 'AND',
+          conditions,
+        }) as import('@astrale/typegraph-core').LogicalCondition,
       or: (...conditions: WhereCondition[]) =>
-        ({ type: 'logical', operator: 'OR', conditions }) as import('../ast').LogicalCondition,
+        ({
+          type: 'logical',
+          operator: 'OR',
+          conditions,
+        }) as import('@astrale/typegraph-core').LogicalCondition,
       not: (condition: WhereCondition) =>
         ({
           type: 'logical',
           operator: 'NOT',
           conditions: [condition],
-        }) as import('../ast').LogicalCondition,
+        }) as import('@astrale/typegraph-core').LogicalCondition,
     } as WhereBuilder<S, N>
   }
 

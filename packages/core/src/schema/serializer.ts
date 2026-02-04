@@ -7,7 +7,8 @@
 import { z } from 'zod'
 import type { SchemaDefinition, NodeDefinition, EdgeDefinition } from './types'
 
-type JSONSchema = ReturnType<typeof z.toJSONSchema>
+// Use any for JSONSchema to avoid type issues with Zod v4's return type
+type JSONSchema = any
 
 /**
  * Serialized node definition.

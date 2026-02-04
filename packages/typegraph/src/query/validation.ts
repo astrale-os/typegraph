@@ -5,8 +5,8 @@
  * Catches invalid node labels, edge types, and property names before execution.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
-import { getNodesSatisfying } from '../schema'
+import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import { getNodesSatisfying } from '@astrale/typegraph-core'
 
 // =============================================================================
 // VALIDATION ERRORS

@@ -5,12 +5,12 @@
  * Created by CollectionBuilder.groupBy().
  */
 
-import type { QueryAST, ComparisonOperator } from '../ast'
+import type { QueryAST, ComparisonOperator } from '@astrale/typegraph-core'
 import type { CompiledQuery } from '../compiler'
 import { CypherCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, NodeProps } from '../schema'
+import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
 import type { QueryExecutor } from './entry'
-import { ExecutionError } from '../errors'
+import { ExecutionError } from '@astrale/typegraph-core'
 import { convertNeo4jValue } from '../utils'
 
 /**

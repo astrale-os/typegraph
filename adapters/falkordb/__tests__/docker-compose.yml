@@ -1,0 +1,14 @@
+services:
+  falkordb-test:
+    image: falkordb/falkordb:latest
+    ports:
+      - '6380:6379'
+    tmpfs:
+      - /data:rw
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 2s
+      retries: 10
+    environment:
+      - FALKORDB_ARGS=--protected-mode no

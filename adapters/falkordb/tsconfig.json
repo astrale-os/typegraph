@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*", "__tests__/**/*", "examples/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

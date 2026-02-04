@@ -5,8 +5,8 @@
  * This avoids code duplication while keeping types simple.
  */
 
-import type { QueryAST } from '../ast'
-import type { AnySchema, EdgeTypes } from '../schema'
+import type { QueryAST } from '@astrale/typegraph-core'
+import type { AnySchema, EdgeTypes } from '@astrale/typegraph-core'
 import type { HierarchyTraversalOptions, ReachableOptions } from './traits'
 
 // =============================================================================

@@ -4,8 +4,8 @@
  * Applies optimization passes to the AST before compilation.
  */
 
-import { type QueryAST } from '../ast'
-import type { SchemaDefinition } from '../schema'
+import { type QueryAST } from '@astrale/typegraph-core'
+import type { SchemaDefinition } from '@astrale/typegraph-core'
 
 /**
  * Optimization pass interface.

@@ -6,8 +6,8 @@
  */
 
 import { type z } from 'zod'
-import type { AnySchema, NodeLabels, EdgeTypes } from '../schema'
-import { getNodesSatisfying } from '../schema'
+import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import { getNodesSatisfying } from '@astrale/typegraph-core'
 import { ValidationError } from './errors'
 
 // =============================================================================
