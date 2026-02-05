@@ -359,6 +359,18 @@ export interface GraphMutations<S extends AnySchema> {
   unlinkAllTo<E extends EdgeTypes<S>>(edge: E, to: string): Promise<BatchDeleteResult>
 
   // ---------------------------------------------------------------------------
+  // RAW QUERIES
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execute a raw Cypher write query (CREATE, SET, DELETE, MERGE).
+   * Use this for mutations that can't be expressed through the typed API.
+   *
+   * For read-only queries, use `graph.raw()` instead.
+   */
+  raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
+
+  // ---------------------------------------------------------------------------
   // TRANSACTIONS
   // ---------------------------------------------------------------------------
 
@@ -440,4 +452,9 @@ export interface MutationTransaction<S extends AnySchema> {
 
   /** Move node to new parent */
   move(nodeId: string, newParentId: string, options?: HierarchyOptions<S>): Promise<MoveResult>
+
+  /**
+   * Execute a raw Cypher write query within the transaction.
+   */
+  raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
 }

@@ -6,8 +6,18 @@
  */
 
 import type { QueryAST } from '@astrale/typegraph-core'
-import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '@astrale/typegraph-core'
-import type { AnySchema, NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '@astrale/typegraph-core'
+import type {
+  ComparisonOperator,
+  WhereCondition,
+  EdgeWhereCondition,
+} from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  NodeLabels,
+  NodeProps,
+  EdgeTypes,
+  EdgeProps,
+} from '@astrale/typegraph-core'
 import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
 
 // =============================================================================
@@ -157,57 +167,67 @@ export interface WhereBuilder<S extends AnySchema, N extends NodeLabels<S>> {
   not(condition: WhereCondition): WhereCondition
 }
 
-// =============================================================================
-// SHARED HELPER FUNCTIONS
-// =============================================================================
-
 /**
- * Resolve hierarchy edge from schema or explicit parameter.
+ * Create a WhereBuilder instance for building query conditions.
+ * Shared implementation used by all node builders.
  */
-export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: EdgeTypes<S>): string {
-  if (edge) return edge as string
-  const hierarchy = schema.hierarchy
-  if (!hierarchy?.defaultEdge) {
-    throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
-  }
-  return hierarchy.defaultEdge
-}
+export function createWhereBuilder<S extends AnySchema, N extends NodeLabels<S>>(
+  target: string,
+): WhereBuilder<S, N> {
+  type Condition = import('@astrale/typegraph-core').ComparisonCondition
+  type Logical = import('@astrale/typegraph-core').LogicalCondition
 
-/**
- * Get hierarchy direction from schema.
- */
-export function getHierarchyDirection<S extends AnySchema>(schema: S): 'up' | 'down' {
-  const hierarchy = schema.hierarchy
-  return hierarchy?.direction ?? 'up'
-}
-
-/**
- * Parse hierarchy method arguments (edge or options).
- */
-export function parseHierarchyArgs<S extends AnySchema>(
-  edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
-  options?: HierarchyTraversalOptions,
-): [EdgeTypes<S> | undefined, HierarchyTraversalOptions | undefined] {
-  if (typeof edgeOrOptions === 'string') {
-    return [edgeOrOptions as EdgeTypes<S>, options]
-  }
-  return [undefined, edgeOrOptions as HierarchyTraversalOptions | undefined]
+  return {
+    eq: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'eq', value, target }) as Condition,
+    neq: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'neq', value, target }) as Condition,
+    gt: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'gt', value, target }) as Condition,
+    gte: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'gte', value, target }) as Condition,
+    lt: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'lt', value, target }) as Condition,
+    lte: (field: string, value: unknown) =>
+      ({ type: 'comparison', field, operator: 'lte', value, target }) as Condition,
+    in: (field: string, values: unknown[]) =>
+      ({ type: 'comparison', field, operator: 'in', value: values, target }) as Condition,
+    notIn: (field: string, values: unknown[]) =>
+      ({ type: 'comparison', field, operator: 'notIn', value: values, target }) as Condition,
+    contains: (field: string, substring: string) =>
+      ({ type: 'comparison', field, operator: 'contains', value: substring, target }) as Condition,
+    startsWith: (field: string, prefix: string) =>
+      ({ type: 'comparison', field, operator: 'startsWith', value: prefix, target }) as Condition,
+    endsWith: (field: string, suffix: string) =>
+      ({ type: 'comparison', field, operator: 'endsWith', value: suffix, target }) as Condition,
+    isNull: (field: string) =>
+      ({ type: 'comparison', field, operator: 'isNull', value: undefined, target }) as Condition,
+    isNotNull: (field: string) =>
+      ({ type: 'comparison', field, operator: 'isNotNull', value: undefined, target }) as Condition,
+    and: (...conditions: WhereCondition[]) =>
+      ({ type: 'logical', operator: 'AND', conditions }) as Logical,
+    or: (...conditions: WhereCondition[]) =>
+      ({ type: 'logical', operator: 'OR', conditions }) as Logical,
+    not: (condition: WhereCondition) =>
+      ({ type: 'logical', operator: 'NOT', conditions: [condition] }) as Logical,
+  } as WhereBuilder<S, N>
 }
 
 /**
  * Convert edge filter options to AST edge where conditions.
+ * Handles multiple operators per field (e.g., { gt: 5, lt: 10 }).
  */
-export function buildEdgeWhere<S extends AnySchema, E extends EdgeTypes<S>>(
-  options: EdgeFilterOptions<S, E> | undefined,
+export function buildEdgeWhere(
+  where?: Record<string, unknown>,
 ): EdgeWhereCondition[] | undefined {
-  if (!options?.where) return undefined
+  if (!where) return undefined
 
   const conditions: EdgeWhereCondition[] = []
-  for (const [field, condition] of Object.entries(options.where)) {
-    if (condition && typeof condition === 'object') {
-      const op = Object.keys(condition)[0] as ComparisonOperator
-      const value = (condition as Record<string, unknown>)[op]
-      conditions.push({ field, operator: op, value })
+  for (const [field, ops] of Object.entries(where)) {
+    if (typeof ops === 'object' && ops !== null) {
+      for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
+        conditions.push({ field, operator: operator as ComparisonOperator, value })
+      }
     }
   }
   return conditions.length > 0 ? conditions : undefined

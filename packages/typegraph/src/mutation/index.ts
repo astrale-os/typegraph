@@ -40,8 +40,8 @@ export type {
 } from './template-provider'
 
 // Implementation
-export { GraphMutationsImpl } from './mutations'
-export type { MutationExecutor, TransactionRunner, MutationConfig } from './mutations'
+export { GraphMutationsImpl } from './impl'
+export type { MutationExecutor, TransactionRunner, MutationConfig } from './impl'
 
 // Cypher Templates (default)
 export { CypherTemplates } from './cypher'

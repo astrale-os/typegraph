@@ -2,8 +2,8 @@
  * Basic usage example for FalkorDB adapter.
  */
 
-import { defineSchema, node, edge } from '@astrale/typegraph'
-import { createFalkorDBGraph } from '../src/index'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { falkordb } from '../src/index'
 import { z } from 'zod'
 
 // Define schema
@@ -42,15 +42,17 @@ const schema = defineSchema({
 
 async function main() {
   // Create FalkorDB graph
-  const { graph, close, healthCheck } = await createFalkorDBGraph(schema, {
-    host: 'localhost',
-    port: 6379,
-    graphName: 'social-network',
+  const graph = await createGraph(schema, {
+    adapter: falkordb({
+      host: 'localhost',
+      port: 6379,
+      graphName: 'social-network',
+    }),
   })
 
-  // Check health
-  const health = await healthCheck()
-  console.log('Database healthy:', health.healthy, `(${health.latencyMs}ms)`)
+  // Check connection
+  const connected = await graph.isConnected()
+  console.log('Database connected:', connected)
 
   // Create users
   const alice = await graph.mutate.create('user', {
@@ -92,7 +94,7 @@ async function main() {
   console.log("Alice's posts:", alicesPosts.length)
 
   // Cleanup
-  await close()
+  await graph.close()
 }
 
 main().catch(console.error)

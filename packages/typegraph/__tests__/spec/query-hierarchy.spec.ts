@@ -5,7 +5,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import { normalizeCypher } from './fixtures/test-schema'
+import { defineSchema, node, edge, type AnySchema, QueryAST } from '@astrale/typegraph-core'
+import { CypherCompiler } from '../../src/compiler'
 
 describe('Query Compilation: Hierarchy', () => {
   // ===========================================================================
@@ -319,6 +322,285 @@ describe('Query Compilation: Hierarchy', () => {
       `
 
       expect(normalizeCypher(expected)).toContain('length(path) AS depth')
+    })
+  })
+})
+
+// =============================================================================
+// MULTI-LABEL HIERARCHY TESTS (Actual Compilation)
+// =============================================================================
+
+describe('Hierarchy with Multi-Label Nodes (Actual Compilation)', () => {
+  // Schema with simple hierarchy (no multi-label)
+  const simpleHierarchySchema = defineSchema({
+    nodes: {
+      folder: node({
+        properties: {
+          name: z.string(),
+          path: z.string(),
+        },
+      }),
+    },
+    edges: {
+      hasParent: edge({
+        from: 'folder',
+        to: 'folder',
+        cardinality: { outbound: 'optional', inbound: 'many' },
+      }),
+    },
+    hierarchy: {
+      defaultEdge: 'hasParent',
+      direction: 'up',
+    },
+  })
+
+  // Schema with inheritance hierarchy
+  const multiLabelSchema = defineSchema({
+    nodes: {
+      resource: node({
+        properties: { name: z.string() },
+      }),
+      folder: node({
+        properties: { name: z.string(), path: z.string() },
+        labels: ['resource'], // folder IS-A resource
+      }),
+      document: node({
+        properties: { name: z.string(), content: z.string() },
+        labels: ['resource'], // document IS-A resource
+      }),
+    },
+    edges: {
+      // Hierarchy edge: resources can contain other resources
+      contains: edge({
+        from: 'resource',
+        to: 'resource',
+        cardinality: { outbound: 'many', inbound: 'optional' },
+      }),
+    },
+    hierarchy: {
+      defaultEdge: 'contains',
+      direction: 'down', // parent CONTAINS children
+    },
+  })
+
+  describe('Simple Hierarchy - Target Labels', () => {
+    const compiler = new CypherCompiler(simpleHierarchySchema as AnySchema)
+
+    it('includes target label in ancestors query', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'ancestors',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // Should include :Folder label on target node
+      expect(result.cypher).toContain(':Folder')
+      expect(result.cypher).toContain('[:hasParent*1..]')
+      expect(result.cypher).toMatch(/\(n1:Folder\)/)
+    })
+
+    it('includes target label in descendants query', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'descendants',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // Should include :Folder label on target node
+      expect(result.cypher).toMatch(/<-\[:hasParent\*1\.\.\]-\(n1:Folder\)/)
+    })
+
+    it('includes target label in parent query', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'parent',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      expect(result.cypher).toMatch(/\[:hasParent\]->\(n1:Folder\)/)
+    })
+
+    it('includes target label in children query', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'children',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      expect(result.cypher).toMatch(/<-\[:hasParent\]-\(n1:Folder\)/)
+    })
+
+    it('includes target label in root query', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'root',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      expect(result.cypher).toMatch(/\[:hasParent\*0\.\.\]->\(n1:Folder\)/)
+      expect(result.cypher).toContain('WHERE NOT')
+    })
+
+    it('untilKind takes precedence over targetLabel', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'ancestors',
+          edge: 'hasParent',
+          hierarchyDirection: 'up',
+          targetLabel: 'folder',
+          untilKind: 'folder', // Both provided - untilKind wins
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // Both resolve to :Folder, but the logic should use untilKind
+      expect(result.cypher).toMatch(/\(n1:Folder\)/)
+    })
+  })
+
+  describe('Multi-Label Hierarchy - Inheritance', () => {
+    const compiler = new CypherCompiler(multiLabelSchema as AnySchema)
+
+    it('resolves inherited labels for source node', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .setProjection({ type: 'node', nodeAliases: ['n0'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // folder has labels: ['resource'], so should resolve to :Folder:Resource
+      expect(result.cypher).toContain(':Folder:Resource')
+    })
+
+    it('includes base type label in hierarchy target for polymorphic edges', () => {
+      // Edge defined as from: 'resource', to: 'resource'
+      // When querying ancestors from a folder, target should be :Resource
+      // This allows matching both folder AND document ancestors
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'ancestors',
+          edge: 'contains',
+          hierarchyDirection: 'down',
+          targetLabel: 'resource', // Base type from edge definition
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // Source should have full label chain
+      expect(result.cypher).toContain(':Folder:Resource')
+      // Target should be :Resource (matches folder AND document)
+      expect(result.cypher).toMatch(/\(n1:Resource\)/)
+    })
+
+    it('includes full label chain when targeting specific derived type', () => {
+      const ast = new QueryAST()
+        .addMatch('document')
+        .addHierarchy({
+          operation: 'ancestors',
+          edge: 'contains',
+          hierarchyDirection: 'down',
+          targetLabel: 'folder', // Specific derived type
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // Source: document with full labels
+      expect(result.cypher).toContain(':Document:Resource')
+      // Target: folder with full labels
+      expect(result.cypher).toMatch(/\(n1:Folder:Resource\)/)
+    })
+
+    it('resolves untilKind with inheritance correctly', () => {
+      const ast = new QueryAST()
+        .addMatch('document')
+        .addHierarchy({
+          operation: 'ancestors',
+          edge: 'contains',
+          hierarchyDirection: 'down',
+          untilKind: 'folder', // Stop at folder nodes
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // untilKind 'folder' should resolve to :Folder:Resource
+      expect(result.cypher).toMatch(/\(n1:Folder:Resource\)/)
+    })
+
+    it('works with descendants (reverse direction)', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'descendants',
+          edge: 'contains',
+          hierarchyDirection: 'down',
+          targetLabel: 'resource',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // For 'down' direction + descendants: follow outgoing edges
+      expect(result.cypher).toContain('[:contains*1..]')
+      expect(result.cypher).toMatch(/\(n1:Resource\)/)
+    })
+
+    it('siblings parent alias includes target label for better query planning', () => {
+      const ast = new QueryAST()
+        .addMatch('folder')
+        .addHierarchy({
+          operation: 'siblings',
+          edge: 'contains',
+          hierarchyDirection: 'down',
+          targetLabel: 'resource',
+        })
+        .setProjection({ type: 'node', nodeAliases: ['n1'], edgeAliases: [] })
+
+      const result = compiler.compile(ast)
+
+      // For 'down' direction + siblings: go IN to parent, then OUT to siblings
+      // Parent alias should have the target label for better query planning
+      expect(result.cypher).toMatch(/<-\[:contains\]/)
+      expect(result.cypher).toMatch(/\[:contains\]->/)
+      // Both parent and sibling should have labels
+      expect(result.cypher).toMatch(/\(parent_\d+:Resource\)/)
+      expect(result.cypher).toMatch(/\(n1:Resource\)/)
+      expect(result.cypher).toContain('WHERE n1.id <> n0.id')
     })
   })
 })

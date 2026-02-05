@@ -11,7 +11,7 @@ import { transformReturnResult } from './proxy'
 import type { ReturningBuilder, CollectSpec } from './returning'
 import type { AnySchema, AliasMap, EdgeAliasMap, TypedReturnQuery } from '@astrale/typegraph-core'
 import { ExecutionError } from '@astrale/typegraph-core'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 
 /**
  * A query builder with a typed execute() method.

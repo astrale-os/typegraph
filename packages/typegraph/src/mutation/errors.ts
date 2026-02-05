@@ -128,3 +128,32 @@ export class ValidationError extends MutationError {
     this.name = 'ValidationError'
   }
 }
+
+/**
+ * Error when trying to delete a node that has relationships without using detach.
+ */
+export class HasRelationshipsError extends MutationError {
+  constructor(
+    label: string,
+    id: string,
+    public readonly relationshipCount: number,
+  ) {
+    super(
+      `Cannot delete ${label} '${id}': node has ${relationshipCount} relationship(s). Use { detach: true } to delete with relationships.`,
+      'delete',
+      label,
+      id,
+    )
+    this.name = 'HasRelationshipsError'
+  }
+}
+
+/**
+ * Error when trying to create a node with an ID that already exists.
+ */
+export class DuplicateIdError extends MutationError {
+  constructor(label: string, id: string) {
+    super(`Cannot create ${label}: node with id '${id}' already exists`, 'create', label, id)
+    this.name = 'DuplicateIdError'
+  }
+}

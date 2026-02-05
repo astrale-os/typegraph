@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge, createGraph, collect, collectDistinct } from '../../src'
+import { defineSchema, node, edge, createQueryBuilder, collect, collectDistinct } from '../../src'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
@@ -122,8 +122,8 @@ const forkTestSchema = defineSchema({
   },
 })
 
-// Create graph without executor (for compilation tests only)
-const graph = createGraph(forkTestSchema, { uri: '' })
+// Create query builder for compilation tests only (no executor needed)
+const graph = createQueryBuilder(forkTestSchema)
 
 describe('Query Compilation: Fork Patterns', () => {
   // ===========================================================================

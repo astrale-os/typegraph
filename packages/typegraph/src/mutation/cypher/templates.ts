@@ -43,8 +43,11 @@ const nodeTemplates: NodeTemplateProvider = {
   deleteKeepEdges: (labels: string[]) =>
     `
     MATCH (n${formatLabels(labels)} {id: $id})
+    OPTIONAL MATCH (n)-[r]-()
+    WITH n, count(r) as relCount
+    WHERE relCount = 0
     DELETE n
-    RETURN count(n) > 0 as deleted
+    RETURN true as deleted, relCount
   `.trim(),
 
   getById: (labels: string[]) =>
@@ -76,24 +79,24 @@ const nodeTemplates: NodeTemplateProvider = {
 // =============================================================================
 
 const edgeTemplates: EdgeTemplateProvider = {
-  create: (edgeType: string) =>
+  create: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
-    MATCH (a {id: $fromId}), (b {id: $toId})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $fromId}), (b${formatLabels(toLabels ?? [])} {id: $toId})
     CREATE (a)-[r:${edgeType}]->(b)
     SET r = $props, r.id = $edgeId
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
 
-  createNoProps: (edgeType: string) =>
+  createNoProps: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
-    MATCH (a {id: $fromId}), (b {id: $toId})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $fromId}), (b${formatLabels(toLabels ?? [])} {id: $toId})
     CREATE (a)-[r:${edgeType} {id: $edgeId}]->(b)
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
 
-  update: (edgeType: string) =>
+  update: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
-    MATCH (a {id: $fromId})-[r:${edgeType}]->(b {id: $toId})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $fromId})-[r:${edgeType}]->(b${formatLabels(toLabels ?? [])} {id: $toId})
     SET r += $props
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
@@ -105,9 +108,9 @@ const edgeTemplates: EdgeTemplateProvider = {
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
 
-  deleteByEndpoints: (edgeType: string) =>
+  deleteByEndpoints: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
-    MATCH (a {id: $fromId})-[r:${edgeType}]->(b {id: $toId})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $fromId})-[r:${edgeType}]->(b${formatLabels(toLabels ?? [])} {id: $toId})
     DELETE r
     RETURN count(r) > 0 as deleted
   `.trim(),
@@ -119,9 +122,9 @@ const edgeTemplates: EdgeTemplateProvider = {
     RETURN count(r) > 0 as deleted
   `.trim(),
 
-  exists: (edgeType: string) =>
+  exists: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
-    MATCH (a {id: $fromId})-[r:${edgeType}]->(b {id: $toId})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $fromId})-[r:${edgeType}]->(b${formatLabels(toLabels ?? [])} {id: $toId})
     RETURN count(r) > 0 as exists
   `.trim(),
 }
@@ -245,34 +248,34 @@ const batchTemplates: BatchTemplateProvider = {
     RETURN count(n) as deletedCount
   `.trim(),
 
-  // Edge batch operations
-  linkMany: (edgeType: string) =>
+  // Edge batch operations - labels enable efficient node lookup
+  linkMany: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
     UNWIND $links as link
-    MATCH (a {id: link.from}), (b {id: link.to})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: link.from}), (b${formatLabels(toLabels ?? [])} {id: link.to})
     CREATE (a)-[r:${edgeType}]->(b)
     SET r = coalesce(link.data, {}), r.id = link.id
     RETURN r, a.id as fromId, b.id as toId
   `.trim(),
 
-  unlinkMany: (edgeType: string) =>
+  unlinkMany: (edgeType: string, fromLabels?: string[], toLabels?: string[]) =>
     `
     UNWIND $links as link
-    MATCH (a {id: link.from})-[r:${edgeType}]->(b {id: link.to})
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: link.from})-[r:${edgeType}]->(b${formatLabels(toLabels ?? [])} {id: link.to})
     DELETE r
     RETURN count(r) as deleted
   `.trim(),
 
-  unlinkAllFrom: (edgeType: string) =>
+  unlinkAllFrom: (edgeType: string, fromLabels?: string[]) =>
     `
-    MATCH (a {id: $from})-[r:${edgeType}]->()
+    MATCH (a${formatLabels(fromLabels ?? [])} {id: $from})-[r:${edgeType}]->()
     DELETE r
     RETURN count(r) as deleted
   `.trim(),
 
-  unlinkAllTo: (edgeType: string) =>
+  unlinkAllTo: (edgeType: string, toLabels?: string[]) =>
     `
-    MATCH ()-[r:${edgeType}]->(b {id: $to})
+    MATCH ()-[r:${edgeType}]->(b${formatLabels(toLabels ?? [])} {id: $to})
     DELETE r
     RETURN count(r) as deleted
   `.trim(),

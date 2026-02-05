@@ -23,11 +23,11 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createGraph } from '../../src'
+import { createQueryBuilder } from '../../src'
 import { testSchema, normalizeCypher } from './fixtures/test-schema'
 
-// Create a graph instance for compilation testing (no executor needed)
-const graph = createGraph(testSchema, { uri: 'bolt://localhost:7687' })
+// Create a query builder for compilation testing (no executor needed)
+const graph = createQueryBuilder(testSchema)
 
 describe('Query Compilation: whereConnectedTo Optimization', () => {
   // ===========================================================================

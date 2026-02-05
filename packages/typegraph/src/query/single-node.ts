@@ -12,11 +12,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { BaseBuilder, type QueryFragment } from './base'
-import type {
-  TraversalOptions,
-  ReachableOptions,
-  WhereBuilder,
-  HierarchyTraversalOptions,
+import {
+  buildEdgeWhere,
+  createWhereBuilder,
+  type TraversalOptions,
+  type ReachableOptions,
+  type WhereBuilder,
+  type HierarchyTraversalOptions,
 } from './traits'
 import * as shared from './shared'
 import type { QueryAST } from '@astrale/typegraph-core'
@@ -58,7 +60,7 @@ import { CollectionBuilder } from './collection'
 import { OptionalNodeBuilder } from './optional-node'
 import { ReturningBuilder } from './returning'
 import { TypedReturningBuilder } from './typed-returning'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 import { extractNodeFromRecord } from '../utils'
 import { CardinalityError, ExecutionError } from '@astrale/typegraph-core'
 import {
@@ -402,7 +404,7 @@ export class SingleNodeBuilder<
       toLabels,
       optional: false,
       cardinality,
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
       variableLength: opts?.depth
         ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: 'nodes' }
@@ -460,7 +462,7 @@ export class SingleNodeBuilder<
       toLabels,
       optional: true,
       cardinality: 'optional',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     // Use OptionalNodeBuilder directly
@@ -514,7 +516,7 @@ export class SingleNodeBuilder<
       toLabels: fromLabels,
       optional: false,
       cardinality,
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
     })
 
@@ -568,7 +570,7 @@ export class SingleNodeBuilder<
       toLabels: fromLabels,
       optional: true,
       cardinality: 'optional',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     // Use OptionalNodeBuilder directly
@@ -600,7 +602,7 @@ export class SingleNodeBuilder<
       toLabels: allLabels,
       optional: false,
       cardinality: 'many',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     // Use CollectionBuilder directly
@@ -874,7 +876,7 @@ export class SingleNodeBuilder<
   whereComplex(
     builder: (w: WhereBuilder<S, N>) => WhereCondition,
   ): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
-    const whereBuilder = this.createWhereBuilder()
+    const whereBuilder = createWhereBuilder<S, N>(this._ast.currentAlias)
     const condition = builder(whereBuilder)
     const newAst = this._ast.addWhere([condition])
     return new SingleNodeBuilder(
@@ -1082,69 +1084,6 @@ export class SingleNodeBuilder<
     return results.length > 0
   }
 
-  // ===========================================================================
-  // PRIVATE HELPERS
-  // ===========================================================================
-
-  private buildEdgeWhere(
-    where?: Record<string, unknown>,
-  ): import('@astrale/typegraph-core').EdgeWhereCondition[] | undefined {
-    if (!where) return undefined
-
-    const conditions: import('@astrale/typegraph-core').EdgeWhereCondition[] = []
-    for (const [field, ops] of Object.entries(where)) {
-      if (typeof ops === 'object' && ops !== null) {
-        for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
-          conditions.push({ field, operator: operator as ComparisonOperator, value })
-        }
-      }
-    }
-    return conditions.length > 0 ? conditions : undefined
-  }
-
-  private createWhereBuilder(): WhereBuilder<S, N> {
-    const target = this._ast.currentAlias
-    return {
-      eq: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'eq', value, target }) as ComparisonCondition,
-      neq: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'neq', value, target }) as ComparisonCondition,
-      gt: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'gt', value, target }) as ComparisonCondition,
-      gte: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'gte', value, target }) as ComparisonCondition,
-      lt: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'lt', value, target }) as ComparisonCondition,
-      lte: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'lte', value, target }) as ComparisonCondition,
-      in: (field: string, values: unknown[]) =>
-        ({
-          type: 'comparison',
-          field,
-          operator: 'in',
-          value: values,
-          target,
-        }) as ComparisonCondition,
-      and: (...conditions: WhereCondition[]) =>
-        ({
-          type: 'logical',
-          operator: 'AND',
-          conditions,
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-      or: (...conditions: WhereCondition[]) =>
-        ({
-          type: 'logical',
-          operator: 'OR',
-          conditions,
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-      not: (condition: WhereCondition) =>
-        ({
-          type: 'logical',
-          operator: 'NOT',
-          conditions: [condition],
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-    } as WhereBuilder<S, N>
-  }
 }
 
 // ===========================================================================

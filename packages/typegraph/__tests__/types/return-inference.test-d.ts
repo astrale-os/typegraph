@@ -11,8 +11,8 @@ import {
   defineSchema,
   node,
   edge,
-  createGraph,
   collect,
+  createQueryBuilder,
   type CollectionBuilder,
   type SingleNodeBuilder,
   type OptionalNodeBuilder,
@@ -57,8 +57,8 @@ const testSchema = defineSchema({
 
 type TestSchema = typeof testSchema
 
-// Create a real graph for runtime tests (without executor - compile-only)
-const graph = createGraph(testSchema, {})
+// Create query builder for compile-only tests (no executor needed)
+const graph = createQueryBuilder(testSchema)
 
 describe('Return Type Inference', () => {
   describe('Builder type verification', () => {
@@ -67,13 +67,13 @@ describe('Return Type Inference', () => {
 
       // STRICT: Verify the builder type itself, not just what execute returns
       type BuilderType = typeof builder
-      type IsCollectionBuilder = BuilderType extends CollectionBuilder<TestSchema, 'user', any, any>
-        ? true
-        : false
+      type IsCollectionBuilder =
+        BuilderType extends CollectionBuilder<TestSchema, 'user', any, any> ? true : false
       expectTypeOf<IsCollectionBuilder>().toEqualTypeOf<true>()
 
       // Extract node label from builder
-      type NodeLabel = BuilderType extends CollectionBuilder<TestSchema, infer N, any, any> ? N : never
+      type NodeLabel =
+        BuilderType extends CollectionBuilder<TestSchema, infer N, any, any> ? N : never
       expectTypeOf<NodeLabel>().toEqualTypeOf<'user'>()
     })
 
@@ -82,9 +82,8 @@ describe('Return Type Inference', () => {
 
       // STRICT: Verify builder type
       type BuilderType = typeof builder
-      type IsSingleNodeBuilder = BuilderType extends SingleNodeBuilder<TestSchema, 'user', any, any>
-        ? true
-        : false
+      type IsSingleNodeBuilder =
+        BuilderType extends SingleNodeBuilder<TestSchema, 'user', any, any> ? true : false
       expectTypeOf<IsSingleNodeBuilder>().toEqualTypeOf<true>()
     })
 
@@ -93,13 +92,13 @@ describe('Return Type Inference', () => {
 
       // STRICT: Still a CollectionBuilder
       type BuilderType = typeof builder
-      type IsCollectionBuilder = BuilderType extends CollectionBuilder<TestSchema, 'user', any, any>
-        ? true
-        : false
+      type IsCollectionBuilder =
+        BuilderType extends CollectionBuilder<TestSchema, 'user', any, any> ? true : false
       expectTypeOf<IsCollectionBuilder>().toEqualTypeOf<true>()
 
       // STRICT: Alias is recorded in the type
-      type Aliases = BuilderType extends CollectionBuilder<TestSchema, any, infer A, any> ? A : never
+      type Aliases =
+        BuilderType extends CollectionBuilder<TestSchema, any, infer A, any> ? A : never
       type HasUserAlias = 'u' extends keyof Aliases ? true : false
       expectTypeOf<HasUserAlias>().toEqualTypeOf<true>()
     })
@@ -109,7 +108,8 @@ describe('Return Type Inference', () => {
 
       // After to('authored'), should be CollectionBuilder for 'post'
       type BuilderType = typeof builder
-      type NodeLabel = BuilderType extends CollectionBuilder<TestSchema, infer N, any, any> ? N : never
+      type NodeLabel =
+        BuilderType extends CollectionBuilder<TestSchema, infer N, any, any> ? N : never
       expectTypeOf<NodeLabel>().toEqualTypeOf<'post'>()
     })
   })

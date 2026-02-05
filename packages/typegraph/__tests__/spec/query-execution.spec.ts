@@ -6,7 +6,13 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { testSchema } from './fixtures/test-schema'
-import { createGraph, type QueryExecutor, CardinalityError, ExecutionError } from '../../src'
+import {
+  GraphQueryImpl,
+  createQueryBuilder,
+  type QueryExecutor,
+  CardinalityError,
+  ExecutionError,
+} from '../../src'
 
 describe('Query Execution', () => {
   let mockExecutor: QueryExecutor
@@ -26,7 +32,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').execute()
 
       expect(result).toHaveLength(2)
@@ -37,14 +43,14 @@ describe('Query Execution', () => {
     it('should return empty array when no results', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').execute()
 
       expect(result).toHaveLength(0)
     })
 
     it('should throw ExecutionError when no executor provided', async () => {
-      const graph = createGraph(testSchema, {})
+      const graph = createQueryBuilder(testSchema)
 
       await expect(graph.node('user').execute()).rejects.toThrow(ExecutionError)
     })
@@ -64,7 +70,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('post').execute()
 
       expect(result[0]!.viewCount).toBe(42)
@@ -89,7 +95,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').execute()
 
       expect(result[0]!.createdAt).toEqual(testDate)
@@ -103,7 +109,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').execute()
 
       expect(result[0]).toEqual({ id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' })
@@ -114,7 +120,7 @@ describe('Query Execution', () => {
     it('should return count from query', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([{ count: 5 }])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const count = await graph.node('user').count()
 
       expect(count).toBe(5)
@@ -123,7 +129,7 @@ describe('Query Execution', () => {
     it('should handle Neo4j Integer count', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([{ count: { toNumber: () => 10 } }])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const count = await graph.node('user').count()
 
       expect(count).toBe(10)
@@ -132,7 +138,7 @@ describe('Query Execution', () => {
     it('should return 0 when no results', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const count = await graph.node('user').count()
 
       expect(count).toBe(0)
@@ -147,7 +153,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').byId('u1').execute()
 
       expect(result).toEqual({ id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' })
@@ -156,7 +162,7 @@ describe('Query Execution', () => {
     it('should throw CardinalityError when no results', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
 
       await expect(graph.node('user').byId('nonexistent').execute()).rejects.toThrow(
         CardinalityError,
@@ -169,7 +175,7 @@ describe('Query Execution', () => {
         { n0: { properties: { id: 'u2' } } },
       ])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
 
       const error = await graph
         .node('user')
@@ -190,7 +196,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').byId('u1').executeOrNull()
 
       expect(result).toEqual({ id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' })
@@ -199,7 +205,7 @@ describe('Query Execution', () => {
     it('should return null when not found', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('user').byId('nonexistent').executeOrNull()
 
       expect(result).toBeNull()
@@ -210,7 +216,7 @@ describe('Query Execution', () => {
     it('should return true when node exists', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([{ n0: { properties: { id: 'u1' } } }])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const exists = await graph.node('user').byId('u1').exists()
 
       expect(exists).toBe(true)
@@ -219,7 +225,7 @@ describe('Query Execution', () => {
     it('should return false when node does not exist', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const exists = await graph.node('user').byId('nonexistent').exists()
 
       expect(exists).toBe(false)
@@ -232,7 +238,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('category').byId('c1').parent().execute()
 
       expect(result).toEqual({ id: 'c1', name: 'Tech' })
@@ -241,7 +247,7 @@ describe('Query Execution', () => {
     it('should return null when not found', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const result = await graph.node('category').byId('root').parent().execute()
 
       expect(result).toBeNull()
@@ -263,7 +269,7 @@ describe('Query Execution', () => {
 
       vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
 
-      const graph = createGraph(testSchema, { queryExecutor: mockExecutor })
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
       const query = await graph
         .node('user')
         .as('author')
@@ -283,7 +289,7 @@ describe('Query Execution', () => {
     })
 
     it('should throw ExecutionError when no executor', async () => {
-      const graph = createGraph(testSchema, {})
+      const graph = createQueryBuilder(testSchema)
 
       const query = await graph.node('user').as('u').return((q) => ({ u: q.u }))
       await expect(query.execute()).rejects.toThrow(ExecutionError)

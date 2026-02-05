@@ -318,6 +318,7 @@ export class QueryAST {
     depthAlias?: string
     includeSelf?: boolean
     untilKind?: string
+    targetLabel?: string
   }): QueryAST {
     const [nodeAlias, newCounter] = this.nextAlias('n')
 
@@ -334,6 +335,7 @@ export class QueryAST {
       depthAlias: config.depthAlias,
       includeSelf: config.includeSelf,
       untilKind: config.untilKind,
+      targetLabel: config.targetLabel,
     }
 
     const newAliases = new Map(this._aliases)

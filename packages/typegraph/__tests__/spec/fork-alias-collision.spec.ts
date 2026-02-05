@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { defineSchema, node, edge, createGraph, collect } from '../../src'
+import { defineSchema, node, edge, createQueryBuilder, collect } from '../../src'
 import { z } from 'zod'
 
 const testSchema = defineSchema({
@@ -44,7 +44,7 @@ const testSchema = defineSchema({
 })
 
 describe('Fork Alias Collision Regression', () => {
-  const graph = createGraph(testSchema, { uri: 'bolt://localhost:7687' })
+  const graph = createQueryBuilder(testSchema)
 
   it('should assign unique internal aliases to each fork branch', async () => {
     const query = await graph

@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge } from '../../src/schema/builders'
+import { defineSchema, node, edge } from '@astrale/typegraph-core'
 import { SchemaValidator, QueryValidationError, createValidator } from '../../src/query/validation'
 
 // =============================================================================

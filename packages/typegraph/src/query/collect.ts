@@ -6,7 +6,13 @@
  * operation for Cypher generation.
  */
 
-import type { AnySchema, NodeLabels, NodeProps, NodeProxy, OptionalNodeProxy } from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  NodeLabels,
+  NodeProps,
+  NodeProxy,
+  OptionalNodeProxy,
+} from '@astrale/typegraph-core'
 
 // =============================================================================
 // COLLECT MARKER TYPES
@@ -48,7 +54,7 @@ export interface CollectMarker<T> {
  * @returns Array of node properties (type-level), CollectMarker (runtime)
  */
 export function collect<S extends AnySchema, N extends NodeLabels<S>>(
-  proxy: NodeProxy<S, N>
+  proxy: NodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
 /**
@@ -56,7 +62,7 @@ export function collect<S extends AnySchema, N extends NodeLabels<S>>(
  * Optional proxies that are null/undefined result in empty arrays.
  */
 export function collect<S extends AnySchema, N extends NodeLabels<S>>(
-  proxy: OptionalNodeProxy<S, N>
+  proxy: OptionalNodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
 // Implementation
@@ -87,11 +93,11 @@ export function collect(proxy: unknown): unknown {
  * ```
  */
 export function collectDistinct<S extends AnySchema, N extends NodeLabels<S>>(
-  proxy: NodeProxy<S, N>
+  proxy: NodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
 export function collectDistinct<S extends AnySchema, N extends NodeLabels<S>>(
-  proxy: OptionalNodeProxy<S, N>
+  proxy: OptionalNodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
 // Implementation

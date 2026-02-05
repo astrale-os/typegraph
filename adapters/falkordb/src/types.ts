@@ -2,17 +2,6 @@
  * Type definitions for FalkorDB adapter.
  */
 
-import type { Graph } from 'falkordb'
-
-/**
- * FalkorDB client type (re-exported to avoid namespace issues)
- */
-export type FalkorDBClient = {
-  selectGraph(graphId: string): Graph
-  list(): Promise<string[]>
-  close(): Promise<void>
-}
-
 /**
  * FalkorDB connection configuration.
  */
@@ -36,34 +25,6 @@ export interface FalkorDBConfig {
   }
   /** Connection timeout in ms (default: 5000) */
   timeout?: number
-}
-
-/**
- * FalkorDB driver interface with connection management.
- */
-export interface FalkorDBDriver {
-  /** FalkorDB graph instance */
-  readonly graph: Graph
-  /** FalkorDB client instance */
-  readonly client: FalkorDBClient
-  /** Graph name */
-  readonly graphName: string
-  /** Close connection */
-  close: () => Promise<void>
-  /** Verify connection is alive */
-  verifyConnection: () => Promise<boolean>
-  /** Health check with latency */
-  healthCheck: () => Promise<{
-    healthy: boolean
-    latencyMs: number
-    version?: string
-  }>
-  /** Get connection statistics */
-  getStats: () => {
-    queriesExecuted: number
-    totalLatencyMs: number
-    avgLatencyMs: number
-  }
 }
 
 /**

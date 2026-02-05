@@ -22,7 +22,13 @@
     "format:check": "pnpm exec prettier --check .",
     "test": "pnpm -r run test",
     "test:watch": "pnpm -r run test:watch",
+    "test:integration": "vitest run",
     "prepare": "husky"
+  },
+  "dependencies": {
+    "@astrale/typegraph": "workspace:*",
+    "@astrale/typegraph-adapter-falkordb": "workspace:*",
+    "@astrale/typegraph-core": "workspace:*"
   },
   "devDependencies": {
     "@astrale/commitlint-config": "jsr:@astrale/commitlint-config@~2.0.0",
@@ -38,7 +44,10 @@
     "lint-staged": "~16.2.7",
     "prettier": "~3.8.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "~8.53.1"
+    "typescript-eslint": "~8.53.1",
+    "@types/node": "~22.15.6",
+    "vitest": "~3.2.2",
+    "zod": "^4.3.6"
   },
   "prettier": "@astrale/prettier-config",
   "lint-staged": {

@@ -8,9 +8,15 @@ import { type CollectionBuilder } from './collection'
 import { type QueryAST } from '@astrale/typegraph-core'
 import { CypherCompiler } from '../compiler'
 import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
-import type { AnySchema, EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  EdgeTypes,
+  EdgeProps,
+  EdgeSource,
+  EdgeTarget,
+} from '@astrale/typegraph-core'
 import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 
 /**
  * Where builder for edge properties.

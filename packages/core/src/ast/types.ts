@@ -322,6 +322,8 @@ export interface HierarchyStep {
   includeSelf?: boolean
   /** Target node kind to filter by (stops traversal when this kind is reached) */
   untilKind?: string
+  /** Target node label for proper Cypher label matching (derived from edge definition) */
+  targetLabel?: string
 }
 
 /**

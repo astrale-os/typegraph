@@ -2,8 +2,8 @@
  * Mutation examples for FalkorDB adapter.
  */
 
-import { defineSchema, node, edge } from '@astrale/typegraph'
-import { createFalkorDBGraph, clearGraph } from '../src/index'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { falkordb, clearGraph } from '../src/index'
 import { z } from 'zod'
 
 const schema = defineSchema({
@@ -46,7 +46,7 @@ async function main() {
   // Clear existing data
   await clearGraph(config)
 
-  const { graph, close } = await createFalkorDBGraph(schema, config)
+  const graph = await createGraph(schema, { adapter: falkordb(config) })
 
   // Batch create
   const products = await Promise.all([
@@ -81,7 +81,7 @@ async function main() {
 
   console.log('Electronics products:', electronicsProducts.length)
 
-  await close()
+  await graph.close()
 }
 
 main().catch(console.error)

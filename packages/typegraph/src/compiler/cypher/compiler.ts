@@ -6,7 +6,7 @@
 
 import type { QueryAST } from '@astrale/typegraph-core'
 import type { SchemaDefinition, AnySchema } from '@astrale/typegraph-core'
-import { resolveNodeLabels, formatLabels } from '@astrale/typegraph-core'
+import { resolveNodeLabels, formatLabels, toPascalCase } from '@astrale/typegraph-core'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 import type {
@@ -442,6 +442,7 @@ export class CypherCompiler implements QueryCompilerProvider {
       hierarchyDirection,
       includeSelf,
       untilKind,
+      targetLabel,
     } = step
 
     let direction: 'out' | 'in'
@@ -454,8 +455,24 @@ export class CypherCompiler implements QueryCompilerProvider {
 
     const [leftArrow, rightArrow] = this.getArrow(direction)
 
-    // Build target node pattern with optional label filter
-    const targetNode = untilKind ? `(${toAlias}:${untilKind})` : `(${toAlias})`
+    // Build target node pattern with proper label resolution
+    // Priority: untilKind > targetLabel > no label
+    let targetLabelStr = ''
+    if (untilKind && this.schema) {
+      // untilKind takes precedence - resolve it properly
+      targetLabelStr = formatLabels(resolveNodeLabels(this.schema, untilKind))
+    } else if (untilKind) {
+      // No schema, use untilKind with PascalCase conversion
+      targetLabelStr = `:${toPascalCase(untilKind)}`
+    } else if (targetLabel && this.schema) {
+      // Use step's targetLabel with proper resolution (includes multi-label support)
+      targetLabelStr = formatLabels(resolveNodeLabels(this.schema, targetLabel))
+    } else if (targetLabel) {
+      // No schema, use targetLabel with PascalCase conversion
+      targetLabelStr = `:${toPascalCase(targetLabel)}`
+    }
+
+    const targetNode = `(${toAlias}${targetLabelStr})`
 
     switch (operation) {
       case 'parent':
@@ -481,8 +498,15 @@ export class CypherCompiler implements QueryCompilerProvider {
       }
 
       case 'siblings': {
+        // Siblings need special handling: go UP to parent, then back DOWN to siblings
+        // For 'up' direction (child -[:hasParent]-> parent): go out then in
+        // For 'down' direction (parent -[:contains]-> child): go in then out
         const parentAlias = `parent_${this.paramCounter++}`
-        const pattern = `(${fromAlias})${leftArrow}[:${edge}]${rightArrow}(${parentAlias})${leftArrow === '<-' ? '<-' : '-'}[:${edge}]${leftArrow === '<-' ? '-' : '->'}${targetNode}`
+        const [toParentLeft, toParentRight] = hierarchyDirection === 'up' ? ['-', '->'] : ['<-', '-']
+        const [toSiblingLeft, toSiblingRight] = hierarchyDirection === 'up' ? ['<-', '-'] : ['-', '->']
+        // Use same label for parent as for sibling target (in hierarchies, parent is same type)
+        const parentNode = `(${parentAlias}${targetLabelStr})`
+        const pattern = `(${fromAlias})${toParentLeft}[:${edge}]${toParentRight}${parentNode}${toSiblingLeft}[:${edge}]${toSiblingRight}${targetNode}`
         this.clauses.push(`MATCH ${pattern}`)
         this.clauses.push(`WHERE ${toAlias}.id <> ${fromAlias}.id`)
         break

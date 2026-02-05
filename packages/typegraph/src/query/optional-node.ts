@@ -6,9 +6,9 @@
  */
 
 import { BaseBuilder, type QueryFragment } from './base'
-import type { TraversalOptions, WhereBuilder } from './traits'
+import { buildEdgeWhere, createWhereBuilder, type TraversalOptions, type WhereBuilder } from './traits'
 import type { QueryAST } from '@astrale/typegraph-core'
-import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
+import type { ComparisonOperator, WhereCondition, ComparisonCondition } from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
@@ -33,9 +33,9 @@ import type {
 
 // Forward declarations
 import type { SingleNodeBuilder } from './single-node'
-import type { CollectionBuilder } from './collection'
+import { CollectionBuilder } from './collection'
 import { TypedReturningBuilder } from './typed-returning'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 import { extractNodeFromRecord } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
 import {
@@ -261,8 +261,8 @@ export class OptionalNodeBuilder<
    * Returns OptionalNodeBuilder for "one" or "optional" cardinality, CollectionBuilder for "many".
    */
   to<E extends OutgoingEdges<S, N>, EA extends string | undefined = undefined>(
-    _edge: E,
-    _options?: TraversalOptions<S, E> & { edgeAs?: EA },
+    edge: E,
+    options?: TraversalOptions<S, E> & { edgeAs?: EA },
   ): EdgeOutboundCardinality<S, E> extends 'one'
     ? OptionalNodeBuilder<
         S,
@@ -270,20 +270,56 @@ export class OptionalNodeBuilder<
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeOutboundCardinality<S, E> extends 'optional'
-      ? OptionalNodeBuilder<
-          S,
-          EdgeTargetsFrom<S, E, N>,
-          Aliases,
-          EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
-        >
-      : CollectionBuilder<
-          S,
-          EdgeTargetsFrom<S, E, N>,
-          Aliases,
-          EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
-        > {
-    throw new Error('Not implemented')
+    : CollectionBuilder<
+        S,
+        EdgeTargetsFrom<S, E, N>,
+        Aliases,
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+      > {
+    const edgeDef = this._schema.edges[edge]
+    const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
+    const cardinality = edgeDef.cardinality.outbound
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const opts = options as any
+
+    const newAst = this._ast.addTraversal({
+      edges: [edge as string],
+      direction: 'out',
+      toLabels,
+      optional: false,
+      cardinality,
+      edgeWhere: buildEdgeWhere(opts?.where),
+      edgeUserAlias: opts?.edgeAs,
+      variableLength: opts?.depth
+        ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: 'nodes' }
+        : undefined,
+    })
+
+    const newEdgeAliases = opts?.edgeAs
+      ? { ...this._edgeAliases, [opts.edgeAs]: edge }
+      : this._edgeAliases
+
+    // From an optional node, 'one' cardinality becomes optional (source might not exist)
+    if (cardinality === 'one') {
+      return new OptionalNodeBuilder(
+        newAst,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any
+    }
+    // For 'optional' and 'many', return CollectionBuilder for consistent array semantics
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any
   }
 
   /**
@@ -291,8 +327,8 @@ export class OptionalNodeBuilder<
    * Returns OptionalNodeBuilder for "one" or "optional" cardinality, CollectionBuilder for "many".
    */
   from<E extends IncomingEdges<S, N>, EA extends string | undefined = undefined>(
-    _edge: E,
-    _options?: TraversalOptions<S, E> & { edgeAs?: EA },
+    edge: E,
+    options?: TraversalOptions<S, E> & { edgeAs?: EA },
   ): EdgeInboundCardinality<S, E> extends 'one'
     ? OptionalNodeBuilder<
         S,
@@ -300,30 +336,86 @@ export class OptionalNodeBuilder<
         Aliases,
         EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
       >
-    : EdgeInboundCardinality<S, E> extends 'optional'
-      ? OptionalNodeBuilder<
-          S,
-          EdgeSourcesTo<S, E, N>,
-          Aliases,
-          EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
-        >
-      : CollectionBuilder<
-          S,
-          EdgeSourcesTo<S, E, N>,
-          Aliases,
-          EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
-        > {
-    throw new Error('Not implemented')
+    : CollectionBuilder<
+        S,
+        EdgeSourcesTo<S, E, N>,
+        Aliases,
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+      > {
+    const edgeDef = this._schema.edges[edge]
+    const fromLabels = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
+    const cardinality = edgeDef.cardinality.inbound
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const opts = options as any
+
+    const newAst = this._ast.addTraversal({
+      edges: [edge as string],
+      direction: 'in',
+      toLabels: fromLabels,
+      optional: false,
+      cardinality,
+      edgeWhere: buildEdgeWhere(opts?.where),
+      edgeUserAlias: opts?.edgeAs,
+    })
+
+    const newEdgeAliases = opts?.edgeAs
+      ? { ...this._edgeAliases, [opts.edgeAs]: edge }
+      : this._edgeAliases
+
+    // From an optional node, 'one' cardinality becomes optional (source might not exist)
+    if (cardinality === 'one') {
+      return new OptionalNodeBuilder(
+        newAst,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any
+    }
+    // For 'optional' and 'many', return CollectionBuilder for consistent array semantics
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any
   }
 
   /**
    * Traverse an edge in both directions.
    */
   via<E extends OutgoingEdges<S, N> & IncomingEdges<S, N>>(
-    _edge: E,
-    _options?: TraversalOptions<S, E>,
+    edge: E,
+    options?: TraversalOptions<S, E>,
   ): CollectionBuilder<S, EdgeTargetsFrom<S, E, N> | EdgeSourcesTo<S, E, N>, Aliases, EdgeAliases> {
-    throw new Error('Not implemented')
+    const edgeDef = this._schema.edges[edge]
+    const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
+    const fromLabels = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
+    const allLabels = [...new Set([...toLabels, ...fromLabels])]
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const opts = options as any
+
+    const newAst = this._ast.addTraversal({
+      edges: [edge as string],
+      direction: 'both',
+      toLabels: allLabels,
+      optional: false,
+      cardinality: 'many',
+      edgeWhere: buildEdgeWhere(opts?.where),
+    })
+
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
   // ===========================================================================
@@ -368,20 +460,43 @@ export class OptionalNodeBuilder<
    * Filter by property value.
    */
   where<K extends keyof NodeProps<S, N> & string>(
-    _field: K,
-    _operator: ComparisonOperator,
-    _value?: NodeProps<S, N>[K] | NodeProps<S, N>[K][],
+    field: K,
+    operator: ComparisonOperator,
+    value?: NodeProps<S, N>[K] | NodeProps<S, N>[K][],
   ): OptionalNodeBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error('Not implemented')
+    const condition: ComparisonCondition = {
+      type: 'comparison',
+      field,
+      operator,
+      value,
+      target: this._ast.currentAlias,
+    }
+    const newAst = this._ast.addWhere([condition])
+    return new OptionalNodeBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
   /**
    * Filter using complex conditions.
    */
   whereComplex(
-    _builder: (w: WhereBuilder<S, N>) => WhereCondition,
+    builder: (w: WhereBuilder<S, N>) => WhereCondition,
   ): OptionalNodeBuilder<S, N, Aliases, EdgeAliases> {
-    throw new Error('Not implemented')
+    const whereBuilder = createWhereBuilder<S, N>(this._ast.currentAlias)
+    const condition = builder(whereBuilder)
+    const newAst = this._ast.addWhere([condition])
+    return new OptionalNodeBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
   // ===========================================================================
@@ -445,6 +560,7 @@ export class OptionalNodeBuilder<
 
     return results.length > 0
   }
+
 }
 
 // ===========================================================================

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge, toSchema } from '../../src/schema'
+import { defineSchema, node, edge, toSchema } from '@astrale/typegraph-core'
 
 describe('toSchema', () => {
   describe('node serialization', () => {
@@ -78,7 +78,12 @@ describe('toSchema', () => {
               'email', // simple string
               { property: 'email', type: 'unique', name: 'user_email_unique' }, // single with name
               { properties: ['tenantId', 'email'], type: 'unique' }, // composite
-              { properties: ['tenantId', 'createdAt'], type: 'btree', order: { createdAt: 'DESC' }, name: 'tenant_created_idx' }, // composite with order and name
+              {
+                properties: ['tenantId', 'createdAt'],
+                type: 'btree',
+                order: { createdAt: 'DESC' },
+                name: 'tenant_created_idx',
+              }, // composite with order and name
             ],
           }),
         },
@@ -91,7 +96,12 @@ describe('toSchema', () => {
         'email',
         { property: 'email', type: 'unique', name: 'user_email_unique' },
         { properties: ['tenantId', 'email'], type: 'unique' },
-        { properties: ['tenantId', 'createdAt'], type: 'btree', order: { createdAt: 'DESC' }, name: 'tenant_created_idx' },
+        {
+          properties: ['tenantId', 'createdAt'],
+          type: 'btree',
+          order: { createdAt: 'DESC' },
+          name: 'tenant_created_idx',
+        },
       ])
     })
 
@@ -293,7 +303,9 @@ describe('toSchema', () => {
           user: node({
             properties: { email: z.string().email(), tenantId: z.string() },
             labels: ['entity'],
-            indexes: [{ properties: ['tenantId', 'email'], type: 'unique', order: { email: 'ASC' } }],
+            indexes: [
+              { properties: ['tenantId', 'email'], type: 'unique', order: { email: 'ASC' } },
+            ],
           }),
           entity: node({ properties: {} }),
         },

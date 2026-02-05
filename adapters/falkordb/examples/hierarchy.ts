@@ -6,8 +6,8 @@
  * TypeScript's limitations with complex conditional return types.
  */
 
-import { defineSchema, node, edge } from '@astrale/typegraph'
-import { createFalkorDBGraph, clearGraph } from '../src/index'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { falkordb, clearGraph } from '../src/index'
 import type { NodeProps } from '@astrale/typegraph'
 import { z } from 'zod'
 
@@ -42,7 +42,7 @@ async function main() {
   // Clear existing data
   await clearGraph(config)
 
-  const { graph, close } = await createFalkorDBGraph(schema, config)
+  const graph = await createGraph(schema, { adapter: falkordb(config) })
 
   // Create hierarchy
   const root = await graph.mutate.create('folder', { name: 'root' })
@@ -71,7 +71,7 @@ async function main() {
   const descendants = await graph.nodeById(root.id).descendants().execute()
   console.log('Root descendants:', descendants.length) // 3
 
-  await close()
+  await graph.close()
 }
 
 main().catch(console.error)

@@ -1,0 +1,15 @@
+services:
+  neo4j-test:
+    image: neo4j:2026.01.3
+    ports:
+      - '7688:7687'
+      - '7475:7474'
+    environment:
+      - NEO4J_AUTH=neo4j/testpassword
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:7474']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    tmpfs:
+      - /data:rw

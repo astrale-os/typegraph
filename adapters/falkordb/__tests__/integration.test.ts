@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { defineSchema, node, edge } from '@astrale/typegraph'
-import { createFalkorDBGraph, clearGraph } from '../src'
+import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph'
+import { falkordb, clearGraph } from '../src'
 import { z } from 'zod'
 import type { NodeProps } from '@astrale/typegraph'
 
@@ -44,19 +44,14 @@ describe('FalkorDB Adapter Integration', () => {
     },
   })
 
-  let graph: ReturnType<typeof createFalkorDBGraph<typeof schema>> extends Promise<infer T>
-    ? T['graph']
-    : never
-  let close: () => Promise<void>
+  let graph: Graph<typeof schema>
 
   beforeAll(async () => {
-    const instance = await createFalkorDBGraph(schema, config)
-    graph = instance.graph
-    close = instance.close
+    graph = await createGraph(schema, { adapter: falkordb(config) })
   })
 
   afterAll(async () => {
-    await close()
+    await graph.close()
   })
 
   beforeEach(async () => {
@@ -107,12 +102,11 @@ describe('FalkorDB Adapter Integration', () => {
     expect(users).toHaveLength(0)
   })
 
-  it('should verify health check', async () => {
-    const instance = await createFalkorDBGraph(schema, config)
-    const health = await instance.healthCheck()
-    expect(health.healthy).toBe(true)
-    expect(health.latencyMs).toBeGreaterThan(0)
-    await instance.close()
+  it('should verify connection status', async () => {
+    const testGraph = await createGraph(schema, { adapter: falkordb(config) })
+    const connected = await testGraph.isConnected()
+    expect(connected).toBe(true)
+    await testGraph.close()
   })
 
   it('should handle batch operations', async () => {

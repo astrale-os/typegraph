@@ -37,7 +37,7 @@ describe('Edge Cases', () => {
 
       // Edges should be empty object
       type Edges = Types['edges']
-      expectTypeOf<Edges>().toEqualTypeOf<{}>()
+      expectTypeOf<Edges>().toEqualTypeOf<Record<string, never>>()
 
       // Edge union should be never (union of zero types)
       type EdgeUnion = Types['edgeUnion']

@@ -7,40 +7,61 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-export async function startFalkorDB(): Promise<void> {
-  console.log('Starting FalkorDB test container...')
+let weStartedContainer = false
 
-  await execAsync('docker-compose -f __tests__/docker-compose.yml up -d', {
-    cwd: process.cwd(),
-  })
+async function isContainerRunning(): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync('docker-compose ps --format json', {
+      cwd: process.cwd(),
+    })
+    if (!stdout.trim()) return false
+    return stdout.includes('falkordb-test') && stdout.includes('running')
+  } catch {
+    return false
+  }
+}
 
-  // Wait for health check
-  let attempts = 0
-  while (attempts < 30) {
+async function waitForHealthy(maxAttempts = 30): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const { stdout } = await execAsync(
-        'docker-compose -f __tests__/docker-compose.yml ps --filter health=healthy',
-        { cwd: process.cwd() }
-      )
-      if (stdout.includes('healthy')) {
-        console.log('FalkorDB is ready!')
+      const { stdout } = await execAsync('docker-compose ps', { cwd: process.cwd() })
+      if (stdout.includes('(healthy)')) {
         return
       }
     } catch {
       // Ignore errors during health check
     }
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    attempts++
+  }
+  throw new Error('FalkorDB failed to become healthy within timeout')
+}
+
+export async function startFalkorDB(): Promise<void> {
+  const alreadyRunning = await isContainerRunning()
+
+  if (alreadyRunning) {
+    console.log('FalkorDB container already running, reusing...')
+    weStartedContainer = false
+    return
   }
 
-  throw new Error('FalkorDB failed to start within 30 seconds')
+  console.log('Starting FalkorDB test container...')
+  weStartedContainer = true
+
+  await execAsync('docker-compose up -d', { cwd: process.cwd() })
+  await waitForHealthy()
+
+  console.log('FalkorDB is ready!')
 }
 
 export async function stopFalkorDB(): Promise<void> {
+  if (!weStartedContainer) {
+    console.log('FalkorDB was already running before tests, leaving it up.')
+    return
+  }
+
   console.log('Stopping FalkorDB test container...')
-  await execAsync('docker-compose -f __tests__/docker-compose.yml down -v', {
-    cwd: process.cwd(),
-  })
+  await execAsync('docker-compose down -v', { cwd: process.cwd() })
 }
 
 // Global setup/teardown hooks

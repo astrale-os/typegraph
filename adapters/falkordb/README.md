@@ -22,8 +22,8 @@ pnpm add @astrale/typegraph-adapter-falkordb falkordb
 ## Quick Start
 
 ```typescript
-import { defineSchema, node, edge } from '@astrale/typegraph'
-import { createFalkorDBGraph } from '@astrale/typegraph-adapter-falkordb'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { falkordb } from '@astrale/typegraph-adapter-falkordb'
 import { z } from 'zod'
 
 const schema = defineSchema({
@@ -33,16 +33,18 @@ const schema = defineSchema({
   edges: {},
 })
 
-const { graph, close } = await createFalkorDBGraph(schema, {
-  host: 'localhost',
-  port: 6379,
-  graphName: 'my-graph',
+const graph = await createGraph(schema, {
+  adapter: falkordb({
+    host: 'localhost',
+    port: 6379,
+    graphName: 'my-graph',
+  }),
 })
 
 const user = await graph.mutate.create('user', { name: 'Alice' })
 console.log(user)
 
-await close()
+await graph.close()
 ```
 
 ## Configuration
@@ -113,9 +115,9 @@ pnpm test:perf
 
 ## API Reference
 
-### `createFalkorDBGraph(schema, config, options?)`
+### `falkordb(config)`
 
-Create a FalkorDB graph instance with type-safe API.
+Create a FalkorDB adapter for use with `createGraph()`.
 
 ### `clearGraph(config)`
 

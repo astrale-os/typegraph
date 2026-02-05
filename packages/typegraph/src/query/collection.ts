@@ -5,11 +5,13 @@
  */
 
 import { BaseBuilder, type QueryFragment } from './base'
-import type {
-  TraversalOptions,
-  ReachableOptions,
-  WhereBuilder,
-  HierarchyTraversalOptions,
+import {
+  buildEdgeWhere,
+  createWhereBuilder,
+  type TraversalOptions,
+  type ReachableOptions,
+  type WhereBuilder,
+  type HierarchyTraversalOptions,
 } from './traits'
 import * as shared from './shared'
 import type { QueryAST } from '@astrale/typegraph-core'
@@ -20,7 +22,6 @@ import type {
   ComparisonCondition,
   ExistsCondition,
   ConnectedToCondition,
-  EdgeWhereCondition,
 } from '@astrale/typegraph-core'
 import type {
   AnySchema,
@@ -48,7 +49,7 @@ import type {
 // Forward declarations
 import { GroupedBuilder } from './grouped'
 import { TypedReturningBuilder } from './typed-returning'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
 import { createQueryContext, parseReturnSpec, type AliasInfo, type EdgeAliasInfo } from './proxy'
@@ -403,7 +404,7 @@ export class CollectionBuilder<
       toLabels,
       optional: false,
       cardinality: edgeDef.cardinality.outbound,
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
       variableLength: opts?.depth
         ? { min: opts.depth.min ?? 1, max: opts.depth.max, uniqueness: 'nodes' }
@@ -439,7 +440,7 @@ export class CollectionBuilder<
       toLabels,
       optional: true,
       cardinality: 'optional',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -470,7 +471,7 @@ export class CollectionBuilder<
       toLabels: fromLabels,
       optional: false,
       cardinality: edgeDef.cardinality.inbound,
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
       edgeUserAlias: opts?.edgeAs,
     })
 
@@ -503,7 +504,7 @@ export class CollectionBuilder<
       toLabels: fromLabels,
       optional: true,
       cardinality: 'optional',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -531,7 +532,7 @@ export class CollectionBuilder<
       toLabels: allLabels,
       optional: false,
       cardinality: 'many',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -565,7 +566,7 @@ export class CollectionBuilder<
       toLabels: [...new Set(allLabels)],
       optional: false,
       cardinality: 'mixed',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -595,7 +596,7 @@ export class CollectionBuilder<
       toLabels: [...new Set(allLabels)],
       optional: false,
       cardinality: 'mixed',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -626,7 +627,7 @@ export class CollectionBuilder<
       toLabels: [...new Set(allLabels)],
       optional: false,
       cardinality: 'mixed',
-      edgeWhere: this.buildEdgeWhere(opts?.where),
+      edgeWhere: buildEdgeWhere(opts?.where),
     })
 
     return new CollectionBuilder(
@@ -791,7 +792,7 @@ export class CollectionBuilder<
   whereComplex(
     builder: (w: WhereBuilder<S, N>) => WhereCondition,
   ): CollectionBuilder<S, N, Aliases, EdgeAliases> {
-    const whereBuilder = this.createWhereBuilder()
+    const whereBuilder = createWhereBuilder<S, N>(this._ast.currentAlias)
     const condition = builder(whereBuilder)
     const newAst = this._ast.addWhere([condition])
     return new CollectionBuilder(
@@ -1216,64 +1217,6 @@ export class CollectionBuilder<
   // ===========================================================================
   // HELPERS
   // ===========================================================================
-
-  private buildEdgeWhere(where?: Record<string, unknown>): EdgeWhereCondition[] | undefined {
-    if (!where) return undefined
-
-    const conditions: EdgeWhereCondition[] = []
-    for (const [field, ops] of Object.entries(where)) {
-      if (typeof ops === 'object' && ops !== null) {
-        for (const [operator, value] of Object.entries(ops as Record<string, unknown>)) {
-          conditions.push({ field, operator: operator as ComparisonOperator, value })
-        }
-      }
-    }
-    return conditions.length > 0 ? conditions : undefined
-  }
-
-  private createWhereBuilder(): WhereBuilder<S, N> {
-    const target = this._ast.currentAlias
-    return {
-      eq: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'eq', value, target }) as ComparisonCondition,
-      neq: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'neq', value, target }) as ComparisonCondition,
-      gt: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'gt', value, target }) as ComparisonCondition,
-      gte: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'gte', value, target }) as ComparisonCondition,
-      lt: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'lt', value, target }) as ComparisonCondition,
-      lte: (field: string, value: unknown) =>
-        ({ type: 'comparison', field, operator: 'lte', value, target }) as ComparisonCondition,
-      in: (field: string, values: unknown[]) =>
-        ({
-          type: 'comparison',
-          field,
-          operator: 'in',
-          value: values,
-          target,
-        }) as ComparisonCondition,
-      and: (...conditions: WhereCondition[]) =>
-        ({
-          type: 'logical',
-          operator: 'AND',
-          conditions,
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-      or: (...conditions: WhereCondition[]) =>
-        ({
-          type: 'logical',
-          operator: 'OR',
-          conditions,
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-      not: (condition: WhereCondition) =>
-        ({
-          type: 'logical',
-          operator: 'NOT',
-          conditions: [condition],
-        }) as import('@astrale/typegraph-core').LogicalCondition,
-    } as WhereBuilder<S, N>
-  }
 
   private compileAst(ast: QueryAST) {
     const compiler = new CypherCompiler(this._schema)

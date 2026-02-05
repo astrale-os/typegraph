@@ -23,12 +23,7 @@ export function isFalkorNode(v: unknown): v is FalkorNode {
  * Relationships have id, relationshipType, and properties.
  */
 export function isFalkorRelationship(v: unknown): v is FalkorRelationship {
-  return (
-    v !== null &&
-    typeof v === 'object' &&
-    'relationshipType' in v &&
-    'properties' in v
-  )
+  return v !== null && typeof v === 'object' && 'relationshipType' in v && 'properties' in v
 }
 
 /**
@@ -68,10 +63,10 @@ export function convertValue(value: unknown, seen = new WeakMap()): unknown {
 
   // Objects: recursively convert values
   const result: Record<string, unknown> = {}
+  seen.set(value, result) // Register BEFORE recursion to handle circular references
   for (const [k, v] of Object.entries(value)) {
     result[k] = convertValue(v, seen)
   }
-  seen.set(value, result)
   return result
 }
 

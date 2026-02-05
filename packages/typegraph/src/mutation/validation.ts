@@ -11,6 +11,40 @@ import { getNodesSatisfying } from '@astrale/typegraph-core'
 import { ValidationError } from './errors'
 
 // =============================================================================
+// DATA TRANSFORMATION UTILITIES
+// =============================================================================
+
+/**
+ * Recursively remove undefined values from an object.
+ * FalkorDB rejects undefined values in properties.
+ */
+export function stripUndefined<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+/**
+ * Serialize Date objects to ISO strings for database storage.
+ * FalkorDB only supports primitive types.
+ */
+export function serializeDates<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value instanceof Date) {
+      result[key] = value.toISOString()
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+// =============================================================================
 // VALIDATION RESULT
 // =============================================================================
 
@@ -56,12 +90,12 @@ export class MutationValidator<S extends AnySchema> {
 
     const result = zodSchema.safeParse(data)
     if (!result.success) {
-      const firstError = result.error.errors[0]
+      const firstError = result.error.issues[0]
       throw new ValidationError(
         `Invalid ${label as string} data: ${firstError?.message ?? 'validation failed'}`,
         firstError?.path.join('.'),
         undefined,
-        firstError?.received,
+        firstError?.input,
       )
     }
   }
@@ -90,14 +124,94 @@ export class MutationValidator<S extends AnySchema> {
 
     const result = zodSchema.safeParse(data)
     if (!result.success) {
-      const firstError = result.error.errors[0]
+      const firstError = result.error.issues[0]
       throw new ValidationError(
         `Invalid ${edgeType as string} data: ${firstError?.message ?? 'validation failed'}`,
         firstError?.path.join('.'),
         undefined,
-        firstError?.received,
+        firstError?.input,
       )
     }
+  }
+
+  /**
+   * Validate, apply defaults, strip unknown fields, filter undefined, serialize dates.
+   * Returns data ready for database.
+   * @throws ValidationError if validation fails
+   */
+  parseAndPrepareNode<N extends NodeLabels<S>>(
+    label: N,
+    data: unknown,
+    partial = false,
+  ): Record<string, unknown> {
+    const nodeDef = this.schema.nodes[label as string]
+    if (!nodeDef) {
+      throw new ValidationError(
+        `Unknown node label: ${label as string}`,
+        'label',
+        'valid node label',
+        label,
+      )
+    }
+
+    const zodSchema = partial ? nodeDef.properties.partial() : nodeDef.properties
+    const result = zodSchema.safeParse(data)
+
+    if (!result.success) {
+      // Zod v4 uses .issues instead of .errors
+      const firstError = result.error.issues[0]
+      throw new ValidationError(
+        `Invalid ${label as string} data: ${firstError?.message ?? 'validation failed'}`,
+        firstError?.path.join('.'),
+        undefined,
+        firstError?.input,
+      )
+    }
+
+    // Apply transformations: strip undefined (dates serialized in impl.ts before DB write)
+    return stripUndefined(result.data as Record<string, unknown>)
+  }
+
+  /**
+   * Validate, apply defaults, strip unknown fields, filter undefined for edge data.
+   * Returns validated data, or undefined if no data provided.
+   * @throws ValidationError if validation fails
+   */
+  parseAndPrepareEdge<E extends EdgeTypes<S>>(
+    edgeType: E,
+    data: unknown,
+    partial = false,
+  ): Record<string, unknown> | undefined {
+    // Edge properties are optional by default
+    if (data === undefined || data === null) {
+      return undefined
+    }
+
+    const edgeDef = this.schema.edges[edgeType as string]
+    if (!edgeDef) {
+      throw new ValidationError(
+        `Unknown edge type: ${edgeType as string}`,
+        'edgeType',
+        'valid edge type',
+        edgeType,
+      )
+    }
+
+    const zodSchema = partial ? edgeDef.properties.partial() : edgeDef.properties
+    const result = zodSchema.safeParse(data)
+
+    if (!result.success) {
+      const firstError = result.error.issues[0]
+      throw new ValidationError(
+        `Invalid ${edgeType as string} data: ${firstError?.message ?? 'validation failed'}`,
+        firstError?.path.join('.'),
+        undefined,
+        firstError?.input,
+      )
+    }
+
+    // Apply transformations: strip undefined (dates serialized in impl.ts before DB write)
+    return stripUndefined(result.data as Record<string, unknown>)
   }
 
   /**

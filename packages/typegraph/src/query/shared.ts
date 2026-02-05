@@ -37,6 +37,40 @@ export function parseHierarchyArgs<S extends AnySchema>(
   return [undefined, edgeOrOptions as HierarchyTraversalOptions | undefined]
 }
 
+/**
+ * Derive the target node label for a hierarchy operation.
+ * This determines which node type to match at the end of the traversal.
+ *
+ * For 'up' direction (child → parent edges like hasParent):
+ *   - ancestors/parent/root: follow outgoing edges, target is edge.to
+ *   - descendants/children: follow incoming edges, target is edge.from
+ *
+ * For 'down' direction (parent → child edges like contains):
+ *   - ancestors/parent/root: follow incoming edges, target is edge.from
+ *   - descendants/children: follow outgoing edges, target is edge.to
+ */
+export function deriveHierarchyTargetLabel<S extends AnySchema>(
+  schema: S,
+  edgeName: string,
+  operation: 'ancestors' | 'descendants' | 'siblings' | 'root' | 'parent' | 'children',
+  direction: 'up' | 'down',
+): string | undefined {
+  const edgeDef = (schema.edges as Record<string, { from?: string | string[]; to?: string | string[] }>)[edgeName]
+  if (!edgeDef) return undefined
+
+  // Determine if we're following outgoing or incoming edges
+  const followsOutgoing =
+    direction === 'up'
+      ? operation === 'ancestors' || operation === 'parent' || operation === 'root'
+      : operation === 'descendants' || operation === 'children'
+
+  // Get the appropriate endpoint
+  const endpoint = followsOutgoing ? edgeDef.to : edgeDef.from
+
+  // Handle array endpoints (return first, which is the primary type)
+  return Array.isArray(endpoint) ? endpoint[0] : endpoint
+}
+
 // =============================================================================
 // HIERARCHY OPERATIONS
 // =============================================================================
@@ -50,6 +84,7 @@ export function addAncestors<S extends AnySchema>(
   const [edge, opts] = parseHierarchyArgs(edgeOrOptions, options)
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'ancestors', direction)
 
   return ast.addHierarchy({
     operation: 'ancestors',
@@ -60,6 +95,7 @@ export function addAncestors<S extends AnySchema>(
     includeDepth: opts?.includeDepth,
     depthAlias: opts?.depthAlias,
     untilKind: opts?.untilKind,
+    targetLabel,
   })
 }
 
@@ -72,6 +108,7 @@ export function addSelfAndAncestors<S extends AnySchema>(
   const [edge, opts] = parseHierarchyArgs(edgeOrOptions, options)
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'ancestors', direction)
 
   return ast.addHierarchy({
     operation: 'ancestors',
@@ -83,6 +120,7 @@ export function addSelfAndAncestors<S extends AnySchema>(
     depthAlias: opts?.depthAlias ?? '_depth',
     includeSelf: true,
     untilKind: opts?.untilKind,
+    targetLabel,
   })
 }
 
@@ -95,6 +133,7 @@ export function addDescendants<S extends AnySchema>(
   const [edge, opts] = parseHierarchyArgs(edgeOrOptions, options)
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'descendants', direction)
 
   // Pass the actual schema direction - the compiler handles the traversal logic
   return ast.addHierarchy({
@@ -105,6 +144,7 @@ export function addDescendants<S extends AnySchema>(
     maxDepth: opts?.maxDepth,
     includeDepth: opts?.includeDepth,
     depthAlias: opts?.depthAlias,
+    targetLabel,
   })
 }
 
@@ -115,11 +155,13 @@ export function addSiblings<S extends AnySchema>(
 ): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'siblings', direction)
 
   return ast.addHierarchy({
     operation: 'siblings',
     edge: resolvedEdge,
     hierarchyDirection: direction,
+    targetLabel,
   })
 }
 
@@ -130,12 +172,14 @@ export function addChildren<S extends AnySchema>(
 ): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'children', direction)
 
   // Pass the actual schema direction - the compiler handles the traversal logic
   return ast.addHierarchy({
     operation: 'children',
     edge: resolvedEdge,
     hierarchyDirection: direction,
+    targetLabel,
   })
 }
 
@@ -146,11 +190,13 @@ export function addRoot<S extends AnySchema>(
 ): QueryAST {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'root', direction)
 
   return ast.addHierarchy({
     operation: 'root',
     edge: resolvedEdge,
     hierarchyDirection: direction,
+    targetLabel,
   })
 }
 
@@ -161,11 +207,13 @@ export function addParent<S extends AnySchema>(
 ): { ast: QueryAST; cardinality: 'one' | 'optional' | 'many' } {
   const resolvedEdge = resolveHierarchyEdge(schema, edge)
   const direction = getHierarchyDirection(schema)
+  const targetLabel = deriveHierarchyTargetLabel(schema, resolvedEdge, 'parent', direction)
 
   const newAst = ast.addHierarchy({
     operation: 'parent',
     edge: resolvedEdge,
     hierarchyDirection: direction,
+    targetLabel,
   })
 
   const edgeDef = (

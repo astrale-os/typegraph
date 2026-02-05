@@ -16,7 +16,7 @@ import type {
   EdgeAliasMap,
   EdgeAliasMapToReturnType,
 } from '@astrale/typegraph-core'
-import type { QueryExecutor } from './entry'
+import type { QueryExecutor } from './types'
 import { transformMultiAliasResults } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
 

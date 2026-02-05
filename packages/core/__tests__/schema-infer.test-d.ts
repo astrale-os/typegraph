@@ -244,7 +244,7 @@ describe('Infer<S> - Basic Type Extraction', () => {
 
     // Likes edge has no properties
     type LikesProps = Types['edgesProps']['likes']
-    expectTypeOf<LikesProps>().toEqualTypeOf<{}>()
+    expectTypeOf<LikesProps>().toEqualTypeOf<Record<string, never>>()
   })
 })
 
@@ -492,7 +492,7 @@ describe('Infer<S> - Edge Cases', () => {
 
     // Edges should be empty object
     type Edges = Types['edges']
-    expectTypeOf<Edges>().toEqualTypeOf<{}>()
+    expectTypeOf<Edges>().toEqualTypeOf<Record<string, never>>()
 
     // Edge union should be never
     type EdgeUnion = Types['edgeUnion']
@@ -523,7 +523,7 @@ describe('Infer<S> - Edge Cases', () => {
 
     // Properties should be empty object
     type MarkerProps = Types['nodesProps']['marker']
-    expectTypeOf<MarkerProps>().toEqualTypeOf<{}>()
+    expectTypeOf<MarkerProps>().toEqualTypeOf<Record<string, never>>()
   })
 
   it('should handle edges with no user properties', () => {
@@ -550,7 +550,7 @@ describe('Infer<S> - Edge Cases', () => {
 
     // Properties should be empty object
     type FollowsProps = Types['edgesProps']['follows']
-    expectTypeOf<FollowsProps>().toEqualTypeOf<{}>()
+    expectTypeOf<FollowsProps>().toEqualTypeOf<Record<string, never>>()
   })
 })
 

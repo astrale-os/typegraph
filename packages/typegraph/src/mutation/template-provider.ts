@@ -39,13 +39,20 @@ export interface NodeTemplateProvider {
 }
 
 export interface EdgeTemplateProvider {
-  create(edgeType: string): string
-  createNoProps(edgeType: string): string
-  update(edgeType: string): string
+  /** Create edge with properties. Labels enable efficient node lookup. */
+  create(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  /** Create edge without properties. Labels enable efficient node lookup. */
+  createNoProps(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  /** Update edge by endpoints. Labels enable efficient node lookup. */
+  update(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  /** Update edge by edge ID (no node labels needed). */
   updateById(edgeType: string): string
-  deleteByEndpoints(edgeType: string): string
+  /** Delete edge by endpoints. Labels enable efficient node lookup. */
+  deleteByEndpoints(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  /** Delete edge by edge ID (no node labels needed). */
   deleteById(edgeType: string): string
-  exists(edgeType: string): string
+  /** Check if edge exists between endpoints. Labels enable efficient node lookup. */
+  exists(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
 }
 
 export interface HierarchyTemplateProvider {
@@ -65,11 +72,11 @@ export interface BatchTemplateProvider {
   createMany(labels: string[]): string
   updateMany(labels: string[]): string
   deleteMany(labels: string[]): string
-  // Edge batch operations
-  linkMany(edgeType: string): string
-  unlinkMany(edgeType: string): string
-  unlinkAllFrom(edgeType: string): string
-  unlinkAllTo(edgeType: string): string
+  // Edge batch operations - labels enable efficient node lookup
+  linkMany(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  unlinkMany(edgeType: string, fromLabels?: string[], toLabels?: string[]): string
+  unlinkAllFrom(edgeType: string, fromLabels?: string[]): string
+  unlinkAllTo(edgeType: string, toLabels?: string[]): string
 }
 
 export interface TemplateUtils {
