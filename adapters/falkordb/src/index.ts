@@ -31,6 +31,9 @@ import { validateGraphName } from './errors'
 export type { FalkorDBConfig, FalkorNode, FalkorRelationship } from './types'
 export { FalkorDBAdapter }
 
+// Re-export transform utilities (useful for custom adapters)
+export { transformResults, convertValue, isFalkorNode, isFalkorRelationship } from './transform'
+
 /**
  * Create a FalkorDB adapter.
  *

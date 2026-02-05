@@ -15,7 +15,7 @@ import {
 } from './traits'
 import * as shared from './shared'
 import type { QueryAST } from '@astrale/typegraph-core'
-import { CypherCompiler } from '../compiler'
+import { getCompiler } from '../compiler'
 import type {
   ComparisonOperator,
   WhereCondition,
@@ -1219,8 +1219,7 @@ export class CollectionBuilder<
   // ===========================================================================
 
   private compileAst(ast: QueryAST) {
-    const compiler = new CypherCompiler(this._schema)
-    return compiler.compile(ast)
+    return getCompiler(this._schema).compile(ast)
   }
 }
 

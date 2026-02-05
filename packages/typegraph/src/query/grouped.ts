@@ -7,7 +7,7 @@
 
 import type { QueryAST, ComparisonOperator } from '@astrale/typegraph-core'
 import type { CompiledQuery } from '../compiler'
-import { CypherCompiler } from '../compiler'
+import { getCompiler } from '../compiler'
 import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
 import type { QueryExecutor } from './types'
 import { ExecutionError } from '@astrale/typegraph-core'
@@ -198,7 +198,7 @@ export class GroupedBuilder<
   }
 
   compile(): CompiledQuery {
-    const compiler = new CypherCompiler(this._schema)
+    const compiler = getCompiler(this._schema)
 
     // Build the AST with aggregation
     let finalAst = this._ast.addAggregate({

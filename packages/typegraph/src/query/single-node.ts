@@ -63,12 +63,7 @@ import { TypedReturningBuilder } from './typed-returning'
 import type { QueryExecutor } from './types'
 import { extractNodeFromRecord } from '../utils'
 import { CardinalityError, ExecutionError } from '@astrale/typegraph-core'
-import {
-  createQueryContext,
-  parseReturnSpec,
-  type AliasInfo,
-  type EdgeAliasInfo,
-} from './proxy'
+import { createQueryContext, parseReturnSpec, type AliasInfo, type EdgeAliasInfo } from './proxy'
 
 /**
  * Builder for queries that return exactly one node.
@@ -1083,7 +1078,6 @@ export class SingleNodeBuilder<
 
     return results.length > 0
   }
-
 }
 
 // ===========================================================================

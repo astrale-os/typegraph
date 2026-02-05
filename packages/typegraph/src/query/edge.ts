@@ -6,7 +6,7 @@
 
 import { type CollectionBuilder } from './collection'
 import { type QueryAST } from '@astrale/typegraph-core'
-import { CypherCompiler } from '../compiler'
+import { getCompiler } from '../compiler'
 import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
 import type {
   AnySchema,
@@ -232,8 +232,7 @@ export class EdgeBuilder<
   // ===========================================================================
 
   compile(): import('../compiler').CompiledQuery {
-    const compiler = new CypherCompiler(this._schema)
-    return compiler.compile(this._ast)
+    return getCompiler(this._schema).compile(this._ast)
   }
 
   toCypher(): string {

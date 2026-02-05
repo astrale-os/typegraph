@@ -10,6 +10,9 @@ export type { QueryCompilerProvider, QueryCompilerFactory } from './provider'
 // Cypher compiler (default)
 export { CypherCompiler, createCypherCompiler } from './cypher'
 
+// Compiler cache
+export { getCompiler } from './cache'
+
 // Optimizer
 export { QueryOptimizer } from './optimizer'
 

@@ -49,6 +49,9 @@ import type {
   IdGenerator,
   MutationTemplateProvider,
   MutationExecutor,
+  MutationHooks,
+  ValidationOptions,
+  DryRunOptions,
 } from './mutation'
 import { GraphMutationsImpl } from './mutation'
 import type { CollectionBuilder } from './query/collection'
@@ -59,13 +62,19 @@ import type { PathBuilder } from './query/path'
 /**
  * Options for creating a graph instance.
  */
-export interface GraphOptions {
+export interface GraphOptions<S extends AnySchema = AnySchema> {
   /** Database adapter (neo4j, falkordb, memgraph, etc.) */
   adapter: GraphAdapter
   /** Custom ID generator for mutations */
   idGenerator?: IdGenerator
   /** Custom mutation template provider (defaults to Cypher) */
   mutationTemplates?: MutationTemplateProvider
+  /** Mutation lifecycle hooks (beforeCreate, afterCreate, etc.) */
+  hooks?: MutationHooks<S>
+  /** Mutation validation options */
+  validation?: ValidationOptions
+  /** Dry-run mode - generates queries without executing */
+  dryRun?: boolean | DryRunOptions
 }
 
 /**
@@ -173,14 +182,12 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   private readonly _adapter: GraphAdapter
   private readonly _query: GraphQuery<S>
   private readonly _mutate: GraphMutations<S>
-  private readonly _idGenerator?: IdGenerator
-  private readonly _mutationTemplates?: MutationTemplateProvider
+  private readonly _options: GraphOptions<S>
 
-  constructor(schema: S, options: GraphOptions) {
+  constructor(schema: S, options: GraphOptions<S>) {
     this._schema = schema
     this._adapter = options.adapter
-    this._idGenerator = options.idGenerator
-    this._mutationTemplates = options.mutationTemplates
+    this._options = options
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
@@ -191,6 +198,9 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
     this._mutate = new GraphMutationsImpl(schema, mutationExecutor, {
       idGenerator: options.idGenerator,
       templates: options.mutationTemplates,
+      hooks: options.hooks,
+      validation: options.validation,
+      dryRun: options.dryRun,
     })
   }
 
@@ -318,10 +328,12 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
         },
       }
 
-      // Create transaction-scoped mutations
+      // Create transaction-scoped mutations (inherits hooks/validation from graph)
       const txMutate = new GraphMutationsImpl(this._schema, txMutationExecutor, {
-        idGenerator: this._idGenerator,
-        templates: this._mutationTemplates,
+        idGenerator: this._options.idGenerator,
+        templates: this._options.mutationTemplates,
+        hooks: this._options.hooks,
+        validation: this._options.validation,
       }) as unknown as MutationTransaction<S>
 
       const scope: TransactionScope<S> = {
@@ -404,7 +416,7 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
  */
 export async function createGraph<S extends AnySchema>(
   schema: S,
-  options: GraphOptions,
+  options: GraphOptions<S>,
 ): Promise<Graph<S>> {
   // Connect eagerly (fail fast)
   await options.adapter.connect()

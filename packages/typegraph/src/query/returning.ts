@@ -8,7 +8,7 @@
 
 import type { QueryAST } from '@astrale/typegraph-core'
 import type { CompiledQuery } from '../compiler'
-import { CypherCompiler } from '../compiler'
+import { getCompiler } from '../compiler'
 import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
 import type {
   AliasMap,
@@ -153,8 +153,7 @@ export class ReturningBuilder<
   }
 
   compile(): CompiledQuery {
-    const compiler = new CypherCompiler(this._schema)
-    return compiler.compile(this._ast)
+    return getCompiler(this._schema).compile(this._ast)
   }
 
   toCypher(): string {
