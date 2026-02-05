@@ -5,6 +5,9 @@
  * Used by all query builders to transform query results.
  */
 
+import type { AnySchema } from '@astrale/typegraph-core'
+import { deserializeDateFields } from './dates'
+
 /**
  * Neo4j Integer type (has toNumber method)
  */
@@ -166,12 +169,22 @@ export function extractValue(data: unknown): unknown {
  * @param record - A single record from query results
  * @returns Extracted and converted node properties
  */
-export function extractNodeFromRecord(record: Record<string, unknown>): Record<string, unknown> {
+export function extractNodeFromRecord(
+  record: Record<string, unknown>,
+  schema?: AnySchema,
+  label?: string,
+): Record<string, unknown> {
   const keys = Object.keys(record)
   if (keys.length === 0) return {}
 
   const nodeData = record[keys[0]!]
-  return extractProperties(nodeData)
+  const props = extractProperties(nodeData)
+
+  if (schema && label) {
+    return deserializeDateFields(schema, label, props)
+  }
+
+  return props
 }
 
 /**

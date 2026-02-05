@@ -102,6 +102,31 @@ describe('Query Execution', () => {
       expect(result[0]!.createdAt).toBeInstanceOf(Date)
     })
 
+    it('should deserialize ISO string dates from FalkorDB-style results', async () => {
+      const iso = '2024-01-15T10:30:00.000Z'
+      const mockResults = [
+        {
+          n0: {
+            properties: {
+              id: 'u1',
+              email: 'test@test.com',
+              name: 'Test',
+              status: 'active',
+              createdAt: iso,
+            },
+          },
+        },
+      ]
+
+      vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
+
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
+      const result = await graph.node('user').execute()
+
+      expect(result[0]!.createdAt).toBeInstanceOf(Date)
+      expect(result[0]!.createdAt.toISOString()).toBe(iso)
+    })
+
     it('should handle plain objects (not Neo4j nodes)', async () => {
       const mockResults = [
         { n0: { id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' } },
@@ -159,6 +184,31 @@ describe('Query Execution', () => {
       expect(result).toEqual({ id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' })
     })
 
+    it('should deserialize ISO string dates for single node', async () => {
+      const iso = '2024-01-15T10:30:00.000Z'
+      const mockResults = [
+        {
+          n0: {
+            properties: {
+              id: 'u1',
+              email: 'test@test.com',
+              name: 'Test',
+              status: 'active',
+              createdAt: iso,
+            },
+          },
+        },
+      ]
+
+      vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
+
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
+      const result = await graph.node('user').byId('u1').execute()
+
+      expect(result.createdAt).toBeInstanceOf(Date)
+      expect(result.createdAt.toISOString()).toBe(iso)
+    })
+
     it('should throw CardinalityError when no results', async () => {
       vi.mocked(mockExecutor.run).mockResolvedValue([])
 
@@ -200,6 +250,30 @@ describe('Query Execution', () => {
       const result = await graph.node('user').byId('u1').executeOrNull()
 
       expect(result).toEqual({ id: 'u1', email: 'a@test.com', name: 'Alice', status: 'active' })
+    })
+
+    it('should deserialize ISO string dates for executeOrNull', async () => {
+      const iso = '2024-01-15T10:30:00.000Z'
+      const mockResults = [
+        {
+          n0: {
+            properties: {
+              id: 'u1',
+              email: 'test@test.com',
+              name: 'Test',
+              status: 'active',
+              createdAt: iso,
+            },
+          },
+        },
+      ]
+
+      vi.mocked(mockExecutor.run).mockResolvedValue(mockResults)
+
+      const graph = new GraphQueryImpl(testSchema, mockExecutor)
+      const result = await graph.node('user').byId('u1').executeOrNull()
+
+      expect(result!.createdAt).toBeInstanceOf(Date)
     })
 
     it('should return null when not found', async () => {

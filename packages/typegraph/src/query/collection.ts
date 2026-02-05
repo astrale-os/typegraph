@@ -1180,8 +1180,10 @@ export class CollectionBuilder<
       this._ast,
     )
 
-    // Transform results - extract node properties from Neo4j Node objects
-    return results.map((record) => extractNodeFromRecord(record) as NodeProps<S, N>)
+    // Transform results - extract node properties and deserialize date fields
+    return results.map((record) =>
+      extractNodeFromRecord(record, this._schema, this.currentLabel as string) as NodeProps<S, N>,
+    )
   }
 
   async executeWithMeta(): Promise<{

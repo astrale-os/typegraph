@@ -543,7 +543,7 @@ export class OptionalNodeBuilder<
       return null
     }
 
-    return extractNodeFromRecord(results[0]!) as NodeProps<S, N>
+    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
   }
 
   async exists(): Promise<boolean> {

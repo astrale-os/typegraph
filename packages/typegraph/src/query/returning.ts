@@ -100,6 +100,10 @@ export class ReturningBuilder<
     return this._ast
   }
 
+  get schema(): S {
+    return this._schema
+  }
+
   get aliases(): Aliases {
     return this._aliases
   }

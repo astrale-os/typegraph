@@ -46,6 +46,7 @@ import {
   EdgeNotFoundError,
   HasRelationshipsError,
 } from './errors'
+import { deserializeDateFields } from '../utils/dates'
 
 // =============================================================================
 // SHARED UTILITIES
@@ -1078,56 +1079,13 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
   /**
    * Deserialize date fields from ISO strings back to Date objects.
-   * Uses schema to identify which fields should be Date types.
+   * Delegates to shared utility.
    */
   private deserializeDates<N extends NodeLabels<S>>(
     label: N,
     data: Record<string, unknown>,
   ): Record<string, unknown> {
-    const nodeDef = this.schema.nodes[label as string]
-    if (!nodeDef) return data
-
-    const result = { ...data }
-    const shape = nodeDef.properties.shape
-
-    for (const [key, fieldSchema] of Object.entries(shape)) {
-      if (result[key] && typeof result[key] === 'string') {
-        if (this.isDateSchema(fieldSchema)) {
-          result[key] = new Date(result[key] as string)
-        }
-      }
-    }
-    return result
-  }
-
-  /**
-   * Check if a Zod schema represents a Date type.
-   * Handles optional and default wrappers.
-   * Supports both Zod v3 (typeName) and Zod v4 (type) structures.
-   */
-  private isDateSchema(schema: unknown): boolean {
-    const s = schema as {
-      _def?: { typeName?: string; type?: string; innerType?: unknown }
-      type?: string
-      def?: { type?: string }
-    }
-
-    // Zod v3 style
-    const typeName = s._def?.typeName
-    if (typeName === 'ZodDate') return true
-    if (typeName === 'ZodOptional' || typeName === 'ZodDefault') {
-      return this.isDateSchema(s._def?.innerType)
-    }
-
-    // Zod v4 style
-    const type = s._def?.type ?? s.type ?? s.def?.type
-    if (type === 'date') return true
-    if (type === 'optional' || type === 'default') {
-      const inner = s._def?.innerType
-      if (inner) return this.isDateSchema(inner)
-    }
-
-    return false
+    return deserializeDateFields(this.schema, label as string, data)
   }
 }
 

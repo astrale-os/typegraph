@@ -1042,7 +1042,7 @@ export class SingleNodeBuilder<
       throw new CardinalityError('one', results.length)
     }
 
-    return extractNodeFromRecord(results[0]!) as NodeProps<S, N>
+    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
   }
 
   async executeOrNull(): Promise<NodeProps<S, N> | null> {
@@ -1061,7 +1061,7 @@ export class SingleNodeBuilder<
       return null
     }
 
-    return extractNodeFromRecord(results[0]!) as NodeProps<S, N>
+    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
   }
 
   async exists(): Promise<boolean> {
