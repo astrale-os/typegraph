@@ -9,6 +9,7 @@ export type { GraphQuery, QueryExecutor } from './types'
 export { GraphQueryImpl } from './impl'
 
 // Builders
+export { NodeQueryBuilder } from './node-query-builder'
 export { SingleNodeBuilder } from './single-node'
 export { CollectionBuilder } from './collection'
 export { OptionalNodeBuilder } from './optional-node'

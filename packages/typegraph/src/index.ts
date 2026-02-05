@@ -87,6 +87,7 @@ export { GraphQueryImpl, EdgeBuilder, EdgeWithEndpointsBuilder, PathBuilder } fr
 
 // Query builder types
 export type {
+  NodeQueryBuilder,
   SingleNodeBuilder,
   CollectionBuilder,
   OptionalNodeBuilder,

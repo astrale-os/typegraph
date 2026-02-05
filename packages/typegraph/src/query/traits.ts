@@ -1,11 +1,9 @@
 /**
  * Shared Builder Traits
  *
- * Composable behaviors shared across builder types.
- * Uses TypeScript mixins to avoid code duplication.
+ * Type definitions and utilities shared across builder types.
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
 import type {
   ComparisonOperator,
   WhereCondition,
@@ -18,33 +16,6 @@ import type {
   EdgeTypes,
   EdgeProps,
 } from '@astrale/typegraph-core'
-import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
-
-// =============================================================================
-// CONSTRUCTOR TYPE FOR MIXINS
-// =============================================================================
-
-/**
- * Generic constructor type for mixin application.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Constructor<T = object> = new (...args: any[]) => T
-
-/**
- * Base interface that all builders must implement.
- */
-export interface BuilderCore<
-  S extends AnySchema,
-  N extends NodeLabels<S>,
-  Aliases extends AliasMap<S> = Record<string, never>,
-  EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
-> {
-  readonly _ast: QueryAST
-  readonly _schema: S
-  readonly _aliases: Aliases
-  readonly _edgeAliases: EdgeAliases
-  readonly currentLabel: N
-}
 
 // =============================================================================
 // EDGE FILTER OPTIONS

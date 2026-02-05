@@ -1,8 +1,8 @@
 /**
- * Shared Builder Implementation
+ * Hierarchy & Reachable Operations
  *
- * Contains shared logic that all builders delegate to.
- * This avoids code duplication while keeping types simple.
+ * Pure functions for hierarchy traversal (ancestors, descendants, siblings,
+ * children, root, parent) and transitive closure (reachable) operations.
  */
 
 import type { QueryAST } from '@astrale/typegraph-core'
