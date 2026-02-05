@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
+import { CypherTemplates } from '../../src/mutation/cypher/templates'
 
 describe('Mutation Specification', () => {
   // ===========================================================================
@@ -50,6 +51,111 @@ describe('Mutation Specification', () => {
 
         expect(result.id).toBe('user_123')
         expect(result.data.name).toBe('John')
+      })
+    })
+
+    describe('create() with link option', () => {
+      it('generates atomic create+link query for single link', () => {
+        const query = CypherTemplates.node.createWithLinks(['Module'], [
+          { edgeType: 'ofType', targetAlias: 't0' },
+        ])
+
+        expect(query).toContain('MATCH (t0 {id: $t0Id})')
+        expect(query).toContain('CREATE (n:Module)')
+        expect(query).toContain('SET n = $props, n.id = $id')
+        expect(query).toContain('CREATE (n)-[:ofType]->(t0)')
+        expect(query).toContain('RETURN n')
+      })
+
+      it('generates atomic create+link query for multiple links', () => {
+        const query = CypherTemplates.node.createWithLinks(['Module'], [
+          { edgeType: 'ofType', targetAlias: 't0' },
+          { edgeType: 'hasParent', targetAlias: 't1' },
+        ])
+
+        expect(query).toContain('MATCH (t0 {id: $t0Id})')
+        expect(query).toContain('MATCH (t1 {id: $t1Id})')
+        expect(query).toContain('CREATE (n)-[:ofType]->(t0)')
+        expect(query).toContain('CREATE (n)-[:hasParent]->(t1)')
+      })
+
+      it('generates self-link without MATCH', () => {
+        const query = CypherTemplates.node.createWithLinks(['Type'], [
+          { edgeType: 'ofType', targetAlias: 'n' },
+        ])
+
+        expect(query).not.toContain('MATCH')
+        expect(query).toContain('CREATE (n:Type)')
+        expect(query).toContain('SET n = $props, n.id = $id')
+        expect(query).toContain('CREATE (n)-[:ofType]->(n)')
+      })
+
+      it('handles mix of self-link and external link', () => {
+        const query = CypherTemplates.node.createWithLinks(['Type'], [
+          { edgeType: 'ofType', targetAlias: 'n' },
+          { edgeType: 'hasParent', targetAlias: 't0' },
+        ])
+
+        expect(query).toContain('MATCH (t0 {id: $t0Id})')
+        expect(query).toContain('CREATE (n)-[:ofType]->(n)')
+        expect(query).toContain('CREATE (n)-[:hasParent]->(t0)')
+      })
+
+      it('composes additionalLabels with links', () => {
+        const query = CypherTemplates.node.createWithLinks(['Module', 'Identity'], [
+          { edgeType: 'ofType', targetAlias: 't0' },
+        ])
+
+        expect(query).toContain('CREATE (n:Module:Identity)')
+        expect(query).toContain('MATCH (t0 {id: $t0Id})')
+        expect(query).toContain('CREATE (n)-[:ofType]->(t0)')
+      })
+
+      it('generates clauses in correct order: MATCH, CREATE node, SET, CREATE edges, RETURN', () => {
+        const query = CypherTemplates.node.createWithLinks(['Module'], [
+          { edgeType: 'ofType', targetAlias: 't0' },
+        ])
+
+        const matchIdx = query.indexOf('MATCH')
+        const createNodeIdx = query.indexOf('CREATE (n:Module)')
+        const setIdx = query.indexOf('SET')
+        const createEdgeIdx = query.indexOf('CREATE (n)-[:ofType]')
+        const returnIdx = query.indexOf('RETURN')
+
+        expect(matchIdx).toBeGreaterThanOrEqual(0)
+        expect(matchIdx).toBeLessThan(createNodeIdx)
+        expect(createNodeIdx).toBeLessThan(setIdx)
+        expect(setIdx).toBeLessThan(createEdgeIdx)
+        expect(createEdgeIdx).toBeLessThan(returnIdx)
+      })
+
+      it('rejects invalid edge type names via sanitizeIdentifier', () => {
+        expect(() =>
+          CypherTemplates.utils.sanitizeIdentifier('ofType]->(x) DELETE x//'),
+        ).toThrow('Invalid identifier')
+
+        expect(() =>
+          CypherTemplates.utils.sanitizeIdentifier(''),
+        ).toThrow('Invalid identifier')
+
+        expect(() =>
+          CypherTemplates.utils.sanitizeIdentifier('valid_edge_type'),
+        ).not.toThrow()
+      })
+
+      it('produces equivalent output to create() when links array is empty', () => {
+        const withLinks = CypherTemplates.node.createWithLinks(['Module'], [])
+        const plain = CypherTemplates.node.create(['Module'])
+
+        // Both should produce the same core structure (CREATE, SET, RETURN)
+        expect(withLinks).toContain('CREATE (n:Module)')
+        expect(withLinks).toContain('SET n = $props, n.id = $id')
+        expect(withLinks).toContain('RETURN n')
+        expect(withLinks).not.toContain('MATCH')
+        // Same as plain create
+        expect(plain).toContain('CREATE (n:Module)')
+        expect(plain).toContain('SET n = $props, n.id = $id')
+        expect(plain).toContain('RETURN n')
       })
     })
 

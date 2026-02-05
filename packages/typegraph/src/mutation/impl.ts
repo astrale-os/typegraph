@@ -194,8 +194,37 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     // Prepare final data for DB: strip undefined and serialize dates
     const dbReadyData = serializeDates(stripUndefined(hookData as Record<string, unknown>))
 
-    const query = this.templates.node.create(safeLabels)
-    const params = this.buildParams({ id, props: dbReadyData })
+    // Build query — with or without inline links
+    let query: string
+    let params: Record<string, unknown>
+
+    if (options?.link && Object.keys(options.link).length > 0) {
+      const links: Array<{ edgeType: string; targetAlias: string }> = []
+      const linkParams: Record<string, unknown> = {}
+      let targetIndex = 0
+
+      for (const [edgeType, targetId] of Object.entries(options.link)) {
+        if (targetId == null || targetId === '') {
+          throw new Error(
+            `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
+          )
+        }
+        const safeEdgeType = this.sanitize(edgeType)
+        if (targetId === 'self') {
+          links.push({ edgeType: safeEdgeType, targetAlias: 'n' })
+        } else {
+          const alias = `t${targetIndex++}`
+          links.push({ edgeType: safeEdgeType, targetAlias: alias })
+          linkParams[`${alias}Id`] = targetId
+        }
+      }
+
+      query = this.templates.node.createWithLinks(safeLabels, links)
+      params = this.buildParams({ id, props: dbReadyData, ...linkParams })
+    } else {
+      query = this.templates.node.create(safeLabels)
+      params = this.buildParams({ id, props: dbReadyData })
+    }
 
     // Dry-run mode
     if (this.dryRunMode) {
@@ -207,6 +236,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const result = results[0]
 
     if (!result) {
+      if (options?.link && Object.keys(options.link).length > 0) {
+        throw new Error(
+          `Failed to create node '${String(label)}': one or more link targets not found. Links: ${JSON.stringify(options.link)}`,
+        )
+      }
       throw new Error(`Failed to create node: ${label}`)
     }
 
@@ -1121,13 +1155,52 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
+    if (options?.additionalLabels?.length) {
+      labels.push(...options.additionalLabels)
+    }
     const safeLabels = labels.map((l) => this.sanitize(l))
 
-    const query = this.templates.node.create(safeLabels)
-    const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, { id, props: data })
+    // Build query — with or without inline links
+    let query: string
+    let params: Record<string, unknown>
+
+    if (options?.link && Object.keys(options.link).length > 0) {
+      const links: Array<{ edgeType: string; targetAlias: string }> = []
+      const linkParams: Record<string, unknown> = {}
+      let targetIndex = 0
+
+      for (const [edgeType, targetId] of Object.entries(options.link)) {
+        if (targetId == null || targetId === '') {
+          throw new Error(
+            `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
+          )
+        }
+        const safeEdgeType = this.sanitize(edgeType)
+        if (targetId === 'self') {
+          links.push({ edgeType: safeEdgeType, targetAlias: 'n' })
+        } else {
+          const alias = `t${targetIndex++}`
+          links.push({ edgeType: safeEdgeType, targetAlias: alias })
+          linkParams[`${alias}Id`] = targetId
+        }
+      }
+
+      query = this.templates.node.createWithLinks(safeLabels, links)
+      params = { id, props: data, ...linkParams }
+    } else {
+      query = this.templates.node.create(safeLabels)
+      params = { id, props: data }
+    }
+
+    const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, params)
     const result = results[0]
 
     if (!result) {
+      if (options?.link && Object.keys(options.link).length > 0) {
+        throw new Error(
+          `Failed to create node '${String(label)}': one or more link targets not found. Links: ${JSON.stringify(options.link)}`,
+        )
+      }
       throw new Error(`Failed to create node: ${label}`)
     }
 

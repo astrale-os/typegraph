@@ -53,7 +53,7 @@ import type {
   ValidationOptions,
   DryRunOptions,
 } from './mutation'
-import { GraphMutationsImpl } from './mutation'
+import { GraphMutationsImpl, defaultIdGenerator } from './mutation'
 import type { CollectionBuilder } from './query/collection'
 import type { SingleNodeBuilder } from './query/single-node'
 import type { EdgeBuilder } from './query/edge'
@@ -128,6 +128,9 @@ export interface Graph<S extends AnySchema> extends GraphQuery<S> {
   // LIFECYCLE
   // ---------------------------------------------------------------------------
 
+  /** Generate an ID using the configured ID generator (same format as mutate.create) */
+  generateId(type: string): string
+
   /** Close the database connection */
   close(): Promise<void>
 
@@ -183,11 +186,13 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   private readonly _query: GraphQuery<S>
   private readonly _mutate: GraphMutations<S>
   private readonly _options: GraphOptions<S>
+  private readonly _idGenerator: IdGenerator
 
   constructor(schema: S, options: GraphOptions<S>) {
     this._schema = schema
     this._adapter = options.adapter
     this._options = options
+    this._idGenerator = options.idGenerator ?? defaultIdGenerator
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
@@ -358,6 +363,10 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   // ---------------------------------------------------------------------------
   // LIFECYCLE
   // ---------------------------------------------------------------------------
+
+  generateId(type: string): string {
+    return this._idGenerator.generate(type)
+  }
 
   async close(): Promise<void> {
     return this._adapter.close()

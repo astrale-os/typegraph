@@ -30,6 +30,7 @@ export interface MutationTemplateProvider {
 
 export interface NodeTemplateProvider {
   create(labels: string[]): string
+  createWithLinks(labels: string[], links: Array<{ edgeType: string; targetAlias: string }>): string
   update(labels: string[]): string
   delete(labels: string[]): string
   deleteKeepEdges(labels: string[]): string

@@ -26,6 +26,31 @@ const nodeTemplates: NodeTemplateProvider = {
     RETURN n
   `.trim(),
 
+  createWithLinks: (
+    labels: string[],
+    links: Array<{ edgeType: string; targetAlias: string }>,
+  ) => {
+    const matches = links
+      .filter((l) => l.targetAlias !== 'n')
+      .map((l) => `MATCH (${l.targetAlias} {id: $${l.targetAlias}Id})`)
+      .join('\n    ')
+
+    const creates = links
+      .map((l) => `CREATE (n)-[:${l.edgeType}]->(${l.targetAlias})`)
+      .join('\n    ')
+
+    return [
+      matches,
+      `CREATE (n${formatLabels(labels)})`,
+      `SET n = $props, n.id = $id`,
+      creates,
+      `RETURN n`,
+    ]
+      .filter(Boolean)
+      .join('\n    ')
+      .trim()
+  },
+
   update: (labels: string[]) =>
     `
     MATCH (n${formatLabels(labels)} {id: $id})

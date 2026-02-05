@@ -131,6 +131,8 @@ export interface CreateOptions {
   id?: string
   /** Additional labels to apply to the node */
   additionalLabels?: string[]
+  /** Atomic inline edges: maps edge type → target node ID (or `'self'`). No edge props; link hooks don't fire. */
+  link?: Record<string, string>
 }
 
 /**
