@@ -84,7 +84,7 @@ export const e2eIntersectionScenario: TestScenario = {
     forType: { kind: 'identity', id: 'APP1' },
     // X is defined in the graph as A ∩ B
     // But we test with explicit intersection here
-    forResource: { kind: 'intersect', left: identity('A'), right: identity('B') },
+    forResource: { kind: 'intersect', operands: [identity('A'), identity('B')] },
   },
   expectedGranted: true,
 }
@@ -102,7 +102,7 @@ export const e2eIntersectionDeniedScenario: TestScenario = {
   perm: 'read',
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
-    forResource: { kind: 'intersect', left: identity('A'), right: identity('B') },
+    forResource: { kind: 'intersect', operands: [identity('A'), identity('B')] },
   },
   expectedGranted: false,
   expectedDeniedBy: 'resource',

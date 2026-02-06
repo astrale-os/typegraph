@@ -6,23 +6,84 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  applyTopLevelScopes,
   createUnresolvedGrant,
-  decodeGrant,
   encodeGrant,
-  extractPrimaryIdentity,
-  intersectScopes,
-  resolveExpression,
+  identityExprToUnresolved,
   unresolvedExclude,
   unresolvedId,
   unresolvedIntersect,
   unresolvedJwt,
+  unresolvedScope,
   unresolvedUnion,
+  type VerifiedJwt,
+} from '../integration/authz-v2/authentication/grant-encoding'
+import {
+  extractPrimaryIdentity,
   validateUnresolvedExpr,
   validateUnresolvedGrant,
-  type JwtVerifier,
-} from '../integration/authz-v2/grant-encoding'
-import type { Grant, IdentityExpr, Scope, UnresolvedGrant } from '../integration/authz-v2/types'
+} from '../integration/authz-v2/authentication/grant-decoder'
+import { applyTopLevelScopes, intersectScopes } from '../integration/authz-v2/expression/scope'
+import type {
+  Grant,
+  IdentityExpr,
+  IdentityId,
+  Scope,
+  UnresolvedGrant,
+  UnresolvedIdentityExpr,
+} from '../integration/authz-v2/types'
+
+// =============================================================================
+// TEST HELPERS (inline — not part of production code)
+// =============================================================================
+
+interface JwtVerifier {
+  verify(jwt: string): Promise<VerifiedJwt>
+}
+
+async function resolveExpression(
+  expr: UnresolvedIdentityExpr,
+  verifier: JwtVerifier,
+): Promise<IdentityExpr> {
+  switch (expr.kind) {
+    case 'identity':
+      if ('jwt' in expr) {
+        const verified = await verifier.verify(expr.jwt)
+        return { kind: 'identity', id: verified.sub }
+      }
+      return { kind: 'identity', id: expr.id }
+    case 'scope': {
+      const inner = await resolveExpression(expr.expr, verifier)
+      return { kind: 'scope', scopes: expr.scopes, expr: inner }
+    }
+    case 'union':
+    case 'intersect': {
+      const operands = await Promise.all(expr.operands.map((op) => resolveExpression(op, verifier)))
+      return { kind: expr.kind, operands }
+    }
+    case 'exclude': {
+      const [base, ...excluded] = await Promise.all([
+        resolveExpression(expr.base, verifier),
+        ...expr.excluded.map((ex) => resolveExpression(ex, verifier)),
+      ])
+      return { kind: 'exclude', base: base!, excluded }
+    }
+  }
+}
+
+async function decodeGrant(
+  encoded: UnresolvedGrant,
+  verifier: JwtVerifier,
+  principal: IdentityId,
+): Promise<Grant> {
+  if (encoded.v !== 1) {
+    throw new Error(`Unsupported grant version: ${encoded.v}`)
+  }
+  const defaultExpr: IdentityExpr = { kind: 'identity', id: principal }
+  const forType = encoded.forType ? await resolveExpression(encoded.forType, verifier) : defaultExpr
+  const forResource = encoded.forResource ? await resolveExpression(encoded.forResource, verifier) : defaultExpr
+  return { forType, forResource }
+}
+
 
 // =============================================================================
 // MOCK JWT VERIFIER
@@ -50,12 +111,6 @@ describe('Unresolved Expression Builders', () => {
       const expr = unresolvedJwt('token123')
       expect(expr).toEqual({ kind: 'identity', jwt: 'token123' })
     })
-
-    it('creates identity with jwt and scopes', () => {
-      const scopes: Scope[] = [{ nodes: ['ws-1'] }]
-      const expr = unresolvedJwt('token123', scopes)
-      expect(expr).toEqual({ kind: 'identity', jwt: 'token123', scopes })
-    })
   })
 
   describe('unresolvedId', () => {
@@ -63,38 +118,54 @@ describe('Unresolved Expression Builders', () => {
       const expr = unresolvedId('user-123')
       expect(expr).toEqual({ kind: 'identity', id: 'user-123' })
     })
+  })
 
-    it('creates identity with id and scopes', () => {
+  describe('unresolvedScope', () => {
+    it('creates scope wrapper around jwt identity', () => {
+      const scopes: Scope[] = [{ nodes: ['ws-1'] }]
+      const expr = unresolvedScope(scopes, unresolvedJwt('token123'))
+      expect(expr).toEqual({
+        kind: 'scope',
+        scopes,
+        expr: { kind: 'identity', jwt: 'token123' },
+      })
+    })
+
+    it('creates scope wrapper around id identity', () => {
       const scopes: Scope[] = [{ perms: ['read'] }]
-      const expr = unresolvedId('user-123', scopes)
-      expect(expr).toEqual({ kind: 'identity', id: 'user-123', scopes })
+      const expr = unresolvedScope(scopes, unresolvedId('user-123'))
+      expect(expr).toEqual({
+        kind: 'scope',
+        scopes,
+        expr: { kind: 'identity', id: 'user-123' },
+      })
     })
   })
 
   describe('unresolvedUnion', () => {
     it('creates union expression', () => {
-      const left = unresolvedId('a')
-      const right = unresolvedId('b')
-      const expr = unresolvedUnion(left, right)
-      expect(expr).toEqual({ kind: 'union', left, right })
+      const a = unresolvedId('a')
+      const b = unresolvedId('b')
+      const expr = unresolvedUnion(a, b)
+      expect(expr).toEqual({ kind: 'union', operands: [a, b] })
     })
   })
 
   describe('unresolvedIntersect', () => {
     it('creates intersect expression', () => {
-      const left = unresolvedId('a')
-      const right = unresolvedId('b')
-      const expr = unresolvedIntersect(left, right)
-      expect(expr).toEqual({ kind: 'intersect', left, right })
+      const a = unresolvedId('a')
+      const b = unresolvedId('b')
+      const expr = unresolvedIntersect(a, b)
+      expect(expr).toEqual({ kind: 'intersect', operands: [a, b] })
     })
   })
 
   describe('unresolvedExclude', () => {
     it('creates exclude expression', () => {
-      const left = unresolvedId('a')
-      const right = unresolvedId('b')
-      const expr = unresolvedExclude(left, right)
-      expect(expr).toEqual({ kind: 'exclude', left, right })
+      const base = unresolvedId('a')
+      const excl = unresolvedId('b')
+      const expr = unresolvedExclude(base, excl)
+      expect(expr).toEqual({ kind: 'exclude', base, excluded: [excl] })
     })
   })
 })
@@ -122,15 +193,19 @@ describe('encodeGrant', () => {
   it('encodes grant with scopes', () => {
     const grant: Grant = {
       forType: { kind: 'identity', id: 'app-1' },
-      forResource: { kind: 'identity', id: 'user-1', scopes: [{ nodes: ['ws-1'] }] },
+      forResource: {
+        kind: 'scope',
+        scopes: [{ nodes: ['ws-1'] }],
+        expr: { kind: 'identity', id: 'user-1' },
+      },
     }
 
     const encoded = encodeGrant(grant)
 
     expect(encoded.forResource).toEqual({
-      kind: 'identity',
-      id: 'user-1',
+      kind: 'scope',
       scopes: [{ nodes: ['ws-1'] }],
+      expr: { kind: 'identity', id: 'user-1' },
     })
   })
 
@@ -139,8 +214,10 @@ describe('encodeGrant', () => {
       forType: { kind: 'identity', id: 'app-1' },
       forResource: {
         kind: 'union',
-        left: { kind: 'identity', id: 'user-1' },
-        right: { kind: 'identity', id: 'role-1' },
+        operands: [
+          { kind: 'identity', id: 'user-1' },
+          { kind: 'identity', id: 'role-1' },
+        ],
       },
     }
 
@@ -148,8 +225,10 @@ describe('encodeGrant', () => {
 
     expect(encoded.forResource).toEqual({
       kind: 'union',
-      left: { kind: 'identity', id: 'user-1' },
-      right: { kind: 'identity', id: 'role-1' },
+      operands: [
+        { kind: 'identity', id: 'user-1' },
+        { kind: 'identity', id: 'role-1' },
+      ],
     })
   })
 
@@ -158,12 +237,18 @@ describe('encodeGrant', () => {
       forType: { kind: 'identity', id: 'app-1' },
       forResource: {
         kind: 'exclude',
-        left: {
+        base: {
           kind: 'union',
-          left: { kind: 'identity', id: 'user-1' },
-          right: { kind: 'identity', id: 'role-1', scopes: [{ perms: ['read'] }] },
+          operands: [
+            { kind: 'identity', id: 'user-1' },
+            {
+              kind: 'scope',
+              scopes: [{ perms: ['read'] }],
+              expr: { kind: 'identity', id: 'role-1' },
+            },
+          ],
         },
-        right: { kind: 'identity', id: 'blocked-1' },
+        excluded: [{ kind: 'identity', id: 'blocked-1' }],
       },
     }
 
@@ -227,11 +312,15 @@ describe('resolveExpression', () => {
 
   it('resolves jwt identity with scopes', async () => {
     const scopes: Scope[] = [{ nodes: ['ws-1'] }]
-    const expr = unresolvedJwt('jwt-user', scopes)
+    const expr = unresolvedScope(scopes, unresolvedJwt('jwt-user'))
 
     const resolved = await resolveExpression(expr, verifier)
 
-    expect(resolved).toEqual({ kind: 'identity', id: 'user-123', scopes })
+    expect(resolved).toEqual({
+      kind: 'scope',
+      scopes,
+      expr: { kind: 'identity', id: 'user-123' },
+    })
   })
 
   it('preserves plain id identity', async () => {
@@ -249,8 +338,10 @@ describe('resolveExpression', () => {
 
     expect(resolved).toEqual({
       kind: 'union',
-      left: { kind: 'identity', id: 'user-123' },
-      right: { kind: 'identity', id: 'role-456' },
+      operands: [
+        { kind: 'identity', id: 'user-123' },
+        { kind: 'identity', id: 'role-456' },
+      ],
     })
   })
 
@@ -261,14 +352,19 @@ describe('resolveExpression', () => {
 
     expect(resolved).toEqual({
       kind: 'intersect',
-      left: { kind: 'identity', id: 'user-123' },
-      right: { kind: 'identity', id: 'role-456' },
+      operands: [
+        { kind: 'identity', id: 'user-123' },
+        { kind: 'identity', id: 'role-456' },
+      ],
     })
   })
 
   it('resolves complex nested expression', async () => {
     const expr = unresolvedExclude(
-      unresolvedUnion(unresolvedJwt('jwt-user'), unresolvedJwt('jwt-role', [{ perms: ['read'] }])),
+      unresolvedUnion(
+        unresolvedJwt('jwt-user'),
+        unresolvedScope([{ perms: ['read'] }], unresolvedJwt('jwt-role')),
+      ),
       unresolvedJwt('jwt-blocked'),
     )
 
@@ -276,12 +372,18 @@ describe('resolveExpression', () => {
 
     expect(resolved).toEqual({
       kind: 'exclude',
-      left: {
+      base: {
         kind: 'union',
-        left: { kind: 'identity', id: 'user-123' },
-        right: { kind: 'identity', id: 'role-456', scopes: [{ perms: ['read'] }] },
+        operands: [
+          { kind: 'identity', id: 'user-123' },
+          {
+            kind: 'scope',
+            scopes: [{ perms: ['read'] }],
+            expr: { kind: 'identity', id: 'role-456' },
+          },
+        ],
       },
-      right: { kind: 'identity', id: 'blocked-789' },
+      excluded: [{ kind: 'identity', id: 'blocked-789' }],
     })
   })
 
@@ -358,78 +460,105 @@ describe('decodeGrant', () => {
 // =============================================================================
 
 describe('applyTopLevelScopes', () => {
-  it('applies scopes to simple identity', () => {
+  it('wraps simple identity in scope node', () => {
     const expr: IdentityExpr = { kind: 'identity', id: 'user-1' }
     const scopes: Scope[] = [{ nodes: ['ws-1'] }]
 
     const result = applyTopLevelScopes(expr, scopes)
 
-    expect(result).toEqual({ kind: 'identity', id: 'user-1', scopes })
+    expect(result).toEqual({
+      kind: 'scope',
+      scopes,
+      expr: { kind: 'identity', id: 'user-1' },
+    })
   })
 
-  it('intersects with existing scopes', () => {
+  it('wraps already-scoped identity in another scope node', () => {
     const expr: IdentityExpr = {
-      kind: 'identity',
-      id: 'user-1',
+      kind: 'scope',
       scopes: [{ perms: ['read'] }],
+      expr: { kind: 'identity', id: 'user-1' },
     }
     const scopes: Scope[] = [{ nodes: ['ws-1'] }]
 
     const result = applyTopLevelScopes(expr, scopes)
 
-    // Proper intersection: both constraints combined into one scope
+    // Outer scope wraps the inner scope
     expect(result).toEqual({
-      kind: 'identity',
-      id: 'user-1',
-      scopes: [{ nodes: ['ws-1'], perms: ['read'] }],
-    })
-  })
-
-  it('applies to all leaves in union', () => {
-    const expr: IdentityExpr = {
-      kind: 'union',
-      left: { kind: 'identity', id: 'user-1' },
-      right: { kind: 'identity', id: 'role-1' },
-    }
-    const scopes: Scope[] = [{ nodes: ['ws-1'] }]
-
-    const result = applyTopLevelScopes(expr, scopes)
-
-    expect(result).toEqual({
-      kind: 'union',
-      left: { kind: 'identity', id: 'user-1', scopes },
-      right: { kind: 'identity', id: 'role-1', scopes },
-    })
-  })
-
-  it('applies to all leaves in complex expression', () => {
-    const expr: IdentityExpr = {
-      kind: 'exclude',
-      left: {
-        kind: 'union',
-        left: { kind: 'identity', id: 'user-1' },
-        right: { kind: 'identity', id: 'role-1', scopes: [{ perms: ['read'] }] },
+      kind: 'scope',
+      scopes: [{ nodes: ['ws-1'] }],
+      expr: {
+        kind: 'scope',
+        scopes: [{ perms: ['read'] }],
+        expr: { kind: 'identity', id: 'user-1' },
       },
-      right: { kind: 'identity', id: 'blocked-1' },
+    })
+  })
+
+  it('wraps union in scope node', () => {
+    const expr: IdentityExpr = {
+      kind: 'union',
+      operands: [
+        { kind: 'identity', id: 'user-1' },
+        { kind: 'identity', id: 'role-1' },
+      ],
     }
     const scopes: Scope[] = [{ nodes: ['ws-1'] }]
 
     const result = applyTopLevelScopes(expr, scopes)
 
-    // Proper intersection: existing perms: ['read'] + top-level nodes: ['ws-1']
-    // becomes a single scope with both constraints
     expect(result).toEqual({
-      kind: 'exclude',
-      left: {
+      kind: 'scope',
+      scopes,
+      expr: {
         kind: 'union',
-        left: { kind: 'identity', id: 'user-1', scopes },
-        right: {
-          kind: 'identity',
-          id: 'role-1',
-          scopes: [{ nodes: ['ws-1'], perms: ['read'] }],
+        operands: [
+          { kind: 'identity', id: 'user-1' },
+          { kind: 'identity', id: 'role-1' },
+        ],
+      },
+    })
+  })
+
+  it('wraps complex expression in scope node', () => {
+    const expr: IdentityExpr = {
+      kind: 'exclude',
+      base: {
+        kind: 'union',
+        operands: [
+          { kind: 'identity', id: 'user-1' },
+          {
+            kind: 'scope',
+            scopes: [{ perms: ['read'] }],
+            expr: { kind: 'identity', id: 'role-1' },
+          },
+        ],
+      },
+      excluded: [{ kind: 'identity', id: 'blocked-1' }],
+    }
+    const scopes: Scope[] = [{ nodes: ['ws-1'] }]
+
+    const result = applyTopLevelScopes(expr, scopes)
+
+    // Top-level scope wraps the entire expression
+    expect(result).toEqual({
+      kind: 'scope',
+      scopes: [{ nodes: ['ws-1'] }],
+      expr: {
+        kind: 'exclude',
+        base: {
+          kind: 'union',
+          operands: [
+            { kind: 'identity', id: 'user-1' },
+            {
+              kind: 'scope',
+              scopes: [{ perms: ['read'] }],
+              expr: { kind: 'identity', id: 'role-1' },
+            },
+          ],
         },
+        excluded: [{ kind: 'identity', id: 'blocked-1' }],
       },
-      right: { kind: 'identity', id: 'blocked-1', scopes },
     })
   })
 })
@@ -509,16 +638,22 @@ describe('validateUnresolvedExpr', () => {
     expect(() => validateUnresolvedExpr(expr, 'test')).not.toThrow()
   })
 
-  it('accepts identity with scopes', () => {
-    const expr = { kind: 'identity', jwt: 'token123', scopes: [{ nodes: ['ws-1'] }] }
+  it('accepts scope wrapping identity', () => {
+    const expr = {
+      kind: 'scope',
+      scopes: [{ nodes: ['ws-1'] }],
+      expr: { kind: 'identity', jwt: 'token123' },
+    }
     expect(() => validateUnresolvedExpr(expr, 'test')).not.toThrow()
   })
 
   it('accepts union', () => {
     const expr = {
       kind: 'union',
-      left: { kind: 'identity', id: 'a' },
-      right: { kind: 'identity', id: 'b' },
+      operands: [
+        { kind: 'identity', id: 'a' },
+        { kind: 'identity', id: 'b' },
+      ],
     }
     expect(() => validateUnresolvedExpr(expr, 'test')).not.toThrow()
   })
@@ -526,8 +661,10 @@ describe('validateUnresolvedExpr', () => {
   it('accepts intersect', () => {
     const expr = {
       kind: 'intersect',
-      left: { kind: 'identity', id: 'a' },
-      right: { kind: 'identity', id: 'b' },
+      operands: [
+        { kind: 'identity', id: 'a' },
+        { kind: 'identity', id: 'b' },
+      ],
     }
     expect(() => validateUnresolvedExpr(expr, 'test')).not.toThrow()
   })
@@ -535,8 +672,8 @@ describe('validateUnresolvedExpr', () => {
   it('accepts exclude', () => {
     const expr = {
       kind: 'exclude',
-      left: { kind: 'identity', id: 'a' },
-      right: { kind: 'identity', id: 'b' },
+      base: { kind: 'identity', id: 'a' },
+      excluded: [{ kind: 'identity', id: 'b' }],
     }
     expect(() => validateUnresolvedExpr(expr, 'test')).not.toThrow()
   })
@@ -551,19 +688,14 @@ describe('validateUnresolvedExpr', () => {
     expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('cannot have both jwt and id')
   })
 
-  it('rejects non-array scopes', () => {
-    const expr = { kind: 'identity', jwt: 'token', scopes: 'not-array' }
-    expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must be an array')
+  it('rejects union without enough operands', () => {
+    const expr = { kind: 'union', operands: [{ kind: 'identity', id: 'a' }] }
+    expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must have at least 2 operands')
   })
 
-  it('rejects union without left', () => {
-    const expr = { kind: 'union', right: { kind: 'identity', id: 'b' } }
-    expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must have left')
-  })
-
-  it('rejects union without right', () => {
-    const expr = { kind: 'union', left: { kind: 'identity', id: 'a' } }
-    expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must have right')
+  it('rejects exclude without base', () => {
+    const expr = { kind: 'exclude', excluded: [{ kind: 'identity', id: 'b' }] }
+    expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must have base')
   })
 
   it('rejects invalid kind', () => {
@@ -574,8 +706,10 @@ describe('validateUnresolvedExpr', () => {
   it('validates nested expressions', () => {
     const expr = {
       kind: 'union',
-      left: { kind: 'identity' }, // Invalid: missing jwt/id
-      right: { kind: 'identity', id: 'b' },
+      operands: [
+        { kind: 'identity' }, // Invalid: missing jwt/id
+        { kind: 'identity', id: 'b' },
+      ],
     }
     expect(() => validateUnresolvedExpr(expr, 'test')).toThrow('must have jwt or id')
   })
@@ -592,25 +726,39 @@ describe('extractPrimaryIdentity', () => {
     expect(extractPrimaryIdentity(expr)).toBe('user-123')
   })
 
-  it('extracts leftmost from union', () => {
+  it('extracts first from union', () => {
     const expr: IdentityExpr = {
       kind: 'union',
-      left: { kind: 'identity', id: 'user-123' },
-      right: { kind: 'identity', id: 'role-456' },
+      operands: [
+        { kind: 'identity', id: 'user-123' },
+        { kind: 'identity', id: 'role-456' },
+      ],
     }
 
     expect(extractPrimaryIdentity(expr)).toBe('user-123')
   })
 
-  it('extracts leftmost from nested expression', () => {
+  it('extracts from base of nested exclude expression', () => {
     const expr: IdentityExpr = {
       kind: 'exclude',
-      left: {
+      base: {
         kind: 'union',
-        left: { kind: 'identity', id: 'user-123' },
-        right: { kind: 'identity', id: 'role-456' },
+        operands: [
+          { kind: 'identity', id: 'user-123' },
+          { kind: 'identity', id: 'role-456' },
+        ],
       },
-      right: { kind: 'identity', id: 'blocked-789' },
+      excluded: [{ kind: 'identity', id: 'blocked-789' }],
+    }
+
+    expect(extractPrimaryIdentity(expr)).toBe('user-123')
+  })
+
+  it('extracts through scope node', () => {
+    const expr: IdentityExpr = {
+      kind: 'scope',
+      scopes: [{ nodes: ['ws-1'] }],
+      expr: { kind: 'identity', id: 'user-123' },
     }
 
     expect(extractPrimaryIdentity(expr)).toBe('user-123')
@@ -640,9 +788,9 @@ describe('Encode/Decode Round-trip', () => {
     const original: Grant = {
       forType: { kind: 'identity', id: 'app-1' },
       forResource: {
-        kind: 'identity',
-        id: 'user-1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws-1'], perms: ['read'] }],
+        expr: { kind: 'identity', id: 'user-1' },
       },
     }
 
@@ -657,12 +805,18 @@ describe('Encode/Decode Round-trip', () => {
       forType: { kind: 'identity', id: 'app-1' },
       forResource: {
         kind: 'exclude',
-        left: {
+        base: {
           kind: 'union',
-          left: { kind: 'identity', id: 'user-1' },
-          right: { kind: 'identity', id: 'role-1', scopes: [{ perms: ['read'] }] },
+          operands: [
+            { kind: 'identity', id: 'user-1' },
+            {
+              kind: 'scope',
+              scopes: [{ perms: ['read'] }],
+              expr: { kind: 'identity', id: 'role-1' },
+            },
+          ],
         },
-        right: { kind: 'identity', id: 'blocked-1' },
+        excluded: [{ kind: 'identity', id: 'blocked-1' }],
       },
     }
 

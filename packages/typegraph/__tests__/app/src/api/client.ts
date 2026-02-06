@@ -4,7 +4,7 @@ import type {
   Grant,
   IdentityId,
   NodeId,
-  PermissionT,
+  Permission,
 } from '@authz/types'
 import type { PerformanceProfile } from '@/types/api'
 
@@ -75,14 +75,14 @@ export const api = {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }) => post<AccessDecision & { profile: PerformanceProfile }>('/api/check-access', params),
 
   explainAccess: (params: {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }) => post<AccessExplanation & { profile: PerformanceProfile }>('/api/explain-access', params),
 
   // Relay endpoints

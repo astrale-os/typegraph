@@ -98,12 +98,13 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a,
-        right: {
-          kind: 'intersect',
-          left: a,
-          right: { kind: 'identity', id: 'B' },
-        },
+        operands: [
+          a,
+          {
+            kind: 'intersect',
+            operands: [a, { kind: 'identity', id: 'B' }],
+          },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -113,9 +114,9 @@ describe('AUTH_V2: Expression Deduplication', () => {
 
       // Root should have refs
       expect(isRef(deduped.root)).toBe(false)
-      const root = deduped.root as { kind: 'union'; left: Ref; right: { left: Ref } }
-      expect(root.left).toEqual({ $ref: 0 })
-      expect(root.right.left).toEqual({ $ref: 0 })
+      const root = deduped.root as { kind: 'union'; operands: [Ref, { operands: [Ref, unknown] }] }
+      expect(root.operands[0]).toEqual({ $ref: 0 })
+      expect(root.operands[1].operands[0]).toEqual({ $ref: 0 })
     })
 
     it('extracts shared complex subtree', () => {
@@ -123,12 +124,14 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const shared = union(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: {
-          kind: 'exclude',
-          left: shared,
-          right: { kind: 'identity', id: 'C' },
-        },
+        operands: [
+          shared,
+          {
+            kind: 'exclude',
+            base: shared,
+            excluded: [{ kind: 'identity', id: 'C' }],
+          },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -137,9 +140,9 @@ describe('AUTH_V2: Expression Deduplication', () => {
       expect(deduped.defs[0]).toEqual(shared)
 
       // Root should reference the shared subtree
-      const root = deduped.root as { kind: 'intersect'; left: Ref; right: { left: Ref } }
-      expect(root.left).toEqual({ $ref: 0 })
-      expect(root.right.left).toEqual({ $ref: 0 })
+      const root = deduped.root as { kind: 'intersect'; operands: [Ref, { base: Ref }] }
+      expect(root.operands[0]).toEqual({ $ref: 0 })
+      expect(root.operands[1].base).toEqual({ $ref: 0 })
     })
 
     it('extracts multiple different duplicates', () => {
@@ -148,16 +151,17 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const b = identity('B').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: {
-          kind: 'intersect',
-          left: a,
-          right: b,
-        },
-        right: {
-          kind: 'exclude',
-          left: a,
-          right: b,
-        },
+        operands: [
+          {
+            kind: 'intersect',
+            operands: [a, b],
+          },
+          {
+            kind: 'exclude',
+            base: a,
+            excluded: [b],
+          },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -173,16 +177,20 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const nested = intersect(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: nested,
-        right: {
-          kind: 'union',
-          left: { kind: 'identity', id: 'C' },
-          right: {
-            kind: 'exclude',
-            left: nested,
-            right: { kind: 'identity', id: 'D' },
+        operands: [
+          nested,
+          {
+            kind: 'union',
+            operands: [
+              { kind: 'identity', id: 'C' },
+              {
+                kind: 'exclude',
+                base: nested,
+                excluded: [{ kind: 'identity', id: 'D' }],
+              },
+            ],
           },
-        },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -214,12 +222,13 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a,
-        right: {
-          kind: 'intersect',
-          left: a,
-          right: { kind: 'identity', id: 'B' },
-        },
+        operands: [
+          a,
+          {
+            kind: 'intersect',
+            operands: [a, { kind: 'identity', id: 'B' }],
+          },
+        ],
       }
 
       expect(expand(dedup(expr))).toEqual(expr)
@@ -229,12 +238,14 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const shared = union(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: {
-          kind: 'exclude',
-          left: shared,
-          right: { kind: 'identity', id: 'C' },
-        },
+        operands: [
+          shared,
+          {
+            kind: 'exclude',
+            base: shared,
+            excluded: [{ kind: 'identity', id: 'C' }],
+          },
+        ],
       }
 
       expect(expand(dedup(expr))).toEqual(expr)
@@ -247,12 +258,13 @@ describe('AUTH_V2: Expression Deduplication', () => {
       // Use ref1 twice (simulating shared reference)
       const expr: IdentityExpr = {
         kind: 'union',
-        left: ref1,
-        right: {
-          kind: 'intersect',
-          left: ref1,
-          right: { kind: 'identity', id: 'Z' },
-        },
+        operands: [
+          ref1,
+          {
+            kind: 'intersect',
+            operands: [ref1, { kind: 'identity', id: 'Z' }],
+          },
+        ],
       }
 
       expect(expand(dedup(expr))).toEqual(expr)
@@ -262,12 +274,13 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const scoped = identity('USER1', { nodes: ['ws1'], perms: ['read'] }).build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: scoped,
-        right: {
-          kind: 'intersect',
-          left: scoped,
-          right: { kind: 'identity', id: 'B' },
-        },
+        operands: [
+          scoped,
+          {
+            kind: 'intersect',
+            operands: [scoped, { kind: 'identity', id: 'B' }],
+          },
+        ],
       }
 
       expect(expand(dedup(expr))).toEqual(expr)
@@ -288,8 +301,7 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a,
-        right: a,
+        operands: [a, a],
       }
       expect(hasRepeatedSubtrees(expr)).toBe(true)
     })
@@ -298,12 +310,14 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const shared = union(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: {
-          kind: 'exclude',
-          left: shared,
-          right: { kind: 'identity', id: 'C' },
-        },
+        operands: [
+          shared,
+          {
+            kind: 'exclude',
+            base: shared,
+            excluded: [{ kind: 'identity', id: 'C' }],
+          },
+        ],
       }
       expect(hasRepeatedSubtrees(expr)).toBe(true)
     })
@@ -323,8 +337,7 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a,
-        right: a,
+        operands: [a, a],
       }
       const stats = dedupStats(expr)
 
@@ -337,12 +350,13 @@ describe('AUTH_V2: Expression Deduplication', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: {
-          kind: 'union',
-          left: a,
-          right: a,
-        },
-        right: a,
+        operands: [
+          {
+            kind: 'union',
+            operands: [a, a],
+          },
+          a,
+        ],
       }
       const stats = dedupStats(expr)
 
@@ -364,24 +378,26 @@ describe('AUTH_V2: Expression Deduplication', () => {
     })
 
     it('handles same identity ID but different scopes as different', () => {
-      // Same ID but different scopes = different subtrees
+      // Same ID but different scope wrappers = scope nodes are different subtrees
+      // However, the inner identity('A') IS shared (same subtree in both wrappers)
       const a1 = identity('A', { nodes: ['ws1'] }).build()
       const a2 = identity('A', { nodes: ['ws2'] }).build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a1,
-        right: a2,
+        operands: [a1, a2],
       }
 
       const deduped = dedup(expr)
-      expect(deduped.defs).toHaveLength(0) // No duplicates
+      // Inner identity('A') is shared across both scope wrappers
+      expect(deduped.defs).toHaveLength(1)
+      expect(expand(deduped)).toEqual(expr)
     })
 
     it('handles very deep nesting', () => {
       // Build a deep chain
       let expr: IdentityExpr = identity('LEAF').build()
       for (let i = 0; i < 20; i++) {
-        expr = { kind: 'union', left: expr, right: { kind: 'identity', id: `N${i}` } }
+        expr = { kind: 'union', operands: [expr, { kind: 'identity', id: `N${i}` }] }
       }
 
       // Should still work

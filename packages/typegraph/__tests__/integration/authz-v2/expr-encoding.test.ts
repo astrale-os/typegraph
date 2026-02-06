@@ -118,6 +118,20 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
 
       expect(decoded).toEqual(expr)
     })
+
+    it('round-trips exclude with multiple excluded operands', () => {
+      const expr: IdentityExpr = {
+        kind: 'exclude',
+        base: { kind: 'identity', id: 'A' },
+        excluded: [
+          { kind: 'identity', id: 'B' },
+          { kind: 'identity', id: 'C' },
+        ],
+      }
+      const binary = encode(expr)
+      const decoded = decode(binary)
+      expect(decoded).toEqual(expr)
+    })
   })
 
   // ===========================================================================
@@ -140,12 +154,13 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const a = identity('A').build()
       const expr: IdentityExpr = {
         kind: 'union',
-        left: a,
-        right: {
-          kind: 'intersect',
-          left: a,
-          right: { kind: 'identity', id: 'B' },
-        },
+        operands: [
+          a,
+          {
+            kind: 'intersect',
+            operands: [a, { kind: 'identity', id: 'B' }],
+          },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -162,12 +177,14 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const shared = union(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: {
-          kind: 'exclude',
-          left: shared,
-          right: { kind: 'identity', id: 'C' },
-        },
+        operands: [
+          shared,
+          {
+            kind: 'exclude',
+            base: shared,
+            excluded: [{ kind: 'identity', id: 'C' }],
+          },
+        ],
       }
 
       const deduped = dedup(expr)
@@ -186,12 +203,14 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
 
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: {
-          kind: 'exclude',
-          left: shared,
-          right: { kind: 'identity', id: 'BLOCKED' },
-        },
+        operands: [
+          shared,
+          {
+            kind: 'exclude',
+            base: shared,
+            excluded: [{ kind: 'identity', id: 'BLOCKED' }],
+          },
+        ],
       }
 
       const regularBinary = encode(expr)
@@ -230,8 +249,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const shared = union(identity('A'), identity('B')).build()
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: shared,
-        right: shared,
+        operands: [shared, shared],
       }
 
       const deduped = dedup(expr)
@@ -341,7 +359,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     it('handles deeply nested expression', () => {
       let expr: IdentityExpr = identity('LEAF').build()
       for (let i = 0; i < 50; i++) {
-        expr = { kind: 'union', left: expr, right: { kind: 'identity', id: `N${i}` } }
+        expr = { kind: 'union', operands: [expr, { kind: 'identity', id: `N${i}` }] }
       }
 
       const binary = encode(expr)
@@ -422,7 +440,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const expr = identity('A', { nodes: ['ws1'] }).build()
       const binary = encode(expr)
 
-      expect(binary[0]).toBe(0x02) // TAG_IDENTITY_SCOPED
+      expect(binary[0]).toBe(0x03) // TAG_SCOPE
     })
 
     it('union starts with correct tag', () => {

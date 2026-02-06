@@ -14,7 +14,7 @@ import type {
   AccessExplanation,
   Grant,
   NodeId,
-  PermissionT,
+  Permission,
   IdentityId,
   IdentityExpr,
   LeafEvaluation,
@@ -31,7 +31,7 @@ export class FalkorDBIdentityAdapter {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }): Promise<AccessDecision> {
     return checkAccess(params, this.queryAdapter)
   }
@@ -40,7 +40,7 @@ export class FalkorDBIdentityAdapter {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }): Promise<AccessExplanation> {
     return explainAccess(params, this.queryAdapter)
   }

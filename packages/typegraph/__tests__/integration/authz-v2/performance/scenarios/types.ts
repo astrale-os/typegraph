@@ -144,27 +144,27 @@ export function separateGrant(typeId: string, resourceId: string): Grant {
 /**
  * Create a union expression.
  */
-export function union(left: IdentityExpr, right: IdentityExpr): IdentityExpr {
-  return { kind: 'union', left, right }
+export function union(...operands: IdentityExpr[]): IdentityExpr {
+  return { kind: 'union', operands }
 }
 
 /**
  * Create an intersect expression.
  */
-export function intersect(left: IdentityExpr, right: IdentityExpr): IdentityExpr {
-  return { kind: 'intersect', left, right }
+export function intersect(...operands: IdentityExpr[]): IdentityExpr {
+  return { kind: 'intersect', operands }
 }
 
 /**
  * Create an exclude expression.
  */
-export function exclude(left: IdentityExpr, right: IdentityExpr): IdentityExpr {
-  return { kind: 'exclude', left, right }
+export function exclude(base: IdentityExpr, ...excluded: IdentityExpr[]): IdentityExpr {
+  return { kind: 'exclude', base, excluded }
 }
 
 /**
  * Create an identity expression.
  */
-export function identity(id: string, scopes?: unknown[]): IdentityExpr {
-  return scopes ? { kind: 'identity', id, scopes: scopes as any } : { kind: 'identity', id }
+export function identity(id: string): IdentityExpr {
+  return { kind: 'identity', id }
 }

@@ -528,7 +528,7 @@ describe('AUTH_V2: New API', () => {
         perm: 'read',
       })
 
-      // Both must agree: exclude means left granted AND right NOT granted
+      // Both must agree: exclude means base granted AND excluded NOT granted
       // A has read on M1, C has read on M1, so A \ C = denied
       expect(decision.granted).toBe(explanation.granted)
       expect(decision.deniedBy).toBe(explanation.deniedBy)

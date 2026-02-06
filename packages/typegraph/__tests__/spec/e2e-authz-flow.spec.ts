@@ -11,24 +11,22 @@ import {
   createUserJwt,
   decodeMockJwt,
   KERNEL_ISSUER,
-} from '../integration/authz-v2/relay-token'
-import {
-  IdentityRegistry,
-  IssuerKeyStore,
-  TokenVerifier,
-} from '../integration/authz-v2/token-verifier'
+} from '../integration/authz-v2/authentication/relay-token'
+import { TokenVerifier } from '../integration/authz-v2/authentication/token-verifier'
+import { IdentityRegistry } from '../integration/authz-v2/authentication/identity-registry'
+import { IssuerKeyStore } from '../integration/authz-v2/authentication/issuer-key-store'
 import {
   unresolvedId,
   unresolvedJwt,
   unresolvedUnion,
-} from '../integration/authz-v2/grant-encoding'
-import { AccessChecker } from '../integration/authz-v2/access-checker'
+} from '../integration/authz-v2/authentication/grant-encoding'
+import { AccessChecker } from '../integration/authz-v2/adapter'
 import {
   setupAuthzTest,
   teardownAuthzTest,
   type AuthzTestContext,
-} from '../integration/authz-v2/setup'
-import { identity, union, grant } from '../integration/authz-v2/helpers'
+} from '../integration/authz-v2/testing/setup'
+import { identity, union, grant } from '../integration/authz-v2/testing/helpers'
 import type { UnresolvedIdentityExpr } from '../integration/authz-v2/types'
 
 // =============================================================================
@@ -189,12 +187,14 @@ describe('E2E: JWT Delegation Flow', () => {
       // User union role (role limited to read), minus blocked
       const expr: UnresolvedIdentityExpr = {
         kind: 'exclude',
-        left: {
+        base: {
           kind: 'union',
-          left: { kind: 'identity', jwt: userJwt },
-          right: { kind: 'identity', jwt: roleJwt, scopes: [{ perms: ['read'] }] },
+          operands: [
+            { kind: 'identity', jwt: userJwt },
+            { kind: 'scope', scopes: [{ perms: ['read'] }], expr: { kind: 'identity', jwt: roleJwt } },
+          ],
         },
-        right: { kind: 'identity', jwt: blockedJwt },
+        excluded: [{ kind: 'identity', jwt: blockedJwt }],
       }
 
       const result = await kernel.relayToken({

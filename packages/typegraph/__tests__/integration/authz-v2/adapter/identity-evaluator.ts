@@ -170,30 +170,16 @@ export class IdentityEvaluator {
   }
 
   /**
-   * Evaluate an expression, expanding unscoped identity leaves.
+   * Evaluate an expression, expanding identity leaves outside scope nodes.
    *
    * Uses batch fetching to resolve entire composition graphs in O(1) database
    * round-trips instead of O(N) sequential queries.
    *
+   * Scope nodes are preserved as-is (scoped subtrees not expanded).
+   *
    * @param exprOrBuilder - Raw IdentityExpr or Expr builder
    * @param options - Optional settings for depth limit and request-scoped caching
    * @returns Fully resolved IdentityExpr with DB compositions expanded
-   *
-   * @example
-   * ```typescript
-   * // Simple usage (no caching between calls)
-   * const resolved = await evaluator.evalExpr(identity("USER1"))
-   *
-   * // With request-scoped cache (reuse across multiple calls)
-   * const cache = createCompositionCache()
-   * const expr1 = await evaluator.evalExpr(identity("USER1"), { cache })
-   * const expr2 = await evaluator.evalExpr(identity("USER2"), { cache })
-   *
-   * // Scoped leaves are preserved as-is (not expanded)
-   * const resolved = await evaluator.evalExpr(
-   *   identity("USER1", { nodes: ["ws1"] })
-   * )
-   * ```
    */
   async evalExpr(
     exprOrBuilder: IdentityExpr | ExprBuilder,
@@ -202,7 +188,7 @@ export class IdentityEvaluator {
     const { maxDepth = 10, cache = new Map() } = options
     const expr = isExprBuilder(exprOrBuilder) ? exprOrBuilder.build() : exprOrBuilder
 
-    // 1. Collect unscoped identity IDs that need resolution
+    // 1. Collect identity IDs outside scope nodes that need resolution
     const unscopedIds = this.collectUnscopedIdentities(expr)
     if (unscopedIds.length === 0) return expr
 
@@ -222,23 +208,27 @@ export class IdentityEvaluator {
   }
 
   /**
-   * Collect all unscoped identity IDs from an expression tree.
-   * Used to determine which identities need to be fetched.
+   * Collect all identity IDs from an expression tree, including inside scope nodes.
+   * Scopes restrict WHERE permissions apply, not identity composition expansion.
    */
   private collectUnscopedIdentities(expr: IdentityExpr): string[] {
     const ids: string[] = []
     const collect = (e: IdentityExpr) => {
       switch (e.kind) {
         case 'identity':
-          if (!e.scopes || e.scopes.length === 0) {
-            ids.push(e.id)
-          }
+          ids.push(e.id)
+          break
+        case 'scope':
+          // Expand identities inside scopes — scopes restrict WHERE, not WHAT
+          collect(e.expr)
           break
         case 'union':
         case 'intersect':
+          for (const op of e.operands) collect(op)
+          break
         case 'exclude':
-          collect(e.left)
-          collect(e.right)
+          collect(e.base)
+          for (const ex of e.excluded) collect(ex)
           break
       }
     }
@@ -253,18 +243,25 @@ export class IdentityEvaluator {
   private buildResolvedExpr(expr: IdentityExpr, compositions: CompositionCache): IdentityExpr {
     switch (expr.kind) {
       case 'identity':
-        if (expr.scopes && expr.scopes.length > 0) {
-          return expr // Scoped leaves preserved as-is
-        }
         return this.buildExprFromCompositions(expr.id, compositions)
-
+      case 'scope':
+        // Expand identities inside scope, preserve scope wrapper
+        return { kind: 'scope', scopes: expr.scopes, expr: this.buildResolvedExpr(expr.expr, compositions) }
       case 'union':
+        return {
+          kind: 'union',
+          operands: expr.operands.map((op) => this.buildResolvedExpr(op, compositions)),
+        }
       case 'intersect':
+        return {
+          kind: 'intersect',
+          operands: expr.operands.map((op) => this.buildResolvedExpr(op, compositions)),
+        }
       case 'exclude':
         return {
-          kind: expr.kind,
-          left: this.buildResolvedExpr(expr.left, compositions),
-          right: this.buildResolvedExpr(expr.right, compositions),
+          kind: 'exclude',
+          base: this.buildResolvedExpr(expr.base, compositions),
+          excluded: expr.excluded.map((ex) => this.buildResolvedExpr(ex, compositions)),
         }
     }
   }
@@ -313,35 +310,58 @@ export class IdentityEvaluator {
       return { kind: 'identity', id }
     }
 
-    let result: IdentityExpr | null = hasDirectPerms ? { kind: 'identity', id } : null
+    // Collect all operands for union/intersect, build list-based result
+    const selfExpr: IdentityExpr = { kind: 'identity', id }
 
-    // Build union chain (synchronous - no I/O)
+    // Build union operands
+    const unionOperands: IdentityExpr[] = []
+    if (hasDirectPerms) unionOperands.push(selfExpr)
     for (const unionId of unions) {
-      const unionExpr = this.buildExprFromCompositions(unionId, compositions, new Set(visited))
-      result = result ? { kind: 'union', left: result, right: unionExpr } : unionExpr
-    }
-
-    // Build intersect chain
-    for (const intersectId of intersects) {
-      const intersectExpr = this.buildExprFromCompositions(
-        intersectId,
-        compositions,
-        new Set(visited),
+      unionOperands.push(
+        this.buildExprFromCompositions(unionId, compositions, new Set(visited)),
       )
-      result = result ? { kind: 'intersect', left: result, right: intersectExpr } : intersectExpr
     }
 
-    // Build exclude chain - throw immediately if no base set
+    // Build intersect operands
+    const intersectOperands: IdentityExpr[] = []
+    for (const intersectId of intersects) {
+      intersectOperands.push(
+        this.buildExprFromCompositions(intersectId, compositions, new Set(visited)),
+      )
+    }
+
+    // Build excluded list
+    const excludedExprs: IdentityExpr[] = []
     for (const excludeId of excludes) {
-      if (!result) {
-        throw new InvalidIdentityError(id, 'Exclude requires a base set')
-      }
-      const excludeExpr = this.buildExprFromCompositions(excludeId, compositions, new Set(visited))
-      result = { kind: 'exclude', left: result, right: excludeExpr }
+      excludedExprs.push(
+        this.buildExprFromCompositions(excludeId, compositions, new Set(visited)),
+      )
     }
 
-    if (!result) {
+    // Assemble result
+    let result: IdentityExpr
+
+    // Start with union if we have union operands
+    if (unionOperands.length >= 2) {
+      result = { kind: 'union', operands: unionOperands }
+    } else if (unionOperands.length === 1) {
+      result = unionOperands[0]!
+    } else if (!hasDirectPerms && intersectOperands.length === 0) {
       throw new InvalidIdentityError(id, 'Identity has no permissions and no valid composition')
+    } else {
+      // No unions, no self perms — shouldn't normally reach here with excludes
+      // but handle gracefully
+      result = selfExpr
+    }
+
+    // Apply intersects
+    if (intersectOperands.length > 0) {
+      result = { kind: 'intersect', operands: [result, ...intersectOperands] }
+    }
+
+    // Apply excludes
+    if (excludedExprs.length > 0) {
+      result = { kind: 'exclude', base: result, excluded: excludedExprs }
     }
 
     return result

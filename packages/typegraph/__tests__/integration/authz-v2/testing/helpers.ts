@@ -35,14 +35,16 @@ export function expectDeniedByResource(result: AccessDecision | AccessExplanatio
  * @param id - Identity ID
  * @param scopes - Optional scope(s). Can be a single Scope or array of Scopes.
  *                Empty array is treated as undefined (unrestricted).
+ *                When provided, wraps the identity in a scope node.
  */
 export function identity(id: string, scopes?: Scope | Scope[]): IdentityExpr {
   // Empty array or undefined = unrestricted (no scopes)
+  const leaf: IdentityExpr = { kind: 'identity', id }
   if (!scopes || (Array.isArray(scopes) && scopes.length === 0)) {
-    return { kind: 'identity', id }
+    return leaf
   }
   const scopeArray = Array.isArray(scopes) ? scopes : [scopes]
-  return { kind: 'identity', id, scopes: scopeArray }
+  return { kind: 'scope', scopes: scopeArray, expr: leaf }
 }
 
 /**
@@ -52,12 +54,16 @@ export function identity(id: string, scopes?: Scope | Scope[]): IdentityExpr {
 export function union(...exprs: IdentityExpr[]): IdentityExpr {
   if (exprs.length === 0) {
     // Empty union - will be filtered to null in Cypher
-    return { kind: 'identity', id: '__EMPTY__', scopes: [{ principals: ['__NEVER_MATCH__'] }] }
+    return {
+      kind: 'scope',
+      scopes: [{ principals: ['__NEVER_MATCH__'] }],
+      expr: { kind: 'identity', id: '__EMPTY__' },
+    }
   }
   if (exprs.length === 1) {
     return exprs[0]!
   }
-  return exprs.reduce((acc, expr) => ({ kind: 'union', left: acc, right: expr }))
+  return { kind: 'union', operands: exprs }
 }
 
 /**
@@ -70,14 +76,14 @@ export function intersect(...exprs: IdentityExpr[]): IdentityExpr {
   if (exprs.length === 1) {
     return exprs[0]!
   }
-  return exprs.reduce((acc, expr) => ({ kind: 'intersect', left: acc, right: expr }))
+  return { kind: 'intersect', operands: exprs }
 }
 
 /**
  * Create an exclude expression (base \ excluded).
  */
 export function exclude(base: IdentityExpr, excluded: IdentityExpr): IdentityExpr {
-  return { kind: 'exclude', left: base, right: excluded }
+  return { kind: 'exclude', base, excluded: [excluded] }
 }
 
 /**

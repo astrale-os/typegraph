@@ -7,7 +7,7 @@
 
 import type { AccessQueryPort } from '../../authorization/access-query-port'
 import type { CypherFragment } from '../../adapter/cypher'
-import type { IdentityExpr, NodeId, PermissionT, IdentityId, LeafEvaluation } from '../../types'
+import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation } from '../../types'
 import type { Phase, SpanMetadata } from './types'
 import { type SpanCollector } from './span-collector'
 
@@ -61,15 +61,13 @@ export class ProfilingAccessQueryAdapter implements AccessQueryPort {
   // ===========================================================================
 
   generateQuery(
-    expr: IdentityExpr,
-    targetVar: string,
-    perm: PermissionT,
-    principal: IdentityId | undefined,
+    expr: PrunedIdentityExpr,
+    perm: Permission,
   ): CypherFragment | null {
     return this.instrumentSync(
       'generateQuery',
       'resolve',
-      () => this.inner.generateQuery(expr, targetVar, perm, principal),
+      () => this.inner.generateQuery(expr, perm),
       {
         inputSize: JSON.stringify(expr).length,
       },
@@ -113,7 +111,7 @@ export class ProfilingAccessQueryAdapter implements AccessQueryPort {
   async queryLeafDetails(
     leaves: LeafEvaluation[],
     resourceId: NodeId,
-    perm: PermissionT,
+    perm: Permission,
   ): Promise<void> {
     return this.instrumentAsync(
       'queryLeafDetails',

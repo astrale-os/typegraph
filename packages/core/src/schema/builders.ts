@@ -376,6 +376,90 @@ function validateLabelInheritance(
 }
 
 // =============================================================================
+// PROPERTY INHERITANCE
+// =============================================================================
+
+/**
+ * Collects parent Zod schemas from a node's label hierarchy.
+ * Uses DFS with visited tracking to handle diamond inheritance.
+ *
+ * Semantic rules:
+ * - Properties merge left-to-right from labels array
+ * - Grandparent properties come before parent properties
+ * - Visited nodes are skipped (diamond inheritance dedup)
+ */
+function collectParentSchemas(
+  nodeDef: NodeDefinition,
+  allNodes: Record<string, NodeDefinition>,
+): z.ZodObject<z.ZodRawShape>[] {
+  const visited = new Set<string>()
+  const schemas: z.ZodObject<z.ZodRawShape>[] = []
+
+  function collect(labels: readonly string[] | undefined): void {
+    if (!labels) return
+    for (const label of labels) {
+      if (visited.has(label)) continue
+      visited.add(label)
+
+      const parent = allNodes[label]
+      if (!parent) continue
+
+      // Collect grandparents first (DFS)
+      collect(parent.labels)
+      schemas.push(parent.properties)
+    }
+  }
+
+  collect(nodeDef.labels)
+  return schemas
+}
+
+/**
+ * Merges inherited properties into nodes that have labels.
+ * Uses shape reconstruction (not Zod .merge()) to preserve modifiers.
+ *
+ * Semantic rules:
+ * - Child properties override parent properties (same name)
+ * - Indexes are NOT inherited (explicit per-node)
+ * - Modifiers (.default(), .transform()) are preserved
+ */
+export function mergeNodeSchemas(
+  nodes: Record<string, NodeDefinition>,
+): Record<string, NodeDefinition> {
+  const merged: Record<string, NodeDefinition> = {}
+
+  for (const [nodeKey, nodeDef] of Object.entries(nodes)) {
+    // No labels = no inheritance
+    if (!nodeDef.labels?.length) {
+      merged[nodeKey] = nodeDef
+      continue
+    }
+
+    const parentSchemas = collectParentSchemas(nodeDef, nodes)
+    if (parentSchemas.length === 0) {
+      merged[nodeKey] = nodeDef
+      continue
+    }
+
+    // Shape reconstruction: parents first, then child (child overrides)
+    // Type assertion needed because Zod's shape type is complex
+    let mergedShape: z.ZodRawShape = {}
+    for (const parentSchema of parentSchemas) {
+      mergedShape = { ...mergedShape, ...(parentSchema.shape as z.ZodRawShape) }
+    }
+    mergedShape = { ...mergedShape, ...(nodeDef.properties.shape as z.ZodRawShape) }
+
+    merged[nodeKey] = {
+      ...nodeDef,
+      properties: z.object(mergedShape),
+      // Indexes are NOT inherited - keep only node's own indexes
+    }
+  }
+
+  return merged
+}
+
+// =============================================================================
 // SCHEMA BUILDER
 // =============================================================================
 
@@ -471,9 +555,88 @@ export function defineSchema<
   // Validate label references exist and detect cycles
   validateLabelInheritance(config.nodes, nodeLabels)
 
+  // Merge inherited properties from labels
+  const mergedNodes = mergeNodeSchemas(config.nodes)
+
   return {
-    nodes: config.nodes,
+    nodes: mergedNodes as TNodes,
     edges: config.edges,
     hierarchy: config.hierarchy,
   }
+}
+
+// =============================================================================
+// SCHEMA EXTENSION
+// =============================================================================
+
+/**
+ * Extends an existing schema with additional nodes and edges.
+ *
+ * Use this to build distribution schemas that inherit from the kernel schema.
+ * Extension nodes can reference labels from the base schema.
+ *
+ * Semantic rules:
+ * - Extension nodes/edges override base nodes/edges with same key
+ * - Extension nodes can use labels from base schema
+ * - Property inheritance works across base and extension
+ * - Hierarchy inherits from base unless overridden
+ *
+ * @example
+ * ```typescript
+ * const TaskSchema = extendSchema(KernelSchema, {
+ *   nodes: {
+ *     task: node({
+ *       properties: { title: z.string() },
+ *       labels: ['module'],  // Inherits from kernel's module
+ *     }),
+ *   },
+ *   edges: {
+ *     taskOwner: edge({
+ *       from: 'task',
+ *       to: 'identity',  // References kernel node
+ *       cardinality: { outbound: 'one', inbound: 'many' },
+ *     }),
+ *   },
+ * })
+ * ```
+ */
+export function extendSchema<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TBaseNodes extends Record<string, NodeDefinition<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TBaseEdges extends Record<string, EdgeDefinition<any, any, any, any, any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TExtNodes extends Record<string, NodeDefinition<any>> = Record<string, never>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TExtEdges extends Record<string, EdgeDefinition<any, any, any, any, any>> = Record<string, never>,
+>(
+  base: SchemaDefinition<TBaseNodes, TBaseEdges>,
+  extension: {
+    nodes?: TExtNodes
+    edges?: TExtEdges
+    hierarchy?: HierarchyConfig<keyof (TBaseEdges & TExtEdges) & string>
+  },
+): SchemaDefinition<TBaseNodes & TExtNodes, TBaseEdges & TExtEdges> {
+  const mergedNodes = { ...base.nodes, ...(extension.nodes ?? {}) }
+  const mergedEdges = { ...base.edges, ...(extension.edges ?? {}) }
+
+  // Validate extension labels reference valid nodes (base or extension)
+  for (const [name, nodeDef] of Object.entries(extension.nodes ?? {})) {
+    if (!nodeDef.labels) continue
+    for (const label of nodeDef.labels) {
+      if (!(label in mergedNodes)) {
+        throw new SchemaValidationError(
+          `Node '${name}' references unknown label '${label}'. Available: ${Object.keys(mergedNodes).join(', ')}`,
+          'labels',
+        )
+      }
+    }
+  }
+
+  // Delegate to defineSchema for full validation + property merging
+  return defineSchema({
+    nodes: mergedNodes as TBaseNodes & TExtNodes,
+    edges: mergedEdges as TBaseEdges & TExtEdges,
+    hierarchy: extension.hierarchy ?? base.hierarchy,
+  })
 }

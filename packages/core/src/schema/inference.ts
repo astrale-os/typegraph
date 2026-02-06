@@ -846,7 +846,9 @@ export type QueryContext<
  *
  * @internal
  */
-export type ResolveProxy<T> = T extends { readonly __nodeProxyBrand__: { schema: infer S; label: infer N } }
+export type ResolveProxy<T> = T extends {
+  readonly __nodeProxyBrand__: { schema: infer S; label: infer N }
+}
   ? S extends AnySchema
     ? N extends NodeLabels<S>
       ? NodeProps<S, N>

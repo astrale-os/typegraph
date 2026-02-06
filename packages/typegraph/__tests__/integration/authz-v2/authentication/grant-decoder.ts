@@ -51,7 +51,7 @@ export class GrantDecoder {
    *
    * - JWTs are verified and decoded to plain IDs
    * - Kernel-issued tokens have their inner grants extracted
-   * - Scopes are properly intersected (not concatenated)
+   * - Scopes are preserved on scope nodes (not on identity leaves)
    * - Expression structure is preserved
    *
    * Note: This does NOT expand identity compositions from the DB.
@@ -87,8 +87,8 @@ export class GrantDecoder {
   }
 
   /**
-   * Apply top-level scopes to all leaves in an expression.
-   * Uses proper intersection, not concatenation.
+   * Apply top-level scopes to an expression.
+   * Wraps the expression in a scope node.
    */
   applyScopes(expr: IdentityExpr, scopes: Scope[]): IdentityExpr {
     return applyTopLevelScopes(expr, scopes)
@@ -116,34 +116,46 @@ export class GrantDecoder {
       case 'identity':
         return this.decodeIdentity(expr)
 
-      case 'union':
-      case 'intersect':
-      case 'exclude': {
-        const [left, right] = await Promise.all([
-          this.decodeExpr(expr.left),
-          this.decodeExpr(expr.right),
-        ])
-        return { kind: expr.kind, left, right }
+      case 'scope': {
+        const inner = await this.decodeExpr(expr.expr)
+        return { kind: 'scope', scopes: expr.scopes, expr: inner }
       }
+
+      case 'union': {
+        const operands = await Promise.all(expr.operands.map((op) => this.decodeExpr(op)))
+        return { kind: 'union', operands }
+      }
+
+      case 'intersect': {
+        const operands = await Promise.all(expr.operands.map((op) => this.decodeExpr(op)))
+        return { kind: 'intersect', operands }
+      }
+
+      case 'exclude': {
+        const [base, ...excluded] = await Promise.all([
+          this.decodeExpr(expr.base),
+          ...expr.excluded.map((ex) => this.decodeExpr(ex)),
+        ])
+        return { kind: 'exclude', base: base!, excluded }
+      }
+
+      default:
+        throw new Error(`Unknown expression kind: ${(expr as { kind: string }).kind}`)
     }
   }
 
   private async decodeIdentity(
-    expr:
-      | { kind: 'identity'; jwt: string; scopes?: Scope[] }
-      | { kind: 'identity'; id: IdentityId; scopes?: Scope[] },
+    expr: { kind: 'identity'; jwt: string } | { kind: 'identity'; id: IdentityId },
   ): Promise<IdentityExpr> {
     if ('jwt' in expr) {
-      return this.decodeJwtIdentity(expr.jwt, expr.scopes)
+      return this.decodeJwtIdentity(expr.jwt)
     }
 
     // Plain ID - return as-is
-    return expr.scopes
-      ? { kind: 'identity', id: expr.id, scopes: expr.scopes }
-      : { kind: 'identity', id: expr.id }
+    return { kind: 'identity', id: expr.id }
   }
 
-  private async decodeJwtIdentity(jwt: string, leafScopes?: Scope[]): Promise<IdentityExpr> {
+  private async decodeJwtIdentity(jwt: string): Promise<IdentityExpr> {
     // Verify the JWT
     const { payload } = this.verifier.verifyToken(jwt)
     const identityId = this.registry.resolveIdentity(payload.iss, payload.sub)
@@ -153,20 +165,11 @@ export class GrantDecoder {
       const inner = this.decodeField(payload.grant.forResource)
 
       // Recursively decode the inner expression
-      const decodedInner = await this.decodeExpr(inner)
-
-      // Apply leaf scopes via intersection (not concatenation)
-      if (leafScopes && leafScopes.length > 0) {
-        return applyTopLevelScopes(decodedInner, leafScopes)
-      }
-
-      return decodedInner
+      return this.decodeExpr(inner)
     }
 
     // Regular JWT - create identity from decoded ID
-    return leafScopes
-      ? { kind: 'identity', id: identityId, scopes: leafScopes }
-      : { kind: 'identity', id: identityId }
+    return { kind: 'identity', id: identityId }
   }
 }
 
@@ -212,27 +215,48 @@ function validateExpressionSecurity(expr: UnresolvedIdentityExpr, verifier: Toke
       }
       break
 
+    case 'scope':
+      validateExpressionSecurity(expr.expr, verifier)
+      break
+
     case 'union':
     case 'intersect':
-    case 'exclude':
-      validateExpressionSecurity(expr.left, verifier)
-      validateExpressionSecurity(expr.right, verifier)
+      for (const op of expr.operands) {
+        validateExpressionSecurity(op, verifier)
+      }
       break
+
+    case 'exclude':
+      validateExpressionSecurity(expr.base, verifier)
+      for (const ex of expr.excluded) {
+        validateExpressionSecurity(ex, verifier)
+      }
+      break
+
+    default:
+      throw new Error(
+        `Unknown expression kind in security validation: ${(expr as { kind: string }).kind}`,
+      )
   }
 }
 
 /**
- * Extract the primary (leftmost) identity from an expression.
+ * Extract the primary (leftmost/first) identity from an expression.
  * Used for the JWT 'sub' claim.
  */
 export function extractPrimaryIdentity(expr: IdentityExpr): IdentityId {
   switch (expr.kind) {
     case 'identity':
       return expr.id
+    case 'scope':
+      return extractPrimaryIdentity(expr.expr)
     case 'union':
     case 'intersect':
+      return extractPrimaryIdentity(expr.operands[0]!)
     case 'exclude':
-      return extractPrimaryIdentity(expr.left)
+      return extractPrimaryIdentity(expr.base)
+    default:
+      throw new Error(`Unknown expression kind: ${(expr as { kind: string }).kind}`)
   }
 }
 
@@ -278,32 +302,57 @@ export function validateUnresolvedExpr(
 
   const e = expr as Record<string, unknown>
 
-  if (e.kind === 'identity') {
-    const hasJwt = 'jwt' in e && typeof e.jwt === 'string'
-    const hasId = 'id' in e && typeof e.id === 'string'
+  switch (e.kind) {
+    case 'identity': {
+      const hasJwt = 'jwt' in e && typeof e.jwt === 'string'
+      const hasId = 'id' in e && typeof e.id === 'string'
 
-    if (!hasJwt && !hasId) {
-      throw new Error(`${path}: identity must have jwt or id`)
-    }
-    if (hasJwt && hasId) {
-      throw new Error(`${path}: identity cannot have both jwt and id`)
-    }
-
-    if (e.scopes !== undefined) {
-      if (!Array.isArray(e.scopes)) {
-        throw new Error(`${path}.scopes: must be an array`)
+      if (!hasJwt && !hasId) {
+        throw new Error(`${path}: identity must have jwt or id`)
       }
+      if (hasJwt && hasId) {
+        throw new Error(`${path}: identity cannot have both jwt and id`)
+      }
+      break
     }
-  } else if (e.kind === 'union' || e.kind === 'intersect' || e.kind === 'exclude') {
-    if (!('left' in e)) {
-      throw new Error(`${path}: ${e.kind} must have left`)
+
+    case 'scope': {
+      if (!Array.isArray(e.scopes) || e.scopes.length === 0) {
+        throw new Error(`${path}: scope must have at least one scope`)
+      }
+      if (!('expr' in e)) {
+        throw new Error(`${path}: scope must have expr`)
+      }
+      validateUnresolvedExpr(e.expr, `${path}.expr`)
+      break
     }
-    if (!('right' in e)) {
-      throw new Error(`${path}: ${e.kind} must have right`)
+
+    case 'union':
+    case 'intersect': {
+      if (!Array.isArray(e.operands) || e.operands.length < 2) {
+        throw new Error(`${path}: ${e.kind} must have at least 2 operands`)
+      }
+      for (let i = 0; i < e.operands.length; i++) {
+        validateUnresolvedExpr(e.operands[i], `${path}.operands[${i}]`)
+      }
+      break
     }
-    validateUnresolvedExpr(e.left, `${path}.left`)
-    validateUnresolvedExpr(e.right, `${path}.right`)
-  } else {
-    throw new Error(`${path}: invalid kind: ${e.kind}`)
+
+    case 'exclude': {
+      if (!('base' in e)) {
+        throw new Error(`${path}: exclude must have base`)
+      }
+      validateUnresolvedExpr(e.base, `${path}.base`)
+      if (!Array.isArray(e.excluded) || e.excluded.length < 1) {
+        throw new Error(`${path}: exclude must have at least 1 excluded operand`)
+      }
+      for (let i = 0; i < e.excluded.length; i++) {
+        validateUnresolvedExpr(e.excluded[i], `${path}.excluded[${i}]`)
+      }
+      break
+    }
+
+    default:
+      throw new Error(`${path}: invalid kind: ${e.kind}`)
   }
 }

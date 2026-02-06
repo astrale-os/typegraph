@@ -6,7 +6,7 @@ export type {
   IdentityId,
   LeafEvaluation,
   NodeId,
-  PermissionT,
+  Permission,
   PhaseExplanation,
   Scope,
   FilterDetail,

@@ -5,7 +5,7 @@
  * Pure functions, no I/O.
  */
 
-import type { IdentityExpr, Grant, NodeId, PermissionT, IdentityId, Scope } from '../types'
+import type { IdentityExpr, Grant, NodeId, Permission, IdentityId, Scope } from '../types'
 
 // =============================================================================
 // INPUT VALIDATION (Security: Cypher Injection Prevention)
@@ -75,13 +75,31 @@ export function validateExpression(expr: IdentityExpr, depth: number = 0): void 
   switch (expr.kind) {
     case 'identity':
       validateCypherId(expr.id, 'identity ID')
+      break
+    case 'scope':
+      if (!expr.scopes || expr.scopes.length === 0) {
+        throw new Error('Scope node must have at least one scope')
+      }
       validateScopes(expr.scopes)
+      validateExpression(expr.expr, depth + 1)
       break
     case 'union':
     case 'intersect':
+      if (!expr.operands || expr.operands.length < 2) {
+        throw new Error(`${expr.kind} must have at least 2 operands`)
+      }
+      for (const operand of expr.operands) {
+        validateExpression(operand, depth + 1)
+      }
+      break
     case 'exclude':
-      validateExpression(expr.left, depth + 1)
-      validateExpression(expr.right, depth + 1)
+      validateExpression(expr.base, depth + 1)
+      if (!expr.excluded || expr.excluded.length < 1) {
+        throw new Error('exclude must have at least 1 excluded operand')
+      }
+      for (const excluded of expr.excluded) {
+        validateExpression(excluded, depth + 1)
+      }
       break
     default:
       throwExhaustiveCheck(expr)
@@ -94,7 +112,7 @@ export function validateExpression(expr: IdentityExpr, depth: number = 0): void 
 export function validateAccessInputs(
   grant: Grant,
   resourceId: NodeId,
-  perm: PermissionT,
+  perm: Permission,
   principal: IdentityId,
 ): void {
   validateCypherId(resourceId, 'resourceId')

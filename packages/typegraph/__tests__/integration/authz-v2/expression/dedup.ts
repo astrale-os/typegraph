@@ -31,12 +31,12 @@
  *
  * @example
  * ```typescript
- * const shared = union(identity("A"), identity("B"))
- * const expr = intersect(shared, exclude(shared, identity("C"))).build()
+ * const shared = union(identity("A"), identity("B")).build()
+ * const expr = intersect(raw(shared), exclude(raw(shared), identity("C"))).build()
  *
  * const deduped = dedup(expr)
- * // deduped.defs = [{ kind: 'union', left: {id: 'A'}, right: {id: 'B'} }]
- * // deduped.root = { kind: 'intersect', left: { $ref: 0 }, right: ... }
+ * // deduped.defs = [{ kind: 'union', operands: [{id: 'A'}, {id: 'B'}] }]
+ * // deduped.root = { kind: 'intersect', operands: [{ $ref: 0 }, ...] }
  *
  * const original = expand(deduped)
  * // Back to full expression
@@ -59,10 +59,11 @@ export type Ref = { $ref: number }
  */
 export type RefExpr =
   | Ref
-  | { kind: 'identity'; id: string; scopes?: Scope[] }
-  | { kind: 'union'; left: RefExpr; right: RefExpr }
-  | { kind: 'intersect'; left: RefExpr; right: RefExpr }
-  | { kind: 'exclude'; left: RefExpr; right: RefExpr }
+  | { kind: 'identity'; id: string }
+  | { kind: 'scope'; scopes: Scope[]; expr: RefExpr }
+  | { kind: 'union'; operands: RefExpr[] }
+  | { kind: 'intersect'; operands: RefExpr[] }
+  | { kind: 'exclude'; base: RefExpr; excluded: RefExpr[] }
 
 /**
  * Deduplicated expression with shared definitions extracted.
@@ -106,27 +107,43 @@ export function isDedupedExpr(value: unknown): value is DedupedExpr {
 /**
  * Compute a deterministic hash of an expression for duplicate detection.
  * Uses length-prefixed IDs to avoid false substring matches.
- * e.g., identity("A") -> "i[1]:A:" vs identity("AB") -> "i[2]:AB:"
+ * e.g., identity("A") -> "i[1]:A" vs identity("AB") -> "i[2]:AB"
  */
 function hashExpr(expr: IdentityExpr): string {
   switch (expr.kind) {
-    case 'identity': {
-      const scopeHash = expr.scopes ? JSON.stringify(expr.scopes) : ''
-      // Length-prefix the ID to avoid "A" matching "AB" as substring
-      return `i[${expr.id.length}]:${expr.id}:${scopeHash}`
-    }
+    case 'identity':
+      return `i[${expr.id.length}]:${expr.id}`
+    case 'scope':
+      return `s:${JSON.stringify(expr.scopes)}:(${hashExpr(expr.expr)})`
     case 'union':
-      return `u:(${hashExpr(expr.left)}):(${hashExpr(expr.right)})`
+      return `u:(${expr.operands.map(hashExpr).join('|')})`
     case 'intersect':
-      return `n:(${hashExpr(expr.left)}):(${hashExpr(expr.right)})`
+      return `n:(${expr.operands.map(hashExpr).join('|')})`
     case 'exclude':
-      return `x:(${hashExpr(expr.left)}):(${hashExpr(expr.right)})`
+      return `x:(${hashExpr(expr.base)}):(${expr.excluded.map(hashExpr).join('|')})`
   }
 }
 
 // =============================================================================
 // DEDUPLICATION
 // =============================================================================
+
+/**
+ * Collect hashes of all direct children of an expression.
+ */
+function collectChildHashes(expr: IdentityExpr): IdentityExpr[] {
+  switch (expr.kind) {
+    case 'identity':
+      return []
+    case 'scope':
+      return [expr.expr]
+    case 'union':
+    case 'intersect':
+      return expr.operands
+    case 'exclude':
+      return [expr.base, ...expr.excluded]
+  }
+}
 
 /**
  * Count occurrences of each subtree hash in the expression.
@@ -141,16 +158,15 @@ function countSubtrees(
 
   // Collect child hashes by recursing first
   let childHashes = new Set<string>()
-  if (expr.kind !== 'identity') {
-    const leftChildren = countSubtrees(expr.left, counts)
-    const rightChildren = countSubtrees(expr.right, counts)
-    // Include direct children and their descendants
-    childHashes = new Set([
-      ...leftChildren,
-      ...rightChildren,
-      hashExpr(expr.left),
-      hashExpr(expr.right),
-    ])
+  const children = collectChildHashes(expr)
+
+  for (const child of children) {
+    const descendantHashes = countSubtrees(child, counts)
+    const childHash = hashExpr(child)
+    childHashes.add(childHash)
+    for (const h of descendantHashes) {
+      childHashes.add(h)
+    }
   }
 
   if (existing) {
@@ -174,15 +190,24 @@ function replaceWithRefs(expr: IdentityExpr, hashToRef: Map<string, number>): Re
     return { $ref: refIndex }
   }
 
-  // Otherwise, recurse (or return identity leaf as-is)
-  if (expr.kind === 'identity') {
-    return expr
-  }
-
-  return {
-    kind: expr.kind,
-    left: replaceWithRefs(expr.left, hashToRef),
-    right: replaceWithRefs(expr.right, hashToRef),
+  switch (expr.kind) {
+    case 'identity':
+      return expr
+    case 'scope':
+      return { kind: 'scope', scopes: expr.scopes, expr: replaceWithRefs(expr.expr, hashToRef) }
+    case 'union':
+      return { kind: 'union', operands: expr.operands.map((op) => replaceWithRefs(op, hashToRef)) }
+    case 'intersect':
+      return {
+        kind: 'intersect',
+        operands: expr.operands.map((op) => replaceWithRefs(op, hashToRef)),
+      }
+    case 'exclude':
+      return {
+        kind: 'exclude',
+        base: replaceWithRefs(expr.base, hashToRef),
+        excluded: expr.excluded.map((ex) => replaceWithRefs(ex, hashToRef)),
+      }
   }
 }
 
@@ -194,15 +219,6 @@ function replaceWithRefs(expr: IdentityExpr, hashToRef: Map<string, number>): Re
  *
  * @param expr - The expression to deduplicate
  * @returns Deduplicated expression with shared definitions
- *
- * @example
- * ```typescript
- * const shared = union(identity("A"), identity("B"))
- * const expr = intersect(shared, exclude(shared, identity("C"))).build()
- *
- * const deduped = dedup(expr)
- * expect(deduped.defs.length).toBe(1)  // shared subtree extracted
- * ```
  */
 export function dedup(expr: IdentityExpr): DedupedExpr {
   // Step 1: Count all subtree occurrences (also tracks child relationships)
@@ -259,14 +275,27 @@ function expandRefExpr(refExpr: RefExpr, defs: IdentityExpr[]): IdentityExpr {
     return def
   }
 
-  if (refExpr.kind === 'identity') {
-    return refExpr
-  }
-
-  return {
-    kind: refExpr.kind,
-    left: expandRefExpr(refExpr.left, defs),
-    right: expandRefExpr(refExpr.right, defs),
+  switch (refExpr.kind) {
+    case 'identity':
+      return refExpr
+    case 'scope':
+      return { kind: 'scope', scopes: refExpr.scopes, expr: expandRefExpr(refExpr.expr, defs) }
+    case 'union':
+      return {
+        kind: 'union',
+        operands: refExpr.operands.map((op) => expandRefExpr(op, defs)),
+      }
+    case 'intersect':
+      return {
+        kind: 'intersect',
+        operands: refExpr.operands.map((op) => expandRefExpr(op, defs)),
+      }
+    case 'exclude':
+      return {
+        kind: 'exclude',
+        base: expandRefExpr(refExpr.base, defs),
+        excluded: refExpr.excluded.map((ex) => expandRefExpr(ex, defs)),
+      }
   }
 }
 
@@ -275,13 +304,6 @@ function expandRefExpr(refExpr: RefExpr, defs: IdentityExpr[]): IdentityExpr {
  *
  * @param deduped - Deduplicated expression with refs
  * @returns Full IdentityExpr with refs resolved
- *
- * @example
- * ```typescript
- * const deduped = dedup(expr)
- * const original = expand(deduped)
- * expect(original).toEqual(expr)  // round-trip
- * ```
  */
 export function expand(deduped: DedupedExpr): IdentityExpr {
   return expandRefExpr(deduped.root, deduped.defs)

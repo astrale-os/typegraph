@@ -141,12 +141,14 @@ function generateTestExpressions(): ExpressionSet[] {
     description: 'Shared subtree used twice (union appears in both branches)',
     expr: {
       kind: 'intersect',
-      left: sharedSubtree,
-      right: {
-        kind: 'exclude',
-        left: sharedSubtree,
-        right: { kind: 'identity', id: generateIdentityId('user', 9) },
-      },
+      operands: [
+        sharedSubtree,
+        {
+          kind: 'exclude',
+          base: sharedSubtree,
+          excluded: [{ kind: 'identity', id: generateIdentityId('user', 9) }],
+        },
+      ],
     },
     hasDuplicates: true,
   })
@@ -162,16 +164,17 @@ function generateTestExpressions(): ExpressionSet[] {
     description: 'Same identity used 3 times in expression',
     expr: {
       kind: 'union',
-      left: {
-        kind: 'intersect',
-        left: sharedIdentity,
-        right: { kind: 'identity', id: generateIdentityId('user', 10) },
-      },
-      right: {
-        kind: 'exclude',
-        left: sharedIdentity,
-        right: sharedIdentity, // used third time
-      },
+      operands: [
+        {
+          kind: 'intersect',
+          operands: [sharedIdentity, { kind: 'identity', id: generateIdentityId('user', 10) }],
+        },
+        {
+          kind: 'exclude',
+          base: sharedIdentity,
+          excluded: [sharedIdentity], // used third time
+        },
+      ],
     },
     hasDuplicates: true,
   })
@@ -207,11 +210,13 @@ function generateTestExpressions(): ExpressionSet[] {
   for (let i = 1; i <= 15; i++) {
     largeExpr = {
       kind: 'union',
-      left: largeExpr,
-      right: identity(generateIdentityId(i % 2 === 0 ? 'role' : 'user', 100 + i), {
-        nodes: [generateNodeId(i)],
-        perms: [PERMISSIONS[i % 4]],
-      }).build(),
+      operands: [
+        largeExpr,
+        identity(generateIdentityId(i % 2 === 0 ? 'role' : 'user', 100 + i), {
+          nodes: [generateNodeId(i)],
+          perms: [PERMISSIONS[i % 4]],
+        }).build(),
+      ],
     }
   }
   expressions.push({
@@ -237,12 +242,14 @@ function generateTestExpressions(): ExpressionSet[] {
   for (let i = 0; i < 5; i++) {
     largeWithDups = {
       kind: i % 2 === 0 ? 'union' : 'intersect',
-      left: largeWithDups,
-      right: {
-        kind: 'exclude',
-        left: sharedComplex,
-        right: { kind: 'identity', id: generateIdentityId('user', 210 + i) },
-      },
+      operands: [
+        largeWithDups,
+        {
+          kind: 'exclude',
+          base: sharedComplex,
+          excluded: [{ kind: 'identity', id: generateIdentityId('user', 210 + i) }],
+        },
+      ],
     }
   }
   expressions.push({

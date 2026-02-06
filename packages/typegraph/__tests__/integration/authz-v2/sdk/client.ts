@@ -111,13 +111,28 @@ export class RequestContext {
     let expression: UnresolvedIdentityExpr
     switch (op) {
       case 'union':
-        expression = unresolvedUnion(thisExpr, otherExpr)
+        // Flatten if this expression is already a union
+        if (thisExpr.kind === 'union') {
+          expression = { kind: 'union', operands: [...thisExpr.operands, otherExpr] }
+        } else {
+          expression = unresolvedUnion(thisExpr, otherExpr)
+        }
         break
       case 'intersect':
-        expression = unresolvedIntersect(thisExpr, otherExpr)
+        // Flatten if this expression is already an intersect
+        if (thisExpr.kind === 'intersect') {
+          expression = { kind: 'intersect', operands: [...thisExpr.operands, otherExpr] }
+        } else {
+          expression = unresolvedIntersect(thisExpr, otherExpr)
+        }
         break
       case 'exclude':
-        expression = unresolvedExclude(thisExpr, otherExpr)
+        // Flatten if this expression is already an exclude
+        if (thisExpr.kind === 'exclude') {
+          expression = { kind: 'exclude', base: thisExpr.base, excluded: [...thisExpr.excluded, otherExpr] }
+        } else {
+          expression = unresolvedExclude(thisExpr, otherExpr)
+        }
         break
     }
 

@@ -5,7 +5,7 @@
  * Scopes can only be made MORE restrictive, never less.
  */
 
-import type { IdentityExpr, Scope, IdentityId, PermissionT, NodeId, FilterDetail } from '../types'
+import type { IdentityExpr, Scope, IdentityId, Permission, FilterDetail } from '../types'
 
 // =============================================================================
 // SCOPE INTERSECTION
@@ -114,68 +114,7 @@ function scopeToKey(scope: Scope): string {
 }
 
 // =============================================================================
-// SCOPE VALIDATION
-// =============================================================================
-
-/**
- * Check if a scope allows a specific permission.
- */
-export function scopeAllowsPerm(scope: Scope, perm: PermissionT): boolean {
-  if (scope.perms === undefined) return true // unrestricted
-  return scope.perms.includes(perm)
-}
-
-/**
- * Check if a scope allows a specific node.
- */
-export function scopeAllowsNode(scope: Scope, node: NodeId): boolean {
-  if (scope.nodes === undefined) return true // unrestricted
-  return scope.nodes.includes(node)
-}
-
-/**
- * Check if a scope allows a specific principal.
- */
-export function scopeAllowsPrincipal(scope: Scope, principal: IdentityId): boolean {
-  if (scope.principals === undefined) return true // unrestricted
-  return scope.principals.includes(principal)
-}
-
-/**
- * Check if any scope in the array allows the given parameters.
- * Scopes are OR'd - any passing scope = allowed.
- *
- * IMPORTANT semantic distinction:
- * - undefined = unrestricted (no scope restrictions)
- * - [] (empty array) = no valid scopes = deny all
- */
-export function scopesAllow(
-  scopes: Scope[] | undefined,
-  params: { node?: NodeId; perm?: PermissionT; principal?: IdentityId },
-): boolean {
-  // undefined = unrestricted
-  if (scopes === undefined) {
-    return true
-  }
-
-  // Empty array = no valid scopes = deny (not unrestricted!)
-  // This happens after intersection produces no valid combinations
-  if (scopes.length === 0) {
-    return false
-  }
-
-  // Any scope passing = allowed
-  return scopes.some((scope) => {
-    if (params.node !== undefined && !scopeAllowsNode(scope, params.node)) return false
-    if (params.perm !== undefined && !scopeAllowsPerm(scope, params.perm)) return false
-    if (params.principal !== undefined && !scopeAllowsPrincipal(scope, params.principal))
-      return false
-    return true
-  })
-}
-
-// =============================================================================
-// RICH SCOPE CHECKS (extracted from access-checker)
+// RICH SCOPE CHECKS (used by pruning phase)
 // =============================================================================
 
 /**
@@ -185,36 +124,15 @@ export function scopesAllow(
 export function scopePasses(
   scope: Scope,
   principal: IdentityId | undefined,
-  perm: PermissionT,
+  perm: Permission,
 ): { passes: boolean; failedCheck?: 'principal' | 'perm' } {
-  if (scope.principals?.length && (!principal || !scope.principals.includes(principal))) {
+  if (scope.principals !== undefined && (scope.principals.length === 0 || !principal || !scope.principals.includes(principal))) {
     return { passes: false, failedCheck: 'principal' }
   }
-  if (scope.perms?.length && !scope.perms.includes(perm)) {
+  if (scope.perms !== undefined && (scope.perms.length === 0 || !scope.perms.includes(perm))) {
     return { passes: false, failedCheck: 'perm' }
   }
   return { passes: true }
-}
-
-/**
- * Check which scopes allow the given principal and perm.
- * Returns applicable scopes (those that pass principal/perm checks) for node restriction tracking.
- */
-export function filterApplicableScopes(
-  scopes: Scope[] | undefined,
-  principal: IdentityId | undefined,
-  perm: PermissionT,
-): { allowed: boolean; applicableScopes: Scope[] } {
-  if (!scopes?.length) {
-    return { allowed: true, applicableScopes: [] }
-  }
-
-  const applicableScopes = scopes.filter((scope) => scopePasses(scope, principal, perm).passes)
-
-  return {
-    allowed: applicableScopes.length > 0,
-    applicableScopes,
-  }
 }
 
 /**
@@ -223,7 +141,7 @@ export function filterApplicableScopes(
 export function checkFilter(
   scopes: Scope[] | undefined,
   principal: IdentityId | undefined,
-  perm: PermissionT,
+  perm: Permission,
 ): { allowed: boolean; details?: FilterDetail[]; applicableScopes?: Scope[] } {
   if (!scopes?.length) {
     return { allowed: true, applicableScopes: [] }
@@ -253,63 +171,23 @@ export function checkFilter(
 // =============================================================================
 
 /**
- * Add a scope to all identity leaves in an expression tree.
+ * Wrap an expression in a scope node.
  *
- * @param expr - The expression to walk
- * @param scope - The scope to append to each leaf
- *
- * @example
- * ```typescript
- * const expanded = await evaluator.evalExpr(identity("USER1"))
- * const scoped = applyScope(expanded, { nodes: ["workspace-1"] })
- * ```
+ * @param expr - The expression to wrap
+ * @param scope - The scope to apply
  */
 export function applyScope(expr: IdentityExpr, scope: Scope): IdentityExpr {
-  switch (expr.kind) {
-    case 'identity':
-      return {
-        ...expr,
-        scopes: expr.scopes ? [...expr.scopes, scope] : [scope],
-      }
-    case 'union':
-    case 'intersect':
-    case 'exclude':
-      return {
-        kind: expr.kind,
-        left: applyScope(expr.left, scope),
-        right: applyScope(expr.right, scope),
-      }
-  }
+  return { kind: 'scope', scopes: [scope], expr }
 }
 
 /**
- * Apply top-level scopes to all leaves via proper intersection.
+ * Wrap an expression in a scope node with multiple scopes.
  * Used by the auth layer to narrow delegated expressions.
  *
  * @param expr - The expression to narrow
- * @param scopes - Scopes to intersect onto each leaf
+ * @param scopes - Scopes to apply (OR'd together)
  */
 export function applyTopLevelScopes(expr: IdentityExpr, scopes: Scope[]): IdentityExpr {
   if (scopes.length === 0) return expr
-
-  switch (expr.kind) {
-    case 'identity': {
-      const newScopes = expr.scopes ? intersectScopes(expr.scopes, scopes) : scopes
-      // IMPORTANT: Keep empty array (means "no valid scopes" = deny).
-      // Only use undefined for "unrestricted". Empty array after intersection = impossible.
-      return {
-        kind: 'identity',
-        id: expr.id,
-        scopes: newScopes,
-      }
-    }
-    case 'union':
-    case 'intersect':
-    case 'exclude':
-      return {
-        kind: expr.kind,
-        left: applyTopLevelScopes(expr.left, scopes),
-        right: applyTopLevelScopes(expr.right, scopes),
-      }
-  }
+  return { kind: 'scope', scopes, expr }
 }

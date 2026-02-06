@@ -2,27 +2,19 @@
  * Binary Varint Encoding for Identity Expressions
  *
  * Zero-dependency binary encoding for maximum compression.
- * ~79% size reduction vs verbose JSON.
  *
  * Type Tags:
- * - 0x01 = Identity (no scopes)
- * - 0x02 = Identity (with scopes)
+ * - 0x01 = Identity
+ * - 0x03 = Scope
  * - 0x10 = Union
  * - 0x11 = Intersect
  * - 0x12 = Exclude
  * - 0x20 = Reference (for deduped expressions)
  * - 0x30 = Deduped wrapper (defs + root)
  *
- * @example
- * ```typescript
- * const expr = union(identity("A"), identity("B")).build()
- * const binary = encode(expr)
- * const decoded = decode(binary)
- * expect(decoded).toEqual(expr)
- *
- * // With dedup
- * const binaryDeduped = encode(dedup(expr))
- * ```
+ * Union/Intersect: TAG + varint(operand count) + operands
+ * Exclude: TAG + base + varint(excluded count) + excluded operands
+ * Scope: TAG + varint(scope count) + scopes + inner expr
  */
 
 import type { IdentityExpr, Scope } from '../types'
@@ -34,7 +26,7 @@ import { toCompactJSON } from './compact'
 // =============================================================================
 
 const TAG_IDENTITY = 0x01
-const TAG_IDENTITY_SCOPED = 0x02
+const TAG_SCOPE = 0x03
 const TAG_UNION = 0x10
 const TAG_INTERSECT = 0x11
 const TAG_EXCLUDE = 0x12
@@ -227,23 +219,6 @@ function readScope(reader: BufferReader): Scope {
 // EXPRESSION ENCODING
 // =============================================================================
 
-/**
- * Write an identity node (shared by writeExpr and writeRefExpr).
- */
-function writeIdentity(writer: BufferWriter, id: string, scopes?: Scope[]): void {
-  if (scopes && scopes.length > 0) {
-    writer.writeByte(TAG_IDENTITY_SCOPED)
-    writer.writeString(id)
-    writer.writeVarint(scopes.length)
-    for (const scope of scopes) {
-      writeScope(writer, scope)
-    }
-  } else {
-    writer.writeByte(TAG_IDENTITY)
-    writer.writeString(id)
-  }
-}
-
 function writeExpr(writer: BufferWriter, expr: IdentityExpr, depth: number = 0): void {
   if (depth > MAX_DEPTH) {
     throw new Error('Expression too deeply nested (binary encoding)')
@@ -251,25 +226,42 @@ function writeExpr(writer: BufferWriter, expr: IdentityExpr, depth: number = 0):
 
   switch (expr.kind) {
     case 'identity':
-      writeIdentity(writer, expr.id, expr.scopes)
+      writer.writeByte(TAG_IDENTITY)
+      writer.writeString(expr.id)
+      break
+
+    case 'scope':
+      writer.writeByte(TAG_SCOPE)
+      writer.writeVarint(expr.scopes.length)
+      for (const scope of expr.scopes) {
+        writeScope(writer, scope)
+      }
+      writeExpr(writer, expr.expr, depth + 1)
       break
 
     case 'union':
       writer.writeByte(TAG_UNION)
-      writeExpr(writer, expr.left, depth + 1)
-      writeExpr(writer, expr.right, depth + 1)
+      writer.writeVarint(expr.operands.length)
+      for (const op of expr.operands) {
+        writeExpr(writer, op, depth + 1)
+      }
       break
 
     case 'intersect':
       writer.writeByte(TAG_INTERSECT)
-      writeExpr(writer, expr.left, depth + 1)
-      writeExpr(writer, expr.right, depth + 1)
+      writer.writeVarint(expr.operands.length)
+      for (const op of expr.operands) {
+        writeExpr(writer, op, depth + 1)
+      }
       break
 
     case 'exclude':
       writer.writeByte(TAG_EXCLUDE)
-      writeExpr(writer, expr.left, depth + 1)
-      writeExpr(writer, expr.right, depth + 1)
+      writeExpr(writer, expr.base, depth + 1)
+      writer.writeVarint(expr.excluded.length)
+      for (const ex of expr.excluded) {
+        writeExpr(writer, ex, depth + 1)
+      }
       break
   }
 }
@@ -287,25 +279,42 @@ function writeRefExpr(writer: BufferWriter, expr: RefExpr, depth: number = 0): v
 
   switch (expr.kind) {
     case 'identity':
-      writeIdentity(writer, expr.id, expr.scopes)
+      writer.writeByte(TAG_IDENTITY)
+      writer.writeString(expr.id)
+      break
+
+    case 'scope':
+      writer.writeByte(TAG_SCOPE)
+      writer.writeVarint(expr.scopes.length)
+      for (const scope of expr.scopes) {
+        writeScope(writer, scope)
+      }
+      writeRefExpr(writer, expr.expr, depth + 1)
       break
 
     case 'union':
       writer.writeByte(TAG_UNION)
-      writeRefExpr(writer, expr.left, depth + 1)
-      writeRefExpr(writer, expr.right, depth + 1)
+      writer.writeVarint(expr.operands.length)
+      for (const op of expr.operands) {
+        writeRefExpr(writer, op, depth + 1)
+      }
       break
 
     case 'intersect':
       writer.writeByte(TAG_INTERSECT)
-      writeRefExpr(writer, expr.left, depth + 1)
-      writeRefExpr(writer, expr.right, depth + 1)
+      writer.writeVarint(expr.operands.length)
+      for (const op of expr.operands) {
+        writeRefExpr(writer, op, depth + 1)
+      }
       break
 
     case 'exclude':
       writer.writeByte(TAG_EXCLUDE)
-      writeRefExpr(writer, expr.left, depth + 1)
-      writeRefExpr(writer, expr.right, depth + 1)
+      writeRefExpr(writer, expr.base, depth + 1)
+      writer.writeVarint(expr.excluded.length)
+      for (const ex of expr.excluded) {
+        writeRefExpr(writer, ex, depth + 1)
+      }
       break
   }
 }
@@ -321,31 +330,6 @@ function writeDeduped(writer: BufferWriter, deduped: DedupedExpr): void {
   writeRefExpr(writer, deduped.root)
 }
 
-/**
- * Read an identity node without scopes.
- */
-function readIdentitySimple(reader: BufferReader): { kind: 'identity'; id: string } {
-  const id = reader.readString()
-  return { kind: 'identity', id }
-}
-
-/**
- * Read an identity node with scopes.
- */
-function readIdentityScoped(reader: BufferReader): {
-  kind: 'identity'
-  id: string
-  scopes: Scope[]
-} {
-  const id = reader.readString()
-  const scopeCount = reader.readVarint()
-  const scopes: Scope[] = []
-  for (let i = 0; i < scopeCount; i++) {
-    scopes.push(readScope(reader))
-  }
-  return { kind: 'identity', id, scopes }
-}
-
 function readExpr(reader: BufferReader, depth: number = 0): IdentityExpr {
   if (depth > MAX_DEPTH) {
     throw new Error('Expression too deeply nested (binary decoding)')
@@ -355,31 +339,44 @@ function readExpr(reader: BufferReader, depth: number = 0): IdentityExpr {
 
   switch (tag) {
     case TAG_IDENTITY:
-      return readIdentitySimple(reader)
+      return { kind: 'identity', id: reader.readString() }
 
-    case TAG_IDENTITY_SCOPED:
-      return readIdentityScoped(reader)
-
-    case TAG_UNION:
-      return {
-        kind: 'union',
-        left: readExpr(reader, depth + 1),
-        right: readExpr(reader, depth + 1),
+    case TAG_SCOPE: {
+      const scopeCount = reader.readVarint()
+      const scopes: Scope[] = []
+      for (let i = 0; i < scopeCount; i++) {
+        scopes.push(readScope(reader))
       }
+      return { kind: 'scope', scopes, expr: readExpr(reader, depth + 1) }
+    }
 
-    case TAG_INTERSECT:
-      return {
-        kind: 'intersect',
-        left: readExpr(reader, depth + 1),
-        right: readExpr(reader, depth + 1),
+    case TAG_UNION: {
+      const count = reader.readVarint()
+      const operands: IdentityExpr[] = []
+      for (let i = 0; i < count; i++) {
+        operands.push(readExpr(reader, depth + 1))
       }
+      return { kind: 'union', operands }
+    }
 
-    case TAG_EXCLUDE:
-      return {
-        kind: 'exclude',
-        left: readExpr(reader, depth + 1),
-        right: readExpr(reader, depth + 1),
+    case TAG_INTERSECT: {
+      const count = reader.readVarint()
+      const operands: IdentityExpr[] = []
+      for (let i = 0; i < count; i++) {
+        operands.push(readExpr(reader, depth + 1))
       }
+      return { kind: 'intersect', operands }
+    }
+
+    case TAG_EXCLUDE: {
+      const base = readExpr(reader, depth + 1)
+      const excludedCount = reader.readVarint()
+      const excluded: IdentityExpr[] = []
+      for (let i = 0; i < excludedCount; i++) {
+        excluded.push(readExpr(reader, depth + 1))
+      }
+      return { kind: 'exclude', base, excluded }
+    }
 
     default:
       throw new Error(`Unknown expression tag: 0x${tag.toString(16)}`)
@@ -398,31 +395,44 @@ function readRefExpr(reader: BufferReader, depth: number = 0): RefExpr {
       return { $ref: reader.readVarint() }
 
     case TAG_IDENTITY:
-      return readIdentitySimple(reader)
+      return { kind: 'identity', id: reader.readString() }
 
-    case TAG_IDENTITY_SCOPED:
-      return readIdentityScoped(reader)
-
-    case TAG_UNION:
-      return {
-        kind: 'union',
-        left: readRefExpr(reader, depth + 1),
-        right: readRefExpr(reader, depth + 1),
+    case TAG_SCOPE: {
+      const scopeCount = reader.readVarint()
+      const scopes: Scope[] = []
+      for (let i = 0; i < scopeCount; i++) {
+        scopes.push(readScope(reader))
       }
+      return { kind: 'scope', scopes, expr: readRefExpr(reader, depth + 1) }
+    }
 
-    case TAG_INTERSECT:
-      return {
-        kind: 'intersect',
-        left: readRefExpr(reader, depth + 1),
-        right: readRefExpr(reader, depth + 1),
+    case TAG_UNION: {
+      const count = reader.readVarint()
+      const operands: RefExpr[] = []
+      for (let i = 0; i < count; i++) {
+        operands.push(readRefExpr(reader, depth + 1))
       }
+      return { kind: 'union', operands }
+    }
 
-    case TAG_EXCLUDE:
-      return {
-        kind: 'exclude',
-        left: readRefExpr(reader, depth + 1),
-        right: readRefExpr(reader, depth + 1),
+    case TAG_INTERSECT: {
+      const count = reader.readVarint()
+      const operands: RefExpr[] = []
+      for (let i = 0; i < count; i++) {
+        operands.push(readRefExpr(reader, depth + 1))
       }
+      return { kind: 'intersect', operands }
+    }
+
+    case TAG_EXCLUDE: {
+      const base = readRefExpr(reader, depth + 1)
+      const excludedCount = reader.readVarint()
+      const excluded: RefExpr[] = []
+      for (let i = 0; i < excludedCount; i++) {
+        excluded.push(readRefExpr(reader, depth + 1))
+      }
+      return { kind: 'exclude', base, excluded }
+    }
 
     default:
       throw new Error(`Unknown expression tag: 0x${tag.toString(16)}`)
@@ -445,18 +455,6 @@ function readDeduped(reader: BufferReader): DedupedExpr {
 // PUBLIC API
 // =============================================================================
 
-/**
- * Encode an expression to binary format.
- *
- * @param expr - IdentityExpr or DedupedExpr
- * @returns Binary Uint8Array
- *
- * @example
- * ```typescript
- * const binary = encode(expr)
- * const binaryDeduped = encode(dedup(expr))
- * ```
- */
 export function encode(expr: IdentityExpr | DedupedExpr): Uint8Array {
   const writer = new BufferWriter()
 
@@ -469,20 +467,6 @@ export function encode(expr: IdentityExpr | DedupedExpr): Uint8Array {
   return writer.toUint8Array()
 }
 
-/**
- * Decode binary format back to expression.
- *
- * @param bytes - Binary Uint8Array
- * @returns IdentityExpr or DedupedExpr (depending on what was encoded)
- *
- * @example
- * ```typescript
- * const decoded = decode(binary)
- * if (isDedupedExpr(decoded)) {
- *   const expanded = expand(decoded)
- * }
- * ```
- */
 export function decode(bytes: Uint8Array): IdentityExpr | DedupedExpr {
   if (bytes.length === 0) {
     throw new Error('Cannot decode empty buffer')
@@ -490,7 +474,6 @@ export function decode(bytes: Uint8Array): IdentityExpr | DedupedExpr {
 
   const reader = new BufferReader(bytes)
 
-  // Peek at first byte to determine type
   const firstByte = bytes[0]
 
   let result: IdentityExpr | DedupedExpr
@@ -501,7 +484,6 @@ export function decode(bytes: Uint8Array): IdentityExpr | DedupedExpr {
     result = readExpr(reader)
   }
 
-  // Verify all bytes were consumed
   if (reader.remaining > 0) {
     throw new Error(`Unexpected ${reader.remaining} bytes after expression`)
   }
@@ -509,23 +491,11 @@ export function decode(bytes: Uint8Array): IdentityExpr | DedupedExpr {
   return result
 }
 
-/**
- * Encode expression to base64 string (for JSON transport).
- *
- * @param expr - IdentityExpr or DedupedExpr
- * @returns Base64 encoded string
- */
 export function encodeBase64(expr: IdentityExpr | DedupedExpr): string {
   const binary = encode(expr)
   return Buffer.from(binary).toString('base64')
 }
 
-/**
- * Decode base64 string back to expression.
- *
- * @param base64 - Base64 encoded string
- * @returns IdentityExpr or DedupedExpr
- */
 export function decodeBase64(base64: string): IdentityExpr | DedupedExpr {
   const bytes = new Uint8Array(Buffer.from(base64, 'base64'))
   return decode(bytes)
@@ -535,12 +505,6 @@ export function decodeBase64(base64: string): IdentityExpr | DedupedExpr {
 // SIZE COMPARISON
 // =============================================================================
 
-/**
- * Compare sizes across different encoding formats.
- *
- * @param expr - Expression to analyze
- * @returns Size comparison stats
- */
 export function compareSizes(expr: IdentityExpr): {
   verbose: number
   compact: number

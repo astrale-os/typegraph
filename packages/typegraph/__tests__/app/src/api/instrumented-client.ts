@@ -75,7 +75,7 @@ import type {
   Grant,
   IdentityId,
   NodeId,
-  PermissionT,
+  Permission,
 } from '@authz/types'
 
 export const instrumentedApi = {
@@ -123,14 +123,14 @@ export const instrumentedApi = {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }) => post<AccessDecision>('/api/check-access', params),
 
   explainAccess: (params: {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }) => post<AccessExplanation>('/api/explain-access', params),
 
   // Relay endpoints

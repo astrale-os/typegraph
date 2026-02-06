@@ -3,6 +3,10 @@
  *
  * Core types for the capability-based access control system.
  * Two APIs: checkAccess (hot path) and explainAccess (cold path).
+ *
+ * Expression evaluation is two-phase:
+ * 1. Prune: IdentityExpr → PrunedIdentityExpr | null (scope eval + algebraic simplification)
+ * 2. Adapt: PrunedIdentityExpr → CypherFragment (query generation)
  */
 
 // =============================================================================
@@ -11,7 +15,7 @@
 
 export type NodeId = string
 export type IdentityId = string
-export type PermissionT = string
+export type Permission = string
 
 // =============================================================================
 // SCOPE TYPES
@@ -19,16 +23,16 @@ export type PermissionT = string
 
 /**
  * Scope restricts an identity's effective permissions.
- * - nodes: restrict to these subtrees (empty/undefined = anywhere)
- * - perms: restrict to these permission types (empty/undefined = any)
- * - principals: restrict which principals can invoke this identity (empty/undefined = any)
+ * - nodes: restrict to these subtrees (undefined = anywhere)
+ * - perms: restrict to these permission types (undefined = any)
+ * - principals: restrict which principals can invoke this identity (undefined = any)
  *
  * All three dimensions must pass for the scope to allow access.
- * Multiple scopes are OR'd together (identity satisfies ANY scope).
+ * Multiple scopes (in a scope node's scopes[]) are OR'd together.
  */
 export type Scope = {
   nodes?: NodeId[]
-  perms?: PermissionT[]
+  perms?: Permission[]
   principals?: IdentityId[]
 }
 
@@ -43,7 +47,7 @@ export type Scope = {
  * - forType: identities that can USE this type of resource (e.g., app permissions)
  * - forResource: identities that have permission on the specific resource (e.g., user permissions)
  *
- * Scopes are on IdentityExpr leaves, not here.
+ * Scopes are expressed via 'scope' expression nodes wrapping subtrees.
  * Principal is passed separately to checkAccess/explainAccess.
  */
 export type Grant = {
@@ -62,15 +66,16 @@ export type Grant = {
  * - JWT token (to be verified and resolved to plain ID)
  * - Plain ID (only valid for kernel-issued tokens)
  *
- * Structure matches resolved IdentityExpr but with jwt/id distinction.
+ * Structure mirrors resolved IdentityExpr but with jwt/id distinction on leaves.
  * Kernel resolves these by verifying JWTs and extracting identity IDs.
  */
 export type UnresolvedIdentityExpr =
-  | { kind: 'identity'; jwt: string; scopes?: Scope[] }
-  | { kind: 'identity'; id: IdentityId; scopes?: Scope[] }
-  | { kind: 'union'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
-  | { kind: 'intersect'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
-  | { kind: 'exclude'; left: UnresolvedIdentityExpr; right: UnresolvedIdentityExpr }
+  | { kind: 'identity'; jwt: string }
+  | { kind: 'identity'; id: IdentityId }
+  | { kind: 'scope'; scopes: Scope[]; expr: UnresolvedIdentityExpr }
+  | { kind: 'union'; operands: UnresolvedIdentityExpr[] }
+  | { kind: 'intersect'; operands: UnresolvedIdentityExpr[] }
+  | { kind: 'exclude'; base: UnresolvedIdentityExpr; excluded: UnresolvedIdentityExpr[] }
 
 /**
  * Unresolved grant for JWT 'grant' claim.
@@ -97,7 +102,7 @@ export type UnresolvedGrant = {
  * This provides one code path for simple and complex cases.
  *
  * - expression: The identity expression to resolve (JWTs → plain IDs)
- * - scopes: Optional top-level scopes applied to ALL resolved leaves (intersected with per-leaf scopes)
+ * - scopes: Optional top-level scopes applied by wrapping the expression in a scope node
  * - ttl: Token lifetime in seconds (optional, kernel default applies)
  */
 export type RelayTokenRequest = {
@@ -120,20 +125,50 @@ export type RelayTokenResponse = {
 
 /**
  * Expression tree for identity composition.
- * - identity: leaf node representing a single identity with optional scope restrictions
- * - union: OR of two expressions (A ∪ B)
- * - intersect: AND of two expressions (A ∩ B)
- * - exclude: set difference (A \ B)
  *
- * Scopes on leaf nodes enable principal filtering: when generating Cypher,
- * leaves that don't allow the current principal are treated as empty sets.
- * Empty sets propagate through composition: A ∪ ∅ = A, A ∩ ∅ = ∅, A \ ∅ = A.
+ * - identity: leaf node representing a single identity
+ * - scope: wraps an expression with scope restrictions (scopes are OR'd)
+ * - union: OR of N expressions (A ∪ B ∪ C)
+ * - intersect: AND of N expressions (A ∩ B ∩ C)
+ * - exclude: set difference — base minus all excluded (base \ (e1 ∪ e2 ∪ ...))
+ *
+ * Scope nodes enable principal/perm filtering during pruning.
+ * Pruning evaluates scope nodes and propagates node restrictions
+ * to identity leaves, producing a PrunedIdentityExpr.
  */
 export type IdentityExpr =
-  | { kind: 'identity'; id: IdentityId; scopes?: Scope[] }
-  | { kind: 'union'; left: IdentityExpr; right: IdentityExpr }
-  | { kind: 'intersect'; left: IdentityExpr; right: IdentityExpr }
-  | { kind: 'exclude'; left: IdentityExpr; right: IdentityExpr }
+  | { kind: 'identity'; id: IdentityId }
+  | { kind: 'scope'; scopes: Scope[]; expr: IdentityExpr }
+  | { kind: 'union'; operands: IdentityExpr[] }
+  | { kind: 'intersect'; operands: IdentityExpr[] }
+  | { kind: 'exclude'; base: IdentityExpr; excluded: IdentityExpr[] }
+
+// =============================================================================
+// PRUNED IDENTITY EXPRESSION (AFTER SCOPE EVALUATION)
+// =============================================================================
+
+/**
+ * Expression tree after scope evaluation (pruning phase output).
+ *
+ * No 'scope' kind — all scopes have been evaluated:
+ * - principal/perm restrictions pruned dead branches (null → algebraic simplification)
+ * - node restrictions propagated to identity leaves as nodeRestriction
+ *
+ * Each identity leaf carries its own nodeRestriction (intersection of
+ * ancestor scope nodes). undefined = unrestricted, NodeId[] = must be
+ * descendant of at least one of these nodes.
+ *
+ * Algebraic simplifications applied during pruning:
+ * - A ∪ ∅ = A (filter null from union operands)
+ * - A ∩ ∅ = ∅ (any null in intersect → whole thing null)
+ * - ∅ \ A = ∅ (null base → null)
+ * - A \ ∅ = A (null excluded → drop it)
+ */
+export type PrunedIdentityExpr =
+  | { kind: 'identity'; id: IdentityId; nodeRestriction?: NodeId[] }
+  | { kind: 'union'; operands: PrunedIdentityExpr[] }
+  | { kind: 'intersect'; operands: PrunedIdentityExpr[] }
+  | { kind: 'exclude'; base: PrunedIdentityExpr; excluded: PrunedIdentityExpr[] }
 
 /**
  * Raw identity composition data from the database.
@@ -170,7 +205,7 @@ export type AccessDecision = {
 export type AccessExplanation = {
   // Echo inputs (self-contained)
   resourceId: NodeId
-  perm: PermissionT
+  perm: Permission
   principal: IdentityId
 
   // Result
@@ -194,12 +229,14 @@ export type PhaseExplanation = {
 /**
  * Evaluation of a single leaf identity in the expression tree.
  *
- * Path encoding: position in tree
+ * Path encoding: position in tree using operand indices.
  * - [] = root (single identity)
- * - [0] = left branch
- * - [1] = right branch
- * - [0, 1] = left.right
- * - With multiple identities: [identityIndex, ...treePath]
+ * - [0] = first operand (or base for exclude)
+ * - [1] = second operand (or first excluded for exclude)
+ * - [0, 2] = first operand's third operand
+ *
+ * For scope nodes, the path passes through transparently (scope
+ * wraps a single expression, so no index is added).
  */
 export type LeafEvaluation = {
   path: number[]
@@ -217,42 +254,19 @@ export type LeafEvaluation = {
   searchedPath?: NodeId[] // resource → ... → root (searched but not found)
 
   // Node scope restrictions that must be satisfied (if any)
-  // Empty array means no node restrictions (permission valid anywhere)
+  // undefined means no node restrictions (permission valid anywhere)
   // Non-empty means resource must be descendant of at least one of these nodes
-  nodeRestrictions?: NodeId[]
+  nodeRestriction?: NodeId[]
 }
 
 /**
  * Detail about why a scope filtered an identity.
- * Note: 'principal' and 'perm' are checked during leaf collection.
+ * Note: 'principal' and 'perm' are checked during pruning.
  * Node scope restrictions are enforced in Cypher, not in filter.
  */
 export type FilterDetail = {
   scopeIndex: number
   failedCheck: 'principal' | 'perm'
-}
-
-// =============================================================================
-// IDENTITY QUERY PORT
-// =============================================================================
-
-/**
- * Port interface for identity-based access control queries.
- * Adapter implementations provide concrete I/O behavior.
- */
-export interface IdentityQueryPort {
-  checkAccess(params: {
-    principal: IdentityId
-    grant: Grant
-    nodeId: NodeId
-    perm: PermissionT
-  }): Promise<AccessDecision>
-  explainAccess(params: {
-    principal: IdentityId
-    grant: Grant
-    nodeId: NodeId
-    perm: PermissionT
-  }): Promise<AccessExplanation>
 }
 
 // =============================================================================

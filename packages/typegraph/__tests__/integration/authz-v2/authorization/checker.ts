@@ -2,15 +2,17 @@
  * Access Checker — Hot Path
  *
  * Pure function: expression → decision.
+ * Prunes the expression tree (scope evaluation) before generating Cypher.
  * Delegates all I/O to AccessQueryPort.
  */
 
 import type { AccessQueryPort } from './access-query-port'
 import { validateAccessInputs } from '../expression/validation'
-import type { Grant, NodeId, PermissionT, IdentityId, AccessDecision } from '../types'
+import { pruneExpression } from '../expression/prune'
+import type { Grant, NodeId, Permission, IdentityId, AccessDecision } from '../types'
 
 export async function checkAccess(
-  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: PermissionT },
+  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: Permission },
   queryPort: AccessQueryPort,
 ): Promise<AccessDecision> {
   const { principal, grant, nodeId, perm } = params
@@ -18,33 +20,37 @@ export async function checkAccess(
 
   const { forType, forResource } = grant
 
-  // Resource query has no dependency on typeId — start immediately
-  const targetQuery = queryPort.generateQuery(forResource, 'target', perm, principal)
+  // Prune resource expression (evaluate scopes for principal + perm)
+  const prunedResource = pruneExpression(forResource, principal, perm)
+  const resourceQuery = prunedResource ? queryPort.generateQuery(prunedResource, perm) : null
   const resourcePromise =
-    targetQuery === null
+    resourceQuery === null
       ? Promise.resolve(false)
-      : queryPort.executeResourceCheck(targetQuery, nodeId)
+      : queryPort.executeResourceCheck(resourceQuery, nodeId)
 
   // Type check (only if target has a type)
   const typeId = await queryPort.getTargetType(nodeId)
 
   if (typeId) {
-    const typeQuery = queryPort.generateQuery(forType, 'target', 'use', undefined)
+    // Prune type expression (no principal for type checks, perm = 'use')
+    const prunedType = pruneExpression(forType, undefined, 'use')
+    const typeQuery = prunedType ? queryPort.generateQuery(prunedType, 'use') : null
+
     if (typeQuery === null) {
       return { granted: false, deniedBy: 'type' }
     }
 
     // Run type execution in parallel with already-started resource execution
-    const [typeGranted, targetGranted] = await Promise.all([
+    const [typeGranted, resourceGranted] = await Promise.all([
       queryPort.executeTypeCheck(typeQuery, typeId),
       resourcePromise,
     ])
 
     if (!typeGranted) return { granted: false, deniedBy: 'type' }
-    return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
+    return resourceGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
   }
 
   // No type — just await resource
-  const targetGranted = await resourcePromise
-  return targetGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
+  const resourceGranted = await resourcePromise
+  return resourceGranted ? { granted: true } : { granted: false, deniedBy: 'resource' }
 }

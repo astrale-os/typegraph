@@ -16,9 +16,10 @@ import type {
   RawExecutor,
   Grant,
   NodeId,
-  PermissionT,
+  Permission,
   IdentityId,
   IdentityExpr,
+  PrunedIdentityExpr,
   LeafEvaluation,
   AccessDecision,
   AccessExplanation,
@@ -186,13 +187,11 @@ class TimedAccessQueryAdapter implements AccessQueryPort {
   constructor(private inner: FalkorDBAccessQueryAdapter) {}
 
   generateQuery(
-    expr: IdentityExpr,
-    targetVar: string,
-    perm: PermissionT,
-    principal: IdentityId | undefined,
+    expr: PrunedIdentityExpr,
+    perm: Permission,
   ): CypherFragment | null {
     const startMs = performance.now()
-    const result = this.inner.generateQuery(expr, targetVar, perm, principal)
+    const result = this.inner.generateQuery(expr, perm)
     const endMs = performance.now()
     this.calls.push({
       method: 'generateQuery',
@@ -251,7 +250,7 @@ class TimedAccessQueryAdapter implements AccessQueryPort {
   async queryLeafDetails(
     leaves: LeafEvaluation[],
     resourceId: NodeId,
-    perm: PermissionT,
+    perm: Permission,
   ): Promise<void> {
     const startMs = performance.now()
     await this.inner.queryLeafDetails(leaves, resourceId, perm)
@@ -632,7 +631,7 @@ export class PlaygroundFalkorDBClient {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }): Promise<{ result: AccessDecision; profile: PerformanceProfile }> {
     if (!this.executor) throw new Error('No graph selected')
     if (!this.identityEvaluator) throw new Error('No graph selected')
@@ -671,7 +670,7 @@ export class PlaygroundFalkorDBClient {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }): Promise<{ result: AccessExplanation; profile: PerformanceProfile }> {
     if (!this.executor) throw new Error('No graph selected')
     if (!this.identityEvaluator) throw new Error('No graph selected')
@@ -727,7 +726,7 @@ export class PlaygroundFalkorDBClient {
       forResource: IdentityExpr
     }
     nodeId: NodeId
-    perm: PermissionT
+    perm: Permission
   }): Promise<{ result: AccessDecision; profile: PerformanceProfile }> {
     if (!this.executor) throw new Error('No graph selected')
 

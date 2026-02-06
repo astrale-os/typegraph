@@ -1,7 +1,10 @@
 /**
  * Cypher Generation
  *
- * Generates CALL-subquery-based Cypher fragments from identity expressions.
+ * Generates CALL-subquery-based Cypher fragments from pruned identity expressions.
+ * Receives PrunedIdentityExpr (scopes already evaluated by the pruning phase).
+ * Each identity leaf carries an optional nodeRestriction from ancestor scope nodes.
+ *
  * Uses CALL {} blocks to check `perms` array containment (FalkorDB does not
  * support EXISTS {} or pattern-comprehension WHERE in WHERE clauses).
  *
@@ -11,9 +14,8 @@
  * Without these, ancestor traversal and identity lookups degrade significantly.
  */
 
-import { filterApplicableScopes } from '../expression/scope'
 import { throwExhaustiveCheck } from '../expression/validation'
-import type { IdentityExpr, PermissionT, IdentityId } from '../types'
+import type { PrunedIdentityExpr, Permission, NodeId } from '../types'
 import { type GraphVocab } from './vocabulary'
 
 export interface CypherOptions {
@@ -39,14 +41,15 @@ type Counter = { value: number }
 
 /**
  * Cache for leaf-level Cypher fragments.
- * Keyed by (identityId, permission, scopeNodeIds) to deduplicate
+ * Keyed by (identityId, permission, nodeRestriction) to deduplicate
  * identical CALL blocks when the same identity appears at multiple
  * positions in the expression tree.
  */
 type LeafCache = Map<string, { condition: string }>
 
-function leafCacheKey(id: string, perm: string, scopeNodeIds: string[]): string {
-  return `${id}|${perm}|${scopeNodeIds.join(',')}`
+function leafCacheKey(id: string, perm: string, nodeRestriction: NodeId[] | undefined): string {
+  const nodes = nodeRestriction ? [...nodeRestriction].sort().join(',') : ''
+  return `${id}|${perm}|${nodes}`
 }
 
 /**
@@ -55,13 +58,12 @@ function leafCacheKey(id: string, perm: string, scopeNodeIds: string[]): string 
  */
 export function assembleQuery(
   fragment: CypherFragment,
-  targetVar: string,
   vocab: GraphVocab,
   resourceIdParam: string,
 ): { query: string; params: Record<string, unknown> } {
-  const allVars = [targetVar, ...fragment.vars].join(', ')
+  const allVars = ['target', ...fragment.vars].join(', ')
   const query = [
-    `MATCH (${targetVar}:${vocab.node} {id: $${resourceIdParam}})`,
+    `MATCH (target:${vocab.node} {id: $${resourceIdParam}})`,
     ...fragment.calls,
     `WITH ${allVars}`,
     `WHERE ${fragment.condition}`,
@@ -105,136 +107,119 @@ export function fragmentToDisplayString(fragment: CypherFragment | null): string
 
 /**
  * Generate Cypher fragment for permission check.
+ * Receives a PrunedIdentityExpr (scopes already evaluated, no principal needed).
  */
 export function toCypher(
-  expr: IdentityExpr,
-  targetVar: string,
-  perm: PermissionT,
-  principal: IdentityId | undefined,
+  expr: PrunedIdentityExpr,
+  perm: Permission,
   options: CypherOptions,
 ): CypherFragment | null {
   const counter: Counter = { value: 0 }
   const cache: LeafCache = new Map()
-  return toCypherInternal(expr, targetVar, perm, principal, options, counter, cache)
+  return toCypherInternal(expr, perm, options, counter, cache)
 }
 
 function toCypherInternal(
-  expr: IdentityExpr,
-  targetVar: string,
-  perm: PermissionT,
-  principal: IdentityId | undefined,
+  expr: PrunedIdentityExpr,
+  perm: Permission,
   options: CypherOptions,
   counter: Counter,
   cache: LeafCache,
 ): CypherFragment | null {
   switch (expr.kind) {
     case 'identity':
-      return identityToCypher(expr, targetVar, perm, principal, options, counter, cache)
+      return identityToCypher(expr, perm, options, counter, cache)
 
     case 'union': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
-      const right = toCypherInternal(
-        expr.right,
-        targetVar,
-        perm,
-        principal,
-        options,
-        counter,
-        cache,
-      )
-      if (left === null && right === null) return null
-      if (left === null) return right
-      if (right === null) return left
+      const fragments: CypherFragment[] = []
+      for (const op of expr.operands) {
+        const f = toCypherInternal(op, perm, options, counter, cache)
+        if (f !== null) fragments.push(f)
+      }
+      if (fragments.length === 0) return null
+      if (fragments.length === 1) return fragments[0]!
       return {
-        calls: [...left.calls, ...right.calls],
-        vars: [...left.vars, ...right.vars],
-        condition: `(${left.condition} OR ${right.condition})`,
-        params: { ...left.params, ...right.params },
+        calls: fragments.flatMap((f) => f.calls),
+        vars: fragments.flatMap((f) => f.vars),
+        condition: `(${fragments.map((f) => f.condition).join(' OR ')})`,
+        params: Object.assign({}, ...fragments.map((f) => f.params)),
       }
     }
 
     case 'intersect': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
-      const right = toCypherInternal(
-        expr.right,
-        targetVar,
-        perm,
-        principal,
-        options,
-        counter,
-        cache,
-      )
-      if (left === null || right === null) return null
+      const fragments: CypherFragment[] = []
+      for (const op of expr.operands) {
+        const f = toCypherInternal(op, perm, options, counter, cache)
+        if (f === null) return null // Any null → whole thing null
+        fragments.push(f)
+      }
+      if (fragments.length === 0) return null
+      if (fragments.length === 1) return fragments[0]!
       return {
-        calls: [...left.calls, ...right.calls],
-        vars: [...left.vars, ...right.vars],
-        condition: `(${left.condition} AND ${right.condition})`,
-        params: { ...left.params, ...right.params },
+        calls: fragments.flatMap((f) => f.calls),
+        vars: fragments.flatMap((f) => f.vars),
+        condition: `(${fragments.map((f) => f.condition).join(' AND ')})`,
+        params: Object.assign({}, ...fragments.map((f) => f.params)),
       }
     }
 
     case 'exclude': {
-      const left = toCypherInternal(expr.left, targetVar, perm, principal, options, counter, cache)
-      const right = toCypherInternal(
-        expr.right,
-        targetVar,
-        perm,
-        principal,
-        options,
-        counter,
-        cache,
-      )
-      if (left === null) return null
-      if (right === null) return left
+      const baseFragment = toCypherInternal(expr.base, perm, options, counter, cache)
+      if (baseFragment === null) return null
+
+      const excludedFragments: CypherFragment[] = []
+      for (const ex of expr.excluded) {
+        const f = toCypherInternal(ex, perm, options, counter, cache)
+        if (f !== null) excludedFragments.push(f)
+      }
+
+      // Nothing to exclude → just the base
+      if (excludedFragments.length === 0) return baseFragment
+
       return {
-        calls: [...left.calls, ...right.calls],
-        vars: [...left.vars, ...right.vars],
-        condition: `(${left.condition} AND NOT (${right.condition}))`,
-        params: { ...left.params, ...right.params },
+        calls: [...baseFragment.calls, ...excludedFragments.flatMap((f) => f.calls)],
+        vars: [...baseFragment.vars, ...excludedFragments.flatMap((f) => f.vars)],
+        condition: `(${baseFragment.condition} AND NOT (${excludedFragments.map((f) => f.condition).join(' OR ')}))`,
+        params: Object.assign(
+          {},
+          baseFragment.params,
+          ...excludedFragments.map((f) => f.params),
+        ),
       }
     }
+
     default:
       throwExhaustiveCheck(expr)
   }
 }
 
 /**
- * Generate Cypher fragment for a single identity with scope filtering.
+ * Generate Cypher fragment for a single identity leaf.
+ * Reads nodeRestriction directly from the leaf (set by pruning phase).
  *
- * Two strategies depending on whether scope restrictions apply:
+ * Two strategies depending on whether node restrictions apply:
  *
- * 1. No scope (common path):
+ * 1. No restriction (common path):
  *    OPTIONAL MATCH ... RETURN hp IS NOT NULL LIMIT 1
  *    → early termination: stops after first matching permission edge.
  *
- * 2. With scope restrictions:
+ * 2. With node restriction:
  *    Single merged traversal — one MATCH for ancestors, OPTIONAL MATCH for
  *    permission edges, then aggregate both perm and scope in one RETURN.
  *    Avoids traversing the ancestor chain twice.
  */
 function identityToCypher(
-  expr: Extract<IdentityExpr, { kind: 'identity' }>,
-  targetVar: string,
-  perm: PermissionT,
-  principal: IdentityId | undefined,
+  expr: Extract<PrunedIdentityExpr, { kind: 'identity' }>,
+  perm: Permission,
   options: CypherOptions,
   counter: Counter,
   cache: LeafCache,
 ): CypherFragment | null {
   const { maxDepth, vocab: v } = options
+  const nodeRestriction = expr.nodeRestriction
 
-  // Check if allowed by scopes
-  const { allowed, applicableScopes } = filterApplicableScopes(expr.scopes, principal, perm)
-  if (!allowed) return null
-
-  // Determine scope node restrictions (if any)
-  const needsScope = applicableScopes.length > 0 && !applicableScopes.some((s) => !s.nodes?.length)
-  const scopeNodeIds = needsScope
-    ? [...new Set(applicableScopes.flatMap((s) => s.nodes ?? []))].sort()
-    : []
-
-  // ── Leaf dedup: check cache for identical (id, perm, scopeNodeIds) ──
-  const cacheKey = leafCacheKey(expr.id, perm, scopeNodeIds)
+  // ── Leaf dedup: check cache for identical (id, perm, nodeRestriction) ──
+  const cacheKey = leafCacheKey(expr.id, perm, nodeRestriction)
   const cached = cache.get(cacheKey)
   if (cached) {
     return {
@@ -247,16 +232,14 @@ function identityToCypher(
 
   const idx = counter.value++
   const permVar = `_c${idx}`
-
   const idParam = `id_${idx}`
   const permParam = `perm_${idx}`
 
-  // ── No scope restrictions → early-termination CALL ──
-  // OPTIONAL MATCH + hp IS NOT NULL + LIMIT 1 stops at first match.
-  if (scopeNodeIds.length === 0) {
+  // ── No node restriction → early-termination CALL ──
+  if (!nodeRestriction || nodeRestriction.length === 0) {
     const call =
-      `CALL { WITH ${targetVar}` +
-      ` OPTIONAL MATCH (${targetVar})-[:${v.parent}*0..${maxDepth}]->(n:${v.node})<-[hp:${v.perm}]-(i:${v.identity} {id: $${idParam}})` +
+      `CALL { WITH target` +
+      ` OPTIONAL MATCH (target)-[:${v.parent}*0..${maxDepth}]->(n:${v.node})<-[hp:${v.perm}]-(i:${v.identity} {id: $${idParam}})` +
       ` WHERE $${permParam} IN hp.perms` +
       ` RETURN hp IS NOT NULL AS ${permVar}` +
       ` LIMIT 1 }`
@@ -271,14 +254,13 @@ function identityToCypher(
     }
   }
 
-  // ── Scope restrictions → merged single-traversal CALL ──
-  // One MATCH walks ancestors, OPTIONAL MATCH probes permission edges,
-  // then a single RETURN aggregates both checks.
+  // ── Node restriction → merged single-traversal CALL ──
   const scopeVar = `_s${idx}`
   const scopeParam = `scopeNodes_${idx}`
+  const scopeNodeIds = [...new Set(nodeRestriction)].sort()
   const call =
-    `CALL { WITH ${targetVar}` +
-    ` MATCH (${targetVar})-[:${v.parent}*0..${maxDepth}]->(a:${v.node})` +
+    `CALL { WITH target` +
+    ` MATCH (target)-[:${v.parent}*0..${maxDepth}]->(a:${v.node})` +
     ` OPTIONAL MATCH (a)<-[hp:${v.perm}]-(i:${v.identity} {id: $${idParam}})` +
     ` WHERE $${permParam} IN hp.perms` +
     ` RETURN count(hp) > 0 AS ${permVar},` +

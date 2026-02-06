@@ -226,14 +226,16 @@ async checkAccess(
 1. validateAccessInputs(grant, resourceId, perm, principal)
 2. typeId = await getTargetType(resourceId)           // Cached
 3. if (typeId):
-     typeCypher = toCypher(forType, 'target', 'use', undefined)
-     if typeCypher === 'false' → return deniedBy: 'type'
+     prunedType = pruneExpression(forType, undefined, 'use')
+     typeCypher = prunedType ? generateQuery(prunedType, 'use') : null
+     if typeCypher === null → return deniedBy: 'type'
      typeGranted = await executeCheck(typeCypher, typeId)
      if !typeGranted → return deniedBy: 'type'
-4. targetCypher = toCypher(forResource, 'target', perm, principal)
-   if targetCypher === 'false' → return deniedBy: 'resource'
-   targetGranted = await executeCheck(targetCypher, resourceId)
-5. return { granted: targetGranted, deniedBy: targetGranted ? undefined : 'resource' }
+4. prunedResource = pruneExpression(forResource, principal, perm)
+   resourceCypher = prunedResource ? generateQuery(prunedResource, perm) : null
+   if resourceCypher === null → return deniedBy: 'resource'
+   resourceGranted = await executeCheck(resourceCypher, resourceId)
+5. return { granted: resourceGranted, deniedBy: resourceGranted ? undefined : 'resource' }
 ```
 
 ### 4.3 Query Template
@@ -306,7 +308,8 @@ For each phase:
    → Extract node restrictions
    → Return LeafEvaluation[] with status='filtered' or status='missing'
 
-2. toCypher(expr, 'target', perm, principal)
+2. pruned = pruneExpression(expr, principal, perm)
+   fragment = pruned ? generateQuery(pruned, perm) : null
    → Generate Cypher WHERE clause
 
 3. queryLeafDetails(activeLeaves, resourceId, perm)

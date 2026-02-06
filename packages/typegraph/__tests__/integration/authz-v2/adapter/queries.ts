@@ -9,10 +9,9 @@ import type { AccessQueryPort } from '../authorization/access-query-port'
 import { toCypher, assembleQuery, type CypherFragment, type CypherOptions } from './cypher'
 import { type GraphVocab, resolveVocab } from './vocabulary'
 import type {
-  IdentityExpr,
+  PrunedIdentityExpr,
   NodeId,
-  PermissionT,
-  IdentityId,
+  Permission,
   LeafEvaluation,
   RawExecutor,
 } from '../types'
@@ -51,12 +50,10 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
   }
 
   generateQuery(
-    expr: IdentityExpr,
-    targetVar: string,
-    perm: PermissionT,
-    principal: IdentityId | undefined,
+    expr: PrunedIdentityExpr,
+    perm: Permission,
   ): CypherFragment | null {
-    return toCypher(expr, targetVar, perm, principal, this.cypherOptions)
+    return toCypher(expr, perm, this.cypherOptions)
   }
 
   /**
@@ -89,7 +86,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
     fragment: CypherFragment,
     nodeId: NodeId,
   ): Promise<boolean> {
-    const { query, params } = assembleQuery(fragment, 'target', this.vocab, 'resourceId')
+    const { query, params } = assembleQuery(fragment, this.vocab, 'resourceId')
     const results = await this.executor.run<{ found: boolean }>(query, {
       resourceId: nodeId,
       ...params,
@@ -119,13 +116,13 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
   async queryLeafDetails(
     leaves: LeafEvaluation[],
     resourceId: NodeId,
-    perm: PermissionT,
+    perm: Permission,
   ): Promise<void> {
     const identityIds = [...new Set(leaves.map((l) => l.identityId))]
 
     // First, check if any leaves have node restrictions
     const hasNodeRestrictions = leaves.some(
-      (l) => l.nodeRestrictions && l.nodeRestrictions.length > 0,
+      (l) => l.nodeRestriction && l.nodeRestriction.length > 0,
     )
 
     const v = this.vocab
@@ -181,12 +178,12 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
       const grantedResult = grantedByIdentity.get(leaf.identityId)
 
       if (grantedResult) {
-        if (leaf.nodeRestrictions && leaf.nodeRestrictions.length > 0 && targetAncestors) {
-          const nodeRestrictionsSatisfied = leaf.nodeRestrictions.some((restrictedNode) =>
+        if (leaf.nodeRestriction && leaf.nodeRestriction.length > 0 && targetAncestors) {
+          const nodeRestrictionSatisfied = leaf.nodeRestriction.some((restrictedNode) =>
             targetAncestors!.has(restrictedNode),
           )
 
-          if (!nodeRestrictionsSatisfied) {
+          if (!nodeRestrictionSatisfied) {
             leaf.status = 'filtered'
             leaf.searchedPath = searchedPath
             continue

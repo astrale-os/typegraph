@@ -2,18 +2,22 @@
  * Access Explainer — Cold Path
  *
  * Pure functions for detailed access explanation.
+ * Works with the original IdentityExpr (before pruning) to provide
+ * full explanation of which scopes filtered which leaves.
  * Delegates all I/O to AccessQueryPort.
  */
 
 import type { AccessQueryPort } from './access-query-port'
 import { validateAccessInputs, throwExhaustiveCheck } from '../expression/validation'
-import { checkFilter } from '../expression/scope'
+import { checkFilter, intersectScopes } from '../expression/scope'
+import { pruneExpression } from '../expression/prune'
 import { fragmentToDisplayString } from '../adapter/cypher'
 import type {
   Grant,
   NodeId,
-  PermissionT,
+  Permission,
   IdentityId,
+  Scope,
   AccessExplanation,
   PhaseExplanation,
   IdentityExpr,
@@ -21,7 +25,7 @@ import type {
 } from '../types'
 
 export async function explainAccess(
-  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: PermissionT },
+  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: Permission },
   queryPort: AccessQueryPort,
 ): Promise<AccessExplanation> {
   const { principal, grant, nodeId, perm } = params
@@ -41,8 +45,8 @@ export async function explainAccess(
       resourcePromise,
     ])
     const typeGranted = evaluateGranted(forType, typeCheck.leaves)
-    const targetGranted = evaluateGranted(forResource, resourceCheck.leaves)
-    const granted = typeGranted && targetGranted
+    const resourceGranted = evaluateGranted(forResource, resourceCheck.leaves)
+    const granted = typeGranted && resourceGranted
 
     return {
       resourceId: nodeId,
@@ -57,8 +61,8 @@ export async function explainAccess(
 
   const typeCheck: PhaseExplanation = { expression: forType, leaves: [], query: 'true' }
   const resourceCheck = await resourcePromise
-  const targetGranted = evaluateGranted(forResource, resourceCheck.leaves)
-  const granted = targetGranted
+  const resourceGranted = evaluateGranted(forResource, resourceCheck.leaves)
+  const granted = resourceGranted
 
   return {
     resourceId: nodeId,
@@ -74,9 +78,10 @@ export async function explainAccess(
 /**
  * Evaluate whether expression is granted based on leaf statuses.
  * Correctly implements expression semantics:
- * - union: left OR right
- * - intersect: left AND right
- * - exclude: left AND NOT right
+ * - scope: transparent wrapper, delegates to inner
+ * - union: any operand granted → granted
+ * - intersect: all operands granted → granted
+ * - exclude: base granted AND no excluded granted
  */
 export function evaluateGranted(
   expr: IdentityExpr,
@@ -89,20 +94,17 @@ export function evaluateGranted(
       const leaf = leaves.find((l) => l.path.join(',') === pathKey)
       return leaf?.status === 'granted'
     }
+    case 'scope':
+      // Scope is transparent for grant evaluation — delegates to inner
+      return evaluateGranted(expr.expr, leaves, path)
     case 'union':
-      return (
-        evaluateGranted(expr.left, leaves, [...path, 0]) ||
-        evaluateGranted(expr.right, leaves, [...path, 1])
-      )
+      return expr.operands.some((op, i) => evaluateGranted(op, leaves, [...path, i]))
     case 'intersect':
-      return (
-        evaluateGranted(expr.left, leaves, [...path, 0]) &&
-        evaluateGranted(expr.right, leaves, [...path, 1])
-      )
+      return expr.operands.every((op, i) => evaluateGranted(op, leaves, [...path, i]))
     case 'exclude':
       return (
-        evaluateGranted(expr.left, leaves, [...path, 0]) &&
-        !evaluateGranted(expr.right, leaves, [...path, 1])
+        evaluateGranted(expr.base, leaves, [...path, 0]) &&
+        !expr.excluded.some((ex, i) => evaluateGranted(ex, leaves, [...path, 1 + i]))
       )
     default:
       throwExhaustiveCheck(expr)
@@ -111,19 +113,22 @@ export function evaluateGranted(
 
 /**
  * Explain a single phase with full leaf details.
+ * Uses original IdentityExpr for leaf collection/explanation,
+ * but prunes for Cypher query generation.
  */
 async function explainPhase(
   expr: IdentityExpr,
   resourceId: NodeId,
-  perm: PermissionT,
+  perm: Permission,
   principal: IdentityId | undefined,
   queryPort: AccessQueryPort,
 ): Promise<PhaseExplanation> {
-  // Collect leaves from expression tree
+  // Collect leaves from expression tree (uses original expr with scope info)
   const leaves = collectLeaves(expr, [], principal, perm)
 
-  // Generate query
-  const fragment = queryPort.generateQuery(expr, 'target', perm, principal)
+  // Prune for Cypher generation
+  const pruned = pruneExpression(expr, principal, perm)
+  const fragment = pruned ? queryPort.generateQuery(pruned, perm) : null
   const query = fragmentToDisplayString(fragment)
 
   // Query details for non-filtered leaves
@@ -141,17 +146,18 @@ async function explainPhase(
 
 /**
  * Collect all leaves from expression tree with path tracking.
- * Extracts node restrictions from applicable scopes for cold path consistency.
+ * Accumulates scopes from ancestor scope nodes and applies them at identity leaves.
  */
 function collectLeaves(
   expr: IdentityExpr,
   path: number[],
   principal: IdentityId | undefined,
-  perm: PermissionT,
+  perm: Permission,
+  accumulatedScopes?: Scope[],
 ): LeafEvaluation[] {
   switch (expr.kind) {
     case 'identity': {
-      const filterResult = checkFilter(expr.scopes, principal, perm)
+      const filterResult = checkFilter(accumulatedScopes, principal, perm)
 
       if (!filterResult.allowed) {
         return [
@@ -166,15 +172,15 @@ function collectLeaves(
 
       // Extract node restrictions from applicable scopes
       const applicableScopes = filterResult.applicableScopes ?? []
-      let nodeRestrictions: NodeId[] | undefined
+      let nodeRestriction: NodeId[] | undefined
 
       if (applicableScopes.length > 0) {
         const hasUnrestrictedScope = applicableScopes.some(
-          (scope) => !scope.nodes || scope.nodes.length === 0,
+          (scope) => scope.nodes === undefined,
         )
 
         if (!hasUnrestrictedScope) {
-          nodeRestrictions = [...new Set(applicableScopes.flatMap((scope) => scope.nodes ?? []))]
+          nodeRestriction = [...new Set(applicableScopes.flatMap((scope) => scope.nodes ?? []))]
         }
       }
 
@@ -183,18 +189,35 @@ function collectLeaves(
           path,
           identityId: expr.id,
           status: 'missing',
-          nodeRestrictions,
+          nodeRestriction,
         },
       ]
     }
 
+    case 'scope': {
+      // Accumulate scopes from this node with any inherited scopes
+      // Scope nesting uses intersection semantics (more restrictive)
+      const newScopes = accumulatedScopes
+        ? intersectScopes(accumulatedScopes, expr.scopes)
+        : expr.scopes
+      // Scope is transparent in path — no path index increment
+      return collectLeaves(expr.expr, path, principal, perm, newScopes)
+    }
+
     case 'union':
     case 'intersect':
-    case 'exclude': {
-      const leftLeaves = collectLeaves(expr.left, [...path, 0], principal, perm)
-      const rightLeaves = collectLeaves(expr.right, [...path, 1], principal, perm)
-      return [...leftLeaves, ...rightLeaves]
-    }
+      return expr.operands.flatMap((op, i) =>
+        collectLeaves(op, [...path, i], principal, perm, accumulatedScopes),
+      )
+
+    case 'exclude':
+      return [
+        ...collectLeaves(expr.base, [...path, 0], principal, perm, accumulatedScopes),
+        ...expr.excluded.flatMap((ex, i) =>
+          collectLeaves(ex, [...path, 1 + i], principal, perm, accumulatedScopes),
+        ),
+      ]
+
     default:
       throwExhaustiveCheck(expr)
   }

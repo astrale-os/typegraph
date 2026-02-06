@@ -1,8 +1,14 @@
 /**
  * Compact JSON Encoding for Identity Expressions
  *
- * Encoding: ["i", id, scopes?] | ["u"|"n"|"x", left, right]
- * Scopes:   { n?: nodes[], p?: perms[], r?: principals[] }
+ * Encoding:
+ * - Identity:  ["i", id]
+ * - Scope:     ["s", CompactScope[], innerExpr]
+ * - Union:     ["u", [operand1, operand2, ...]]
+ * - Intersect: ["n", [operand1, operand2, ...]]
+ * - Exclude:   ["x", base, [excl1, excl2, ...]]
+ *
+ * Scopes: { n?: nodes[], p?: perms[], r?: principals[] }
  */
 
 import type { IdentityExpr, Scope } from '../types'
@@ -14,10 +20,10 @@ export type CompactScope = { n?: string[]; p?: string[]; r?: string[] }
 
 export type CompactExpr =
   | ['i', string]
-  | ['i', string, CompactScope[]]
-  | ['u', CompactExpr, CompactExpr]
-  | ['n', CompactExpr, CompactExpr]
-  | ['x', CompactExpr, CompactExpr]
+  | ['s', CompactScope[], CompactExpr]
+  | ['u', CompactExpr[]]
+  | ['n', CompactExpr[]]
+  | ['x', CompactExpr, CompactExpr[]]
 
 // =============================================================================
 // ENCODE (Verbose → Compact)
@@ -36,13 +42,19 @@ export function toCompact(expr: IdentityExpr, depth = 0): CompactExpr {
 
   switch (expr.kind) {
     case 'identity':
-      return expr.scopes?.length ? ['i', expr.id, expr.scopes.map(compactScope)] : ['i', expr.id]
+      return ['i', expr.id]
+    case 'scope':
+      return ['s', expr.scopes.map(compactScope), toCompact(expr.expr, depth + 1)]
     case 'union':
-      return ['u', toCompact(expr.left, depth + 1), toCompact(expr.right, depth + 1)]
+      return ['u', expr.operands.map((op) => toCompact(op, depth + 1))]
     case 'intersect':
-      return ['n', toCompact(expr.left, depth + 1), toCompact(expr.right, depth + 1)]
+      return ['n', expr.operands.map((op) => toCompact(op, depth + 1))]
     case 'exclude':
-      return ['x', toCompact(expr.left, depth + 1), toCompact(expr.right, depth + 1)]
+      return [
+        'x',
+        toCompact(expr.base, depth + 1),
+        expr.excluded.map((ex) => toCompact(ex, depth + 1)),
+      ]
   }
 }
 
@@ -83,22 +95,39 @@ export function fromCompact(input: unknown, depth = 0): IdentityExpr {
     case 'i': {
       const id = rest[0]
       if (typeof id !== 'string' || !id) throw new Error('Invalid identity id')
-      const scopes = rest[1]
-      if (scopes === undefined) return { kind: 'identity', id }
-      if (!Array.isArray(scopes)) throw new Error('Invalid identity scopes')
-      // Preserve all scopes including empty ones to maintain round-trip semantics
+      return { kind: 'identity', id }
+    }
+    case 's': {
+      if (rest.length !== 2) throw new Error('Invalid scope expression')
+      const scopes = rest[0]
+      if (!Array.isArray(scopes)) throw new Error('Invalid scope scopes')
       const expanded = scopes.map(expandScope)
-      return expanded.length ? { kind: 'identity', id, scopes: expanded } : { kind: 'identity', id }
+      if (expanded.length === 0) throw new Error('Scope must have at least one scope')
+      return { kind: 'scope', scopes: expanded, expr: fromCompact(rest[1], depth + 1) }
     }
     case 'u':
-    case 'n':
-    case 'x': {
-      if (rest.length !== 2) throw new Error('Invalid binary expression')
-      const kindMap = { u: 'union', n: 'intersect', x: 'exclude' } as const
+    case 'n': {
+      const operands = rest[0]
+      if (!Array.isArray(operands) || operands.length < 2) {
+        throw new Error(`${kind === 'u' ? 'union' : 'intersect'} must have at least 2 operands`)
+      }
+      const kindMap = { u: 'union', n: 'intersect' } as const
       return {
-        kind: kindMap[kind as 'u' | 'n' | 'x'],
-        left: fromCompact(rest[0], depth + 1),
-        right: fromCompact(rest[1], depth + 1),
+        kind: kindMap[kind as 'u' | 'n'],
+        operands: operands.map((op: unknown) => fromCompact(op, depth + 1)),
+      }
+    }
+    case 'x': {
+      if (rest.length !== 2) throw new Error('Invalid exclude expression')
+      const base = fromCompact(rest[0], depth + 1)
+      const excluded = rest[1]
+      if (!Array.isArray(excluded) || excluded.length < 1) {
+        throw new Error('exclude must have at least 1 excluded operand')
+      }
+      return {
+        kind: 'exclude',
+        base,
+        excluded: excluded.map((ex: unknown) => fromCompact(ex, depth + 1)),
       }
     }
     default:

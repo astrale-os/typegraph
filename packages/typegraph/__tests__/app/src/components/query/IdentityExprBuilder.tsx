@@ -19,19 +19,31 @@ function emptyIdentity(): ExprNode {
   return { kind: 'identity', id: '' }
 }
 
+function isEmptyScope(scope: Scope): boolean {
+  return (!scope.nodes || scope.nodes.length === 0) &&
+         (!scope.perms || scope.perms.length === 0) &&
+         (!scope.principals || scope.principals.length === 0)
+}
+
 function exprNodeToIdentityExpr(node: ExprNode): IdentityExpr | null {
   if (node.kind === 'identity') {
     if (!node.id?.trim()) return null
-    const result: IdentityExpr = { kind: 'identity', id: node.id.trim() }
-    if (node.scopes && node.scopes.length > 0) {
-      result.scopes = node.scopes
+    const identity: IdentityExpr = { kind: 'identity', id: node.id.trim() }
+    // Wrap in scope node if non-empty scopes exist
+    const nonEmptyScopes = node.scopes?.filter((s) => !isEmptyScope(s)) ?? []
+    if (nonEmptyScopes.length > 0) {
+      return { kind: 'scope', scopes: nonEmptyScopes, expr: identity }
     }
-    return result
+    return identity
   }
   const left = node.left ? exprNodeToIdentityExpr(node.left) : null
   const right = node.right ? exprNodeToIdentityExpr(node.right) : null
   if (!left || !right) return null
-  return { kind: node.kind as 'union' | 'intersect' | 'exclude', left, right }
+
+  if (node.kind === 'exclude') {
+    return { kind: 'exclude', base: left, excluded: [right] }
+  }
+  return { kind: node.kind as 'union' | 'intersect', operands: [left, right] }
 }
 
 interface ExprEditorProps {

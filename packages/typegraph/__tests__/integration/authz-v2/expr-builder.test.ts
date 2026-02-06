@@ -32,18 +32,18 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('creates identity with single scope object', () => {
       const expr = identity('USER1', { nodes: ['ws1'] })
       expect(expr.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
 
     it('creates identity with array of scopes', () => {
       const expr = identity('USER1', [{ nodes: ['ws1'] }, { perms: ['read'] }])
       expect(expr.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }, { perms: ['read'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
 
@@ -58,9 +58,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('filters out null/undefined scopes', () => {
       const expr = identity('USER1', [null as unknown as Scope, { nodes: ['ws1'] }])
       expect(expr.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
   })
@@ -69,9 +69,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('adds scope to identity', () => {
       const expr = identity('USER1').scope({ nodes: ['ws1'] })
       expect(expr.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
 
@@ -81,9 +81,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         .scope({ perms: ['read'] })
 
       expect(expr.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }, { perms: ['read'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
 
@@ -93,9 +93,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
       expect(original.build()).toEqual({ kind: 'identity', id: 'USER1' })
       expect(restricted.build()).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
   })
@@ -109,8 +109,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const expr = identity('A').union(identity('B'))
       expect(expr.build()).toEqual({
         kind: 'union',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
@@ -118,8 +120,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const expr = identity('A').intersect(identity('B'))
       expect(expr.build()).toEqual({
         kind: 'intersect',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
@@ -127,8 +131,23 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const expr = identity('A').exclude(identity('B'))
       expect(expr.build()).toEqual({
         kind: 'exclude',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        base: { kind: 'identity', id: 'A' },
+        excluded: [{ kind: 'identity', id: 'B' }],
+      })
+    })
+
+    it('flattens chained .exclude() into single exclude with multiple excluded', () => {
+      const expr = identity('A')
+        .exclude(identity('B'))
+        .exclude(identity('C'))
+
+      expect(expr.build()).toEqual({
+        kind: 'exclude',
+        base: { kind: 'identity', id: 'A' },
+        excluded: [
+          { kind: 'identity', id: 'B' },
+          { kind: 'identity', id: 'C' },
+        ],
       })
     })
 
@@ -138,18 +157,25 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         .intersect(identity('C'))
         .exclude(identity('D'))
 
+      // identity('A').union(identity('B')) => NaryExpr('union', [A, B])
+      // .intersect(identity('C')) => NaryExpr is union, not intersect, so new NaryExpr('intersect', [union(A,B), C])
+      // .exclude(identity('D')) => NaryExpr is intersect, not ExcludeExpr, so new ExcludeExpr(intersect(...), [D])
       expect(expr.build()).toEqual({
         kind: 'exclude',
-        left: {
+        base: {
           kind: 'intersect',
-          left: {
-            kind: 'union',
-            left: { kind: 'identity', id: 'A' },
-            right: { kind: 'identity', id: 'B' },
-          },
-          right: { kind: 'identity', id: 'C' },
+          operands: [
+            {
+              kind: 'union',
+              operands: [
+                { kind: 'identity', id: 'A' },
+                { kind: 'identity', id: 'B' },
+              ],
+            },
+            { kind: 'identity', id: 'C' },
+          ],
         },
-        right: { kind: 'identity', id: 'D' },
+        excluded: [{ kind: 'identity', id: 'D' }],
       })
     })
   })
@@ -159,71 +185,62 @@ describe('AUTH_V2: Expression Builder SDK', () => {
   // ===========================================================================
 
   describe('union() factory', () => {
-    it('with single expression returns same expression', () => {
-      const expr = union(identity('A'))
-      // Note: single-arg union just returns the arg directly via reduce
-      expect(expr.build()).toEqual({ kind: 'identity', id: 'A' })
-    })
-
     it('with two expressions creates union', () => {
       const expr = union(identity('A'), identity('B'))
       expect(expr.build()).toEqual({
         kind: 'union',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
-    it('with multiple expressions left-associates', () => {
+    it('with multiple expressions creates flat union', () => {
       const expr = union(identity('A'), identity('B'), identity('C'))
-      // ((A ∪ B) ∪ C)
       expect(expr.build()).toEqual({
         kind: 'union',
-        left: {
-          kind: 'union',
-          left: { kind: 'identity', id: 'A' },
-          right: { kind: 'identity', id: 'B' },
-        },
-        right: { kind: 'identity', id: 'C' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+          { kind: 'identity', id: 'C' },
+        ],
       })
     })
 
-    it('throws on empty', () => {
-      expect(() => union()).toThrow('union requires at least one expression')
+    it('throws on fewer than 2 expressions', () => {
+      expect(() => union()).toThrow('union requires at least 2 expressions')
+      expect(() => union(identity('A'))).toThrow('union requires at least 2 expressions')
     })
   })
 
   describe('intersect() factory', () => {
-    it('with single expression returns same expression', () => {
-      const expr = intersect(identity('A'))
-      expect(expr.build()).toEqual({ kind: 'identity', id: 'A' })
-    })
-
     it('with two expressions creates intersect', () => {
       const expr = intersect(identity('A'), identity('B'))
       expect(expr.build()).toEqual({
         kind: 'intersect',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
-    it('with multiple expressions left-associates', () => {
+    it('with multiple expressions creates flat intersect', () => {
       const expr = intersect(identity('A'), identity('B'), identity('C'))
-      // ((A ∩ B) ∩ C)
       expect(expr.build()).toEqual({
         kind: 'intersect',
-        left: {
-          kind: 'intersect',
-          left: { kind: 'identity', id: 'A' },
-          right: { kind: 'identity', id: 'B' },
-        },
-        right: { kind: 'identity', id: 'C' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+          { kind: 'identity', id: 'C' },
+        ],
       })
     })
 
-    it('throws on empty', () => {
-      expect(() => intersect()).toThrow('intersect requires at least one expression')
+    it('throws on fewer than 2 expressions', () => {
+      expect(() => intersect()).toThrow('intersect requires at least 2 expressions')
+      expect(() => intersect(identity('A'))).toThrow('intersect requires at least 2 expressions')
     })
   })
 
@@ -232,8 +249,8 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const expr = exclude(identity('A'), identity('B'))
       expect(expr.build()).toEqual({
         kind: 'exclude',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        base: { kind: 'identity', id: 'A' },
+        excluded: [{ kind: 'identity', id: 'B' }],
       })
     })
   })
@@ -253,8 +270,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('wraps complex expression', () => {
       const rawExpr: IdentityExpr = {
         kind: 'union',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       }
       const wrapped = raw(rawExpr)
 
@@ -264,15 +283,19 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('can be composed with other builders', () => {
       const rawExpr: IdentityExpr = {
         kind: 'union',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       }
       const composed = raw(rawExpr).intersect(identity('C'))
 
       expect(composed.build()).toEqual({
         kind: 'intersect',
-        left: rawExpr,
-        right: { kind: 'identity', id: 'C' },
+        operands: [
+          rawExpr,
+          { kind: 'identity', id: 'C' },
+        ],
       })
     })
 
@@ -282,8 +305,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
       expect(composed.build()).toEqual({
         kind: 'union',
-        left: { kind: 'identity', id: 'RESOLVED' },
-        right: { kind: 'identity', id: 'NEW' },
+        operands: [
+          { kind: 'identity', id: 'RESOLVED' },
+          { kind: 'identity', id: 'NEW' },
+        ],
       })
     })
 
@@ -325,42 +350,57 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
       // Expected tree:
       // intersect(
-      //   identity("H", { perms: ["read"] }),
+      //   scope({ perms: ["read"] }, identity("H")),
       //   exclude(
       //     intersect(
       //       union(
-      //         identity("X", { nodes: ["node-A"] }),
+      //         scope({ nodes: ["node-A"] }, identity("X")),
       //         identity("Y")
       //       ),
       //       identity("Z")
       //     ),
-      //     identity("M")
+      //     [identity("M")]
       //   )
       // )
+      //
+      // ref1 = union(identity('X', { nodes: ['node-A'] }), identity('Y'))
+      //   => NaryExpr('union', [ScopeExpr([{nodes:['node-A']}], IdentityExprBuilder('X')), IdentityExprBuilder('Y')])
+      // ref1.intersect(identity('Z'))
+      //   => NaryExpr is union not intersect, so new NaryExpr('intersect', [ref1, identity('Z')])
+      // restrictedIdentity.exclude(identity('M'))
+      //   => NaryExpr is intersect not ExcludeExpr, so new ExcludeExpr(restrictedIdentity, [identity('M')])
+      // intersect(identity('H').scope(...), restrictedIdentity.exclude(identity('M')))
+      //   => NaryExpr('intersect', [ScopeExpr, ExcludeExpr])
       expect(built).toEqual({
         kind: 'intersect',
-        left: {
-          kind: 'identity',
-          id: 'H',
-          scopes: [{ perms: ['read'] }],
-        },
-        right: {
-          kind: 'exclude',
-          left: {
-            kind: 'intersect',
-            left: {
-              kind: 'union',
-              left: {
-                kind: 'identity',
-                id: 'X',
-                scopes: [{ nodes: ['node-A'] }],
-              },
-              right: { kind: 'identity', id: 'Y' },
-            },
-            right: { kind: 'identity', id: 'Z' },
+        operands: [
+          {
+            kind: 'scope',
+            scopes: [{ perms: ['read'] }],
+            expr: { kind: 'identity', id: 'H' },
           },
-          right: { kind: 'identity', id: 'M' },
-        },
+          {
+            kind: 'exclude',
+            base: {
+              kind: 'intersect',
+              operands: [
+                {
+                  kind: 'union',
+                  operands: [
+                    {
+                      kind: 'scope',
+                      scopes: [{ nodes: ['node-A'] }],
+                      expr: { kind: 'identity', id: 'X' },
+                    },
+                    { kind: 'identity', id: 'Y' },
+                  ],
+                },
+                { kind: 'identity', id: 'Z' },
+              ],
+            },
+            excluded: [{ kind: 'identity', id: 'M' }],
+          },
+        ],
       })
     })
   })
@@ -384,9 +424,9 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const parsed: IdentityExpr = JSON.parse(json)
 
       expect(parsed).toEqual({
-        kind: 'identity',
-        id: 'USER1',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'], perms: ['read'] }],
+        expr: { kind: 'identity', id: 'USER1' },
       })
     })
 
@@ -407,79 +447,99 @@ describe('AUTH_V2: Expression Builder SDK', () => {
   // ===========================================================================
 
   describe('applyScope()', () => {
-    it('adds scope to simple identity', () => {
+    it('wraps simple identity in scope node', () => {
       const expr: IdentityExpr = { kind: 'identity', id: 'A' }
       const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
-        kind: 'identity',
-        id: 'A',
+        kind: 'scope',
         scopes: [{ nodes: ['ws1'] }],
+        expr: { kind: 'identity', id: 'A' },
       })
     })
 
-    it('adds scope to already scoped identity', () => {
+    it('wraps already-scoped identity in another scope node', () => {
       const expr: IdentityExpr = {
-        kind: 'identity',
-        id: 'A',
+        kind: 'scope',
         scopes: [{ perms: ['read'] }],
+        expr: { kind: 'identity', id: 'A' },
       }
       const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
-        kind: 'identity',
-        id: 'A',
-        scopes: [{ perms: ['read'] }, { nodes: ['ws1'] }],
+        kind: 'scope',
+        scopes: [{ nodes: ['ws1'] }],
+        expr: {
+          kind: 'scope',
+          scopes: [{ perms: ['read'] }],
+          expr: { kind: 'identity', id: 'A' },
+        },
       })
     })
 
-    it('recursively applies to all leaves in union', () => {
+    it('wraps union expression in scope node', () => {
       const expr: IdentityExpr = {
         kind: 'union',
-        left: { kind: 'identity', id: 'A' },
-        right: { kind: 'identity', id: 'B' },
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       }
       const result = applyScope(expr, { nodes: ['ws1'] })
 
       expect(result).toEqual({
-        kind: 'union',
-        left: { kind: 'identity', id: 'A', scopes: [{ nodes: ['ws1'] }] },
-        right: { kind: 'identity', id: 'B', scopes: [{ nodes: ['ws1'] }] },
+        kind: 'scope',
+        scopes: [{ nodes: ['ws1'] }],
+        expr: {
+          kind: 'union',
+          operands: [
+            { kind: 'identity', id: 'A' },
+            { kind: 'identity', id: 'B' },
+          ],
+        },
       })
     })
 
-    it('recursively applies to complex tree', () => {
+    it('wraps complex tree in scope node', () => {
       const expr: IdentityExpr = {
         kind: 'intersect',
-        left: {
-          kind: 'union',
-          left: { kind: 'identity', id: 'A' },
-          right: { kind: 'identity', id: 'B', scopes: [{ perms: ['write'] }] },
-        },
-        right: {
-          kind: 'exclude',
-          left: { kind: 'identity', id: 'C' },
-          right: { kind: 'identity', id: 'D' },
-        },
-      }
-
-      const result = applyScope(expr, { nodes: ['ws1'] })
-
-      expect(result).toEqual({
-        kind: 'intersect',
-        left: {
-          kind: 'union',
-          left: { kind: 'identity', id: 'A', scopes: [{ nodes: ['ws1'] }] },
-          right: {
-            kind: 'identity',
-            id: 'B',
-            scopes: [{ perms: ['write'] }, { nodes: ['ws1'] }],
+        operands: [
+          {
+            kind: 'union',
+            operands: [
+              { kind: 'identity', id: 'A' },
+              { kind: 'identity', id: 'B' },
+            ],
           },
-        },
-        right: {
-          kind: 'exclude',
-          left: { kind: 'identity', id: 'C', scopes: [{ nodes: ['ws1'] }] },
-          right: { kind: 'identity', id: 'D', scopes: [{ nodes: ['ws1'] }] },
+          {
+            kind: 'exclude',
+            base: { kind: 'identity', id: 'C' },
+            excluded: [{ kind: 'identity', id: 'D' }],
+          },
+        ],
+      }
+
+      const result = applyScope(expr, { nodes: ['ws1'] })
+
+      expect(result).toEqual({
+        kind: 'scope',
+        scopes: [{ nodes: ['ws1'] }],
+        expr: {
+          kind: 'intersect',
+          operands: [
+            {
+              kind: 'union',
+              operands: [
+                { kind: 'identity', id: 'A' },
+                { kind: 'identity', id: 'B' },
+              ],
+            },
+            {
+              kind: 'exclude',
+              base: { kind: 'identity', id: 'C' },
+              excluded: [{ kind: 'identity', id: 'D' }],
+            },
+          ],
         },
       })
     })
@@ -508,12 +568,16 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         forType: { kind: 'identity', id: 'APP1' },
         forResource: {
           kind: 'intersect',
-          left: {
-            kind: 'union',
-            left: { kind: 'identity', id: 'USER1' },
-            right: { kind: 'identity', id: 'ROLE1' },
-          },
-          right: { kind: 'identity', id: 'GROUP1' },
+          operands: [
+            {
+              kind: 'union',
+              operands: [
+                { kind: 'identity', id: 'USER1' },
+                { kind: 'identity', id: 'ROLE1' },
+              ],
+            },
+            { kind: 'identity', id: 'GROUP1' },
+          ],
         },
       })
     })
@@ -528,7 +592,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       expect(isExprBuilder(identity('A'))).toBe(true)
     })
 
-    it('returns true for BinaryExpr', () => {
+    it('returns true for NaryExpr', () => {
       expect(isExprBuilder(identity('A').union(identity('B')))).toBe(true)
     })
 

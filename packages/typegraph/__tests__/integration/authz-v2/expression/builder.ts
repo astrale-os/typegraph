@@ -2,14 +2,14 @@
  * Fluent SDK for Identity Expression Composition
  *
  * Provides a builder pattern for composing identity expressions with
- * union, intersect, and exclude operations. Supports method chaining
+ * union, intersect, exclude, and scope operations. Supports method chaining
  * and factory functions for flexible expression building.
  *
  * @example
  * ```typescript
  * // Factory functions
  * const expr = union(
- *   identity("X", { nodes: ["node-A"] }),
+ *   identity("X").scope({ nodes: ["node-A"] }),
  *   identity("Y")
  * )
  *
@@ -56,36 +56,53 @@ export function isExprBuilder(value: unknown): value is ExprBuilder {
 
 /**
  * Base class for all expression builders.
- * Provides composition methods (union, intersect, exclude) available on all expressions.
+ * Provides composition methods (union, intersect, exclude, scope) available on all expressions.
  */
 export abstract class Expr implements ExprBuilder {
-  /**
-   * Build the raw IdentityExpr from this builder.
-   */
   abstract build(): IdentityExpr
 
   /**
    * Create a union of this expression with another.
    * A ∪ B: grants access if either A or B grants access.
+   * Flattens nested unions: (A ∪ B) ∪ C → union([A, B, C])
    */
   union(other: Expr): Expr {
-    return new BinaryExpr('union', this, other)
+    if (this instanceof NaryExpr && this.kind === 'union') {
+      return new NaryExpr('union', [...this.operands, other])
+    }
+    return new NaryExpr('union', [this, other])
   }
 
   /**
    * Create an intersection of this expression with another.
    * A ∩ B: grants access only if both A and B grant access.
+   * Flattens nested intersects: (A ∩ B) ∩ C → intersect([A, B, C])
    */
   intersect(other: Expr): Expr {
-    return new BinaryExpr('intersect', this, other)
+    if (this instanceof NaryExpr && this.kind === 'intersect') {
+      return new NaryExpr('intersect', [...this.operands, other])
+    }
+    return new NaryExpr('intersect', [this, other])
   }
 
   /**
    * Exclude another expression from this one.
    * A \ B: grants access if A grants but B does not.
+   * Flattens chained excludes: (A \ B) \ C → exclude(A, [B, C])
    */
   exclude(other: Expr): Expr {
-    return new BinaryExpr('exclude', this, other)
+    if (this instanceof ExcludeExpr) {
+      return new ExcludeExpr(this.base, [...this.excluded, other])
+    }
+    return new ExcludeExpr(this, [other])
+  }
+
+  /**
+   * Wrap this expression with a scope restriction.
+   * Returns a ScopeExpr. Chaining .scope() accumulates scopes (OR'd).
+   */
+  scope(s: Scope): ScopeExpr {
+    return new ScopeExpr([s], this)
   }
 }
 
@@ -95,34 +112,44 @@ export abstract class Expr implements ExprBuilder {
 
 /**
  * Builder for identity leaf expressions.
- * Represents a single identity with optional scope restrictions.
+ * Represents a single identity.
  */
 export class IdentityExprBuilder extends Expr {
+  constructor(private readonly id: string) {
+    super()
+  }
+
+  build(): IdentityExpr {
+    return { kind: 'identity', id: this.id }
+  }
+}
+
+// =============================================================================
+// SCOPE EXPRESSION BUILDER
+// =============================================================================
+
+/**
+ * Builder for scope-wrapped expressions.
+ * Wraps an inner expression with scope restrictions (OR'd).
+ */
+export class ScopeExpr extends Expr {
   constructor(
-    private readonly id: string,
-    private readonly scopes: Scope[] = [],
+    readonly scopes: Scope[],
+    private readonly inner: Expr,
   ) {
     super()
   }
 
   /**
-   * Add a scope to this identity.
-   * Returns a new builder (immutable).
-   *
-   * @example
-   * ```typescript
-   * identity("USER1").scope({ nodes: ["workspace-1"] })
-   * identity("ROLE1").scope({ perms: ["read"] })
-   * ```
+   * Add another scope (OR'd with existing scopes).
+   * Returns a new ScopeExpr (immutable).
    */
-  scope(s: Scope): IdentityExprBuilder {
-    return new IdentityExprBuilder(this.id, [...this.scopes, s])
+  override scope(s: Scope): ScopeExpr {
+    return new ScopeExpr([...this.scopes, s], this.inner)
   }
 
   build(): IdentityExpr {
-    return this.scopes.length > 0
-      ? { kind: 'identity', id: this.id, scopes: this.scopes }
-      : { kind: 'identity', id: this.id }
+    return { kind: 'scope', scopes: this.scopes, expr: this.inner.build() }
   }
 }
 
@@ -145,17 +172,16 @@ export class RawExpr extends Expr {
 }
 
 // =============================================================================
-// BINARY EXPRESSION BUILDER
+// N-ARY EXPRESSION BUILDER (union, intersect)
 // =============================================================================
 
 /**
- * Builder for binary expressions (union, intersect, exclude).
+ * Builder for n-ary expressions (union, intersect).
  */
-export class BinaryExpr extends Expr {
+export class NaryExpr extends Expr {
   constructor(
-    private readonly kind: 'union' | 'intersect' | 'exclude',
-    private readonly left: Expr,
-    private readonly right: Expr,
+    readonly kind: 'union' | 'intersect',
+    readonly operands: Expr[],
   ) {
     super()
   }
@@ -163,8 +189,31 @@ export class BinaryExpr extends Expr {
   build(): IdentityExpr {
     return {
       kind: this.kind,
-      left: this.left.build(),
-      right: this.right.build(),
+      operands: this.operands.map((op) => op.build()),
+    }
+  }
+}
+
+// =============================================================================
+// EXCLUDE EXPRESSION BUILDER
+// =============================================================================
+
+/**
+ * Builder for exclude expressions (base \ excluded[]).
+ */
+export class ExcludeExpr extends Expr {
+  constructor(
+    readonly base: Expr,
+    readonly excluded: Expr[],
+  ) {
+    super()
+  }
+
+  build(): IdentityExpr {
+    return {
+      kind: 'exclude',
+      base: this.base.build(),
+      excluded: this.excluded.map((e) => e.build()),
     }
   }
 }
@@ -177,7 +226,7 @@ export class BinaryExpr extends Expr {
  * Create an identity leaf expression.
  *
  * @param id - The identity ID
- * @param scopes - Optional scope restriction(s). Can be single scope or array.
+ * @param scopes - Optional scope restriction(s). If provided, wraps in a scope node.
  *
  * @example
  * ```typescript
@@ -186,12 +235,18 @@ export class BinaryExpr extends Expr {
  * identity("USER1", [{ nodes: ["ws1"] }, { perms: ["read"] }])
  * ```
  */
-export function identity(id: string, scopes?: Scope | Scope[]): IdentityExprBuilder {
+export function identity(id: string, scopes?: Scope | Scope[]): Expr {
   if (typeof id !== 'string' || id.length === 0) {
     throw new Error('identity id must be a non-empty string')
   }
-  const scopeArray = scopes ? (Array.isArray(scopes) ? scopes : [scopes]).filter(Boolean) : []
-  return new IdentityExprBuilder(id, scopeArray)
+  const leaf = new IdentityExprBuilder(id)
+  if (scopes) {
+    const scopeArray = (Array.isArray(scopes) ? scopes : [scopes]).filter(Boolean)
+    if (scopeArray.length > 0) {
+      return new ScopeExpr(scopeArray, leaf)
+    }
+  }
+  return leaf
 }
 
 /**
@@ -204,18 +259,12 @@ export const id = identity
  * Useful for mixing resolved expressions with builders.
  *
  * @param expr - A raw IdentityExpr (e.g., from evalIdentity or evalExpr)
- *
- * @example
- * ```typescript
- * const resolved = await evaluator.evalIdentity("USER1")
- * const composed = raw(resolved).intersect(identity("ROLE1"))
- * ```
  */
 export function raw(expr: IdentityExpr): Expr {
   if (!expr || typeof expr !== 'object' || !('kind' in expr)) {
     throw new Error('raw() requires a valid IdentityExpr object')
   }
-  if (!['identity', 'union', 'intersect', 'exclude'].includes(expr.kind)) {
+  if (!['identity', 'scope', 'union', 'intersect', 'exclude'].includes(expr.kind)) {
     throw new Error(`Invalid expression kind: ${expr.kind}`)
   }
   return new RawExpr(expr)
@@ -223,51 +272,36 @@ export function raw(expr: IdentityExpr): Expr {
 
 /**
  * Create a union of multiple expressions.
- * Variadic: union(a, b, c) = ((a ∪ b) ∪ c)
+ * Variadic: union(a, b, c) = union([a, b, c])
  *
- * @throws Error if no expressions provided
- *
- * @example
- * ```typescript
- * union(identity("A"), identity("B"), identity("C"))
- * ```
+ * @throws Error if fewer than 2 expressions provided
  */
 export function union(...exprs: Expr[]): Expr {
-  if (exprs.length === 0) {
-    throw new Error('union requires at least one expression')
+  if (exprs.length < 2) {
+    throw new Error('union requires at least 2 expressions')
   }
-  return exprs.reduce((acc, expr) => acc.union(expr))
+  return new NaryExpr('union', exprs)
 }
 
 /**
  * Create an intersection of multiple expressions.
- * Variadic: intersect(a, b, c) = ((a ∩ b) ∩ c)
+ * Variadic: intersect(a, b, c) = intersect([a, b, c])
  *
- * @throws Error if no expressions provided
- *
- * @example
- * ```typescript
- * intersect(identity("A"), identity("B"), identity("C"))
- * ```
+ * @throws Error if fewer than 2 expressions provided
  */
 export function intersect(...exprs: Expr[]): Expr {
-  if (exprs.length === 0) {
-    throw new Error('intersect requires at least one expression')
+  if (exprs.length < 2) {
+    throw new Error('intersect requires at least 2 expressions')
   }
-  return exprs.reduce((acc, expr) => acc.intersect(expr))
+  return new NaryExpr('intersect', exprs)
 }
 
 /**
  * Create an exclude expression.
  * exclude(base, excluded) = base \ excluded
- *
- * @example
- * ```typescript
- * exclude(identity("A"), identity("B"))  // A \ B
- * ```
  */
 export function exclude(base: Expr, excluded: Expr): Expr {
-  return base.exclude(excluded)
+  return new ExcludeExpr(base, [excluded])
 }
 
 // =============================================================================
@@ -283,9 +317,6 @@ export class GrantBuilder {
     private readonly forResource: Expr,
   ) {}
 
-  /**
-   * Build the raw Grant object.
-   */
   build(): { forType: IdentityExpr; forResource: IdentityExpr } {
     return {
       forType: this.forType.build(),
@@ -296,12 +327,6 @@ export class GrantBuilder {
 
 /**
  * Create a GrantBuilder for composing forType and forResource expressions.
- *
- * @example
- * ```typescript
- * const g = grant(identity("APP1"), forResourceExpr)
- * const rawGrant = g.build()
- * ```
  */
 export function grant(forType: Expr, forResource: Expr): GrantBuilder {
   return new GrantBuilder(forType, forResource)

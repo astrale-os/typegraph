@@ -3,21 +3,22 @@
  *
  * Boundary between authorization logic (WHAT) and adapter implementation (HOW).
  * Authorization functions depend on this interface, not on concrete implementations.
+ *
+ * The adapter receives PrunedIdentityExpr (scopes already evaluated, each leaf
+ * carries its own nodeRestriction). No principal/scope awareness needed.
  */
 
 import type { CypherFragment } from '../adapter/cypher'
-import type { IdentityExpr, NodeId, PermissionT, IdentityId, LeafEvaluation } from '../types'
+import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation } from '../types'
 
 export interface AccessQueryPort {
   generateQuery(
-    expr: IdentityExpr,
-    targetVar: string,
-    perm: PermissionT,
-    principal: IdentityId | undefined,
+    expr: PrunedIdentityExpr,
+    perm: Permission,
   ): CypherFragment | null
   executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean>
   executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean>
   getTargetType(resourceId: NodeId): Promise<NodeId | null>
-  queryLeafDetails(leaves: LeafEvaluation[], resourceId: NodeId, perm: PermissionT): Promise<void>
+  queryLeafDetails(leaves: LeafEvaluation[], resourceId: NodeId, perm: Permission): Promise<void>
   clearCache(): void
 }

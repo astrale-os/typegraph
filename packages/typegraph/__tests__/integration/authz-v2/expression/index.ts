@@ -1,5 +1,6 @@
 export * from './builder'
 export * from './scope'
+export * from './prune'
 export * from './compact'
 export * from './dedup'
 export * from './encoding'

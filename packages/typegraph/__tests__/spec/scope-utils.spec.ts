@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { intersectScope, intersectScopes, scopesAllow } from '../integration/authz-v2/scope-utils'
+import { intersectScope, intersectScopes } from '../integration/authz-v2/expression/scope'
 import type { Scope } from '../integration/authz-v2/types'
 
 describe('Scope Intersection', () => {
@@ -198,51 +198,3 @@ describe('Scope Intersection', () => {
   })
 })
 
-describe('scopesAllow', () => {
-  it('undefined scopes = unrestricted', () => {
-    expect(scopesAllow(undefined, { node: 'any', perm: 'any' })).toBe(true)
-  })
-
-  it('empty scopes array = no valid scopes = deny', () => {
-    // Empty array means "no scopes allow anything" (e.g., after impossible intersection)
-    // This is different from undefined which means "unrestricted"
-    expect(scopesAllow([], { node: 'any', perm: 'any' })).toBe(false)
-  })
-
-  it('checks node restriction', () => {
-    const scopes: Scope[] = [{ nodes: ['ws-1'] }]
-
-    expect(scopesAllow(scopes, { node: 'ws-1' })).toBe(true)
-    expect(scopesAllow(scopes, { node: 'ws-2' })).toBe(false)
-  })
-
-  it('checks perm restriction', () => {
-    const scopes: Scope[] = [{ perms: ['read'] }]
-
-    expect(scopesAllow(scopes, { perm: 'read' })).toBe(true)
-    expect(scopesAllow(scopes, { perm: 'write' })).toBe(false)
-  })
-
-  it('checks principal restriction', () => {
-    const scopes: Scope[] = [{ principals: ['user-1'] }]
-
-    expect(scopesAllow(scopes, { principal: 'user-1' })).toBe(true)
-    expect(scopesAllow(scopes, { principal: 'user-2' })).toBe(false)
-  })
-
-  it('any scope passing = allowed (OR semantics)', () => {
-    const scopes: Scope[] = [{ nodes: ['ws-1'] }, { nodes: ['ws-2'] }]
-
-    expect(scopesAllow(scopes, { node: 'ws-1' })).toBe(true)
-    expect(scopesAllow(scopes, { node: 'ws-2' })).toBe(true)
-    expect(scopesAllow(scopes, { node: 'ws-3' })).toBe(false)
-  })
-
-  it('all dimensions must pass within a scope (AND semantics)', () => {
-    const scopes: Scope[] = [{ nodes: ['ws-1'], perms: ['read'] }]
-
-    expect(scopesAllow(scopes, { node: 'ws-1', perm: 'read' })).toBe(true)
-    expect(scopesAllow(scopes, { node: 'ws-1', perm: 'write' })).toBe(false)
-    expect(scopesAllow(scopes, { node: 'ws-2', perm: 'read' })).toBe(false)
-  })
-})

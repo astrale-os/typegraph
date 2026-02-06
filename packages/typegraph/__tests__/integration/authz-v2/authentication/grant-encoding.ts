@@ -16,7 +16,7 @@ import type {
 } from '../types'
 
 // =============================================================================
-// JWT VERIFIER INTERFACE
+// JWT VERIFICATION RESULT
 // =============================================================================
 
 /**
@@ -27,14 +27,6 @@ export interface VerifiedJwt {
   iss: string
 }
 
-/**
- * JWT verifier interface.
- * Kernel implements this to verify tokens.
- */
-export interface JwtVerifier {
-  verifyToken(jwt: string): Promise<VerifiedJwt>
-}
-
 // =============================================================================
 // UNRESOLVED EXPRESSION BUILDERS
 // =============================================================================
@@ -42,45 +34,53 @@ export interface JwtVerifier {
 /**
  * Create an unresolved identity leaf from a JWT token.
  */
-export function unresolvedJwt(jwt: string, scopes?: Scope[]): UnresolvedIdentityExpr {
-  return scopes ? { kind: 'identity', jwt, scopes } : { kind: 'identity', jwt }
+export function unresolvedJwt(jwt: string): UnresolvedIdentityExpr {
+  return { kind: 'identity', jwt }
 }
 
 /**
  * Create an unresolved identity leaf from a plain ID (kernel-issued only).
  */
-export function unresolvedId(id: IdentityId, scopes?: Scope[]): UnresolvedIdentityExpr {
-  return scopes ? { kind: 'identity', id, scopes } : { kind: 'identity', id }
+export function unresolvedId(id: IdentityId): UnresolvedIdentityExpr {
+  return { kind: 'identity', id }
+}
+
+/**
+ * Create an unresolved scope wrapper.
+ */
+export function unresolvedScope(
+  scopes: Scope[],
+  expr: UnresolvedIdentityExpr,
+): UnresolvedIdentityExpr {
+  return { kind: 'scope', scopes, expr }
 }
 
 /**
  * Create an unresolved union expression.
  */
 export function unresolvedUnion(
-  left: UnresolvedIdentityExpr,
-  right: UnresolvedIdentityExpr,
+  ...operands: UnresolvedIdentityExpr[]
 ): UnresolvedIdentityExpr {
-  return { kind: 'union', left, right }
+  return { kind: 'union', operands }
 }
 
 /**
  * Create an unresolved intersect expression.
  */
 export function unresolvedIntersect(
-  left: UnresolvedIdentityExpr,
-  right: UnresolvedIdentityExpr,
+  ...operands: UnresolvedIdentityExpr[]
 ): UnresolvedIdentityExpr {
-  return { kind: 'intersect', left, right }
+  return { kind: 'intersect', operands }
 }
 
 /**
  * Create an unresolved exclude expression.
  */
 export function unresolvedExclude(
-  left: UnresolvedIdentityExpr,
-  right: UnresolvedIdentityExpr,
+  base: UnresolvedIdentityExpr,
+  excl: UnresolvedIdentityExpr,
 ): UnresolvedIdentityExpr {
-  return { kind: 'exclude', left, right }
+  return { kind: 'exclude', base, excluded: [excl] }
 }
 
 // =============================================================================
@@ -94,17 +94,18 @@ export function unresolvedExclude(
 export function identityExprToUnresolved(expr: IdentityExpr): UnresolvedIdentityExpr {
   switch (expr.kind) {
     case 'identity':
-      return expr.scopes
-        ? { kind: 'identity', id: expr.id, scopes: expr.scopes }
-        : { kind: 'identity', id: expr.id }
-
+      return { kind: 'identity', id: expr.id }
+    case 'scope':
+      return { kind: 'scope', scopes: expr.scopes, expr: identityExprToUnresolved(expr.expr) }
     case 'union':
+      return { kind: 'union', operands: expr.operands.map(identityExprToUnresolved) }
     case 'intersect':
+      return { kind: 'intersect', operands: expr.operands.map(identityExprToUnresolved) }
     case 'exclude':
       return {
-        kind: expr.kind,
-        left: identityExprToUnresolved(expr.left),
-        right: identityExprToUnresolved(expr.right),
+        kind: 'exclude',
+        base: identityExprToUnresolved(expr.base),
+        excluded: expr.excluded.map(identityExprToUnresolved),
       }
   }
 }

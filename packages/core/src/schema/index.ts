@@ -5,7 +5,7 @@
  * The schema is the single source of truth for all type information.
  */
 
-export { node, edge, defineSchema } from './builders'
+export { node, edge, defineSchema, extendSchema, mergeNodeSchemas } from './builders'
 export { resolveNodeLabels, formatLabels, getNodesSatisfying, toPascalCase } from './labels'
 export type {
   SchemaDefinition,

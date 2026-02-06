@@ -572,10 +572,11 @@ describe('AUTH_V2: Identity Composition', () => {
       // USER1 has unionWith ROLE1 in DB, but scoped leaves are NOT expanded
       const resolved = await evaluator.evalExpr(identity('USER1', { perms: ['read'] }))
 
-      // Should remain as simple identity (scoped = not expanded)
-      expect(resolved.kind).toBe('identity')
-      expect((resolved as any).id).toBe('USER1')
+      // Should remain as scope-wrapped identity (scoped = not expanded)
+      expect(resolved.kind).toBe('scope')
       expect((resolved as any).scopes).toEqual([{ perms: ['read'] }])
+      expect((resolved as any).expr.kind).toBe('identity')
+      expect((resolved as any).expr.id).toBe('USER1')
     })
 
     it('resolves mixed expression with scoped and unscoped leaves', async () => {
@@ -588,18 +589,19 @@ describe('AUTH_V2: Identity Composition', () => {
 
       const resolved = await evaluator.evalExpr(expr)
 
-      // Result should be: union(union(USER1, ROLE1), ROLE1(scoped))
+      // Result should be: union(union(USER1, ROLE1), scope(ROLE1))
       expect(resolved.kind).toBe('union')
 
-      // Verify structure: left should be the expanded USER1
-      const left = (resolved as any).left
-      expect(left.kind).toBe('union')
+      // Verify structure: first operand should be the expanded USER1
+      const operands = (resolved as any).operands
+      expect(operands[0].kind).toBe('union')
 
-      // Right should be the scoped ROLE1
-      const right = (resolved as any).right
-      expect(right.kind).toBe('identity')
-      expect(right.id).toBe('ROLE1')
-      expect(right.scopes).toEqual([{ perms: ['read'] }])
+      // Second operand should be the scope-wrapped ROLE1
+      const scoped = operands[1]
+      expect(scoped.kind).toBe('scope')
+      expect(scoped.scopes).toEqual([{ perms: ['read'] }])
+      expect(scoped.expr.kind).toBe('identity')
+      expect(scoped.expr.id).toBe('ROLE1')
     })
 
     it('works with complex builder expression and checkAccess', async () => {
@@ -659,13 +661,12 @@ describe('AUTH_V2: Identity Composition', () => {
 
       expect(resolved.kind).toBe('intersect')
 
-      // Left should be X expanded to intersect(A, B)
-      const left = (resolved as any).left
-      expect(left.kind).toBe('intersect')
+      // First operand should be X expanded to intersect(A, B)
+      const operands = (resolved as any).operands
+      expect(operands[0].kind).toBe('intersect')
 
-      // Right should be USER1 expanded to union(USER1, ROLE1)
-      const right = (resolved as any).right
-      expect(right.kind).toBe('union')
+      // Second operand should be USER1 expanded to union(USER1, ROLE1)
+      expect(operands[1].kind).toBe('union')
     })
   })
 
