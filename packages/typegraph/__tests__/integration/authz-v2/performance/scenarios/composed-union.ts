@@ -17,6 +17,7 @@
 
 import type { TestScenario } from './types'
 import { union, identity } from './types'
+import { READ, EDIT } from '../../testing/helpers'
 
 /**
  * (USER1 ∪ ROLE1) → M3 (edit)
@@ -31,7 +32,7 @@ export const composedUnionEditScenario: TestScenario = {
   description: 'USER1 ∪ ROLE1 gets edit on M3 via ROLE1',
   principal: 'USER1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('USER1'), identity('ROLE1')),
@@ -52,7 +53,7 @@ export const composedUnionEditViaUser: TestScenario = {
   description: 'USER1 ∪ ROLE1 gets edit on M1 via USER1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('USER1'), identity('ROLE1')),
@@ -72,7 +73,7 @@ export const composedUnionReadScenario: TestScenario = {
   description: 'USER1 ∪ ROLE1 gets read on M1 via USER1 root permission',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('USER1'), identity('ROLE1')),
@@ -93,7 +94,7 @@ export const composedUnionABScenario: TestScenario = {
   description: 'A ∪ B gets read on M1 (both have it)',
   principal: 'A',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('A'), identity('B')),
@@ -114,7 +115,7 @@ export const composedUnionABM2Scenario: TestScenario = {
   description: 'A ∪ B gets read on M2 via A only',
   principal: 'A',
   nodeId: 'M2',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('A'), identity('B')),

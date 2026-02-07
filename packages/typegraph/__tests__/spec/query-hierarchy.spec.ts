@@ -355,18 +355,19 @@ describe('Hierarchy with Multi-Label Nodes (Actual Compilation)', () => {
   })
 
   // Schema with inheritance hierarchy
+  const resourceNode = node({
+    properties: { name: z.string() },
+  })
   const multiLabelSchema = defineSchema({
     nodes: {
-      resource: node({
-        properties: { name: z.string() },
-      }),
+      resource: resourceNode,
       folder: node({
         properties: { name: z.string(), path: z.string() },
-        labels: ['resource'], // folder IS-A resource
+        extends: [resourceNode], // folder IS-A resource
       }),
       document: node({
         properties: { name: z.string(), content: z.string() },
-        labels: ['resource'], // document IS-A resource
+        extends: [resourceNode], // document IS-A resource
       }),
     },
     edges: {
@@ -500,7 +501,7 @@ describe('Hierarchy with Multi-Label Nodes (Actual Compilation)', () => {
 
       const result = compiler.compile(ast)
 
-      // folder has labels: ['resource'], so should resolve to :Folder:Resource
+      // folder extends: [resourceNode], so should resolve to :Folder:Resource
       expect(result.cypher).toContain(':Folder:Resource')
     })
 

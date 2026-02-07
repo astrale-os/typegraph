@@ -4,7 +4,7 @@
  * Types for performance test scenarios.
  */
 
-import type { IdentityExpr, Grant } from '../../types'
+import type { IdentityExpr, Grant, Permission } from '../../types'
 import type { Trace, TraceMetrics, PerformanceThresholds } from '../profiling'
 
 // =============================================================================
@@ -27,7 +27,7 @@ export interface TestScenario {
   /** Input parameters. */
   principal: string
   nodeId: string
-  perm: string
+  nodePerm: Permission
   grant: Grant
 
   /** Expected result. */

@@ -18,6 +18,7 @@ import {
 } from '../testing/setup'
 import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
+import { READ } from '../testing/helpers'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -100,7 +101,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
         const latencyResult = await benchmark(async () => {
           const file = sampleFiles[Math.floor(Math.random() * sampleFiles.length)]
           const user = sampleUsers[Math.floor(Math.random() * sampleUsers.length)]
-          return checkAccess(executor, user, file, 'read')
+          return checkAccess(executor, user, file, READ)
         }, 100)
 
         console.log(
@@ -113,7 +114,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
         while (Date.now() - seqStart < 2000) {
           const file = sampleFiles[seqOps % sampleFiles.length]
           const user = sampleUsers[seqOps % sampleUsers.length]
-          await checkAccess(executor, user, file, 'read')
+          await checkAccess(executor, user, file, READ)
           seqOps++
         }
         const seqThroughput = seqOps / 2
@@ -124,7 +125,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Scalability Report', () => {
         const concurrentResult = await runConcurrent((i) => {
           const file = sampleFiles[i % sampleFiles.length]
           const user = sampleUsers[i % sampleUsers.length]
-          return checkAccess(executor, user, file, 'read')
+          return checkAccess(executor, user, file, READ)
         }, 100)
 
         console.log(
@@ -240,11 +241,11 @@ async function checkAccess(
   executor: RawExecutor,
   userId: string,
   resourceId: string,
-  perm: string,
+  perm: number,
 ): Promise<boolean> {
   const query = `
     MATCH (resource:Node {id: $resourceId})-[:hasParent*0..20]->(ancestor:Node)<-[hp:hasPerm]-(i:Identity {id: $userId})
-    WHERE $perm IN hp.perms
+    WHERE (hp.perms % ($perm * 2)) >= $perm
     RETURN true AS hasAccess
     LIMIT 1
   `
@@ -273,7 +274,7 @@ async function seedAtScale(
     CREATE (i:Node:Identity {id: userId})
     WITH i
     MATCH (r:Root {id: 'root'})
-    CREATE (i)-[:hasPerm {perms: ['read']}]->(r)
+    CREATE (i)-[:hasPerm {perms: 1}]->(r)
   `,
     { userIds },
   )

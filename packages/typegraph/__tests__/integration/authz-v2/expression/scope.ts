@@ -5,7 +5,7 @@
  * Scopes can only be made MORE restrictive, never less.
  */
 
-import type { IdentityExpr, Scope, IdentityId, Permission, FilterDetail } from '../types'
+import type { IdentityExpr, Scope, IdentityId, Permission, PermissionMask, FilterDetail } from '../types'
 
 // =============================================================================
 // SCOPE INTERSECTION
@@ -17,21 +17,27 @@ import type { IdentityExpr, Scope, IdentityId, Permission, FilterDetail } from '
  * Empty array means "nothing allowed".
  */
 function intersectArrays<T>(a: T[] | undefined, b: T[] | undefined): T[] | undefined {
-  // Both undefined = unrestricted
-  if (a === undefined && b === undefined) {
-    return undefined
-  }
-
-  // One undefined = use the other (more restrictive)
+  if (a === undefined && b === undefined) return undefined
   if (a === undefined) return b
   if (b === undefined) return a
 
-  // Both defined = intersection
   const setB = new Set(b)
-  const result = a.filter((x) => setB.has(x))
+  return a.filter((x) => setB.has(x))
+}
 
-  // Empty result = nothing allowed (distinct from undefined = unrestricted)
-  return result
+/**
+ * Intersect two permission masks.
+ * undefined means "unrestricted" — the other mask wins.
+ * 0 means "nothing allowed".
+ */
+function intersectPermsMask(
+  a: PermissionMask | undefined,
+  b: PermissionMask | undefined,
+): PermissionMask | undefined {
+  if (a === undefined && b === undefined) return undefined
+  if (a === undefined) return b
+  if (b === undefined) return a
+  return (a & b) as PermissionMask
 }
 
 /**
@@ -39,19 +45,18 @@ function intersectArrays<T>(a: T[] | undefined, b: T[] | undefined): T[] | undef
  * Returns the most restrictive combination of both.
  *
  * Each dimension (nodes, perms, principals) is intersected:
- * - undefined = unrestricted (anything passes)
- * - [] = nothing allowed
- * - [...values] = only these values allowed
+ * - nodes/principals: undefined = unrestricted, [] = nothing allowed
+ * - perms: undefined = unrestricted, 0 = nothing allowed, positive = these bits
  *
  * Returns null if the intersection is impossible (would allow nothing).
  */
 export function intersectScope(a: Scope, b: Scope): Scope | null {
   const nodes = intersectArrays(a.nodes, b.nodes)
-  const perms = intersectArrays(a.perms, b.perms)
+  const perms = intersectPermsMask(a.perms, b.perms)
   const principals = intersectArrays(a.principals, b.principals)
 
-  // If any dimension is an empty array (not undefined), the scope allows nothing
-  if (nodes?.length === 0 || perms?.length === 0 || principals?.length === 0) {
+  // If any dimension allows nothing, the scope is impossible
+  if (nodes?.length === 0 || perms === 0 || principals?.length === 0) {
     return null
   }
 
@@ -108,7 +113,7 @@ export function intersectScopes(a: Scope[], b: Scope[]): Scope[] {
 function scopeToKey(scope: Scope): string {
   return JSON.stringify({
     n: scope.nodes ? [...scope.nodes].sort() : null,
-    p: scope.perms ? [...scope.perms].sort() : null,
+    p: scope.perms ?? null,
     r: scope.principals ? [...scope.principals].sort() : null,
   })
 }
@@ -129,7 +134,7 @@ export function scopePasses(
   if (scope.principals !== undefined && (scope.principals.length === 0 || !principal || !scope.principals.includes(principal))) {
     return { passes: false, failedCheck: 'principal' }
   }
-  if (scope.perms !== undefined && (scope.perms.length === 0 || !scope.perms.includes(perm))) {
+  if (scope.perms !== undefined && ((scope.perms & perm) === 0)) {
     return { passes: false, failedCheck: 'perm' }
   }
   return { passes: true }

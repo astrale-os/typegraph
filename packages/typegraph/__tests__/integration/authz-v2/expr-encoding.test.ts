@@ -9,6 +9,7 @@ import { encode, decode, encodeBase64, decodeBase64, compareSizes } from './expr
 import { dedup, expand, isDedupedExpr } from './expression/dedup'
 import { identity, union, intersect, exclude } from './expression/builder'
 import type { IdentityExpr } from './types'
+import { READ, EDIT, USE, SHARE } from './testing/helpers'
 
 describe('AUTH_V2: Binary Expression Encoding', () => {
   // ===========================================================================
@@ -33,7 +34,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     })
 
     it('round-trips identity with perm scope', () => {
-      const expr = identity('ROLE1', { perms: ['read', 'write', 'admin'] }).build()
+      const expr = identity('ROLE1', { perms: READ | EDIT | USE }).build()
       const binary = encode(expr)
       const decoded = decode(binary)
 
@@ -51,7 +52,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     it('round-trips identity with full scope', () => {
       const expr = identity('USER1', {
         nodes: ['ws1'],
-        perms: ['read'],
+        perms: READ,
         principals: ['p1'],
       }).build()
       const binary = encode(expr)
@@ -61,7 +62,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     })
 
     it('round-trips identity with multiple scopes', () => {
-      const expr = identity('USER1', [{ nodes: ['ws1'] }, { perms: ['read'] }]).build()
+      const expr = identity('USER1', [{ nodes: ['ws1'] }, { perms: READ }]).build()
       const binary = encode(expr)
       const decoded = decode(binary)
 
@@ -94,7 +95,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
 
     it('round-trips complex nested expression', () => {
       const expr = intersect(
-        union(identity('A', { nodes: ['ws1'] }), identity('B').scope({ perms: ['write'] })),
+        union(identity('A', { nodes: ['ws1'] }), identity('B').scope({ perms: EDIT })),
         exclude(identity('C'), identity('D', [{ principals: ['p1'] }])),
       ).build()
 
@@ -108,7 +109,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const ref1 = union(identity('X', { nodes: ['node-A'] }), identity('Y'))
       const restrictedIdentity = ref1.intersect(identity('Z'))
       const finalIdentity = intersect(
-        identity('H').scope({ perms: ['read'] }),
+        identity('H').scope({ perms: READ }),
         restrictedIdentity.exclude(identity('M')),
       )
 
@@ -198,7 +199,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     it('deduped encoding is smaller than regular for expressions with duplicates', () => {
       const shared = union(
         identity('USER1', { nodes: ['workspace-1'] }),
-        identity('ROLE1', { perms: ['read', 'write'] }),
+        identity('ROLE1', { perms: READ | EDIT }),
       ).build()
 
       const expr: IdentityExpr = {
@@ -292,7 +293,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
       const expr = intersect(
         union(
           identity('USER1', { nodes: ['workspace-1', 'workspace-2'] }),
-          identity('ROLE1', { perms: ['read', 'write', 'admin'] }),
+          identity('ROLE1', { perms: READ | EDIT | USE }),
         ),
         exclude(identity('GROUP1'), identity('BLOCKED', { principals: ['principal-1'] })),
       ).build()
@@ -346,7 +347,7 @@ describe('AUTH_V2: Binary Expression Encoding', () => {
     it('handles many scopes', () => {
       const scopes = Array.from({ length: 50 }, (_, i) => ({
         nodes: [`node-${i}`],
-        perms: [`perm-${i}`],
+        perms: 1 << (i % 4),
       }))
       const expr = identity('USER1', scopes).build()
 

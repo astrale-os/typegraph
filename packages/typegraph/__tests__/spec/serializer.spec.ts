@@ -31,13 +31,15 @@ describe('toSchema', () => {
       })
     })
 
-    it('serializes labels', () => {
+    it('serializes extends', () => {
+      const entityNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: {} }),
+          entity: entityNode,
           user: node({
             properties: {},
-            labels: ['entity'],
+            extends: [entityNode],
           }),
         },
         edges: {},
@@ -45,8 +47,8 @@ describe('toSchema', () => {
 
       const serialized = toSchema(schema)
 
-      expect(serialized.nodes.user.labels).toEqual(['entity'])
-      expect(serialized.nodes.entity.labels).toBeUndefined()
+      expect(serialized.nodes.user.extends).toEqual(['entity'])
+      expect(serialized.nodes.entity.extends).toBeUndefined()
     })
 
     it('serializes description', () => {
@@ -298,16 +300,18 @@ describe('toSchema', () => {
     })
 
     it('produces valid JSON that survives round-trip', () => {
+      const entityNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
           user: node({
             properties: { email: z.string().email(), tenantId: z.string() },
-            labels: ['entity'],
+            extends: [entityNode],
             indexes: [
               { properties: ['tenantId', 'email'], type: 'unique', order: { email: 'ASC' } },
             ],
           }),
-          entity: node({ properties: {} }),
+          entity: entityNode,
         },
         edges: {
           follows: edge({
@@ -323,7 +327,7 @@ describe('toSchema', () => {
       const parsed = JSON.parse(json)
 
       expect(parsed.nodes.user.properties.properties.email.format).toBe('email')
-      expect(parsed.nodes.user.labels).toEqual(['entity'])
+      expect(parsed.nodes.user.extends).toEqual(['entity'])
       expect(parsed.nodes.user.indexes[0].order).toEqual({ email: 'ASC' })
       expect(parsed.edges.follows.cardinality).toEqual({ outbound: 'many', inbound: 'many' })
       expect(parsed.hierarchy.direction).toBe('up')

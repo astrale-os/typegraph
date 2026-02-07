@@ -25,7 +25,11 @@ import {
   expectDeniedByResource,
   principalScope,
   permScope,
+  READ,
+  EDIT,
+  USE,
 } from './testing/helpers'
+import type { Permission } from './types'
 
 describe('AUTH_V2: New API', () => {
   let ctx: AuthzTestContext
@@ -55,7 +59,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -68,7 +73,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds([], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByType(result)
@@ -81,7 +87,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], []),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -98,7 +105,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP_NO_USE'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByType(result)
@@ -111,7 +119,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'admin', // Permission USER1 doesn't have
+        nodePerm: 16 as Permission, // Permission USER1 doesn't have
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -129,7 +138,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP_NO_USE2', 'APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -143,7 +153,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds([], ['USER1']), // No type identities needed
         nodeId: 'workspace-1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -154,7 +165,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds([], ['USER1']),
         nodeId: 'workspace-1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       // Type check skipped because workspace-1 has no type
       expect(explanation.typeCheck.query).toBe('true')
@@ -174,7 +186,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -200,7 +213,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), user1Expr),
         nodeId: 'M3', // Module in workspace-2, where ROLE1 has edit
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -223,7 +237,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER_NO_PERM']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -241,7 +256,7 @@ describe('AUTH_V2: New API', () => {
       })
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (r:Root {id: $rootId})
-         CREATE (i)-[:hasPerm {perms: ['read']}]->(r)`,
+         CREATE (i)-[:hasPerm {perms: 1}]->(r)`,
         { params: { identityId: 'SCOPED_IDENTITY', rootId: 'root' } },
       )
 
@@ -257,7 +272,8 @@ describe('AUTH_V2: New API', () => {
           identity('SCOPED_IDENTITY', [principalScope(['other-principal'])]),
         ),
         nodeId: 'workspace-1', // Non-typed target
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -278,10 +294,11 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(
           identities([]),
-          identity('USER1', [permScope(['admin'])]), // Only allow 'admin', not 'read'
+          identity('USER1', [permScope(16)]), // Only allow bit 4, not READ
         ),
         nodeId: 'workspace-1', // Non-typed target
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -300,7 +317,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -320,7 +338,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -343,7 +362,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -369,7 +389,8 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), union(user1Expr, aExpr)),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -397,13 +418,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expect(decision.granted).toBe(explanation.granted)
@@ -421,13 +444,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP_NO_USE3'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grantFromIds(['APP_NO_USE3'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expect(decision.granted).toBe(explanation.granted)
@@ -442,13 +467,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'admin',
+        nodePerm: 16 as Permission,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'admin',
+        nodePerm: 16 as Permission,
+        typePerm: USE,
       })
 
       expect(decision.granted).toBe(explanation.granted)
@@ -469,13 +496,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M2',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M2',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       // Both must agree: intersect requires ALL leaves to have permission
@@ -497,7 +526,7 @@ describe('AUTH_V2: New API', () => {
       // C has read on M1
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: 'EXCLUDE_TEST_C'}), (m:Module {id: 'M1'})
-         CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // E = A \ C
@@ -519,13 +548,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), eExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grant(identity('APP1'), eExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       // Both must agree: exclude means base granted AND excluded NOT granted
@@ -549,13 +580,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), scopedExpr),
         nodeId: 'M1', // M1 is under workspace-1, not workspace-2
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grant(identity('APP1'), scopedExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       // Both must agree: node scope restriction should deny access
@@ -576,13 +609,15 @@ describe('AUTH_V2: New API', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), scopedExpr),
         nodeId: 'M1', // M1 is under workspace-1
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const explanation = await checker.explainAccess({
         principal: 'principal',
         grant: grant(identity('APP1'), scopedExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       // Both must agree: node scope matches, should be granted
@@ -605,7 +640,8 @@ describe('AUTH_V2: New API', () => {
           principal: 'principal',
           grant: grantFromIds(['APP1'], ['USER1']),
           nodeId: "M1' OR 1=1 --", // Cypher injection attempt
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       ).rejects.toThrow('Invalid resourceId')
     })
@@ -618,7 +654,8 @@ describe('AUTH_V2: New API', () => {
           principal: 'principal',
           grant: grantFromIds(['APP1'], ['USER1']),
           nodeId: 'M1',
-          perm: "read'}]-() RETURN 1 --", // Cypher injection attempt
+          nodePerm: -1 as any,
+          typePerm: USE,
         }),
       ).rejects.toThrow('Invalid perm')
     })
@@ -631,7 +668,8 @@ describe('AUTH_V2: New API', () => {
           principal: 'principal',
           grant: grant(identity('APP1'), identity("USER1'}]-()")), // Injection in expr
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       ).rejects.toThrow('Invalid identity ID')
     })
@@ -644,7 +682,8 @@ describe('AUTH_V2: New API', () => {
           principal: 'principal',
           grant: grant(identity('APP1'), identity('USER1', { nodes: ["WS1'}]-()"] })),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       ).rejects.toThrow('Invalid scope node ID')
     })
@@ -658,7 +697,8 @@ describe('AUTH_V2: New API', () => {
           principal: 'some-principal-id:v1',
           grant: grantFromIds(['APP1'], ['USER1']),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       ).resolves.toBeDefined()
     })

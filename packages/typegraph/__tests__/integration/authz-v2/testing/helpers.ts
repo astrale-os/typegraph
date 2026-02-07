@@ -5,7 +5,24 @@
  */
 
 import { expect } from 'vitest'
-import type { AccessDecision, AccessExplanation, Grant, Scope, IdentityExpr } from '../types'
+import type {
+  AccessDecision,
+  AccessExplanation,
+  Grant,
+  Scope,
+  IdentityExpr,
+  Permission,
+  PermissionMask,
+} from '../types'
+
+// =============================================================================
+// PERMISSION BIT CONSTANTS (test-only semantic names)
+// =============================================================================
+
+export const READ = 1 as Permission // bit 0
+export const EDIT = 2 as Permission // bit 1
+export const USE = 4 as Permission // bit 2
+export const SHARE = 8 as Permission // bit 3
 
 // =============================================================================
 // ASSERTION HELPERS
@@ -133,7 +150,7 @@ export function nodeScope(nodes: string[]): Scope {
   return { nodes }
 }
 
-export function permScope(perms: string[]): Scope {
+export function permScope(perms: PermissionMask): Scope {
   return { perms }
 }
 
@@ -141,6 +158,6 @@ export function principalScope(principals: string[]): Scope {
   return { principals }
 }
 
-export function fullScope(nodes?: string[], perms?: string[], principals?: string[]): Scope {
+export function fullScope(nodes?: string[], perms?: PermissionMask, principals?: string[]): Scope {
   return { nodes, perms, principals }
 }

@@ -20,7 +20,7 @@ import { IdentityRegistry } from '../authentication/identity-registry'
 import { IssuerKeyStore } from '../authentication/issuer-key-store'
 import { KERNEL_ISSUER } from '../authentication/token-verifier'
 import { unresolvedJwt } from '../authentication/grant-encoding'
-import { expectGranted, expectDeniedByResource } from '../testing/helpers'
+import { expectGranted, expectDeniedByResource, READ, EDIT, USE } from '../testing/helpers'
 
 describe('AUTH_V2: SDK RequestContext', () => {
   let testCtx: AuthzTestContext
@@ -101,8 +101,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
 
     it('ctx.check delegates to kernel', async () => {
       const ctx = await ctxForUser('user1')
-      expectGranted(await ctx.check('M1', 'read'))
-      expectDeniedByResource(await ctx.check('M3', 'edit'))
+      expectGranted(await ctx.check('M1', READ))
+      expectDeniedByResource(await ctx.check('M3', EDIT))
     })
   })
 
@@ -332,7 +332,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -349,7 +350,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -366,7 +368,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
 
@@ -375,7 +378,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M3',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -395,7 +399,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M3',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
     })
@@ -418,7 +423,8 @@ describe('AUTH_V2: SDK RequestContext', () => {
           principal: authCtx.principal,
           grant: appGrant(authCtx),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })

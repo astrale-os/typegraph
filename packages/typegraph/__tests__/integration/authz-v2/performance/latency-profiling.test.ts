@@ -12,6 +12,7 @@ import { join } from 'node:path'
 
 // Test setup
 import { setupAuthzTest, teardownAuthzTest, type AuthzTestContext } from '../testing/setup'
+import { USE } from '../testing/helpers'
 
 // Adapter
 import { FalkorDBAccessQueryAdapter } from '../adapter/queries'
@@ -88,7 +89,8 @@ async function runScenario(
           principal: scenario.principal,
           grant: scenario.grant,
           nodeId: scenario.nodeId,
-          perm: scenario.perm,
+          nodePerm: scenario.nodePerm,
+          typePerm: USE,
         },
         ctx.adapter,
       )
@@ -103,7 +105,7 @@ async function runScenario(
     const { traceId, context } = ctx.collector.startTrace(scenario.name, {
       principal: scenario.principal,
       nodeId: scenario.nodeId,
-      perm: scenario.perm,
+      nodePerm: scenario.nodePerm,
       forType: scenario.grant.forType,
       forResource: scenario.grant.forResource,
     })
@@ -115,7 +117,8 @@ async function runScenario(
             principal: scenario.principal,
             grant: scenario.grant,
             nodeId: scenario.nodeId,
-            perm: scenario.perm,
+            nodePerm: scenario.nodePerm,
+            typePerm: USE,
           },
           ctx.profilingAdapter,
         )

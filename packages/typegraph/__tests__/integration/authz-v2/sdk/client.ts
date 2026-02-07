@@ -9,11 +9,13 @@
 
 import type {
   Scope,
+  Permission,
   RelayTokenRequest,
   RelayTokenResponse,
   UnresolvedIdentityExpr,
   AccessDecision,
 } from '../types'
+import { READ, EDIT, USE } from '../testing/helpers'
 import { type KernelService } from '../authentication/relay-token'
 import {
   unresolvedJwt,
@@ -29,7 +31,7 @@ import type { FalkorDBIdentityAdapter } from '../adapter/falkordb-identity.adapt
 // =============================================================================
 
 export interface KernelPort {
-  checkAccess(appToken: string, resourceId: string, perm: string): Promise<AccessDecision>
+  checkAccess(appToken: string, resourceId: string, perm: Permission): Promise<AccessDecision>
   relayToken(request: RelayTokenRequest): Promise<RelayTokenResponse>
   callApp(relayToken: string, appSlug: string, method: string, params?: unknown): Promise<unknown>
 }
@@ -76,18 +78,18 @@ export class RequestContext {
   // ── 99% case: access checks ──
 
   async read(resourceId: string): Promise<AccessDecision> {
-    return this.check(resourceId, 'read')
+    return this.check(resourceId, READ)
   }
 
   async edit(resourceId: string): Promise<AccessDecision> {
-    return this.check(resourceId, 'edit')
+    return this.check(resourceId, EDIT)
   }
 
   async use(resourceId: string): Promise<AccessDecision> {
-    return this.check(resourceId, 'use')
+    return this.check(resourceId, USE)
   }
 
-  async check(resourceId: string, perm: string): Promise<AccessDecision> {
+  async check(resourceId: string, perm: Permission): Promise<AccessDecision> {
     const appToken = await this.resolveAppToken()
     return this._kernel.checkAccess(appToken, resourceId, perm)
   }
@@ -260,13 +262,14 @@ export class MockKernel implements KernelPort {
     this.accessChecker = config.accessChecker
   }
 
-  async checkAccess(appToken: string, resourceId: string, perm: string): Promise<AccessDecision> {
+  async checkAccess(appToken: string, resourceId: string, perm: Permission): Promise<AccessDecision> {
     const authCtx = await this.authKernel.authenticate(appToken)
     return this.accessChecker.checkAccess({
       principal: authCtx.principal,
       grant: authCtx.grant,
       nodeId: resourceId,
-      perm,
+      nodePerm: perm,
+      typePerm: USE,
     })
   }
 

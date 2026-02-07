@@ -6,20 +6,22 @@ import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
 import { falkordb, clearGraph } from '../src/index'
 import { z } from 'zod'
 
+const entityNode = node({
+  properties: {
+    id: z.string(),
+  },
+})
+
 const schema = defineSchema({
   nodes: {
-    entity: node({
-      properties: {
-        id: z.string(),
-      },
-    }),
+    entity: entityNode,
     product: node({
       properties: {
         name: z.string(),
         price: z.number(),
         stock: z.number(),
       },
-      labels: ['entity'],
+      extends: [entityNode],
     }),
     category: node({
       properties: {

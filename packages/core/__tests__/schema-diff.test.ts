@@ -253,18 +253,19 @@ describe('diffSchema', () => {
       expect(change!.description).toContain('optional to required')
     })
 
-    it('detects label added to node (non-breaking)', () => {
+    it('detects extends added to node (non-breaking)', () => {
+      const entityNode = node({ properties: { name: z.string() } })
       const v1 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
+          entity: entityNode,
           user: node({ properties: { name: z.string() } }),
         },
         edges: {},
       })
       const v2 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
-          user: node({ properties: { name: z.string() }, labels: ['entity'] }),
+          entity: entityNode,
+          user: node({ properties: { name: z.string() }, extends: [entityNode] }),
         },
         edges: {},
       })
@@ -272,27 +273,30 @@ describe('diffSchema', () => {
       const diff = diffSchema(v1, v2)
       const userMod = diff.nodes.modified.find((m) => m.label === 'user')
       expect(userMod).toBeDefined()
-      const labelChange = userMod!.changes.find((c) => c.kind === 'label-added')
+      const labelChange = userMod!.changes.find((c) => c.kind === 'extends-added')
       expect(labelChange).toBeDefined()
       expect(labelChange!.breaking).toBe(false)
     })
 
-    it('detects multiple label changes on same node', () => {
+    it('detects multiple extends changes on same node', () => {
+      const entityNode = node({ properties: { name: z.string() } })
+      const actorNode = node({ properties: { name: z.string() } })
+      const auditableNode = node({ properties: { name: z.string() } })
       const v1 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
-          actor: node({ properties: { name: z.string() } }),
-          auditable: node({ properties: { name: z.string() } }),
-          user: node({ properties: { name: z.string() }, labels: ['entity'] }),
+          entity: entityNode,
+          actor: actorNode,
+          auditable: auditableNode,
+          user: node({ properties: { name: z.string() }, extends: [entityNode] }),
         },
         edges: {},
       })
       const v2 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
-          actor: node({ properties: { name: z.string() } }),
-          auditable: node({ properties: { name: z.string() } }),
-          user: node({ properties: { name: z.string() }, labels: ['actor', 'auditable'] }),
+          entity: entityNode,
+          actor: actorNode,
+          auditable: auditableNode,
+          user: node({ properties: { name: z.string() }, extends: [actorNode, auditableNode] }),
         },
         edges: {},
       })
@@ -300,24 +304,25 @@ describe('diffSchema', () => {
       const diff = diffSchema(v1, v2)
       const userMod = diff.nodes.modified.find((m) => m.label === 'user')
       expect(userMod).toBeDefined()
-      const labelAdded = userMod!.changes.filter((c) => c.kind === 'label-added')
-      const labelRemoved = userMod!.changes.filter((c) => c.kind === 'label-removed')
+      const labelAdded = userMod!.changes.filter((c) => c.kind === 'extends-added')
+      const labelRemoved = userMod!.changes.filter((c) => c.kind === 'extends-removed')
       expect(labelAdded).toHaveLength(2)
       expect(labelRemoved).toHaveLength(1)
       expect(diff.breaking).toBe(true)
     })
 
-    it('detects label removed from node (breaking)', () => {
+    it('detects extends removed from node (breaking)', () => {
+      const entityNode = node({ properties: { name: z.string() } })
       const v1 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
-          user: node({ properties: { name: z.string() }, labels: ['entity'] }),
+          entity: entityNode,
+          user: node({ properties: { name: z.string() }, extends: [entityNode] }),
         },
         edges: {},
       })
       const v2 = defineSchema({
         nodes: {
-          entity: node({ properties: { name: z.string() } }),
+          entity: entityNode,
           user: node({ properties: { name: z.string() } }),
         },
         edges: {},
@@ -326,7 +331,7 @@ describe('diffSchema', () => {
       const diff = diffSchema(v1, v2)
       const userMod = diff.nodes.modified.find((m) => m.label === 'user')
       expect(userMod).toBeDefined()
-      const labelChange = userMod!.changes.find((c) => c.kind === 'label-removed')
+      const labelChange = userMod!.changes.find((c) => c.kind === 'extends-removed')
       expect(labelChange).toBeDefined()
       expect(labelChange!.breaking).toBe(true)
       expect(diff.breaking).toBe(true)
@@ -1029,6 +1034,79 @@ describe('diffSchema', () => {
       // After sorting, ['admin', 'user'] === ['admin', 'user'] — no change
       expect(diff.edges.modified).toEqual([])
       expect(diff.breaking).toBe(false)
+    })
+  })
+
+  // ===========================================================================
+  // Extends Diff Edge Cases
+  // ===========================================================================
+
+  describe('extends diff edge cases', () => {
+    it('detects extends change when schemas built with different refs', () => {
+      // Two schemas built independently but with equivalent structure
+      const entityV1 = node({ properties: { id: z.string() } })
+      const v1 = defineSchema({
+        nodes: {
+          entity: entityV1,
+          user: node({ properties: { name: z.string() }, extends: [entityV1] }),
+        },
+        edges: {},
+      })
+
+      const entityV2 = node({ properties: { id: z.string() } })
+      const v2 = defineSchema({
+        nodes: {
+          entity: entityV2,
+          user: node({ properties: { name: z.string() }, extends: [entityV2] }),
+        },
+        edges: {},
+      })
+
+      // Same extends resolution ('entity'), so no change
+      const diff = diffSchema(v1, v2)
+      const extendsChanges = diff.nodes.modified.flatMap((m) =>
+        m.changes.filter((c) => c.kind === 'extends-added' || c.kind === 'extends-removed'),
+      )
+      expect(extendsChanges).toEqual([])
+    })
+
+    it('detects extends added via ref', () => {
+      const entityNode = node({ properties: { id: z.string() } })
+      const v1 = defineSchema({
+        nodes: {
+          entity: entityNode,
+          user: node({ properties: { name: z.string() } }),
+        },
+        edges: {},
+      })
+
+      const entityNode2 = node({ properties: { id: z.string() } })
+      const v2 = defineSchema({
+        nodes: {
+          entity: entityNode2,
+          user: node({ properties: { name: z.string() }, extends: [entityNode2] }),
+        },
+        edges: {},
+      })
+
+      const diff = diffSchema(v1, v2)
+      const changes = diff.nodes.modified.find((m) => m.label === 'user')?.changes ?? []
+      expect(changes.some((c) => c.kind === 'extends-added')).toBe(true)
+    })
+
+    it('no false extends diff when extends is undefined vs empty', () => {
+      // Both nodes have no extends — should show no diff
+      const v1 = defineSchema({
+        nodes: { user: node({ properties: { name: z.string() } }) },
+        edges: {},
+      })
+      const v2 = defineSchema({
+        nodes: { user: node({ properties: { name: z.string() } }) },
+        edges: {},
+      })
+
+      const diff = diffSchema(v1, v2)
+      expect(diff.nodes.modified).toEqual([])
     })
   })
 })

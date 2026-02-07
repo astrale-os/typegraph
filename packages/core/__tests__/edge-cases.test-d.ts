@@ -51,18 +51,19 @@ describe('Edge Cases', () => {
 
   describe('Property override in inheritance', () => {
     it('should allow child to narrow parent property type', () => {
+      const entityNode = node({
+        properties: {
+          status: z.string(), // Wide type
+        },
+      })
       const schema = defineSchema({
         nodes: {
-          entity: node({
-            properties: {
-              status: z.string(), // Wide type
-            },
-          }),
+          entity: entityNode,
           user: node({
             properties: {
               status: z.enum(['active', 'inactive']), // Narrower type
             },
-            labels: ['entity'],
+            extends: [entityNode],
           }),
         },
         edges: {},
@@ -81,19 +82,20 @@ describe('Edge Cases', () => {
     })
 
     it('should handle property addition in child', () => {
+      const entityNode = node({
+        properties: {
+          id: z.string(),
+          createdAt: z.date(),
+        },
+      })
       const schema = defineSchema({
         nodes: {
-          entity: node({
-            properties: {
-              id: z.string(),
-              createdAt: z.date(),
-            },
-          }),
+          entity: entityNode,
           user: node({
             properties: {
               email: z.string(), // New property
             },
-            labels: ['entity'],
+            extends: [entityNode],
           }),
         },
         edges: {},
@@ -114,13 +116,18 @@ describe('Edge Cases', () => {
 
   describe('Deep inheritance chains', () => {
     it('should handle 5-level inheritance', () => {
+      const l0Node = node({ properties: { p0: z.string() } })
+      const l1Node = node({ properties: { p1: z.string() }, extends: [l0Node] })
+      const l2Node = node({ properties: { p2: z.string() }, extends: [l1Node] })
+      const l3Node = node({ properties: { p3: z.string() }, extends: [l2Node] })
+      const l4Node = node({ properties: { p4: z.string() }, extends: [l3Node] })
       const deepSchema = defineSchema({
         nodes: {
-          l0: node({ properties: { p0: z.string() } }),
-          l1: node({ properties: { p1: z.string() }, labels: ['l0'] }),
-          l2: node({ properties: { p2: z.string() }, labels: ['l1'] }),
-          l3: node({ properties: { p3: z.string() }, labels: ['l2'] }),
-          l4: node({ properties: { p4: z.string() }, labels: ['l3'] }),
+          l0: l0Node,
+          l1: l1Node,
+          l2: l2Node,
+          l3: l3Node,
+          l4: l4Node,
         },
         edges: {},
       })
@@ -141,15 +148,19 @@ describe('Edge Cases', () => {
     })
 
     it('should handle diamond inheritance', () => {
+      const baseNode = node({ properties: { baseVal: z.string() } })
+      const leftNode = node({ properties: { leftVal: z.string() }, extends: [baseNode] })
+      const rightNode = node({ properties: { rightVal: z.string() }, extends: [baseNode] })
+      const bottomNode = node({
+        properties: { bottomVal: z.string() },
+        extends: [leftNode, rightNode],
+      })
       const diamondSchema = defineSchema({
         nodes: {
-          base: node({ properties: { baseVal: z.string() } }),
-          left: node({ properties: { leftVal: z.string() }, labels: ['base'] }),
-          right: node({ properties: { rightVal: z.string() }, labels: ['base'] }),
-          bottom: node({
-            properties: { bottomVal: z.string() },
-            labels: ['left', 'right'],
-          }),
+          base: baseNode,
+          left: leftNode,
+          right: rightNode,
+          bottom: bottomNode,
         },
         edges: {},
       })

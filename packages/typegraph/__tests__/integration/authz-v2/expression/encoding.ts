@@ -157,7 +157,7 @@ class BufferReader {
 function writeScope(writer: BufferWriter, scope: Scope): void {
   let flags = 0
   if (scope.nodes && scope.nodes.length > 0) flags |= SCOPE_HAS_NODES
-  if (scope.perms && scope.perms.length > 0) flags |= SCOPE_HAS_PERMS
+  if (scope.perms !== undefined) flags |= SCOPE_HAS_PERMS
   if (scope.principals && scope.principals.length > 0) flags |= SCOPE_HAS_PRINCIPALS
 
   writer.writeByte(flags)
@@ -170,10 +170,7 @@ function writeScope(writer: BufferWriter, scope: Scope): void {
   }
 
   if (flags & SCOPE_HAS_PERMS) {
-    writer.writeVarint(scope.perms!.length)
-    for (const perm of scope.perms!) {
-      writer.writeString(perm)
-    }
+    writer.writeVarint(scope.perms!)
   }
 
   if (flags & SCOPE_HAS_PRINCIPALS) {
@@ -197,11 +194,7 @@ function readScope(reader: BufferReader): Scope {
   }
 
   if (flags & SCOPE_HAS_PERMS) {
-    const count = reader.readVarint()
-    scope.perms = []
-    for (let i = 0; i < count; i++) {
-      scope.perms.push(reader.readString())
-    }
+    scope.perms = reader.readVarint()
   }
 
   if (flags & SCOPE_HAS_PRINCIPALS) {

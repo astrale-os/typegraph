@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { intersectScope, intersectScopes } from '../integration/authz-v2/expression/scope'
 import type { Scope } from '../integration/authz-v2/types'
+import { READ, EDIT, USE, SHARE } from '../integration/authz-v2/testing/helpers'
 
 describe('Scope Intersection', () => {
   describe('intersectScope (single scope)', () => {
@@ -19,13 +20,13 @@ describe('Scope Intersection', () => {
       expect(result).toEqual({ nodes: ['ws-1'] })
     })
 
-    it('intersects perms arrays', () => {
-      const a: Scope = { perms: ['read', 'write'] }
-      const b: Scope = { perms: ['read'] }
+    it('intersects perms bitmasks', () => {
+      const a: Scope = { perms: READ | EDIT }
+      const b: Scope = { perms: READ }
 
       const result = intersectScope(a, b)
 
-      expect(result).toEqual({ perms: ['read'] })
+      expect(result).toEqual({ perms: READ })
     })
 
     it('intersects principals arrays', () => {
@@ -38,22 +39,22 @@ describe('Scope Intersection', () => {
     })
 
     it('intersects all dimensions together', () => {
-      const a: Scope = { nodes: ['ws-1', 'ws-2'], perms: ['read', 'write'] }
-      const b: Scope = { nodes: ['ws-1'], perms: ['read'] }
+      const a: Scope = { nodes: ['ws-1', 'ws-2'], perms: READ | EDIT }
+      const b: Scope = { nodes: ['ws-1'], perms: READ }
 
       const result = intersectScope(a, b)
 
-      expect(result).toEqual({ nodes: ['ws-1'], perms: ['read'] })
+      expect(result).toEqual({ nodes: ['ws-1'], perms: READ })
     })
 
     it('undefined means unrestricted - other wins', () => {
       const a: Scope = { nodes: ['ws-1'] }
-      const b: Scope = { perms: ['read'] }
+      const b: Scope = { perms: READ }
 
       const result = intersectScope(a, b)
 
       // nodes from a, perms from b
-      expect(result).toEqual({ nodes: ['ws-1'], perms: ['read'] })
+      expect(result).toEqual({ nodes: ['ws-1'], perms: READ })
     })
 
     it('both undefined = unrestricted (empty object)', () => {
@@ -75,8 +76,8 @@ describe('Scope Intersection', () => {
     })
 
     it('returns null if any dimension becomes empty', () => {
-      const a: Scope = { nodes: ['ws-1', 'ws-2'], perms: ['read'] }
-      const b: Scope = { nodes: ['ws-1'], perms: ['write'] } // perms don't overlap
+      const a: Scope = { nodes: ['ws-1', 'ws-2'], perms: READ }
+      const b: Scope = { nodes: ['ws-1'], perms: EDIT } // perms don't overlap (READ & EDIT = 0)
 
       const result = intersectScope(a, b)
 
@@ -86,20 +87,20 @@ describe('Scope Intersection', () => {
 
   describe('intersectScopes (arrays of scopes)', () => {
     it('pairwise intersection of scope arrays', () => {
-      const a: Scope[] = [{ nodes: ['ws-1'], perms: ['read'] }]
-      const b: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: ['read', 'write'] }]
+      const a: Scope[] = [{ nodes: ['ws-1'], perms: READ }]
+      const b: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: READ | EDIT }]
 
       const result = intersectScopes(a, b)
 
       // ws-1 ∩ (ws-1, ws-2) = ws-1
-      // read ∩ (read, write) = read
-      expect(result).toEqual([{ nodes: ['ws-1'], perms: ['read'] }])
+      // READ & (READ | EDIT) = READ
+      expect(result).toEqual([{ nodes: ['ws-1'], perms: READ }])
     })
 
     it('multiple scopes produce multiple intersections', () => {
       const a: Scope[] = [
-        { nodes: ['ws-1'], perms: ['read'] },
-        { nodes: ['ws-2'], perms: ['write'] },
+        { nodes: ['ws-1'], perms: READ },
+        { nodes: ['ws-2'], perms: EDIT },
       ]
       const b: Scope[] = [{ nodes: ['ws-1', 'ws-2'] }]
 
@@ -108,8 +109,8 @@ describe('Scope Intersection', () => {
       // First scope: ws-1 ∩ (ws-1, ws-2) = ws-1
       // Second scope: ws-2 ∩ (ws-1, ws-2) = ws-2
       expect(result).toHaveLength(2)
-      expect(result).toContainEqual({ nodes: ['ws-1'], perms: ['read'] })
-      expect(result).toContainEqual({ nodes: ['ws-2'], perms: ['write'] })
+      expect(result).toContainEqual({ nodes: ['ws-1'], perms: READ })
+      expect(result).toContainEqual({ nodes: ['ws-2'], perms: EDIT })
     })
 
     it('filters out impossible intersections', () => {
@@ -153,7 +154,7 @@ describe('Scope Intersection', () => {
   describe('Real-world scenarios', () => {
     it('restricting read-only user to specific workspace', () => {
       // User has read permission on workspace-1 and workspace-2
-      const userScopes: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: ['read'] }]
+      const userScopes: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: READ }]
 
       // App restricts to workspace-1 only
       const appScopes: Scope[] = [{ nodes: ['ws-1'] }]
@@ -161,30 +162,30 @@ describe('Scope Intersection', () => {
       const result = intersectScopes(userScopes, appScopes)
 
       // Result: read on ws-1 only
-      expect(result).toEqual([{ nodes: ['ws-1'], perms: ['read'] }])
+      expect(result).toEqual([{ nodes: ['ws-1'], perms: READ }])
     })
 
     it('multi-hop restriction accumulates', () => {
       // User has broad permissions
-      const userScopes: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: ['read', 'write'] }]
+      const userScopes: Scope[] = [{ nodes: ['ws-1', 'ws-2'], perms: READ | EDIT }]
 
       // App A restricts to ws-1
       const appAScopes: Scope[] = [{ nodes: ['ws-1'] }]
       const afterAppA = intersectScopes(userScopes, appAScopes)
 
       // App B restricts to read-only
-      const appBScopes: Scope[] = [{ perms: ['read'] }]
+      const appBScopes: Scope[] = [{ perms: READ }]
       const afterAppB = intersectScopes(afterAppA, appBScopes)
 
       // Final result: read-only on ws-1
-      expect(afterAppB).toEqual([{ nodes: ['ws-1'], perms: ['read'] }])
+      expect(afterAppB).toEqual([{ nodes: ['ws-1'], perms: READ }])
     })
 
     it('union of user + role gets restricted together', () => {
       // User can read ws-1, Role can write ws-2
       const combinedScopes: Scope[] = [
-        { nodes: ['ws-1'], perms: ['read'] },
-        { nodes: ['ws-2'], perms: ['write'] },
+        { nodes: ['ws-1'], perms: READ },
+        { nodes: ['ws-2'], perms: EDIT },
       ]
 
       // App restricts to ws-1 only
@@ -193,7 +194,7 @@ describe('Scope Intersection', () => {
       const result = intersectScopes(combinedScopes, appScopes)
 
       // Only user's ws-1 permission survives
-      expect(result).toEqual([{ nodes: ['ws-1'], perms: ['read'] }])
+      expect(result).toEqual([{ nodes: ['ws-1'], perms: READ }])
     })
   })
 })

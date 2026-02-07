@@ -26,7 +26,7 @@ import {
   teardownAuthzTest,
   type AuthzTestContext,
 } from '../integration/authz-v2/testing/setup'
-import { identity, union, grant } from '../integration/authz-v2/testing/helpers'
+import { identity, union, grant, READ, EDIT, USE } from '../integration/authz-v2/testing/helpers'
 import type { UnresolvedIdentityExpr } from '../integration/authz-v2/types'
 
 // =============================================================================
@@ -126,7 +126,7 @@ describe('E2E: JWT Delegation Flow', () => {
 
       const result = await kernel.relayToken({
         expression: unresolvedJwt(userJwt),
-        scopes: [{ nodes: ['workspace-1'], perms: ['read'] }],
+        scopes: [{ nodes: ['workspace-1'], perms: READ }],
       })
 
       const decoded = decodeMockJwt(result.token)
@@ -135,7 +135,7 @@ describe('E2E: JWT Delegation Flow', () => {
       expect(decoded.payload.grant?.forResource).toEqual({
         kind: 'identity',
         id: 'USER1',
-        scopes: [{ nodes: ['workspace-1'], perms: ['read'] }],
+        scopes: [{ nodes: ['workspace-1'], perms: READ }],
       })
     })
 
@@ -160,23 +160,23 @@ describe('E2E: JWT Delegation Flow', () => {
     it('uses proper scope INTERSECTION (not concatenation)', async () => {
       const userJwt = createUserJwt('user-1')
 
-      // First relay: workspace-1 and workspace-2, read and write
+      // First relay: workspace-1 and workspace-2, read and edit
       const first = await kernel.relayToken({
         expression: unresolvedJwt(userJwt),
-        scopes: [{ nodes: ['workspace-1', 'workspace-2'], perms: ['read', 'write'] }],
+        scopes: [{ nodes: ['workspace-1', 'workspace-2'], perms: READ | EDIT }],
       })
 
       // Second relay: workspace-1 only, read only
       const second = await kernel.relayToken({
         expression: unresolvedJwt(first.token),
-        scopes: [{ nodes: ['workspace-1'], perms: ['read'] }],
+        scopes: [{ nodes: ['workspace-1'], perms: READ }],
       })
 
       const decoded = decodeMockJwt(second.token)
       const scopes = (decoded.payload.grant?.forResource as any)?.scopes
 
-      // INTERSECTION: nodes = [ws-1], perms = [read]
-      expect(scopes).toEqual([{ nodes: ['workspace-1'], perms: ['read'] }])
+      // INTERSECTION: nodes = [ws-1], perms = READ
+      expect(scopes).toEqual([{ nodes: ['workspace-1'], perms: READ }])
     })
 
     it('handles complex expression with mixed scopes', async () => {
@@ -191,7 +191,7 @@ describe('E2E: JWT Delegation Flow', () => {
           kind: 'union',
           operands: [
             { kind: 'identity', jwt: userJwt },
-            { kind: 'scope', scopes: [{ perms: ['read'] }], expr: { kind: 'identity', jwt: roleJwt } },
+            { kind: 'scope', scopes: [{ perms: READ }], expr: { kind: 'identity', jwt: roleJwt } },
           ],
         },
         excluded: [{ kind: 'identity', jwt: blockedJwt }],
@@ -213,8 +213,8 @@ describe('E2E: JWT Delegation Flow', () => {
       expect(grantExpr.left.left.scopes).toEqual([{ nodes: ['workspace-1'] }])
 
       // Role: per-leaf AND top-level INTERSECTED
-      // { perms: ['read'] } ∩ { nodes: ['workspace-1'] } = { nodes: ['workspace-1'], perms: ['read'] }
-      expect(grantExpr.left.right.scopes).toEqual([{ nodes: ['workspace-1'], perms: ['read'] }])
+      // { perms: READ } ∩ { nodes: ['workspace-1'] } = { nodes: ['workspace-1'], perms: READ }
+      expect(grantExpr.left.right.scopes).toEqual([{ nodes: ['workspace-1'], perms: READ }])
 
       // Blocked: only top-level scope
       expect(grantExpr.right.scopes).toEqual([{ nodes: ['workspace-1'] }])
@@ -232,20 +232,20 @@ describe('E2E: JWT Delegation Flow', () => {
       // App A relays with workspace-1 and workspace-2
       const afterAppA = await kernel.relayToken({
         expression: unresolvedJwt(userJwt),
-        scopes: [{ nodes: ['workspace-1', 'workspace-2'], perms: ['read', 'write'] }],
+        scopes: [{ nodes: ['workspace-1', 'workspace-2'], perms: READ | EDIT }],
       })
 
       // App B further restricts to workspace-1 only, read only
       const afterAppB = await kernel.relayToken({
         expression: unresolvedJwt(afterAppA.token),
-        scopes: [{ nodes: ['workspace-1'], perms: ['read'] }],
+        scopes: [{ nodes: ['workspace-1'], perms: READ }],
       })
 
       const decoded = decodeMockJwt(afterAppB.token)
       const scopes = (decoded.payload.grant?.forResource as any)?.scopes
 
       // Properly intersected
-      expect(scopes).toEqual([{ nodes: ['workspace-1'], perms: ['read'] }])
+      expect(scopes).toEqual([{ nodes: ['workspace-1'], perms: READ }])
     })
 
     it('compose user + role permissions via union', async () => {
@@ -406,7 +406,8 @@ describe('E2E: Integration with AccessChecker', () => {
       principal: ctx.data.identities.app1,
       grant: authGrant,
       nodeId: ctx.data.modules.m1,
-      perm: 'read',
+      nodePerm: READ,
+      typePerm: USE,
     })
 
     expect(result.granted).toBe(true)
@@ -425,7 +426,8 @@ describe('E2E: Integration with AccessChecker', () => {
       principal: ctx.data.identities.app1,
       grant: authGrant,
       nodeId: ctx.data.modules.m1,
-      perm: 'edit',
+      nodePerm: EDIT,
+      typePerm: USE,
     })
     expect(m1Result.granted).toBe(true)
 
@@ -434,7 +436,8 @@ describe('E2E: Integration with AccessChecker', () => {
       principal: ctx.data.identities.app1,
       grant: authGrant,
       nodeId: ctx.data.modules.m3,
-      perm: 'edit',
+      nodePerm: EDIT,
+      typePerm: USE,
     })
     expect(m3Result.granted).toBe(true)
   })
@@ -446,7 +449,8 @@ describe('E2E: Integration with AccessChecker', () => {
       principal: 'UNKNOWN_APP',
       grant: authGrant,
       nodeId: ctx.data.modules.m1,
-      perm: 'read',
+      nodePerm: READ,
+      typePerm: USE,
     })
 
     expect(result.granted).toBe(false)
@@ -460,7 +464,8 @@ describe('E2E: Integration with AccessChecker', () => {
       principal: ctx.data.identities.app1,
       grant: authGrant,
       nodeId: ctx.data.modules.m1,
-      perm: 'read',
+      nodePerm: READ,
+      typePerm: USE,
     })
 
     expect(result.granted).toBe(false)

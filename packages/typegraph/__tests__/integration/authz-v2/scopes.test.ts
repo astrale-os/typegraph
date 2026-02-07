@@ -23,7 +23,11 @@ import {
   permScope,
   principalScope,
   fullScope,
+  READ,
+  EDIT,
+  USE,
 } from './testing/helpers'
+import type { Permission, PermissionMask } from './types'
 
 describe('AUTH_V2: Scope Filtering', () => {
   let ctx: AuthzTestContext
@@ -53,7 +57,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         nodeId: 'M1', // M1 is in workspace-1
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -66,7 +71,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         nodeId: 'M3', // M3 is in workspace-2
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -83,9 +89,10 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       const result = await checker.checkAccess({
         principal: 'principal',
-        grant: grant(identity('APP1'), identity('USER1', [permScope(['read'])])),
+        grant: grant(identity('APP1'), identity('USER1', [permScope(READ)])),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -96,9 +103,10 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       const result = await checker.checkAccess({
         principal: 'principal',
-        grant: grant(identity('APP1'), identity('USER1', [permScope(['read'])])),
+        grant: grant(identity('APP1'), identity('USER1', [permScope(READ)])),
         nodeId: 'M1',
-        perm: 'edit', // edit not in scope
+        nodePerm: EDIT, // edit not in scope
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -117,7 +125,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [principalScope(['principal'])])),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -130,7 +139,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'other-principal',
         grant: grant(identity('APP1'), identity('USER1', [principalScope(['principal'])])),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -146,7 +156,8 @@ describe('AUTH_V2: Scope Filtering', () => {
           identity('USER1', [principalScope(['user1']), principalScope(['admin'])]),
         ),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -162,7 +173,8 @@ describe('AUTH_V2: Scope Filtering', () => {
           identity('USER1', [principalScope(['user1']), principalScope(['admin'])]),
         ),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -183,12 +195,13 @@ describe('AUTH_V2: Scope Filtering', () => {
         grant: grant(
           identity('APP1'),
           identity('USER1', [
-            fullScope(['workspace-1'], ['read', 'edit']),
-            fullScope(['workspace-2'], ['read']),
+            fullScope(['workspace-1'], READ | EDIT),
+            fullScope(['workspace-2'], READ),
           ]),
         ),
         nodeId: 'M3', // M3 is in workspace-2
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -202,12 +215,13 @@ describe('AUTH_V2: Scope Filtering', () => {
         grant: grant(
           identity('APP1'),
           identity('USER1', [
-            fullScope(['workspace-1'], ['read', 'edit']),
-            fullScope(['workspace-2'], ['read']),
+            fullScope(['workspace-1'], READ | EDIT),
+            fullScope(['workspace-2'], READ),
           ]),
         ),
         nodeId: 'M3', // M3 is in workspace-2
-        perm: 'edit', // edit not allowed in workspace-2 scope
+        nodePerm: EDIT, // edit not allowed in workspace-2 scope
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -226,7 +240,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [])),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -239,7 +254,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1')),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -252,7 +268,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [{ nodes: ['workspace-1'] }])),
         nodeId: 'M1',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -273,7 +290,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-1'])])),
         nodeId: 'M1', // M1 is in workspace-1
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -288,7 +306,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), identity('USER1', [nodeScope(['workspace-2'])])),
         nodeId: 'M1', // M1 is in workspace-1, but scope is workspace-2
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -309,7 +328,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -328,7 +348,8 @@ describe('AUTH_V2: Scope Filtering', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M2',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -345,9 +366,10 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       const result = await checker.checkAccess({
         principal: 'principal',
-        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], READ)])),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -358,9 +380,10 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       const result = await checker.checkAccess({
         principal: 'principal',
-        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], READ)])),
         nodeId: 'M1',
-        perm: 'edit', // edit not in perm scope
+        nodePerm: EDIT, // edit not in perm scope
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -371,9 +394,10 @@ describe('AUTH_V2: Scope Filtering', () => {
 
       const result = await checker.checkAccess({
         principal: 'principal',
-        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], ['read'])])),
+        grant: grant(identity('APP1'), identity('USER1', [fullScope(['workspace-1'], READ)])),
         nodeId: 'M3', // M3 is in workspace-2
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)

@@ -141,14 +141,22 @@ export interface NodeDefinition<
   readonly description?: string
 
   /**
-   * Node types that this node also acts as (IS-A relationship).
-   * Each entry references another node type key in the schema.
+   * Node types that this node extends (IS-A relationship).
+   * After schema resolution, contains the string keys of parent nodes.
+   * At definition time, accepts NodeDefinition references (resolved by defineSchema).
    *
    * Effects:
-   * - Adds PascalCase Cypher labels for each referenced type
-   * - Allows this node to satisfy edges expecting those types
+   * - Inherits parent node properties
+   * - Adds PascalCase Cypher labels for each ancestor type
+   * - Allows this node to satisfy edges expecting ancestor types
    */
-  readonly labels?: TLabels
+  readonly extends?: TLabels
+
+  /**
+   * Raw NodeDefinition references before resolution by defineSchema().
+   * @internal
+   */
+  readonly _extendsRefs?: readonly NodeDefinition<any, any>[]
 }
 
 // =============================================================================
@@ -409,8 +417,8 @@ export interface SchemaChange {
     | 'index-added'
     | 'index-removed'
     | 'index-changed'
-    | 'label-added'
-    | 'label-removed'
+    | 'extends-added'
+    | 'extends-removed'
     | 'description-changed'
     | 'from-changed'
     | 'to-changed'

@@ -85,7 +85,7 @@ export interface Trace {
 export interface TraceInput {
   principal: string
   nodeId: string
-  perm: string
+  nodePerm: number
   forType: unknown
   forResource: unknown
 }
@@ -150,7 +150,7 @@ export interface ScenarioConfig {
   description: string
   principal: string
   nodeId: string
-  perm: string
+  nodePerm: number
   forType: unknown
   forResource: unknown
   expectedGranted: boolean

@@ -6,15 +6,9 @@
  */
 
 import type { AccessQueryPort } from '../authorization/access-query-port'
-import { toCypher, assembleQuery, type CypherFragment, type CypherOptions } from './cypher'
+import { toCypher, assembleQuery, type QueryFragment, type CypherOptions } from './cypher'
 import { type GraphVocab, resolveVocab } from './vocabulary'
-import type {
-  PrunedIdentityExpr,
-  NodeId,
-  Permission,
-  LeafEvaluation,
-  RawExecutor,
-} from '../types'
+import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation, RawExecutor } from '../types'
 
 export interface FalkorDBQueryConfig {
   maxDepth?: number
@@ -49,10 +43,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
     cache.set(key, value)
   }
 
-  generateQuery(
-    expr: PrunedIdentityExpr,
-    perm: Permission,
-  ): CypherFragment | null {
+  generateQuery(expr: PrunedIdentityExpr, perm: Permission): QueryFragment | null {
     return toCypher(expr, perm, this.cypherOptions)
   }
 
@@ -60,7 +51,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
    * Execute permission check on a resource node (module).
    * Used for forResource expression evaluation.
    */
-  async executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
+  async executeResourceCheck(fragment: QueryFragment, resourceId: NodeId): Promise<boolean> {
     return this._executePermissionCheck(fragment, resourceId)
   }
 
@@ -68,7 +59,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
    * Execute permission check on a type node.
    * Used for forType expression evaluation. Results are cached.
    */
-  async executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean> {
+  async executeTypeCheck(fragment: QueryFragment, typeId: NodeId): Promise<boolean> {
     const paramsKey = JSON.stringify(fragment.params)
     const key = `${fragment.condition}|${paramsKey}|${typeId}`
     const cached = this.typeCheckCache.get(key)
@@ -82,10 +73,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
   /**
    * Internal: execute the actual permission check query.
    */
-  private async _executePermissionCheck(
-    fragment: CypherFragment,
-    nodeId: NodeId,
-  ): Promise<boolean> {
+  private async _executePermissionCheck(fragment: QueryFragment, nodeId: NodeId): Promise<boolean> {
     const { query, params } = assembleQuery(fragment, this.vocab, 'resourceId')
     const results = await this.executor.run<{ found: boolean }>(query, {
       resourceId: nodeId,
@@ -146,7 +134,7 @@ export class FalkorDBAccessQueryAdapter implements AccessQueryPort {
       MATCH (target:${v.node} {id: $resourceId})
       MATCH path = (target)-[:${v.parent}*0..${this.cypherOptions.maxDepth}]->(ancestor:${v.node})
       OPTIONAL MATCH (ancestor)<-[hp:${v.perm}]-(i:${v.identity})
-      WHERE $perm IN hp.perms AND i.id IN $identityIds
+      WHERE (hp.perms % ($perm * 2)) >= $perm AND i.id IN $identityIds
       WITH ancestor, path, i
       ORDER BY length(path)
       WITH collect({

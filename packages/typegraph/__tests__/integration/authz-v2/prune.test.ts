@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { pruneExpression, intersectNodeRestrictions } from './expression/prune'
 import type { IdentityExpr, PrunedIdentityExpr } from './types'
+import { READ } from './testing/helpers'
 
 describe('AUTH_V2: Expression Pruning', () => {
   // ===========================================================================
@@ -17,14 +18,14 @@ describe('AUTH_V2: Expression Pruning', () => {
   describe('identity leaves', () => {
     it('passes through simple identity', () => {
       const expr: IdentityExpr = { kind: 'identity', id: 'USER1' }
-      const result = pruneExpression(expr, 'PRINCIPAL', 'read')
+      const result = pruneExpression(expr, 'PRINCIPAL', READ)
 
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
     })
 
     it('does not add nodeRestriction when none exists', () => {
       const expr: IdentityExpr = { kind: 'identity', id: 'USER1' }
-      const result = pruneExpression(expr, 'PRINCIPAL', 'read') as PrunedIdentityExpr
+      const result = pruneExpression(expr, 'PRINCIPAL', READ) as PrunedIdentityExpr
 
       expect(result.kind).toBe('identity')
       expect('nodeRestriction' in result).toBe(false)
@@ -42,7 +43,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ principals: ['P1'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
     })
@@ -53,7 +54,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ principals: ['P1'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'OTHER', 'read')
+      const result = pruneExpression(expr, 'OTHER', READ)
 
       expect(result).toBeNull()
     })
@@ -61,10 +62,10 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('passes scope when perm matches', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: ['read', 'write'] }],
+        scopes: [{ perms: 3 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
     })
@@ -72,10 +73,10 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('returns null when perm does not match', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: ['write'] }],
+        scopes: [{ perms: 2 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toBeNull()
     })
@@ -86,7 +87,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ nodes: ['N1', 'N2'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'identity',
@@ -100,11 +101,11 @@ describe('AUTH_V2: Expression Pruning', () => {
         kind: 'scope',
         scopes: [
           { principals: ['WRONG'] },
-          { perms: ['read'] },
+          { perms: 1 },
         ],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Second scope passes (perm matches), so the whole scope passes
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
@@ -115,11 +116,11 @@ describe('AUTH_V2: Expression Pruning', () => {
         kind: 'scope',
         scopes: [
           { principals: ['WRONG'] },
-          { perms: ['write'] },
+          { perms: 2 },
         ],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toBeNull()
     })
@@ -130,17 +131,17 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ principals: [] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toBeNull()
     })
 
-    it('scope with perms: [] denies all permissions', () => {
+    it('scope with perms: 0 denies all permissions', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: [] }],
+        scopes: [{ perms: 0 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toBeNull()
     })
 
@@ -153,7 +154,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         ],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Both scopes pass (unrestricted principal/perm), nodes are union'd
       expect(result).toEqual({
@@ -172,7 +173,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         ],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Unrestricted scope wins — no nodeRestriction
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
@@ -188,7 +189,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           expr: { kind: 'identity', id: 'USER1' },
         },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Intersection of [N1,N2,N3] and [N2,N3,N4] = [N2,N3]
       expect(result).toEqual({
@@ -202,20 +203,20 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('rejects scope when principal matches but perm does not (AND within scope)', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ principals: ['P1'], perms: ['write'] }],
+        scopes: [{ principals: ['P1'], perms: 2 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toBeNull()
     })
 
     it('passes scope when both principal AND perm match', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ principals: ['P1'], perms: ['read'] }],
+        scopes: [{ principals: ['P1'], perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
     })
 
@@ -225,17 +226,17 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ principals: ['P1'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, undefined, 'read')
+      const result = pruneExpression(expr, undefined, READ)
       expect(result).toBeNull()
     })
 
     it('passes scope without principal restriction when principal is undefined', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: ['read'] }],
+        scopes: [{ perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, undefined, 'read')
+      const result = pruneExpression(expr, undefined, READ)
       expect(result).toEqual({ kind: 'identity', id: 'USER1' })
     })
 
@@ -249,7 +250,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           expr: { kind: 'identity', id: 'USER1' },
         },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toBeNull()
     })
 
@@ -259,7 +260,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         scopes: [{ nodes: [] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toBeNull()
     })
   })
@@ -277,7 +278,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           { kind: 'identity', id: 'B' },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'union',
@@ -300,7 +301,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Second operand is null (scope rejected), unwraps to single operand
       expect(result).toEqual({ kind: 'identity', id: 'A' })
@@ -322,7 +323,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toBeNull()
     })
@@ -345,7 +346,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({ kind: 'identity', id: 'B' })
     })
@@ -364,7 +365,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           { kind: 'identity', id: 'B' },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'intersect',
@@ -387,7 +388,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toBeNull()
     })
@@ -404,7 +405,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         base: { kind: 'identity', id: 'A' },
         excluded: [{ kind: 'identity', id: 'B' }],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'exclude',
@@ -423,7 +424,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         },
         excluded: [{ kind: 'identity', id: 'B' }],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toBeNull()
     })
@@ -440,7 +441,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // Excluded is null, so just returns base
       expect(result).toEqual({ kind: 'identity', id: 'A' })
@@ -459,7 +460,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           { kind: 'identity', id: 'C' },
         ],
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'exclude',
@@ -480,19 +481,19 @@ describe('AUTH_V2: Expression Pruning', () => {
         operands: [
           {
             kind: 'scope',
-            scopes: [{ perms: ['read'] }],
+            scopes: [{ perms: 1 }],
             expr: { kind: 'identity', id: 'A' },
           },
           {
             kind: 'scope',
-            scopes: [{ perms: ['write'] }],
+            scopes: [{ perms: 2 }],
             expr: { kind: 'identity', id: 'B' },
           },
           { kind: 'identity', id: 'C' },
         ],
       }
 
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       // A passes (perm=read), B fails (perm=write), C passes (no scope)
       expect(result).toEqual({
@@ -517,7 +518,7 @@ describe('AUTH_V2: Expression Pruning', () => {
         },
       }
 
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
 
       expect(result).toEqual({
         kind: 'union',
@@ -540,7 +541,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           ],
         },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toEqual({
         kind: 'intersect',
         operands: [
@@ -560,7 +561,7 @@ describe('AUTH_V2: Expression Pruning', () => {
           excluded: [{ kind: 'identity', id: 'B' }],
         },
       }
-      const result = pruneExpression(expr, 'P1', 'read')
+      const result = pruneExpression(expr, 'P1', READ)
       expect(result).toEqual({
         kind: 'exclude',
         base: { kind: 'identity', id: 'A', nodeRestriction: ['N1'] },

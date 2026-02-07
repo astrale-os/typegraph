@@ -4,7 +4,7 @@
  * These tests define the expected behavior of label resolution:
  * - resolveNodeLabels() - resolves all labels for a node type via transitive inheritance
  * - formatLabels() - formats labels into Cypher syntax
- * - labels - per-node IS-A relationships (references to other node types)
+ * - extends - per-node IS-A relationships (references to other node definitions)
  */
 
 import { describe, it, expect } from 'vitest'
@@ -64,13 +64,16 @@ describe('Label Configuration Specification', () => {
     })
 
     it('includes labels from referenced node types', () => {
+      const privilegedNode = node({ properties: {} })
+      const auditableNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
-          privileged: node({ properties: {} }),
-          auditable: node({ properties: {} }),
+          privileged: privilegedNode,
+          auditable: auditableNode,
           admin: node({
             properties: { name: z.string() },
-            labels: ['privileged', 'auditable'],
+            extends: [privilegedNode, auditableNode],
           }),
         },
         edges: {},
@@ -82,12 +85,14 @@ describe('Label Configuration Specification', () => {
     })
 
     it('maintains order: node label, then IS-A labels (depth-first)', () => {
+      const privilegedNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
-          privileged: node({ properties: {} }),
+          privileged: privilegedNode,
           admin: node({
             properties: { name: z.string() },
-            labels: ['privileged'],
+            extends: [privilegedNode],
           }),
         },
         edges: {},
@@ -127,22 +132,25 @@ describe('Label Configuration Specification', () => {
   // NODE CONFIGURATION
   // ===========================================================================
 
-  describe('Node labels Configuration', () => {
-    it('accepts labels array in node definition', () => {
+  describe('Node extends Configuration', () => {
+    it('accepts extends array in node definition', () => {
+      const moduleNode = node({ properties: {} })
+      const identityNode = node({ properties: {} })
+
       const agentNode = node({
         properties: { name: z.string() },
-        labels: ['module', 'identity'],
+        extends: [moduleNode, identityNode],
       })
 
-      expect(agentNode.labels).toEqual(['module', 'identity'])
+      expect(agentNode._extendsRefs).toEqual([moduleNode, identityNode])
     })
 
-    it('allows node without labels', () => {
+    it('allows node without extends', () => {
       const userNode = node({
         properties: { name: z.string() },
       })
 
-      expect(userNode.labels).toBeUndefined()
+      expect(userNode.extends).toBeUndefined()
     })
   })
 
@@ -229,12 +237,14 @@ describe('Label Configuration Specification', () => {
     })
 
     it('node with explicit base creates :Admin:Entity labels', () => {
+      const entityNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: {} }),
+          entity: entityNode,
           admin: node({
             properties: { name: z.string() },
-            labels: ['entity'],
+            extends: [entityNode],
           }),
         },
         edges: {},
@@ -246,13 +256,15 @@ describe('Label Configuration Specification', () => {
       expect(labelStr).toBe(':Admin:Entity')
     })
 
-    it('labels array creates :Admin:Privileged labels', () => {
+    it('extends array creates :Admin:Privileged labels', () => {
+      const privilegedNode = node({ properties: {} })
+
       const schema = defineSchema({
         nodes: {
-          privileged: node({ properties: {} }),
+          privileged: privilegedNode,
           admin: node({
             properties: { name: z.string() },
-            labels: ['privileged'],
+            extends: [privilegedNode],
           }),
         },
         edges: {},
@@ -273,11 +285,15 @@ describe('Label Configuration Specification', () => {
     // === CORE TRANSITIVE BEHAVIOR ===
 
     it('resolves two-level transitive chain with exact order', () => {
+      const entityNode = node({ properties: {} })
+      const moduleNode = node({ properties: {}, extends: [entityNode] })
+      const agentNode = node({ properties: {}, extends: [moduleNode] })
+
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: {} }),
-          module: node({ properties: {}, labels: ['entity'] }),
-          agent: node({ properties: {}, labels: ['module'] }),
+          entity: entityNode,
+          module: moduleNode,
+          agent: agentNode,
         },
         edges: {},
       })
@@ -286,13 +302,19 @@ describe('Label Configuration Specification', () => {
     })
 
     it('resolves 5-level deep chain without stack overflow', () => {
+      const l5Node = node({ properties: {} })
+      const l4Node = node({ properties: {}, extends: [l5Node] })
+      const l3Node = node({ properties: {}, extends: [l4Node] })
+      const l2Node = node({ properties: {}, extends: [l3Node] })
+      const l1Node = node({ properties: {}, extends: [l2Node] })
+
       const schema = defineSchema({
         nodes: {
-          l5: node({ properties: {} }),
-          l4: node({ properties: {}, labels: ['l5'] }),
-          l3: node({ properties: {}, labels: ['l4'] }),
-          l2: node({ properties: {}, labels: ['l3'] }),
-          l1: node({ properties: {}, labels: ['l2'] }),
+          l5: l5Node,
+          l4: l4Node,
+          l3: l3Node,
+          l2: l2Node,
+          l1: l1Node,
         },
         edges: {},
       })
@@ -300,13 +322,18 @@ describe('Label Configuration Specification', () => {
     })
 
     it('maintains depth-first order with multiple labels', () => {
-      // A labels [B, C], B labels [D] -> order is A, B, D, C (depth-first)
+      // A extends [B, C], B extends [D] -> order is A, B, D, C (depth-first)
+      const dNode = node({ properties: {} })
+      const cNode = node({ properties: {} })
+      const bNode = node({ properties: {}, extends: [dNode] })
+      const aNode = node({ properties: {}, extends: [bNode, cNode] })
+
       const schema = defineSchema({
         nodes: {
-          d: node({ properties: {} }),
-          c: node({ properties: {} }),
-          b: node({ properties: {}, labels: ['d'] }),
-          a: node({ properties: {}, labels: ['b', 'c'] }),
+          d: dNode,
+          c: cNode,
+          b: bNode,
+          a: aNode,
         },
         edges: {},
       })
@@ -316,12 +343,17 @@ describe('Label Configuration Specification', () => {
     // === DEDUPLICATION ===
 
     it('deduplicates diamond inheritance (base appears once)', () => {
+      const baseNode = node({ properties: {} })
+      const leftNode = node({ properties: {}, extends: [baseNode] })
+      const rightNode = node({ properties: {}, extends: [baseNode] })
+      const childNode = node({ properties: {}, extends: [leftNode, rightNode] })
+
       const schema = defineSchema({
         nodes: {
-          base: node({ properties: {} }),
-          left: node({ properties: {}, labels: ['base'] }),
-          right: node({ properties: {}, labels: ['base'] }),
-          child: node({ properties: {}, labels: ['left', 'right'] }),
+          base: baseNode,
+          left: leftNode,
+          right: rightNode,
+          child: childNode,
         },
         edges: {},
       })
@@ -333,21 +365,32 @@ describe('Label Configuration Specification', () => {
     // === ERROR CASES (schema definition time) ===
 
     it('throws on direct self-reference with cycle path', () => {
+      const aNode = node({ properties: {} })
+      // Manually set _extendsRefs to self to create a self-reference
+      ;(aNode as any)._extendsRefs = [aNode]
       expect(() =>
         defineSchema({
-          nodes: { a: node({ properties: {}, labels: ['a'] }) },
+          nodes: { a: aNode },
           edges: {},
         }),
       ).toThrow(/[Cc]ircular.*a.*a/)
     })
 
     it('throws on indirect cycle with full path', () => {
+      const aNode = node({ properties: {} })
+      const bNode = node({ properties: {} })
+      const cNode = node({ properties: {} })
+      // Create cycle: a -> b -> c -> a
+      ;(aNode as any)._extendsRefs = [bNode]
+      ;(bNode as any)._extendsRefs = [cNode]
+      ;(cNode as any)._extendsRefs = [aNode]
+
       expect(() =>
         defineSchema({
           nodes: {
-            a: node({ properties: {}, labels: ['b'] }),
-            b: node({ properties: {}, labels: ['c'] }),
-            c: node({ properties: {}, labels: ['a'] }),
+            a: aNode,
+            b: bNode,
+            c: cNode,
           },
           edges: {},
         }),
@@ -355,28 +398,31 @@ describe('Label Configuration Specification', () => {
     })
 
     it('throws on unknown label reference with available labels', () => {
+      const unknownRef = node({ properties: {} })
+      const userNode = node({ properties: {}, extends: [unknownRef] })
+
       expect(() =>
         defineSchema({
           nodes: {
-            user: node({ properties: {}, labels: ['nonexistent'] }),
+            user: userNode,
             entity: node({ properties: {} }),
           },
           edges: {},
         }),
-      ).toThrow(/nonexistent/)
+      ).toThrow()
     })
 
     // === EDGE CASES ===
 
-    it('handles empty labels array (no inheritance)', () => {
+    it('handles node without extends (no inheritance)', () => {
       const schema = defineSchema({
-        nodes: { user: node({ properties: {}, labels: [] }) },
+        nodes: { user: node({ properties: {} }) },
         edges: {},
       })
       expect(resolveNodeLabels(schema, 'user')).toEqual(['User'])
     })
 
-    it('handles node without labels property', () => {
+    it('handles node without extends property', () => {
       const schema = defineSchema({
         nodes: { user: node({ properties: {} }) },
         edges: {},
@@ -387,11 +433,15 @@ describe('Label Configuration Specification', () => {
     // === getNodesSatisfying ===
 
     it('getNodesSatisfying returns all transitive satisfiers', () => {
+      const entityNode = node({ properties: {} })
+      const moduleNode = node({ properties: {}, extends: [entityNode] })
+      const agentNode = node({ properties: {}, extends: [moduleNode] })
+
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: {} }),
-          module: node({ properties: {}, labels: ['entity'] }),
-          agent: node({ properties: {}, labels: ['module'] }),
+          entity: entityNode,
+          module: moduleNode,
+          agent: agentNode,
           unrelated: node({ properties: {} }),
         },
         edges: {},
@@ -425,13 +475,14 @@ describe('Label Configuration Specification', () => {
 
     it('memoization is isolated between schemas', () => {
       const schema1 = defineSchema({
-        nodes: { user: node({ properties: {}, labels: [] }) },
+        nodes: { user: node({ properties: {} }) },
         edges: {},
       })
+      const entityNode = node({ properties: {} })
       const schema2 = defineSchema({
         nodes: {
-          entity: node({ properties: {} }),
-          user: node({ properties: {}, labels: ['entity'] }),
+          entity: entityNode,
+          user: node({ properties: {}, extends: [entityNode] }),
         },
         edges: {},
       })

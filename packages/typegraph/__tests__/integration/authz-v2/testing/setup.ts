@@ -233,7 +233,7 @@ export async function seedAuthzTestData(graph: Graph): Promise<AuthzTestData> {
   // === APP PERMISSIONS (type perms) ===
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (t:Type {id: $typeId})
-     CREATE (i)-[:hasPerm {perms: ['use']}]->(t)`,
+     CREATE (i)-[:hasPerm {perms: 4}]->(t)`,
     { params: { identityId: 'APP1', typeId: 'T1' } },
   )
 
@@ -241,13 +241,13 @@ export async function seedAuthzTestData(graph: Graph): Promise<AuthzTestData> {
   // USER1 has read on root (inherited by all)
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (r:Root {id: $rootId})
-     CREATE (i)-[:hasPerm {perms: ['read']}]->(r)`,
+     CREATE (i)-[:hasPerm {perms: 1}]->(r)`,
     { params: { identityId: 'USER1', rootId: 'root' } },
   )
   // USER1 has edit on workspace-1
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (s:Space {id: $spaceId})
-     CREATE (i)-[:hasPerm {perms: ['edit']}]->(s)`,
+     CREATE (i)-[:hasPerm {perms: 2}]->(s)`,
     { params: { identityId: 'USER1', spaceId: 'workspace-1' } },
   )
 
@@ -255,7 +255,7 @@ export async function seedAuthzTestData(graph: Graph): Promise<AuthzTestData> {
   // ROLE1 has edit on workspace-2
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (s:Space {id: $spaceId})
-     CREATE (i)-[:hasPerm {perms: ['edit']}]->(s)`,
+     CREATE (i)-[:hasPerm {perms: 2}]->(s)`,
     { params: { identityId: 'ROLE1', spaceId: 'workspace-2' } },
   )
 
@@ -274,19 +274,19 @@ export async function seedAuthzTestData(graph: Graph): Promise<AuthzTestData> {
   // A has read on M1 and M2
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-     CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+     CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
     { params: { identityId: 'A', moduleId: 'M1' } },
   )
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-     CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+     CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
     { params: { identityId: 'A', moduleId: 'M2' } },
   )
 
   // B has read on M1 only
   await graph.query(
     `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-     CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+     CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
     { params: { identityId: 'B', moduleId: 'M1' } },
   )
 

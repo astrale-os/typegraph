@@ -58,6 +58,62 @@ export interface BaseEdgeInputProps {
 }
 
 // =============================================================================
+// EXTENDS RESOLUTION (ref -> key mapping for defineSchema return type)
+// =============================================================================
+
+/**
+ * Find the key(s) in TNodes that structurally match a given NodeDefinition type.
+ * Used by ResolvedNodes to reverse-resolve extends refs to string keys.
+ *
+ * Note: Structurally identical nodes may produce a union of keys.
+ * This is a known limitation of TypeScript's structural type system.
+ */
+type FindNodeKey<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TNodes extends Record<string, NodeDefinition<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  NDef extends NodeDefinition<any>,
+> = {
+  [K in keyof TNodes & string]: TNodes[K] extends NDef ? K : never
+}[keyof TNodes & string]
+
+/**
+ * Extract the extends ref types from a node's _extendsRefs field.
+ * Returns never if no refs.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ExtractExtendsRefs<N extends NodeDefinition<any>> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  N extends { _extendsRefs: readonly (infer R)[] } ? (R extends NodeDefinition<any> ? R : never) : never
+
+/**
+ * Resolve extends refs to string keys for a single node definition.
+ * Maps each NodeDefinition reference back to its key in TNodes.
+ */
+type ResolveNodeExtends<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TNodes extends Record<string, NodeDefinition<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  N extends NodeDefinition<any>,
+> = ExtractExtendsRefs<N> extends never
+  ? readonly string[]
+  : readonly FindNodeKey<TNodes, ExtractExtendsRefs<N>>[]
+
+/**
+ * Map all nodes in a schema to have resolved string extends.
+ * Used as the return type of defineSchema() to feed type-level inference.
+ *
+ * Transforms _extendsRefs (NodeDefinition references) into extends (string keys)
+ * at the type level, so NodeLabelRefs/InheritedLabels/etc. can read them.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ResolvedNodes<TNodes extends Record<string, NodeDefinition<any>>> = {
+  [K in keyof TNodes]: TNodes[K] extends NodeDefinition<infer P>
+    ? NodeDefinition<P, ResolveNodeExtends<TNodes, TNodes[K]>>
+    : TNodes[K]
+}
+
+// =============================================================================
 // BASIC LABEL/TYPE EXTRACTION
 // =============================================================================
 
@@ -95,15 +151,15 @@ type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) exten
   : never
 
 /**
- * Get the direct parent labels for a node (from its `labels` array).
- * Returns `never` if the node has no labels.
+ * Get the direct parent labels for a node (from its `extends` array).
+ * Returns `never` if the node has no extends.
  *
  * Extracts the TLabels type parameter from NodeDefinition and checks
  * if it's a specific literal tuple vs the widened `readonly string[]`.
  * When TLabels is widened (no specific labels provided), returns never.
  *
  * @example
- * // user: node({ labels: ['entity'] })
+ * // user: node({ extends: [entityNode] })  // resolved to extends: ['entity']
  * NodeLabelRefs<Schema, 'user'> // 'entity'
  */
 export type NodeLabelRefs<S extends AnySchema, N extends NodeLabels<S>> =

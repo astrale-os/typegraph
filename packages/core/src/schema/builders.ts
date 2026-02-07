@@ -14,6 +14,7 @@ import type {
   CompositeIndex,
   HierarchyConfig,
 } from './types'
+import type { ResolvedNodes } from './inference'
 import { SchemaValidationError } from '../errors'
 
 // =============================================================================
@@ -133,7 +134,8 @@ function validateIndexes(
  */
 export interface NodeConfig<
   TProps extends z.ZodRawShape,
-  TLabels extends readonly string[] = readonly string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TExtends extends readonly NodeDefinition<any, any>[] = readonly NodeDefinition<any, any>[],
 > {
   /**
    * Zod shape defining node properties.
@@ -168,10 +170,17 @@ export interface NodeConfig<
   description?: string
 
   /**
-   * Node types that this node also acts as (IS-A relationship).
-   * Each entry references another node type key in the schema.
+   * Node definitions that this node extends (IS-A relationship).
+   * Each entry is a reference to another node definition variable.
+   * Resolved to string keys by defineSchema().
+   *
+   * @example
+   * ```typescript
+   * const entityNode = node({ properties: { createdAt: z.date() } })
+   * const userNode = node({ properties: { email: z.string() }, extends: [entityNode] })
+   * ```
    */
-  labels?: TLabels
+  extends?: TExtends
 }
 
 /**
@@ -194,8 +203,9 @@ export interface NodeConfig<
  */
 export function node<
   TProps extends z.ZodRawShape,
-  const TLabels extends readonly string[] = readonly string[],
->(config: NodeConfig<TProps, TLabels>): NodeDefinition<TProps, TLabels> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const TExtends extends readonly NodeDefinition<any, any>[] = readonly [],
+>(config: NodeConfig<TProps, TExtends>): NodeDefinition<TProps, readonly string[]> {
   // Validate index configurations
   const propertyNames = Object.keys(config.properties)
   validateIndexes(config.indexes as IndexEntry[] | undefined, propertyNames, 'node properties')
@@ -203,9 +213,12 @@ export function node<
   return {
     _type: 'node',
     properties: z.object(config.properties),
-    indexes: (config.indexes ?? []) as NodeDefinition<TProps, TLabels>['indexes'],
+    indexes: (config.indexes ?? []) as NodeDefinition<TProps>['indexes'],
     description: config.description,
-    labels: config.labels,
+    // Store raw refs for defineSchema() to resolve
+    _extendsRefs: config.extends,
+    // extends is populated by defineSchema() after ref resolution
+    extends: undefined,
   }
 }
 
@@ -331,14 +344,14 @@ export function edge<
 // =============================================================================
 
 /**
- * Validates label references exist and detects cycles in label inheritance.
+ * Validates extends references exist and detects cycles in inheritance.
  *
- * @throws SchemaValidationError if a label references a non-existent node
- * @throws SchemaValidationError if circular label dependencies exist
+ * @throws SchemaValidationError if an extends reference is not in the schema
+ * @throws SchemaValidationError if circular extends dependencies exist
  */
-function validateLabelInheritance(
+function validateExtendsInheritance(
   nodes: Record<string, NodeDefinition>,
-  nodeLabels: Set<string>,
+  nodeKeys: Set<string>,
 ): void {
   const visited = new Set<string>()
   const visiting = new Set<string>()
@@ -348,19 +361,19 @@ function validateLabelInheritance(
 
     if (visiting.has(nodeKey)) {
       throw new SchemaValidationError(
-        `Circular label inheritance: ${[...path, nodeKey].join(' -> ')}`,
-        'labels',
+        `Circular extends inheritance: ${[...path, nodeKey].join(' -> ')}`,
+        'extends',
       )
     }
 
     visiting.add(nodeKey)
 
     const nodeDef = nodes[nodeKey]
-    for (const ref of nodeDef?.labels ?? []) {
-      if (!nodeLabels.has(ref)) {
+    for (const ref of nodeDef?.extends ?? []) {
+      if (!nodeKeys.has(ref)) {
         throw new SchemaValidationError(
-          `Node '${nodeKey}' references unknown label '${ref}'. Available: ${[...nodeLabels].join(', ')}`,
-          'labels',
+          `Node '${nodeKey}' extends unknown node '${ref}'. Available: ${[...nodeKeys].join(', ')}`,
+          'extends',
         )
       }
       visit(ref, [...path, nodeKey])
@@ -370,7 +383,7 @@ function validateLabelInheritance(
     visited.add(nodeKey)
   }
 
-  for (const nodeKey of nodeLabels) {
+  for (const nodeKey of nodeKeys) {
     visit(nodeKey, [])
   }
 }
@@ -380,11 +393,11 @@ function validateLabelInheritance(
 // =============================================================================
 
 /**
- * Collects parent Zod schemas from a node's label hierarchy.
+ * Collects parent Zod schemas from a node's extends hierarchy.
  * Uses DFS with visited tracking to handle diamond inheritance.
  *
  * Semantic rules:
- * - Properties merge left-to-right from labels array
+ * - Properties merge left-to-right from extends array
  * - Grandparent properties come before parent properties
  * - Visited nodes are skipped (diamond inheritance dedup)
  */
@@ -395,27 +408,27 @@ function collectParentSchemas(
   const visited = new Set<string>()
   const schemas: z.ZodObject<z.ZodRawShape>[] = []
 
-  function collect(labels: readonly string[] | undefined): void {
-    if (!labels) return
-    for (const label of labels) {
-      if (visited.has(label)) continue
-      visited.add(label)
+  function collect(extendsKeys: readonly string[] | undefined): void {
+    if (!extendsKeys) return
+    for (const key of extendsKeys) {
+      if (visited.has(key)) continue
+      visited.add(key)
 
-      const parent = allNodes[label]
+      const parent = allNodes[key]
       if (!parent) continue
 
       // Collect grandparents first (DFS)
-      collect(parent.labels)
+      collect(parent.extends)
       schemas.push(parent.properties)
     }
   }
 
-  collect(nodeDef.labels)
+  collect(nodeDef.extends)
   return schemas
 }
 
 /**
- * Merges inherited properties into nodes that have labels.
+ * Merges inherited properties into nodes that have extends.
  * Uses shape reconstruction (not Zod .merge()) to preserve modifiers.
  *
  * Semantic rules:
@@ -429,8 +442,8 @@ export function mergeNodeSchemas(
   const merged: Record<string, NodeDefinition> = {}
 
   for (const [nodeKey, nodeDef] of Object.entries(nodes)) {
-    // No labels = no inheritance
-    if (!nodeDef.labels?.length) {
+    // No extends = no inheritance
+    if (!nodeDef.extends?.length) {
       merged[nodeKey] = nodeDef
       continue
     }
@@ -485,10 +498,13 @@ export interface SchemaConfig<
  *
  * Validates:
  * - All edge from/to references exist in nodes
- * - All label references in nodes exist and form no cycles
+ * - All extends references in nodes exist and form no cycles
  * - Hierarchy edge exists if specified
  *
- * @throws SchemaValidationError if label references are invalid or circular
+ * Resolves NodeDefinition references in `_extendsRefs` to string keys,
+ * populating the `extends` field on each node.
+ *
+ * @throws SchemaValidationError if extends references are invalid or circular
  *
  * @example
  * ```typescript
@@ -509,8 +525,55 @@ export function defineSchema<
   TNodes extends Record<string, NodeDefinition<any>>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TEdges extends Record<string, EdgeDefinition<any, any, any, any, any>>,
->(config: SchemaConfig<TNodes, TEdges>): SchemaDefinition<TNodes, TEdges> {
-  const nodeLabels = new Set(Object.keys(config.nodes))
+>(config: SchemaConfig<TNodes, TEdges>): SchemaDefinition<ResolvedNodes<TNodes>, TEdges> {
+  const nodeKeys = new Set(Object.keys(config.nodes))
+
+  // Build reverse map: NodeDefinition reference -> key
+  const reverseMap = new Map<NodeDefinition, string>()
+  for (const [key, nodeDef] of Object.entries(config.nodes)) {
+    reverseMap.set(nodeDef, key)
+  }
+
+  // Resolve _extendsRefs -> extends (string keys)
+  const resolvedNodes: Record<string, NodeDefinition> = {}
+  for (const [key, nodeDef] of Object.entries(config.nodes)) {
+    // If node already has resolved extends (from a previous defineSchema call),
+    // validate and pass through. This handles nodes from extendSchema's base.
+    if (nodeDef.extends?.length) {
+      for (const extKey of nodeDef.extends) {
+        if (!nodeKeys.has(extKey)) {
+          throw new SchemaValidationError(
+            `Node '${key}' extends unknown node '${extKey}'. ` +
+              `Available nodes: ${[...nodeKeys].join(', ')}`,
+            'extends',
+          )
+        }
+      }
+      resolvedNodes[key] = nodeDef
+      continue
+    }
+
+    // Otherwise, resolve _extendsRefs -> extends (string keys)
+    const refs = nodeDef._extendsRefs ?? []
+    const resolvedExtends: string[] = []
+
+    for (const ref of refs) {
+      const refKey = reverseMap.get(ref)
+      if (!refKey) {
+        throw new SchemaValidationError(
+          `Node '${key}' extends an unknown node definition. ` +
+            `Make sure all extended nodes are included in the schema's nodes record.`,
+          'extends',
+        )
+      }
+      resolvedExtends.push(refKey)
+    }
+
+    resolvedNodes[key] = {
+      ...nodeDef,
+      extends: resolvedExtends.length > 0 ? resolvedExtends : undefined,
+    } as NodeDefinition
+  }
 
   // Validate edge references
   for (const [edgeName, edgeDef] of Object.entries(config.edges)) {
@@ -518,22 +581,22 @@ export function defineSchema<
     const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
 
     for (const from of fromLabels) {
-      if (!nodeLabels.has(from)) {
+      if (!nodeKeys.has(from)) {
         throw new SchemaValidationError(
-          `Edge '${edgeName}' references unknown source node '${from}'. Available nodes: ${[...nodeLabels].join(', ')}`,
+          `Edge '${edgeName}' references unknown source node '${from}'. Available nodes: ${[...nodeKeys].join(', ')}`,
           'from',
-          [...nodeLabels].join(', '),
+          [...nodeKeys].join(', '),
           from,
         )
       }
     }
 
     for (const to of toLabels) {
-      if (!nodeLabels.has(to)) {
+      if (!nodeKeys.has(to)) {
         throw new SchemaValidationError(
-          `Edge '${edgeName}' references unknown target node '${to}'. Available nodes: ${[...nodeLabels].join(', ')}`,
+          `Edge '${edgeName}' references unknown target node '${to}'. Available nodes: ${[...nodeKeys].join(', ')}`,
           'to',
-          [...nodeLabels].join(', '),
+          [...nodeKeys].join(', '),
           to,
         )
       }
@@ -552,14 +615,14 @@ export function defineSchema<
     }
   }
 
-  // Validate label references exist and detect cycles
-  validateLabelInheritance(config.nodes, nodeLabels)
+  // Validate extends references exist and detect cycles
+  validateExtendsInheritance(resolvedNodes, nodeKeys)
 
-  // Merge inherited properties from labels
-  const mergedNodes = mergeNodeSchemas(config.nodes)
+  // Merge inherited properties from extends
+  const mergedNodes = mergeNodeSchemas(resolvedNodes)
 
   return {
-    nodes: mergedNodes as TNodes,
+    nodes: mergedNodes as ResolvedNodes<TNodes>,
     edges: config.edges,
     hierarchy: config.hierarchy,
   }
@@ -616,18 +679,26 @@ export function extendSchema<
     edges?: TExtEdges
     hierarchy?: HierarchyConfig<keyof (TBaseEdges & TExtEdges) & string>
   },
-): SchemaDefinition<TBaseNodes & TExtNodes, TBaseEdges & TExtEdges> {
+): SchemaDefinition<ResolvedNodes<TBaseNodes & TExtNodes>, TBaseEdges & TExtEdges> {
   const mergedNodes = { ...base.nodes, ...(extension.nodes ?? {}) }
   const mergedEdges = { ...base.edges, ...(extension.edges ?? {}) }
 
-  // Validate extension labels reference valid nodes (base or extension)
+  // Validate extension extends refs reference valid nodes (base or extension)
   for (const [name, nodeDef] of Object.entries(extension.nodes ?? {})) {
-    if (!nodeDef.labels) continue
-    for (const label of nodeDef.labels) {
-      if (!(label in mergedNodes)) {
+    const refs = nodeDef._extendsRefs
+    if (!refs?.length) continue
+    for (const ref of refs) {
+      let found = false
+      for (const n of Object.values(mergedNodes)) {
+        if (n === ref) {
+          found = true
+          break
+        }
+      }
+      if (!found) {
         throw new SchemaValidationError(
-          `Node '${name}' references unknown label '${label}'. Available: ${Object.keys(mergedNodes).join(', ')}`,
-          'labels',
+          `Node '${name}' extends a node definition not found in base or extension schema. Available: ${Object.keys(mergedNodes).join(', ')}`,
+          'extends',
         )
       }
     }

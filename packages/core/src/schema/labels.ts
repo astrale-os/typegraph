@@ -59,7 +59,7 @@ export function resolveNodeLabels<S extends AnySchema>(schema: S, nodeLabel: str
     result.push(toPascalCase(label))
 
     const nodeDef = schema.nodes[label]
-    for (const ref of nodeDef?.labels ?? []) {
+    for (const ref of nodeDef?.extends ?? []) {
       collect(ref)
     }
   }

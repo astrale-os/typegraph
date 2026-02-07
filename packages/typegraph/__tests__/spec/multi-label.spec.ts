@@ -2,7 +2,7 @@
  * Multi-Label Support Tests
  *
  * Tests for the multi-label node functionality including:
- * - labels array in node definitions (IS-A relationships)
+ * - extends array in node definitions (IS-A relationships)
  * - getNodesSatisfying() helper function
  * - Label-based query filtering
  * - Edge validation with labels
@@ -29,28 +29,32 @@ import { SchemaValidator as QueryValidator } from '../../src/query/validation'
 // =============================================================================
 
 /**
- * Schema with multi-label node using simplified labels array
+ * Schema with multi-label node using extends array
  */
+const moduleNode = node({
+  properties: {
+    name: z.string(),
+  },
+})
+const identityNode = node({
+  properties: {
+    gid: z.string(),
+  },
+})
+// Agent IS-A module AND identity
+const agentNode = node({
+  properties: {
+    name: z.string(),
+    gid: z.string(),
+  },
+  extends: [moduleNode, identityNode],
+})
+
 const multiLabelSchema = defineSchema({
   nodes: {
-    module: node({
-      properties: {
-        name: z.string(),
-      },
-    }),
-    identity: node({
-      properties: {
-        gid: z.string(),
-      },
-    }),
-    // Agent IS-A module AND identity
-    agent: node({
-      properties: {
-        name: z.string(),
-        gid: z.string(),
-      },
-      labels: ['module', 'identity'],
-    }),
+    module: moduleNode,
+    identity: identityNode,
+    agent: agentNode,
   },
   edges: {
     hasPerm: edge({
@@ -99,7 +103,7 @@ const standardSchema = defineSchema({
 // =============================================================================
 
 describe('Multi-Label Support', () => {
-  describe('resolveNodeLabels with labels array', () => {
+  describe('resolveNodeLabels with extends array', () => {
     it('includes trait labels in resolution', () => {
       const labels = resolveNodeLabels(multiLabelSchema, 'agent')
       expect(labels).toContain('Agent')
@@ -368,46 +372,54 @@ describe('CreateOptions.additionalLabels', () => {
 // SCHEMA DEFINITION TESTS
 // =============================================================================
 
-describe('Schema Definition with labels', () => {
-  it('accepts labels array referencing other node types', () => {
+describe('Schema Definition with extends', () => {
+  it('accepts extends array referencing other node types', () => {
+    const baseNode = node({ properties: { a: z.string() } })
+
     const schema = defineSchema({
       nodes: {
-        base: node({ properties: { a: z.string() } }),
+        base: baseNode,
         derived: node({
           properties: { a: z.string(), b: z.string() },
-          labels: ['base'],
+          extends: [baseNode],
         }),
       },
       edges: {},
     })
 
-    expect(schema.nodes.derived.labels).toEqual(['base'])
+    expect(schema.nodes.derived.extends).toEqual(['base'])
   })
 
-  it('accepts multiple labels', () => {
+  it('accepts multiple extends', () => {
+    const moduleNode2 = node({ properties: {} })
+    const identityNode2 = node({ properties: {} })
+
     const schema = defineSchema({
       nodes: {
-        module: node({ properties: {} }),
-        identity: node({ properties: {} }),
+        module: moduleNode2,
+        identity: identityNode2,
         agent: node({
           properties: {},
-          labels: ['module', 'identity'],
+          extends: [moduleNode2, identityNode2],
         }),
       },
       edges: {},
     })
 
-    expect(schema.nodes.agent.labels).toEqual(['module', 'identity'])
+    expect(schema.nodes.agent.extends).toEqual(['module', 'identity'])
   })
 
-  it('resolves labels to PascalCase Cypher labels', () => {
+  it('resolves extends to PascalCase Cypher labels', () => {
+    const moduleNode2 = node({ properties: {} })
+    const identityNode2 = node({ properties: {} })
+
     const schema = defineSchema({
       nodes: {
-        module: node({ properties: {} }),
-        identity: node({ properties: {} }),
+        module: moduleNode2,
+        identity: identityNode2,
         agent: node({
           properties: {},
-          labels: ['module', 'identity'],
+          extends: [moduleNode2, identityNode2],
         }),
       },
       edges: {},
@@ -417,7 +429,7 @@ describe('Schema Definition with labels', () => {
     expect(labels).toEqual(['Agent', 'Module', 'Identity'])
   })
 
-  it('allows nodes without labels', () => {
+  it('allows nodes without extends', () => {
     const schema = defineSchema({
       nodes: {
         simple: node({ properties: { name: z.string() } }),
@@ -425,7 +437,7 @@ describe('Schema Definition with labels', () => {
       edges: {},
     })
 
-    expect(schema.nodes.simple.labels).toBeUndefined()
+    expect(schema.nodes.simple.extends).toBeUndefined()
     const labels = resolveNodeLabels(schema, 'simple')
     expect(labels).toEqual(['Simple'])
   })

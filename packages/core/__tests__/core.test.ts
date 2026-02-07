@@ -54,31 +54,35 @@ const simpleSchema = defineSchema({
   },
 })
 
+const entityNode = node({
+  properties: {
+    createdAt: z.date(),
+  },
+})
+const inhUserNode = node({
+  properties: {
+    email: z.string(),
+  },
+  extends: [entityNode],
+})
+const inhAdminNode = node({
+  properties: {
+    role: z.string(),
+  },
+  extends: [inhUserNode],
+})
+const inhSpaceNode = node({
+  properties: {
+    name: z.string(),
+  },
+  extends: [entityNode],
+})
 const inheritanceSchema = defineSchema({
   nodes: {
-    entity: node({
-      properties: {
-        createdAt: z.date(),
-      },
-    }),
-    user: node({
-      properties: {
-        email: z.string(),
-      },
-      labels: ['entity'],
-    }),
-    admin: node({
-      properties: {
-        role: z.string(),
-      },
-      labels: ['user'],
-    }),
-    space: node({
-      properties: {
-        name: z.string(),
-      },
-      labels: ['entity'],
-    }),
+    entity: entityNode,
+    user: inhUserNode,
+    admin: inhAdminNode,
+    space: inhSpaceNode,
   },
   edges: {
     hasParent: edge({
@@ -261,7 +265,7 @@ describe('defineCore', () => {
 
   it('validates edge endpoints with label inheritance', () => {
     // 'hasParent' is from: 'entity', to: 'entity'
-    // 'user' labels: ['entity'], so user satisfies entity
+    // 'user' extends entity, so user satisfies entity
     const core = defineCore(inheritanceSchema, {
       nodes: {
         admin: {

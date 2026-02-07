@@ -16,7 +16,7 @@ import type { IdentityExpr, Scope } from '../types'
 // Max recursion depth to prevent stack overflow from malicious input
 const MAX_DEPTH = 100
 
-export type CompactScope = { n?: string[]; p?: string[]; r?: string[] }
+export type CompactScope = { n?: string[]; p?: number; r?: string[] }
 
 export type CompactExpr =
   | ['i', string]
@@ -32,7 +32,7 @@ export type CompactExpr =
 function compactScope(scope: Scope): CompactScope {
   const r: CompactScope = {}
   if (scope.nodes?.length) r.n = scope.nodes
-  if (scope.perms?.length) r.p = scope.perms
+  if (scope.perms !== undefined) r.p = scope.perms
   if (scope.principals?.length) r.r = scope.principals
   return r
 }
@@ -75,8 +75,10 @@ function expandScope(c: unknown): Scope {
     if (s.n.length) r.nodes = s.n
   }
   if (s.p !== undefined) {
-    if (!isStringArray(s.p)) throw new Error('Invalid scope.perms')
-    if (s.p.length) r.perms = s.p
+    if (typeof s.p !== 'number' || !Number.isInteger(s.p) || s.p < 0 || s.p > 0x7fffffff) {
+      throw new Error('Invalid scope.perms: must be a non-negative 31-bit integer')
+    }
+    r.perms = s.p
   }
   if (s.r !== undefined) {
     if (!isStringArray(s.r)) throw new Error('Invalid scope.principals')

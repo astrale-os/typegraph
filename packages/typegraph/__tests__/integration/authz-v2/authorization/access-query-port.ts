@@ -8,16 +8,13 @@
  * carries its own nodeRestriction). No principal/scope awareness needed.
  */
 
-import type { CypherFragment } from '../adapter/cypher'
+import type { QueryFragment } from '../adapter/cypher'
 import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation } from '../types'
 
 export interface AccessQueryPort {
-  generateQuery(
-    expr: PrunedIdentityExpr,
-    perm: Permission,
-  ): CypherFragment | null
-  executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean>
-  executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean>
+  generateQuery(expr: PrunedIdentityExpr, perm: Permission): QueryFragment | null
+  executeResourceCheck(fragment: QueryFragment, resourceId: NodeId): Promise<boolean>
+  executeTypeCheck(fragment: QueryFragment, typeId: NodeId): Promise<boolean>
   getTargetType(resourceId: NodeId): Promise<NodeId | null>
   queryLeafDetails(leaves: LeafEvaluation[], resourceId: NodeId, perm: Permission): Promise<void>
   clearCache(): void

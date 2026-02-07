@@ -160,7 +160,7 @@ const key = `${fragment.condition}|${paramsKey}|${typeId}`
 **Recommendation:**
 ```typescript
 // Pre-compute hash during fragment generation
-interface CypherFragment {
+interface QueryFragment {
   calls: string[]
   vars: string[]
   condition: string

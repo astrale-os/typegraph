@@ -17,6 +17,7 @@ import {
 } from './expression/builder'
 import { applyScope } from './expression/scope'
 import type { IdentityExpr, Scope } from './types'
+import { READ, EDIT } from './testing/helpers'
 
 describe('AUTH_V2: Expression Builder SDK', () => {
   // ===========================================================================
@@ -39,10 +40,10 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     })
 
     it('creates identity with array of scopes', () => {
-      const expr = identity('USER1', [{ nodes: ['ws1'] }, { perms: ['read'] }])
+      const expr = identity('USER1', [{ nodes: ['ws1'] }, { perms: READ }])
       expect(expr.build()).toEqual({
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'] }, { perms: ['read'] }],
+        scopes: [{ nodes: ['ws1'] }, { perms: READ }],
         expr: { kind: 'identity', id: 'USER1' },
       })
     })
@@ -78,11 +79,11 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('chains multiple scope calls', () => {
       const expr = identity('USER1')
         .scope({ nodes: ['ws1'] })
-        .scope({ perms: ['read'] })
+        .scope({ perms: READ })
 
       expect(expr.build()).toEqual({
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'] }, { perms: ['read'] }],
+        scopes: [{ nodes: ['ws1'] }, { perms: READ }],
         expr: { kind: 'identity', id: 'USER1' },
       })
     })
@@ -338,11 +339,11 @@ describe('AUTH_V2: Expression Builder SDK', () => {
       const restrictedIdentity = ref1.intersect(identity('Z'))
 
       // finalIdentity = intersect(
-      //   identity("H").scope({ perms: ["read"] }),
+      //   identity("H").scope({ perms: READ }),
       //   restrictedIdentity.exclude(identity("M"))
       // )
       const finalIdentity = intersect(
-        identity('H').scope({ perms: ['read'] }),
+        identity('H').scope({ perms: READ }),
         restrictedIdentity.exclude(identity('M')),
       )
 
@@ -350,7 +351,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
       // Expected tree:
       // intersect(
-      //   scope({ perms: ["read"] }, identity("H")),
+      //   scope({ perms: READ }, identity("H")),
       //   exclude(
       //     intersect(
       //       union(
@@ -376,7 +377,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         operands: [
           {
             kind: 'scope',
-            scopes: [{ perms: ['read'] }],
+            scopes: [{ perms: READ }],
             expr: { kind: 'identity', id: 'H' },
           },
           {
@@ -419,13 +420,13 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     })
 
     it('round-trips scoped identity', () => {
-      const expr = identity('USER1', { nodes: ['ws1'], perms: ['read'] })
+      const expr = identity('USER1', { nodes: ['ws1'], perms: READ })
       const json = JSON.stringify(expr.build())
       const parsed: IdentityExpr = JSON.parse(json)
 
       expect(parsed).toEqual({
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'], perms: ['read'] }],
+        scopes: [{ nodes: ['ws1'], perms: READ }],
         expr: { kind: 'identity', id: 'USER1' },
       })
     })
@@ -433,7 +434,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('round-trips complex expression', () => {
       const expr = union(identity('A', { nodes: ['n1'] }), identity('B'))
         .intersect(identity('C'))
-        .exclude(identity('D').scope({ perms: ['write'] }))
+        .exclude(identity('D').scope({ perms: EDIT }))
 
       const json = JSON.stringify(expr.build())
       const parsed: IdentityExpr = JSON.parse(json)
@@ -461,7 +462,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     it('wraps already-scoped identity in another scope node', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: ['read'] }],
+        scopes: [{ perms: READ }],
         expr: { kind: 'identity', id: 'A' },
       }
       const result = applyScope(expr, { nodes: ['ws1'] })
@@ -471,7 +472,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
         scopes: [{ nodes: ['ws1'] }],
         expr: {
           kind: 'scope',
-          scopes: [{ perms: ['read'] }],
+          scopes: [{ perms: READ }],
           expr: { kind: 'identity', id: 'A' },
         },
       })

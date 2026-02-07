@@ -6,7 +6,7 @@
  */
 
 import type { AccessQueryPort } from '../../authorization/access-query-port'
-import type { CypherFragment } from '../../adapter/cypher'
+import type { QueryFragment } from '../../adapter/cypher'
 import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation } from '../../types'
 import type { Phase, SpanMetadata } from './types'
 import { type SpanCollector } from './span-collector'
@@ -60,10 +60,7 @@ export class ProfilingAccessQueryAdapter implements AccessQueryPort {
   // AccessQueryPort Implementation
   // ===========================================================================
 
-  generateQuery(
-    expr: PrunedIdentityExpr,
-    perm: Permission,
-  ): CypherFragment | null {
+  generateQuery(expr: PrunedIdentityExpr, perm: Permission): QueryFragment | null {
     return this.instrumentSync(
       'generateQuery',
       'resolve',
@@ -74,7 +71,7 @@ export class ProfilingAccessQueryAdapter implements AccessQueryPort {
     )
   }
 
-  async executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
+  async executeResourceCheck(fragment: QueryFragment, resourceId: NodeId): Promise<boolean> {
     return this.instrumentAsync(
       'executeResourceCheck',
       'query',
@@ -88,7 +85,7 @@ export class ProfilingAccessQueryAdapter implements AccessQueryPort {
     )
   }
 
-  async executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean> {
+  async executeTypeCheck(fragment: QueryFragment, typeId: NodeId): Promise<boolean> {
     return this.instrumentAsync(
       'executeTypeCheck',
       'query',

@@ -15,7 +15,7 @@ type JSONSchema = any
  */
 export interface SerializedNodeDef {
   description?: string
-  labels?: string[]
+  extends?: string[]
   indexes?: SerializedIndex[]
   properties?: JSONSchema
 }
@@ -58,8 +58,10 @@ export interface SerializedSchema {
  * ```
  */
 export function toSchema<
-  TNodes extends Record<string, NodeDefinition>,
-  TEdges extends Record<string, EdgeDefinition>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TNodes extends Record<string, NodeDefinition<any, any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  TEdges extends Record<string, EdgeDefinition<any, any, any, any, any>>,
 >(schema: SchemaDefinition<TNodes, TEdges>): SerializedSchema {
   const nodes: Record<string, SerializedNodeDef> = {}
 
@@ -67,7 +69,7 @@ export function toSchema<
     const n = nodeDef as NodeDefinition
     nodes[key] = {
       ...(n.description && { description: n.description }),
-      ...(n.labels?.length && { labels: [...n.labels] }),
+      ...(n.extends?.length && { extends: [...n.extends] }),
       ...(n.indexes?.length && { indexes: serializeIndexes(n.indexes) }),
       ...(hasProperties(n.properties) && {
         properties: z.toJSONSchema(n.properties, { unrepresentable: 'any' }),

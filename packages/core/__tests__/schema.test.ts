@@ -70,60 +70,60 @@ describe('Schema Validation', () => {
   })
 
   it('rejects node referencing non-existent label', () => {
+    const fakeNode = node({ properties: {} })
     expect(() =>
       defineSchema({
         nodes: {
-          admin: node({ properties: {}, labels: ['user'] }), // user doesn't exist
+          admin: node({ properties: {}, extends: [fakeNode] }), // fakeNode not in schema's nodes
         },
         edges: {},
       }),
-    ).toThrow(/references unknown label 'user'/)
+    ).toThrow(/extends an unknown node definition/)
   })
 
-  it('detects circular label inheritance at all depths', () => {
-    // Direct: A -> A
+  it('rejects extends referencing node not in schema', () => {
+    // With ref-based extends, circular inheritance is architecturally impossible
+    // because JavaScript execution order prevents creating mutual references.
+    // Instead, we verify that extending a node not in the schema is caught.
+
+    // Node extends a definition that is NOT included in the schema's nodes
+    const orphanNode = node({ properties: {} })
     expect(() =>
       defineSchema({
-        nodes: { entity: node({ properties: {}, labels: ['entity'] }) },
+        nodes: { entity: node({ properties: {}, extends: [orphanNode] }) },
         edges: {},
       }),
-    ).toThrow(/Circular label inheritance/)
+    ).toThrow(/extends an unknown node definition/)
 
-    // Indirect: A -> B -> A
+    // Two nodes where one extends an external node definition
+    const externalNode = node({ properties: {} })
+    const childNode = node({ properties: {}, extends: [externalNode] })
     expect(() =>
       defineSchema({
         nodes: {
-          user: node({ properties: {}, labels: ['admin'] }),
-          admin: node({ properties: {}, labels: ['user'] }),
+          user: childNode,
+          admin: node({ properties: {} }),
         },
         edges: {},
       }),
-    ).toThrow(/Circular label inheritance/)
-
-    // Deep: A -> B -> C -> A
-    expect(() =>
-      defineSchema({
-        nodes: {
-          a: node({ properties: {}, labels: ['b'] }),
-          b: node({ properties: {}, labels: ['c'] }),
-          c: node({ properties: {}, labels: ['a'] }),
-        },
-        edges: {},
-      }),
-    ).toThrow(/Circular label inheritance/)
+    ).toThrow(/extends an unknown node definition/)
   })
 
   it('allows valid deep inheritance chains (not circular)', () => {
+    const entityNode = node({ properties: {} })
+    const userNode = node({ properties: {}, extends: [entityNode] })
+    const adminNode = node({ properties: {}, extends: [userNode] })
+    const superAdminNode = node({ properties: {}, extends: [adminNode] })
     const schema = defineSchema({
       nodes: {
-        entity: node({ properties: {} }),
-        user: node({ properties: {}, labels: ['entity'] }),
-        admin: node({ properties: {}, labels: ['user'] }),
-        superAdmin: node({ properties: {}, labels: ['admin'] }),
+        entity: entityNode,
+        user: userNode,
+        admin: adminNode,
+        superAdmin: superAdminNode,
       },
       edges: {},
     })
-    expect(schema.nodes.superAdmin.labels).toEqual(['admin'])
+    expect(schema.nodes.superAdmin.extends).toEqual(['admin'])
   })
 
   it('rejects hierarchy referencing non-existent edge', () => {
@@ -249,16 +249,24 @@ describe('Index Validation', () => {
 // =============================================================================
 
 describe('Label Resolution', () => {
+  const entityNode = node({ properties: {} })
+  const actorNode = node({ properties: {}, extends: [entityNode] })
+  const userNode = node({ properties: {}, extends: [actorNode] })
+  const machineNode = node({ properties: {}, extends: [actorNode] })
+  const adminNode = node({ properties: {}, extends: [userNode] })
+  const superAdminNode = node({ properties: {}, extends: [adminNode] })
+  // Diamond: serviceAccount extends both user and machine
+  const serviceAccountNode = node({ properties: {}, extends: [userNode, machineNode] })
+
   const complexSchema = defineSchema({
     nodes: {
-      entity: node({ properties: {} }),
-      actor: node({ properties: {}, labels: ['entity'] }),
-      user: node({ properties: {} , labels: ['actor'] }),
-      machine: node({ properties: {}, labels: ['actor'] }),
-      admin: node({ properties: {}, labels: ['user'] }),
-      superAdmin: node({ properties: {}, labels: ['admin'] }),
-      // Diamond: serviceAccount extends both user and machine
-      serviceAccount: node({ properties: {}, labels: ['user', 'machine'] }),
+      entity: entityNode,
+      actor: actorNode,
+      user: userNode,
+      machine: machineNode,
+      admin: adminNode,
+      superAdmin: superAdminNode,
+      serviceAccount: serviceAccountNode,
     },
     edges: {},
   })
@@ -410,20 +418,25 @@ describe('Index Compilation', () => {
 
 describe('Real-World Schema Integration', () => {
   it('Social Network: polymorphic edges, fulltext, hierarchy', () => {
+    const entityNode = node({ properties: {} })
+    const userNode = node({
+      properties: { email: z.string(), displayName: z.string() },
+      indexes: [{ property: 'email', type: 'unique' }, { property: 'displayName', type: 'fulltext' }],
+      extends: [entityNode],
+    })
+    const postNode = node({
+      properties: { content: z.string(), visibility: z.enum(['public', 'private']) },
+      indexes: [{ property: 'content', type: 'fulltext' }],
+      extends: [entityNode],
+    })
+    const commentNode = node({ properties: { content: z.string() }, extends: [entityNode] })
+
     const schema = defineSchema({
       nodes: {
-        entity: node({ properties: {} }),
-        user: node({
-          properties: { email: z.string(), displayName: z.string() },
-          indexes: [{ property: 'email', type: 'unique' }, { property: 'displayName', type: 'fulltext' }],
-          labels: ['entity'],
-        }),
-        post: node({
-          properties: { content: z.string(), visibility: z.enum(['public', 'private']) },
-          indexes: [{ property: 'content', type: 'fulltext' }],
-          labels: ['entity'],
-        }),
-        comment: node({ properties: { content: z.string() }, labels: ['entity'] }),
+        entity: entityNode,
+        user: userNode,
+        post: postNode,
+        comment: commentNode,
       },
       edges: {
         authored: edge({ from: 'user', to: ['post', 'comment'] as const, cardinality: { outbound: 'many', inbound: 'one' } }),
@@ -473,11 +486,15 @@ describe('Real-World Schema Integration', () => {
   })
 
   it('File System: tree hierarchy with down direction', () => {
+    const fsNodeDef = node({ properties: {} })
+    const folderNode = node({ properties: { name: z.string() }, extends: [fsNodeDef] })
+    const fileNode = node({ properties: { name: z.string(), size: z.number() }, extends: [fsNodeDef] })
+
     const schema = defineSchema({
       nodes: {
-        fsNode: node({ properties: {} }),
-        folder: node({ properties: { name: z.string() }, labels: ['fsNode'] }),
-        file: node({ properties: { name: z.string(), size: z.number() }, labels: ['fsNode'] }),
+        fsNode: fsNodeDef,
+        folder: folderNode,
+        file: fileNode,
       },
       edges: {
         contains: edge({ from: 'folder', to: ['folder', 'file'] as const, cardinality: { outbound: 'many', inbound: 'one' } }),

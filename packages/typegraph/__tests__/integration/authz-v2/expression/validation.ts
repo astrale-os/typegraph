@@ -5,7 +5,30 @@
  * Pure functions, no I/O.
  */
 
-import type { IdentityExpr, Grant, NodeId, Permission, IdentityId, Scope } from '../types'
+import type { IdentityExpr, Grant, NodeId, Permission, IdentityId, Scope, PermissionMask } from '../types'
+
+const ALL_PERMS = 0x7fffffff
+
+// =============================================================================
+// PERMISSION VALIDATION
+// =============================================================================
+
+/** Validate a value is a valid single Permission (power of 2, within range). */
+export function validatePermission(perm: unknown): asserts perm is Permission {
+  if (typeof perm !== 'number' || !Number.isInteger(perm) || perm <= 0 || perm > ALL_PERMS) {
+    throw new Error(`Invalid permission: must be a positive integer within range (got ${perm})`)
+  }
+  if ((perm & (perm - 1)) !== 0) {
+    throw new Error(`Invalid permission: must be a power of 2 (got ${perm})`)
+  }
+}
+
+/** Validate a value is a valid PermissionMask (non-negative integer within range). */
+export function validatePermissionMask(mask: unknown): asserts mask is PermissionMask {
+  if (typeof mask !== 'number' || !Number.isInteger(mask) || mask < 0 || mask > ALL_PERMS) {
+    throw new Error(`Invalid permission mask: must be a non-negative integer within range (got ${mask})`)
+  }
+}
 
 // =============================================================================
 // INPUT VALIDATION (Security: Cypher Injection Prevention)
@@ -57,10 +80,8 @@ export function validateScopes(scopes: Scope[] | undefined): void {
         validateCypherId(principalId, 'scope principal ID')
       }
     }
-    if (scope.perms) {
-      for (const perm of scope.perms) {
-        validateCypherId(perm, 'scope permission')
-      }
+    if (scope.perms !== undefined) {
+      validatePermissionMask(scope.perms)
     }
   }
 }
@@ -116,7 +137,7 @@ export function validateAccessInputs(
   principal: IdentityId,
 ): void {
   validateCypherId(resourceId, 'resourceId')
-  validateCypherId(perm, 'perm')
+  validatePermission(perm)
   validateCypherId(principal, 'principal')
   validateExpression(grant.forType)
   validateExpression(grant.forResource)

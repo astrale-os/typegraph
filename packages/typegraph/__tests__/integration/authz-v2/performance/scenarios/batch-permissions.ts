@@ -7,6 +7,7 @@
 
 import type { TestScenario } from './types'
 import { separateGrant, simpleGrant, identity } from './types'
+import { READ, EDIT, USE } from '../../testing/helpers'
 
 /**
  * Batch scenarios are designed to be run in sequence.
@@ -21,7 +22,7 @@ export const batchSamePermDiffNodeScenarios: TestScenario[] = [
     description: 'First of batch - no cache',
     principal: 'USER1',
     nodeId: 'M1',
-    perm: 'read',
+    nodePerm: READ,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: true,
   },
@@ -31,7 +32,7 @@ export const batchSamePermDiffNodeScenarios: TestScenario[] = [
     description: 'Same identity/perm - type cache hit expected',
     principal: 'USER1',
     nodeId: 'M2',
-    perm: 'read',
+    nodePerm: READ,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: true,
   },
@@ -41,7 +42,7 @@ export const batchSamePermDiffNodeScenarios: TestScenario[] = [
     description: 'Same identity/perm - type cache hit expected',
     principal: 'USER1',
     nodeId: 'M3',
-    perm: 'read',
+    nodePerm: READ,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: true,
   },
@@ -55,7 +56,7 @@ export const batchDiffPermSameNodeScenarios: TestScenario[] = [
     description: 'Read permission on M1',
     principal: 'USER1',
     nodeId: 'M1',
-    perm: 'read',
+    nodePerm: READ,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: true,
   },
@@ -65,7 +66,7 @@ export const batchDiffPermSameNodeScenarios: TestScenario[] = [
     description: 'Edit permission on M1 - different perm',
     principal: 'USER1',
     nodeId: 'M1',
-    perm: 'edit',
+    nodePerm: EDIT,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: true,
   },
@@ -75,7 +76,7 @@ export const batchDiffPermSameNodeScenarios: TestScenario[] = [
     description: 'Use permission on M1 - should fail (no use perm)',
     principal: 'USER1',
     nodeId: 'M1',
-    perm: 'use',
+    nodePerm: USE,
     grant: separateGrant('APP1', 'USER1'),
     expectedGranted: false,
     expectedDeniedBy: 'resource',
@@ -90,7 +91,7 @@ export const batchDiffIdentitySamePermScenarios: TestScenario[] = [
     description: 'APP1 has use on T1 (type permission)',
     principal: 'APP1',
     nodeId: 'M1',
-    perm: 'use',
+    nodePerm: USE,
     grant: simpleGrant('APP1'),
     expectedGranted: true,
   },
@@ -100,7 +101,7 @@ export const batchDiffIdentitySamePermScenarios: TestScenario[] = [
     description: 'USER1 lacks use permission',
     principal: 'USER1',
     nodeId: 'M1',
-    perm: 'use',
+    nodePerm: USE,
     grant: simpleGrant('USER1'),
     expectedGranted: false,
     expectedDeniedBy: 'type',
@@ -111,7 +112,7 @@ export const batchDiffIdentitySamePermScenarios: TestScenario[] = [
     description: 'ROLE1 lacks use permission',
     principal: 'ROLE1',
     nodeId: 'M1',
-    perm: 'use',
+    nodePerm: USE,
     grant: simpleGrant('ROLE1'),
     expectedGranted: false,
     expectedDeniedBy: 'type',

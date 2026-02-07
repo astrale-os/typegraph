@@ -25,23 +25,29 @@ import type {
 } from '../types'
 
 export async function explainAccess(
-  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: Permission },
+  params: {
+    principal: IdentityId
+    grant: Grant
+    nodeId: NodeId
+    nodePerm: Permission
+    typePerm: Permission
+  },
   queryPort: AccessQueryPort,
 ): Promise<AccessExplanation> {
-  const { principal, grant, nodeId, perm } = params
-  validateAccessInputs(grant, nodeId, perm, principal)
+  const { principal, grant, nodeId, nodePerm, typePerm } = params
+  validateAccessInputs(grant, nodeId, nodePerm, principal)
 
   const { forType, forResource } = grant
 
   // Start resource phase immediately (no dependency on typeId)
-  const resourcePromise = explainPhase(forResource, nodeId, perm, principal, queryPort)
+  const resourcePromise = explainPhase(forResource, nodeId, nodePerm, principal, queryPort)
 
   const typeId = await queryPort.getTargetType(nodeId)
 
   if (typeId) {
     // Run type phase in parallel with already-started resource phase
     const [typeCheck, resourceCheck] = await Promise.all([
-      explainPhase(forType, typeId, 'use', undefined, queryPort),
+      explainPhase(forType, typeId, typePerm, undefined, queryPort),
       resourcePromise,
     ])
     const typeGranted = evaluateGranted(forType, typeCheck.leaves)
@@ -50,7 +56,7 @@ export async function explainAccess(
 
     return {
       resourceId: nodeId,
-      perm,
+      nodePerm,
       principal,
       granted,
       deniedBy: !granted ? (!typeGranted ? 'type' : 'resource') : undefined,
@@ -66,7 +72,7 @@ export async function explainAccess(
 
   return {
     resourceId: nodeId,
-    perm,
+    nodePerm,
     principal,
     granted,
     deniedBy: !granted ? 'resource' : undefined,

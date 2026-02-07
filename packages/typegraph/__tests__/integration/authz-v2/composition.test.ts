@@ -14,7 +14,15 @@ import {
 } from './testing/setup'
 import { createAccessChecker } from './adapter'
 import { IdentityEvaluator, createCompositionCache } from './adapter/identity-evaluator'
-import { expectGranted, expectDeniedByResource, grantFromIds } from './testing/helpers'
+import {
+  expectGranted,
+  expectDeniedByResource,
+  grantFromIds,
+  READ,
+  EDIT,
+  USE,
+} from './testing/helpers'
+import type { Permission } from './types'
 import { identity, union, intersect, grant, raw } from './expression/builder'
 
 describe('AUTH_V2: Identity Composition', () => {
@@ -53,12 +61,12 @@ describe('AUTH_V2: Identity Composition', () => {
       })
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (r:Root {id: 'root'})
-         CREATE (i)-[:hasPerm {perms: ['read']}]->(r)`,
+         CREATE (i)-[:hasPerm {perms: 1}]->(r)`,
         { params: { identityId: 'USER1_NO_UNION' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (s:Space {id: 'workspace-1'})
-         CREATE (i)-[:hasPerm {perms: ['edit']}]->(s)`,
+         CREATE (i)-[:hasPerm {perms: 2}]->(s)`,
         { params: { identityId: 'USER1_NO_UNION' } },
       )
 
@@ -67,7 +75,8 @@ describe('AUTH_V2: Identity Composition', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1_NO_UNION']),
         nodeId: 'M3',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
       expectDeniedByResource(deniedResult)
 
@@ -79,7 +88,8 @@ describe('AUTH_V2: Identity Composition', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), raw(user1Expr)).build(),
         nodeId: 'M3',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
       expectGranted(grantedResult)
     })
@@ -95,7 +105,8 @@ describe('AUTH_V2: Identity Composition', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), raw(user1Expr)).build(),
         nodeId: 'M1',
-        perm: 'admin',
+        nodePerm: 16 as Permission,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -119,17 +130,17 @@ describe('AUTH_V2: Identity Composition', () => {
       // Each has edit on different module
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: 2}]->(m)`,
         { params: { identityId: 'UNION_A', moduleId: 'M1' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: 2}]->(m)`,
         { params: { identityId: 'UNION_B', moduleId: 'M2' } },
       )
       await ctx.connection.graph.query(
         `MATCH (i:Identity {id: $identityId}), (m:Module {id: $moduleId})
-         CREATE (i)-[:hasPerm {perms: ['edit']}]->(m)`,
+         CREATE (i)-[:hasPerm {perms: 2}]->(m)`,
         { params: { identityId: 'UNION_C', moduleId: 'M3' } },
       )
 
@@ -158,7 +169,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
           nodeId: 'M1',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
       expectGranted(
@@ -166,7 +178,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
           nodeId: 'M2',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
       expectGranted(
@@ -174,7 +187,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(unionAbcExpr)).build(),
           nodeId: 'M3',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
     })
@@ -199,7 +213,8 @@ describe('AUTH_V2: Identity Composition', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), raw(xExpr)).build(),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -217,7 +232,8 @@ describe('AUTH_V2: Identity Composition', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), raw(xExpr)).build(),
         nodeId: 'M2',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -243,19 +259,19 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // Permissions
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_A'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_B'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'INTER_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'INTER_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // INTER_ABC = A ∩ B ∩ C
@@ -279,7 +295,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
       expectDeniedByResource(
@@ -287,7 +304,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
           nodeId: 'M2',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
       expectDeniedByResource(
@@ -295,7 +313,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(interAbcExpr)).build(),
           nodeId: 'M3',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -316,7 +335,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // E = A \ C
@@ -338,7 +357,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(excludeEExpr)).build(),
           nodeId: 'M2',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -352,7 +372,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_C2'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_C2'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -373,7 +393,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(excludeE2Expr)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -390,10 +411,10 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_B'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_B'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'MULTI_EXCLUDE_C'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -416,7 +437,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
       expectDeniedByResource(
@@ -424,7 +446,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(multiExcludeXExpr)).build(),
           nodeId: 'M2',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -438,7 +461,7 @@ describe('AUTH_V2: Identity Composition', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'UNION_EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'UNION_EXCLUDE_C'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       await ctx.connection.graph.query(
@@ -461,7 +484,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
       expectDeniedByResource(
@@ -469,7 +493,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(unionExcludeYExpr)).build(),
           nodeId: 'M2',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -487,18 +512,18 @@ describe('AUTH_V2: Identity Composition', () => {
 
       // D has read on all
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_D'}), (m:Module {id: 'M3'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // E excludes M2
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'COMPLEX_E'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'COMPLEX_E'}), (m:Module {id: 'M2'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // W = (A ∪ B) ∩ D \ E
@@ -525,7 +550,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(complexWExpr)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
       expectDeniedByResource(
@@ -533,7 +559,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(complexWExpr)).build(),
           nodeId: 'M2',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -561,7 +588,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(resolved)).build(),
           nodeId: 'M3',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
     })
@@ -570,11 +598,11 @@ describe('AUTH_V2: Identity Composition', () => {
       const evaluator = new IdentityEvaluator(ctx.executor)
 
       // USER1 has unionWith ROLE1 in DB, but scoped leaves are NOT expanded
-      const resolved = await evaluator.evalExpr(identity('USER1', { perms: ['read'] }))
+      const resolved = await evaluator.evalExpr(identity('USER1', { perms: READ }))
 
       // Should remain as scope-wrapped identity (scoped = not expanded)
       expect(resolved.kind).toBe('scope')
-      expect((resolved as any).scopes).toEqual([{ perms: ['read'] }])
+      expect((resolved as any).scopes).toEqual([{ perms: READ }])
       expect((resolved as any).expr.kind).toBe('identity')
       expect((resolved as any).expr.id).toBe('USER1')
     })
@@ -585,7 +613,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // union(USER1 (unscoped), ROLE1 (scoped))
       // - USER1 should expand to union(USER1, ROLE1) from DB
       // - ROLE1 (scoped) should remain as-is
-      const expr = union(identity('USER1'), identity('ROLE1', { perms: ['read'] }))
+      const expr = union(identity('USER1'), identity('ROLE1', { perms: READ }))
 
       const resolved = await evaluator.evalExpr(expr)
 
@@ -599,7 +627,7 @@ describe('AUTH_V2: Identity Composition', () => {
       // Second operand should be the scope-wrapped ROLE1
       const scoped = operands[1]
       expect(scoped.kind).toBe('scope')
-      expect(scoped.scopes).toEqual([{ perms: ['read'] }])
+      expect(scoped.scopes).toEqual([{ perms: READ }])
       expect(scoped.expr.kind).toBe('identity')
       expect(scoped.expr.id).toBe('ROLE1')
     })
@@ -623,7 +651,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(resolved)).build(),
           nodeId: 'M1',
-          perm: 'read',
+          nodePerm: READ,
+          typePerm: USE,
         }),
       )
     })
@@ -644,7 +673,8 @@ describe('AUTH_V2: Identity Composition', () => {
           principal: 'p',
           grant: grant(identity('APP1'), raw(resolved)).build(),
           nodeId: 'M3',
-          perm: 'edit',
+          nodePerm: EDIT,
+          typePerm: USE,
         }),
       )
     })
@@ -693,7 +723,7 @@ describe('AUTH_V2: Identity Composition', () => {
         // Give each node permission for tracking
         await ctx.connection.graph.query(
           `MATCH (i:Identity {id: $identityId}), (r:Root {id: 'root'})
-           CREATE (i)-[:hasPerm {perms: ['chain']}]->(r)`,
+           CREATE (i)-[:hasPerm {perms: 16}]->(r)`,
           { params: { identityId: `CHAIN_${i}` } },
         )
       }

@@ -12,6 +12,7 @@
 
 import type { TestScenario } from './types'
 import { separateGrant, identity } from './types'
+import { READ, EDIT } from '../../testing/helpers'
 
 /**
  * USER1 → M1 (read)
@@ -26,7 +27,7 @@ export const hierarchicalReadRootScenario: TestScenario = {
   description: 'USER1 has read on root, M1 inherits via workspace-1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
   thresholds: {
@@ -50,7 +51,7 @@ export const hierarchicalReadRoot2Scenario: TestScenario = {
   description: 'USER1 has read on root, M3 inherits via workspace-2',
   principal: 'USER1',
   nodeId: 'M3',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
 }
@@ -68,7 +69,7 @@ export const hierarchicalEditWorkspaceScenario: TestScenario = {
   description: 'USER1 has edit on workspace-1, M1 inherits',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
 }
@@ -86,7 +87,7 @@ export const hierarchicalEditWrongWorkspaceScenario: TestScenario = {
   description: 'USER1 has edit on workspace-1, M3 is in workspace-2',
   principal: 'USER1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: false,
   expectedDeniedBy: 'resource',
@@ -105,7 +106,7 @@ export const hierarchicalRoleEditScenario: TestScenario = {
   description: 'ROLE1 has edit on workspace-2, M3 inherits',
   principal: 'ROLE1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: separateGrant('APP1', 'ROLE1'),
   expectedGranted: true,
 }

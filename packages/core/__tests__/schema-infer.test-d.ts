@@ -57,30 +57,33 @@ const basicSchema = defineSchema({
 })
 
 /**
- * Schema 2: Schema with label inheritance
+ * Schema 2: Schema with extends inheritance
  */
+const entityNode = node({
+  properties: {
+    createdAt: z.date(),
+    updatedAt: z.date(),
+  },
+})
+const userNode = node({
+  properties: {
+    email: z.string(),
+    name: z.string(),
+  },
+  extends: [entityNode], // Inherits createdAt and updatedAt
+})
+const adminNode = node({
+  properties: {
+    permissions: z.array(z.string()),
+    role: z.string().default('admin'), // Optional in input
+  },
+  extends: [userNode], // Inherits email, name, createdAt, updatedAt
+})
 const inheritanceSchema = defineSchema({
   nodes: {
-    entity: node({
-      properties: {
-        createdAt: z.date(),
-        updatedAt: z.date(),
-      },
-    }),
-    user: node({
-      properties: {
-        email: z.string(),
-        name: z.string(),
-      },
-      labels: ['entity'], // Inherits createdAt and updatedAt
-    }),
-    admin: node({
-      properties: {
-        permissions: z.array(z.string()),
-        role: z.string().default('admin'), // Optional in input
-      },
-      labels: ['user'], // Inherits email, name, createdAt, updatedAt
-    }),
+    entity: entityNode,
+    user: userNode,
+    admin: adminNode,
   },
   edges: {
     hasParent: edge({

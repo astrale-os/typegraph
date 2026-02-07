@@ -31,7 +31,8 @@ export class FalkorDBIdentityAdapter {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: Permission
+    nodePerm: Permission
+    typePerm: Permission
   }): Promise<AccessDecision> {
     return checkAccess(params, this.queryAdapter)
   }
@@ -40,7 +41,8 @@ export class FalkorDBIdentityAdapter {
     principal: IdentityId
     grant: Grant
     nodeId: NodeId
-    perm: Permission
+    nodePerm: Permission
+    typePerm: Permission
   }): Promise<AccessExplanation> {
     return explainAccess(params, this.queryAdapter)
   }
@@ -61,6 +63,5 @@ export function createFalkorDBIdentityAdapter(
   return new FalkorDBIdentityAdapter(executor, config)
 }
 
-// Re-export for backward compatibility during migration
 export { FalkorDBIdentityAdapter as AccessChecker }
 export { createFalkorDBIdentityAdapter as createAccessChecker }

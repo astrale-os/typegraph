@@ -25,7 +25,7 @@ import type {
   AccessExplanation,
   UnresolvedGrant,
 } from '../../../integration/authz-v2/types'
-import type { CypherFragment } from '../../../integration/authz-v2/adapter/cypher'
+import type { QueryFragment } from '../../../integration/authz-v2/adapter/cypher'
 import type { MethodTiming, PerformanceProfile } from '../types/api'
 import {
   TokenVerifier,
@@ -186,10 +186,7 @@ class TimedAccessQueryAdapter implements AccessQueryPort {
 
   constructor(private inner: FalkorDBAccessQueryAdapter) {}
 
-  generateQuery(
-    expr: PrunedIdentityExpr,
-    perm: Permission,
-  ): CypherFragment | null {
+  generateQuery(expr: PrunedIdentityExpr, perm: Permission): QueryFragment | null {
     const startMs = performance.now()
     const result = this.inner.generateQuery(expr, perm)
     const endMs = performance.now()
@@ -203,7 +200,7 @@ class TimedAccessQueryAdapter implements AccessQueryPort {
     return result
   }
 
-  async executeResourceCheck(fragment: CypherFragment, resourceId: NodeId): Promise<boolean> {
+  async executeResourceCheck(fragment: QueryFragment, resourceId: NodeId): Promise<boolean> {
     const startMs = performance.now()
     const result = await this.inner.executeResourceCheck(fragment, resourceId)
     const endMs = performance.now()
@@ -218,7 +215,7 @@ class TimedAccessQueryAdapter implements AccessQueryPort {
     return result
   }
 
-  async executeTypeCheck(fragment: CypherFragment, typeId: NodeId): Promise<boolean> {
+  async executeTypeCheck(fragment: QueryFragment, typeId: NodeId): Promise<boolean> {
     const startMs = performance.now()
     const result = await this.inner.executeTypeCheck(fragment, typeId)
     const endMs = performance.now()

@@ -12,6 +12,7 @@ import {
 } from './expression/compact'
 import { identity, union, intersect, exclude } from './expression/builder'
 import type { IdentityExpr } from './types'
+import { READ, EDIT } from './testing/helpers'
 
 describe('AUTH_V2: Expression Compaction', () => {
   // ===========================================================================
@@ -36,10 +37,10 @@ describe('AUTH_V2: Expression Compaction', () => {
     it('compacts scope with identity and perm scope', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ perms: ['read', 'write'] }],
+        scopes: [{ perms: 3 }],
         expr: { kind: 'identity', id: 'ROLE1' },
       }
-      expect(toCompact(expr)).toEqual(['s', [{ p: ['read', 'write'] }], ['i', 'ROLE1']])
+      expect(toCompact(expr)).toEqual(['s', [{ p: 3 }], ['i', 'ROLE1']])
     })
 
     it('compacts scope with identity and principal scope', () => {
@@ -54,19 +55,19 @@ describe('AUTH_V2: Expression Compaction', () => {
     it('compacts scope with identity and full scope', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'], perms: ['read'], principals: ['p1'] }],
+        scopes: [{ nodes: ['ws1'], perms: 1, principals: ['p1'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      expect(toCompact(expr)).toEqual(['s', [{ n: ['ws1'], p: ['read'], r: ['p1'] }], ['i', 'USER1']])
+      expect(toCompact(expr)).toEqual(['s', [{ n: ['ws1'], p: 1, r: ['p1'] }], ['i', 'USER1']])
     })
 
     it('compacts scope with identity and multiple scopes', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'] }, { perms: ['read'] }],
+        scopes: [{ nodes: ['ws1'] }, { perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
-      expect(toCompact(expr)).toEqual(['s', [{ n: ['ws1'] }, { p: ['read'] }], ['i', 'USER1']])
+      expect(toCompact(expr)).toEqual(['s', [{ n: ['ws1'] }, { p: 1 }], ['i', 'USER1']])
     })
 
     it('compacts union', () => {
@@ -130,10 +131,10 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('expands scope with identity and full scope', () => {
-      const compact: CompactExpr = ['s', [{ n: ['ws1'], p: ['read'], r: ['p1'] }], ['i', 'USER1']]
+      const compact: CompactExpr = ['s', [{ n: ['ws1'], p: 1, r: ['p1'] }], ['i', 'USER1']]
       expect(fromCompact(compact)).toEqual({
         kind: 'scope',
-        scopes: [{ nodes: ['ws1'], perms: ['read'], principals: ['p1'] }],
+        scopes: [{ nodes: ['ws1'], perms: 1, principals: ['p1'] }],
         expr: { kind: 'identity', id: 'USER1' },
       })
     })
@@ -252,13 +253,13 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('preserves scoped identity', () => {
-      const expr = identity('USER1', { nodes: ['ws1'], perms: ['read'] }).build()
+      const expr = identity('USER1', { nodes: ['ws1'], perms: READ }).build()
       expect(fromCompact(toCompact(expr))).toEqual(expr)
     })
 
     it('preserves complex expression', () => {
       const expr = intersect(
-        union(identity('A', { nodes: ['ws1'] }), identity('B').scope({ perms: ['write'] })),
+        union(identity('A', { nodes: ['ws1'] }), identity('B').scope({ perms: EDIT })),
         exclude(identity('C'), identity('D', [{ principals: ['p1'] }])),
       ).build()
 
@@ -269,7 +270,7 @@ describe('AUTH_V2: Expression Compaction', () => {
       const ref1 = union(identity('X', { nodes: ['node-A'] }), identity('Y'))
       const restrictedIdentity = ref1.intersect(identity('Z'))
       const finalIdentity = intersect(
-        identity('H').scope({ perms: ['read'] }),
+        identity('H').scope({ perms: READ }),
         restrictedIdentity.exclude(identity('M')),
       )
 
@@ -335,17 +336,17 @@ describe('AUTH_V2: Expression Compaction', () => {
       // and empty arrays are stripped before reaching Cypher generation.
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [{ nodes: [], perms: ['read'] }],
+        scopes: [{ nodes: [], perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
 
       const compact = toCompact(expr)
-      expect(compact).toEqual(['s', [{ p: ['read'] }], ['i', 'USER1']])
+      expect(compact).toEqual(['s', [{ p: 1 }], ['i', 'USER1']])
 
       const expanded = fromCompact(compact)
       expect(expanded).toEqual({
         kind: 'scope',
-        scopes: [{ perms: ['read'] }],
+        scopes: [{ perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       })
     })

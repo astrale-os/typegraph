@@ -232,7 +232,7 @@ export class ExcludeExpr extends Expr {
  * ```typescript
  * identity("USER1")
  * identity("USER1", { nodes: ["ws1"] })
- * identity("USER1", [{ nodes: ["ws1"] }, { perms: ["read"] }])
+ * identity("USER1", [{ nodes: ["ws1"] }, { perms: 1 }])
  * ```
  */
 export function identity(id: string, scopes?: Scope | Scope[]): Expr {

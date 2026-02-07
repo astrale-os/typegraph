@@ -76,4 +76,5 @@ export type {
   ResolveProxy,
   InferReturnType,
   TypedReturnQuery,
+  ResolvedNodes,
 } from './inference'

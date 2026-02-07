@@ -18,6 +18,7 @@
 
 import type { TestScenario } from './types'
 import { exclude, identity } from './types'
+import { READ, EDIT } from '../../testing/helpers'
 
 /**
  * (A \ B) → M1 (read) - Should fail
@@ -32,7 +33,7 @@ export const composedExcludeM1Scenario: TestScenario = {
   description: 'A \\ B denied on M1 because B has it',
   principal: 'A',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: exclude(identity('A'), identity('B')),
@@ -54,7 +55,7 @@ export const composedExcludeM2Scenario: TestScenario = {
   description: 'A \\ B granted on M2 because B lacks it',
   principal: 'A',
   nodeId: 'M2',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: exclude(identity('A'), identity('B')),
@@ -75,7 +76,7 @@ export const composedExcludeUserRoleReadScenario: TestScenario = {
   description: 'USER1 \\ ROLE1 granted read on M1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: exclude(identity('USER1'), identity('ROLE1')),
@@ -96,7 +97,7 @@ export const composedExcludeUserRoleEditScenario: TestScenario = {
   description: 'USER1 \\ ROLE1 granted edit on M1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: exclude(identity('USER1'), identity('ROLE1')),
@@ -124,7 +125,7 @@ export const composedExcludeRoleUserEditScenario: TestScenario = {
   description: 'ROLE1 \\ USER1 granted edit on M3',
   principal: 'ROLE1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: exclude(identity('ROLE1'), identity('USER1')),

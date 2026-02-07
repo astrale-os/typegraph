@@ -226,25 +226,25 @@ function diffNode(label: string, oldNode: NodeDefinition, newNode: NodeDefinitio
     ...diffIndexes(oldNode.indexes as readonly unknown[], newNode.indexes as readonly unknown[]),
   )
 
-  // Labels (inheritance)
-  const oldLabels = new Set(oldNode.labels ?? [])
-  const newLabels = new Set(newNode.labels ?? [])
+  // Extends (inheritance)
+  const oldExtends = new Set(oldNode.extends ?? [])
+  const newExtends = new Set(newNode.extends ?? [])
 
-  for (const lbl of newLabels) {
-    if (!oldLabels.has(lbl)) {
+  for (const ext of newExtends) {
+    if (!oldExtends.has(ext)) {
       changes.push({
-        kind: 'label-added',
-        description: `Label '${lbl}' added to node '${label}'`,
+        kind: 'extends-added',
+        description: `Extends '${ext}' added to node '${label}'`,
         breaking: false,
       })
     }
   }
 
-  for (const lbl of oldLabels) {
-    if (!newLabels.has(lbl)) {
+  for (const ext of oldExtends) {
+    if (!newExtends.has(ext)) {
       changes.push({
-        kind: 'label-removed',
-        description: `Label '${lbl}' removed from node '${label}'`,
+        kind: 'extends-removed',
+        description: `Extends '${ext}' removed from node '${label}'`,
         breaking: true,
       })
     }

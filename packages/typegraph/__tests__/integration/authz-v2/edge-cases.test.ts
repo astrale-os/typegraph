@@ -25,6 +25,9 @@ import {
   grantFromIds,
   identity,
   grant,
+  READ,
+  EDIT,
+  USE,
 } from './testing/helpers'
 
 describe('AUTH_V2: Edge Cases', () => {
@@ -96,7 +99,7 @@ describe('AUTH_V2: Edge Cases', () => {
 
       // D has perms
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'DIAMOND_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'DIAMOND_D'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       // A -> B, A -> C
@@ -126,7 +129,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), expr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       expectGranted(result)
     })
@@ -151,7 +155,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['NO_PERMS']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByResource(result)
@@ -171,7 +176,7 @@ describe('AUTH_V2: Edge Cases', () => {
         `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}) CREATE (i)-[:excludeWith]->(i)`,
       )
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_CYCLE_SELF'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
 
       const evaluator = new IdentityEvaluator(ctx.executor)
@@ -187,7 +192,7 @@ describe('AUTH_V2: Edge Cases', () => {
       })
 
       await ctx.connection.graph.query(
-        `MATCH (i:Identity {id: 'EXCLUDE_TARGET'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: ['read']}]->(m)`,
+        `MATCH (i:Identity {id: 'EXCLUDE_TARGET'}), (m:Module {id: 'M1'}) CREATE (i)-[:hasPerm {perms: 1}]->(m)`,
       )
       await ctx.connection.graph.query(
         `MATCH (a:Identity {id: 'EXCLUDE_ONLY'}), (b:Identity {id: 'EXCLUDE_TARGET'}) CREATE (a)-[:excludeWith]->(b)`,
@@ -227,7 +232,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'DEEP_15',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -258,7 +264,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), unionOnlyExpr),
         nodeId: 'M3',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
       expectGranted(grantedResult)
 
@@ -267,7 +274,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), unionOnlyExpr),
         nodeId: 'M1',
-        perm: 'edit',
+        nodePerm: EDIT,
+        typePerm: USE,
       })
       expectDeniedByResource(deniedResult)
     })
@@ -283,7 +291,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grant(identity('APP1'), xExpr),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -302,19 +311,22 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'p',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const result2 = await checker.checkAccess({
         principal: 'p',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M2',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       const result3 = await checker.checkAccess({
         principal: 'p',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M3',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result1)
@@ -329,14 +341,16 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'p',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
       checker.clearCache()
       const result = await checker.checkAccess({
         principal: 'p',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)
@@ -358,7 +372,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grantFromIds(['APP2'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectDeniedByType(result)
@@ -370,7 +385,8 @@ describe('AUTH_V2: Edge Cases', () => {
         principal: 'principal',
         grant: grantFromIds(['APP1'], ['USER1']),
         nodeId: 'M1',
-        perm: 'read',
+        nodePerm: READ,
+        typePerm: USE,
       })
 
       expectGranted(result)

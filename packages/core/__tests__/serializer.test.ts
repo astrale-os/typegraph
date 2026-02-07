@@ -85,13 +85,14 @@ describe('toSchema Serializer', () => {
   })
 
   describe('Label Inheritance', () => {
-    it('should serialize node labels', () => {
+    it('should serialize node extends', () => {
+      const entityNode = node({ properties: { createdAt: z.date() } })
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: { createdAt: z.date() } }),
+          entity: entityNode,
           user: node({
             properties: { email: z.string() },
-            labels: ['entity'],
+            extends: [entityNode],
           }),
         },
         edges: {},
@@ -99,8 +100,8 @@ describe('toSchema Serializer', () => {
 
       const serialized = toSchema(schema)
 
-      expect(serialized.nodes.user.labels).toEqual(['entity'])
-      expect(serialized.nodes.entity.labels).toBeUndefined()
+      expect(serialized.nodes.user.extends).toEqual(['entity'])
+      expect(serialized.nodes.entity.extends).toBeUndefined()
     })
   })
 
@@ -345,34 +346,84 @@ describe('toSchema Serializer', () => {
 
   describe('Immutability', () => {
     it('should not mutate the original schema', () => {
+      const entityNode = node({ properties: { createdAt: z.date() } })
       const schema = defineSchema({
         nodes: {
-          entity: node({ properties: { createdAt: z.date() } }),
+          entity: entityNode,
           user: node({
             properties: { name: z.string() },
-            labels: ['entity'],
+            extends: [entityNode],
             indexes: ['name'],
           }),
         },
         edges: {},
       })
 
-      const originalLabels = [...(schema.nodes.user.labels ?? [])]
+      const originalExtends = [...(schema.nodes.user.extends ?? [])]
       const originalIndexes = [...(schema.nodes.user.indexes ?? [])]
 
       const serialized = toSchema(schema)
 
       // Mutate the serialized output
-      if (serialized.nodes.user.labels) {
-        serialized.nodes.user.labels.push('mutated')
+      if (serialized.nodes.user.extends) {
+        serialized.nodes.user.extends.push('mutated')
       }
       if (serialized.nodes.user.indexes) {
         serialized.nodes.user.indexes.push('mutated')
       }
 
       // Original should be unchanged
-      expect(schema.nodes.user.labels).toEqual(originalLabels)
+      expect(schema.nodes.user.extends).toEqual(originalExtends)
       expect(schema.nodes.user.indexes).toEqual(originalIndexes)
+    })
+  })
+
+  describe('Extends Serialization Edge Cases', () => {
+    it('_extendsRefs does not leak into serialized output', () => {
+      const entityNode = node({ properties: { id: z.string() } })
+      const schema = defineSchema({
+        nodes: {
+          entity: entityNode,
+          user: node({ properties: { name: z.string() }, extends: [entityNode] }),
+        },
+        edges: {},
+      })
+
+      const serialized = toSchema(schema)
+      const json = JSON.stringify(serialized)
+
+      expect(json).not.toContain('_extendsRefs')
+      expect(json).not.toContain('extendsRefs')
+      // extends should be present as resolved string keys
+      expect(serialized.nodes.user.extends).toEqual(['entity'])
+    })
+
+    it('deep inheritance serializes only direct extends, not transitive', () => {
+      const aNode = node({ properties: { a: z.string() } })
+      const bNode = node({ properties: { b: z.string() }, extends: [aNode] })
+      const cNode = node({ properties: { c: z.string() }, extends: [bNode] })
+      const schema = defineSchema({
+        nodes: { a: aNode, b: bNode, c: cNode },
+        edges: {},
+      })
+
+      const serialized = toSchema(schema)
+
+      // c extends only b (direct), not a (transitive)
+      expect(serialized.nodes.c.extends).toEqual(['b'])
+      expect(serialized.nodes.b.extends).toEqual(['a'])
+      expect(serialized.nodes.a.extends).toBeUndefined()
+    })
+
+    it('node with no extends omits the field entirely', () => {
+      const schema = defineSchema({
+        nodes: { user: node({ properties: { name: z.string() } }) },
+        edges: {},
+      })
+
+      const serialized = toSchema(schema)
+      expect(serialized.nodes.user.extends).toBeUndefined()
+      expect('extends' in serialized.nodes.user).toBe(false)
     })
   })
 })

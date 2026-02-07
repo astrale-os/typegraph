@@ -16,6 +16,7 @@
 
 import type { TestScenario } from './types'
 import { separateGrant, simpleGrant } from './types'
+import { READ, USE } from '../../testing/helpers'
 
 /**
  * APP1 (type) + USER1 (resource) → M1 (read)
@@ -30,7 +31,7 @@ export const directPermissionScenario: TestScenario = {
   description: 'APP1 type + USER1 resource grant for read on M1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
   thresholds: {
@@ -53,7 +54,7 @@ export const directPermissionM2Scenario: TestScenario = {
   description: 'APP1 type + USER1 resource grant for read on M2',
   principal: 'USER1',
   nodeId: 'M2',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
 }
@@ -71,7 +72,7 @@ export const directPermissionWrongPermScenario: TestScenario = {
   description: 'APP1 alone has type perm but no resource perm',
   principal: 'APP1',
   nodeId: 'M1',
-  perm: 'use',
+  nodePerm: USE,
   grant: simpleGrant('APP1'),
   expectedGranted: false,
   expectedDeniedBy: 'resource',

@@ -17,6 +17,7 @@ import {
 } from './expression/dedup'
 import { identity, union, intersect, exclude } from './expression/builder'
 import type { IdentityExpr } from './types'
+import { READ } from './testing/helpers'
 
 describe('AUTH_V2: Expression Deduplication', () => {
   // ===========================================================================
@@ -271,7 +272,7 @@ describe('AUTH_V2: Expression Deduplication', () => {
     })
 
     it('round-trips with scoped identities', () => {
-      const scoped = identity('USER1', { nodes: ['ws1'], perms: ['read'] }).build()
+      const scoped = identity('USER1', { nodes: ['ws1'], perms: READ }).build()
       const expr: IdentityExpr = {
         kind: 'union',
         operands: [

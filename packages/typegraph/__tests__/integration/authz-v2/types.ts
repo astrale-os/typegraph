@@ -6,7 +6,7 @@
  *
  * Expression evaluation is two-phase:
  * 1. Prune: IdentityExpr → PrunedIdentityExpr | null (scope eval + algebraic simplification)
- * 2. Adapt: PrunedIdentityExpr → CypherFragment (query generation)
+ * 2. Adapt: PrunedIdentityExpr → QueryFragment (query generation)
  */
 
 // =============================================================================
@@ -15,7 +15,12 @@
 
 export type NodeId = string
 export type IdentityId = string
-export type Permission = string
+
+/** Single permission bit (power of 2). Branded for type safety. */
+export type Permission = number & { readonly __brand: 'Permission' }
+
+/** Combined permission bits (bitwise OR of Permission values). */
+export type PermissionMask = number
 
 // =============================================================================
 // SCOPE TYPES
@@ -24,7 +29,7 @@ export type Permission = string
 /**
  * Scope restricts an identity's effective permissions.
  * - nodes: restrict to these subtrees (undefined = anywhere)
- * - perms: restrict to these permission types (undefined = any)
+ * - perms: restrict to these permission bits (undefined = any, 0 = nothing)
  * - principals: restrict which principals can invoke this identity (undefined = any)
  *
  * All three dimensions must pass for the scope to allow access.
@@ -32,7 +37,7 @@ export type Permission = string
  */
 export type Scope = {
   nodes?: NodeId[]
-  perms?: Permission[]
+  perms?: PermissionMask
   principals?: IdentityId[]
 }
 
@@ -205,7 +210,7 @@ export type AccessDecision = {
 export type AccessExplanation = {
   // Echo inputs (self-contained)
   resourceId: NodeId
-  perm: Permission
+  nodePerm: Permission
   principal: IdentityId
 
   // Result

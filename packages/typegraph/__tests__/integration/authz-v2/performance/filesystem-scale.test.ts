@@ -16,6 +16,7 @@ import {
 } from '../testing/setup'
 import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
+import { READ } from '../testing/helpers'
 
 const SKIP_PERF_TESTS = !process.env.RUN_PERF_TESTS
 
@@ -77,7 +78,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Filesystem Scale Test', () => {
         const result = await benchmark(async () => {
           const file = sampleFiles[Math.floor(Math.random() * sampleFiles.length)]
           const user = sampleUsers[Math.floor(Math.random() * sampleUsers.length)]
-          return checkAccess(executor, user, file, 'read')
+          return checkAccess(executor, user, file, READ)
         }, 100)
 
         console.log(`    Mean: ${result.stats.mean.toFixed(2)}ms`)
@@ -94,7 +95,7 @@ describe.skipIf(SKIP_PERF_TESTS)('Filesystem Scale Test', () => {
         const result = await runConcurrent((i) => {
           const file = sampleFiles[i % sampleFiles.length]
           const user = sampleUsers[i % sampleUsers.length]
-          return checkAccess(executor, user, file, 'read')
+          return checkAccess(executor, user, file, READ)
         }, 50)
 
         console.log(`    Throughput: ${result.stats.throughputPerSec.toFixed(0)} req/s`)
@@ -172,11 +173,11 @@ async function checkAccess(
   executor: RawExecutor,
   userId: string,
   resourceId: string,
-  perm: string,
+  perm: number,
 ): Promise<boolean> {
   const query = `
     MATCH (resource:Node {id: $resourceId})-[:hasParent*0..20]->(ancestor:Node)<-[hp:hasPerm]-(i:Identity {id: $userId})
-    WHERE $perm IN hp.perms
+    WHERE (hp.perms % ($perm * 2)) >= $perm
     RETURN true AS hasAccess
     LIMIT 1
   `
@@ -206,7 +207,7 @@ async function seedFilesystem(
     CREATE (i:Node:Identity {id: userId})
     WITH i
     MATCH (r:Root {id: 'root'})
-    CREATE (i)-[:hasPerm {perms: ['read']}]->(r)
+    CREATE (i)-[:hasPerm {perms: 1}]->(r)
   `,
     { userIds },
   )

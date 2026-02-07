@@ -12,17 +12,23 @@ import { pruneExpression } from '../expression/prune'
 import type { Grant, NodeId, Permission, IdentityId, AccessDecision } from '../types'
 
 export async function checkAccess(
-  params: { principal: IdentityId; grant: Grant; nodeId: NodeId; perm: Permission },
+  params: {
+    principal: IdentityId
+    grant: Grant
+    nodeId: NodeId
+    nodePerm: Permission
+    typePerm: Permission
+  },
   queryPort: AccessQueryPort,
 ): Promise<AccessDecision> {
-  const { principal, grant, nodeId, perm } = params
-  validateAccessInputs(grant, nodeId, perm, principal)
+  const { principal, grant, nodeId, nodePerm, typePerm } = params
+  validateAccessInputs(grant, nodeId, nodePerm, principal)
 
   const { forType, forResource } = grant
 
   // Prune resource expression (evaluate scopes for principal + perm)
-  const prunedResource = pruneExpression(forResource, principal, perm)
-  const resourceQuery = prunedResource ? queryPort.generateQuery(prunedResource, perm) : null
+  const prunedResource = pruneExpression(forResource, principal, nodePerm)
+  const resourceQuery = prunedResource ? queryPort.generateQuery(prunedResource, nodePerm) : null
   const resourcePromise =
     resourceQuery === null
       ? Promise.resolve(false)
@@ -32,9 +38,9 @@ export async function checkAccess(
   const typeId = await queryPort.getTargetType(nodeId)
 
   if (typeId) {
-    // Prune type expression (no principal for type checks, perm = 'use')
-    const prunedType = pruneExpression(forType, undefined, 'use')
-    const typeQuery = prunedType ? queryPort.generateQuery(prunedType, 'use') : null
+    // Prune type expression (no principal for type checks)
+    const prunedType = pruneExpression(forType, undefined, typePerm)
+    const typeQuery = prunedType ? queryPort.generateQuery(prunedType, typePerm) : null
 
     if (typeQuery === null) {
       return { granted: false, deniedBy: 'type' }

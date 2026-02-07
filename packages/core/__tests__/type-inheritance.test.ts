@@ -2,8 +2,8 @@
  * Type Inheritance Tests
  *
  * Verifies that TypeScript types correctly resolve:
- * 1. Property inheritance from labels
- * 2. Edge inheritance from labels
+ * 1. Property inheritance from extends
+ * 2. Edge inheritance from extends
  * 3. Override semantics
  * 4. Edge cases (diamond, deep chains, conflicts)
  *
@@ -31,26 +31,29 @@ import type {
 // =============================================================================
 
 // Schema 1: Basic inheritance chain
+const entityNode = node({
+  properties: {
+    createdAt: z.date(),
+    updatedAt: z.date(),
+  },
+})
+const basicUserNode = node({
+  properties: {
+    email: z.string(),
+  },
+  extends: [entityNode],
+})
+// No extends - standalone
+const postNode = node({
+  properties: {
+    title: z.string(),
+  },
+})
 const basicSchema = defineSchema({
   nodes: {
-    entity: node({
-      properties: {
-        createdAt: z.date(),
-        updatedAt: z.date(),
-      },
-    }),
-    user: node({
-      properties: {
-        email: z.string(),
-      },
-      labels: ['entity'],
-    }),
-    // No labels - standalone
-    post: node({
-      properties: {
-        title: z.string(),
-      },
-    }),
+    entity: entityNode,
+    user: basicUserNode,
+    post: postNode,
   },
   edges: {
     hasParent: edge({
@@ -67,12 +70,16 @@ const basicSchema = defineSchema({
 })
 
 // Schema 2: Deep transitive chain (4 levels)
+const baseNode = node({ properties: { a: z.string() } })
+const level1Node = node({ properties: { b: z.string() }, extends: [baseNode] })
+const level2Node = node({ properties: { c: z.string() }, extends: [level1Node] })
+const level3Node = node({ properties: { d: z.string() }, extends: [level2Node] })
 const deepSchema = defineSchema({
   nodes: {
-    base: node({ properties: { a: z.string() } }),
-    level1: node({ properties: { b: z.string() }, labels: ['base'] }),
-    level2: node({ properties: { c: z.string() }, labels: ['level1'] }),
-    level3: node({ properties: { d: z.string() }, labels: ['level2'] }),
+    base: baseNode,
+    level1: level1Node,
+    level2: level2Node,
+    level3: level3Node,
   },
   edges: {
     baseEdge: edge({
@@ -84,12 +91,16 @@ const deepSchema = defineSchema({
 })
 
 // Schema 3: Diamond inheritance (D inherits from B and C, both inherit from A)
+const aNode = node({ properties: { fromA: z.string() } })
+const bNode = node({ properties: { fromB: z.string() }, extends: [aNode] })
+const cNode = node({ properties: { fromC: z.string() }, extends: [aNode] })
+const dNode = node({ properties: { fromD: z.string() }, extends: [bNode, cNode] })
 const diamondSchema = defineSchema({
   nodes: {
-    a: node({ properties: { fromA: z.string() } }),
-    b: node({ properties: { fromB: z.string() }, labels: ['a'] }),
-    c: node({ properties: { fromC: z.string() }, labels: ['a'] }),
-    d: node({ properties: { fromD: z.string() }, labels: ['b', 'c'] }),
+    a: aNode,
+    b: bNode,
+    c: cNode,
+    d: dNode,
   },
   edges: {
     edgeOnA: edge({
@@ -101,36 +112,41 @@ const diamondSchema = defineSchema({
 })
 
 // Schema 4: Property override
+const parentNode = node({
+  properties: {
+    name: z.string(),
+    value: z.number(),
+  },
+})
+const childNode = node({
+  properties: {
+    // Override: narrower type
+    name: z.literal('ChildName'),
+    // New property
+    extra: z.boolean(),
+  },
+  extends: [parentNode],
+})
 const overrideSchema = defineSchema({
   nodes: {
-    parent: node({
-      properties: {
-        name: z.string(),
-        value: z.number(),
-      },
-    }),
-    child: node({
-      properties: {
-        // Override: narrower type
-        name: z.literal('ChildName'),
-        // New property
-        extra: z.boolean(),
-      },
-      labels: ['parent'],
-    }),
+    parent: parentNode,
+    child: childNode,
   },
   edges: {},
 })
 
-// Schema 5: Multi-label (agent satisfies both module and identity)
+// Schema 5: Multi-extends (agent satisfies both module and identity)
+const moduleNode = node({ properties: { version: z.string() } })
+const identityNode = node({ properties: { gid: z.string() } })
+const agentNode = node({
+  properties: { handle: z.string() },
+  extends: [moduleNode, identityNode],
+})
 const multiLabelSchema = defineSchema({
   nodes: {
-    module: node({ properties: { version: z.string() } }),
-    identity: node({ properties: { gid: z.string() } }),
-    agent: node({
-      properties: { handle: z.string() },
-      labels: ['module', 'identity'],
-    }),
+    module: moduleNode,
+    identity: identityNode,
+    agent: agentNode,
   },
   edges: {
     dependsOn: edge({
@@ -147,21 +163,23 @@ const multiLabelSchema = defineSchema({
 })
 
 // Schema 6: With optional/default properties (for NodeInputProps testing)
+const inputBaseNode = node({
+  properties: {
+    required: z.string(),
+    withDefault: z.boolean().default(false),
+  },
+})
+const derivedNode = node({
+  properties: {
+    ownRequired: z.number(),
+    ownOptional: z.string().optional(),
+  },
+  extends: [inputBaseNode],
+})
 const inputSchema = defineSchema({
   nodes: {
-    base: node({
-      properties: {
-        required: z.string(),
-        withDefault: z.boolean().default(false),
-      },
-    }),
-    derived: node({
-      properties: {
-        ownRequired: z.number(),
-        ownOptional: z.string().optional(),
-      },
-      labels: ['base'],
-    }),
+    base: inputBaseNode,
+    derived: derivedNode,
   },
   edges: {},
 })

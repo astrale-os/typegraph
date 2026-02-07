@@ -31,6 +31,7 @@ import type {
   UnresolvedGrant,
   UnresolvedIdentityExpr,
 } from '../integration/authz-v2/types'
+import { READ, EDIT } from '../integration/authz-v2/testing/helpers'
 
 // =============================================================================
 // TEST HELPERS (inline — not part of production code)
@@ -132,7 +133,7 @@ describe('Unresolved Expression Builders', () => {
     })
 
     it('creates scope wrapper around id identity', () => {
-      const scopes: Scope[] = [{ perms: ['read'] }]
+      const scopes: Scope[] = [{ perms: READ }]
       const expr = unresolvedScope(scopes, unresolvedId('user-123'))
       expect(expr).toEqual({
         kind: 'scope',
@@ -243,7 +244,7 @@ describe('encodeGrant', () => {
             { kind: 'identity', id: 'user-1' },
             {
               kind: 'scope',
-              scopes: [{ perms: ['read'] }],
+              scopes: [{ perms: READ }],
               expr: { kind: 'identity', id: 'role-1' },
             },
           ],
@@ -363,7 +364,7 @@ describe('resolveExpression', () => {
     const expr = unresolvedExclude(
       unresolvedUnion(
         unresolvedJwt('jwt-user'),
-        unresolvedScope([{ perms: ['read'] }], unresolvedJwt('jwt-role')),
+        unresolvedScope([{ perms: READ }], unresolvedJwt('jwt-role')),
       ),
       unresolvedJwt('jwt-blocked'),
     )
@@ -378,7 +379,7 @@ describe('resolveExpression', () => {
           { kind: 'identity', id: 'user-123' },
           {
             kind: 'scope',
-            scopes: [{ perms: ['read'] }],
+            scopes: [{ perms: READ }],
             expr: { kind: 'identity', id: 'role-456' },
           },
         ],
@@ -476,7 +477,7 @@ describe('applyTopLevelScopes', () => {
   it('wraps already-scoped identity in another scope node', () => {
     const expr: IdentityExpr = {
       kind: 'scope',
-      scopes: [{ perms: ['read'] }],
+      scopes: [{ perms: READ }],
       expr: { kind: 'identity', id: 'user-1' },
     }
     const scopes: Scope[] = [{ nodes: ['ws-1'] }]
@@ -489,7 +490,7 @@ describe('applyTopLevelScopes', () => {
       scopes: [{ nodes: ['ws-1'] }],
       expr: {
         kind: 'scope',
-        scopes: [{ perms: ['read'] }],
+        scopes: [{ perms: READ }],
         expr: { kind: 'identity', id: 'user-1' },
       },
     })
@@ -529,7 +530,7 @@ describe('applyTopLevelScopes', () => {
           { kind: 'identity', id: 'user-1' },
           {
             kind: 'scope',
-            scopes: [{ perms: ['read'] }],
+            scopes: [{ perms: READ }],
             expr: { kind: 'identity', id: 'role-1' },
           },
         ],
@@ -552,7 +553,7 @@ describe('applyTopLevelScopes', () => {
             { kind: 'identity', id: 'user-1' },
             {
               kind: 'scope',
-              scopes: [{ perms: ['read'] }],
+              scopes: [{ perms: READ }],
               expr: { kind: 'identity', id: 'role-1' },
             },
           ],
@@ -566,7 +567,7 @@ describe('applyTopLevelScopes', () => {
 describe('intersectScopes', () => {
   it('intersects scope arrays (pairwise)', () => {
     const a: Scope[] = [{ nodes: ['ws-1'] }]
-    const b: Scope[] = [{ perms: ['read'] }]
+    const b: Scope[] = [{ perms: READ }]
 
     const result = intersectScopes(a, b)
 
@@ -574,17 +575,17 @@ describe('intersectScopes', () => {
     // nodes: ws-1 (from a, b is unrestricted)
     // perms: read (from b, a is unrestricted)
     // Result is ONE scope with both constraints
-    expect(result).toEqual([{ nodes: ['ws-1'], perms: ['read'] }])
+    expect(result).toEqual([{ nodes: ['ws-1'], perms: READ }])
   })
 
   it('handles empty arrays (unrestricted)', () => {
     const a: Scope[] = []
-    const b: Scope[] = [{ perms: ['read'] }]
+    const b: Scope[] = [{ perms: READ }]
 
     const result = intersectScopes(a, b)
 
     // Empty = unrestricted, so result is the other array
-    expect(result).toEqual([{ perms: ['read'] }])
+    expect(result).toEqual([{ perms: READ }])
   })
 })
 
@@ -789,7 +790,7 @@ describe('Encode/Decode Round-trip', () => {
       forType: { kind: 'identity', id: 'app-1' },
       forResource: {
         kind: 'scope',
-        scopes: [{ nodes: ['ws-1'], perms: ['read'] }],
+        scopes: [{ nodes: ['ws-1'], perms: READ }],
         expr: { kind: 'identity', id: 'user-1' },
       },
     }
@@ -811,7 +812,7 @@ describe('Encode/Decode Round-trip', () => {
             { kind: 'identity', id: 'user-1' },
             {
               kind: 'scope',
-              scopes: [{ perms: ['read'] }],
+              scopes: [{ perms: READ }],
               expr: { kind: 'identity', id: 'role-1' },
             },
           ],

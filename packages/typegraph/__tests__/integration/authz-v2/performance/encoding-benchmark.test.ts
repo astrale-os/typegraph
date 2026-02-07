@@ -16,6 +16,8 @@ import { toCompactJSON, fromCompactJSON } from '../expression/compact'
 import { encode, decode, encodeBase64, decodeBase64 } from '../expression/encoding'
 import { dedup, expand, hasRepeatedSubtrees, dedupStats } from '../expression/dedup'
 import type { IdentityExpr } from '../types'
+import type { PermissionMask } from '../types'
+import { READ, EDIT, USE, SHARE } from '../testing/helpers'
 
 // =============================================================================
 // REALISTIC TEST DATA GENERATORS
@@ -28,8 +30,8 @@ function generateId(prefix: string, index: number): string {
   return base.padEnd(20, 'x')
 }
 
-/** Realistic permission names */
-const PERMISSIONS = ['read', 'edit', 'use', 'share'] as const
+/** Realistic permission bitmasks */
+const PERMISSIONS: PermissionMask[] = [READ, EDIT, USE, SHARE]
 
 /** Generate realistic node IDs */
 function generateNodeId(index: number): string {
@@ -69,7 +71,7 @@ function generateTestExpressions(): ExpressionSet[] {
     description: 'Identity with one node + one permission scope',
     expr: identity(generateIdentityId('user', 2), {
       nodes: [generateNodeId(1)],
-      perms: ['read'],
+      perms: READ,
     }).build(),
     hasDuplicates: false,
   })
@@ -80,7 +82,7 @@ function generateTestExpressions(): ExpressionSet[] {
     description: 'Identity with multiple scopes (3 nodes, 2 perms)',
     expr: identity(generateIdentityId('user', 3), {
       nodes: [generateNodeId(1), generateNodeId(2), generateNodeId(3)],
-      perms: ['read', 'edit'],
+      perms: READ | EDIT,
     }).build(),
     hasDuplicates: false,
   })
@@ -103,11 +105,11 @@ function generateTestExpressions(): ExpressionSet[] {
     expr: union(
       union(
         identity(generateIdentityId('user', 5), { nodes: [generateNodeId(1)] }),
-        identity(generateIdentityId('role', 2), { perms: ['read', 'edit'] }),
+        identity(generateIdentityId('role', 2), { perms: READ | EDIT }),
       ),
       union(
         identity(generateIdentityId('group', 1), { nodes: [generateNodeId(2)] }),
-        identity(generateIdentityId('app', 1), { perms: ['use'] }),
+        identity(generateIdentityId('app', 1), { perms: USE }),
       ),
     ).build(),
     hasDuplicates: false,
@@ -120,7 +122,7 @@ function generateTestExpressions(): ExpressionSet[] {
     expr: intersect(
       union(
         identity(generateIdentityId('user', 6), { nodes: [generateNodeId(1), generateNodeId(2)] }),
-        identity(generateIdentityId('role', 3), { perms: ['read', 'edit', 'share'] }),
+        identity(generateIdentityId('role', 3), { perms: READ | EDIT | SHARE }),
       ),
       exclude(
         identity(generateIdentityId('group', 2)),
@@ -133,7 +135,7 @@ function generateTestExpressions(): ExpressionSet[] {
   // 7. Expression with duplicates (shared subtree used twice)
   const sharedSubtree = union(
     identity(generateIdentityId('user', 8), { nodes: [generateNodeId(1)] }),
-    identity(generateIdentityId('role', 4), { perms: ['read', 'edit'] }),
+    identity(generateIdentityId('role', 4), { perms: READ | EDIT }),
   ).build()
 
   expressions.push({
@@ -156,7 +158,7 @@ function generateTestExpressions(): ExpressionSet[] {
   // 8. Expression with multiple duplicates
   const sharedIdentity = identity(generateIdentityId('role', 5), {
     nodes: [generateNodeId(1), generateNodeId(2)],
-    perms: ['read', 'edit', 'use', 'share'],
+    perms: READ | EDIT | USE | SHARE,
   }).build()
 
   expressions.push({
@@ -188,14 +190,14 @@ function generateTestExpressions(): ExpressionSet[] {
         intersect(
           union(
             identity(generateIdentityId('user', 11), { nodes: [generateNodeId(1)] }),
-            identity(generateIdentityId('role', 6), { perms: ['read'] }),
+            identity(generateIdentityId('role', 6), { perms: READ }),
           ),
           identity(generateIdentityId('group', 3), { nodes: [generateNodeId(2)] }),
         ),
-        identity(generateIdentityId('app', 2), { perms: ['use'] }),
+        identity(generateIdentityId('app', 2), { perms: USE }),
       ),
       exclude(
-        identity(generateIdentityId('role', 7), { perms: ['edit', 'share'] }),
+        identity(generateIdentityId('role', 7), { perms: EDIT | SHARE }),
         identity(generateIdentityId('user', 12)),
       ),
     ).build(),
@@ -205,7 +207,7 @@ function generateTestExpressions(): ExpressionSet[] {
   // 10. Large expression (many identities)
   let largeExpr = identity(generateIdentityId('user', 100), {
     nodes: [generateNodeId(1)],
-    perms: ['read'],
+    perms: READ,
   }).build()
   for (let i = 1; i <= 15; i++) {
     largeExpr = {
@@ -214,7 +216,7 @@ function generateTestExpressions(): ExpressionSet[] {
         largeExpr,
         identity(generateIdentityId(i % 2 === 0 ? 'role' : 'user', 100 + i), {
           nodes: [generateNodeId(i)],
-          perms: [PERMISSIONS[i % 4]],
+          perms: PERMISSIONS[i % 4],
         }).build(),
       ],
     }
@@ -230,11 +232,11 @@ function generateTestExpressions(): ExpressionSet[] {
   const sharedComplex = union(
     identity(generateIdentityId('user', 200), {
       nodes: [generateNodeId(1), generateNodeId(2), generateNodeId(3)],
-      perms: ['read', 'edit'],
+      perms: READ | EDIT,
     }),
     identity(generateIdentityId('role', 200), {
       nodes: [generateNodeId(4), generateNodeId(5)],
-      perms: ['use', 'share'],
+      perms: USE | SHARE,
     }),
   ).build()
 

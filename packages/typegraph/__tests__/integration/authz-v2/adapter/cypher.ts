@@ -5,8 +5,9 @@
  * Receives PrunedIdentityExpr (scopes already evaluated by the pruning phase).
  * Each identity leaf carries an optional nodeRestriction from ancestor scope nodes.
  *
- * Uses CALL {} blocks to check `perms` array containment (FalkorDB does not
- * support EXISTS {} or pattern-comprehension WHERE in WHERE clauses).
+ * Uses pure-math bitmask check for permissions:
+ *   (hp.perms % ($perm * 2)) >= $perm
+ * No UDF dependency — works on any Cypher engine.
  *
  * Requires indexes on:
  * - (:Node).id   (or whatever vocab.node is)
@@ -30,7 +31,7 @@ export interface CypherOptions {
  * - vars: variable names introduced by the calls
  * - condition: boolean expression over those variables
  */
-export type CypherFragment = {
+export type QueryFragment = {
   calls: string[]
   vars: string[]
   condition: string
@@ -47,17 +48,17 @@ type Counter = { value: number }
  */
 type LeafCache = Map<string, { condition: string }>
 
-function leafCacheKey(id: string, perm: string, nodeRestriction: NodeId[] | undefined): string {
+function leafCacheKey(id: string, perm: Permission, nodeRestriction: NodeId[] | undefined): string {
   const nodes = nodeRestriction ? [...nodeRestriction].sort().join(',') : ''
   return `${id}|${perm}|${nodes}`
 }
 
 /**
- * Assemble a CypherFragment into a full executable query.
+ * Assemble a QueryFragment into a full executable query.
  * Used by the adapter to construct the final MATCH ... RETURN query.
  */
 export function assembleQuery(
-  fragment: CypherFragment,
+  fragment: QueryFragment,
   vocab: GraphVocab,
   resourceIdParam: string,
 ): { query: string; params: Record<string, unknown> } {
@@ -88,10 +89,10 @@ function formatCallBlock(call: string): string {
 }
 
 /**
- * Convert a CypherFragment to a full display query for debugging/explanation.
+ * Convert a QueryFragment to a full display query for debugging/explanation.
  * Shows the complete query as sent to FalkorDB.
  */
-export function fragmentToDisplayString(fragment: CypherFragment | null): string | null {
+export function fragmentToDisplayString(fragment: QueryFragment | null): string | null {
   if (fragment === null) return null
   const allVars = ['target', ...fragment.vars].join(', ')
   const parts: string[] = [
@@ -113,7 +114,7 @@ export function toCypher(
   expr: PrunedIdentityExpr,
   perm: Permission,
   options: CypherOptions,
-): CypherFragment | null {
+): QueryFragment | null {
   const counter: Counter = { value: 0 }
   const cache: LeafCache = new Map()
   return toCypherInternal(expr, perm, options, counter, cache)
@@ -125,13 +126,13 @@ function toCypherInternal(
   options: CypherOptions,
   counter: Counter,
   cache: LeafCache,
-): CypherFragment | null {
+): QueryFragment | null {
   switch (expr.kind) {
     case 'identity':
       return identityToCypher(expr, perm, options, counter, cache)
 
     case 'union': {
-      const fragments: CypherFragment[] = []
+      const fragments: QueryFragment[] = []
       for (const op of expr.operands) {
         const f = toCypherInternal(op, perm, options, counter, cache)
         if (f !== null) fragments.push(f)
@@ -147,7 +148,7 @@ function toCypherInternal(
     }
 
     case 'intersect': {
-      const fragments: CypherFragment[] = []
+      const fragments: QueryFragment[] = []
       for (const op of expr.operands) {
         const f = toCypherInternal(op, perm, options, counter, cache)
         if (f === null) return null // Any null → whole thing null
@@ -167,7 +168,7 @@ function toCypherInternal(
       const baseFragment = toCypherInternal(expr.base, perm, options, counter, cache)
       if (baseFragment === null) return null
 
-      const excludedFragments: CypherFragment[] = []
+      const excludedFragments: QueryFragment[] = []
       for (const ex of expr.excluded) {
         const f = toCypherInternal(ex, perm, options, counter, cache)
         if (f !== null) excludedFragments.push(f)
@@ -180,11 +181,7 @@ function toCypherInternal(
         calls: [...baseFragment.calls, ...excludedFragments.flatMap((f) => f.calls)],
         vars: [...baseFragment.vars, ...excludedFragments.flatMap((f) => f.vars)],
         condition: `(${baseFragment.condition} AND NOT (${excludedFragments.map((f) => f.condition).join(' OR ')}))`,
-        params: Object.assign(
-          {},
-          baseFragment.params,
-          ...excludedFragments.map((f) => f.params),
-        ),
+        params: Object.assign({}, baseFragment.params, ...excludedFragments.map((f) => f.params)),
       }
     }
 
@@ -214,7 +211,7 @@ function identityToCypher(
   options: CypherOptions,
   counter: Counter,
   cache: LeafCache,
-): CypherFragment | null {
+): QueryFragment | null {
   const { maxDepth, vocab: v } = options
   const nodeRestriction = expr.nodeRestriction
 
@@ -240,7 +237,7 @@ function identityToCypher(
     const call =
       `CALL { WITH target` +
       ` OPTIONAL MATCH (target)-[:${v.parent}*0..${maxDepth}]->(n:${v.node})<-[hp:${v.perm}]-(i:${v.identity} {id: $${idParam}})` +
-      ` WHERE $${permParam} IN hp.perms` +
+      ` WHERE (hp.perms % ($${permParam} * 2)) >= $${permParam}` +
       ` RETURN hp IS NOT NULL AS ${permVar}` +
       ` LIMIT 1 }`
 
@@ -262,7 +259,7 @@ function identityToCypher(
     `CALL { WITH target` +
     ` MATCH (target)-[:${v.parent}*0..${maxDepth}]->(a:${v.node})` +
     ` OPTIONAL MATCH (a)<-[hp:${v.perm}]-(i:${v.identity} {id: $${idParam}})` +
-    ` WHERE $${permParam} IN hp.perms` +
+    ` WHERE (hp.perms % ($${permParam} * 2)) >= $${permParam}` +
     ` RETURN count(hp) > 0 AS ${permVar},` +
     ` count(CASE WHEN a.id IN $${scopeParam} THEN 1 END) > 0 AS ${scopeVar} }`
 

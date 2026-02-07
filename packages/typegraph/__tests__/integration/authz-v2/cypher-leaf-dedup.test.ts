@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import { toCypher, type CypherOptions } from './adapter/cypher'
 import type { PrunedIdentityExpr } from './types'
 import { DEFAULT_VOCAB } from './adapter/vocabulary'
+import { READ, EDIT } from './testing/helpers'
 
 const opts: CypherOptions = { maxDepth: 20, vocab: DEFAULT_VOCAB }
 
@@ -41,7 +42,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // 3 CALL blocks (carol, alice, bob) — NOT 4
@@ -66,7 +67,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // Only 1 CALL block — second A reuses _c0
@@ -90,7 +91,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // Only 1 CALL block
@@ -113,7 +114,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       expect(fragment!.calls).toHaveLength(2)
@@ -124,7 +125,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
     it('single identity produces exactly one CALL block', () => {
       const expr: PrunedIdentityExpr = { kind: 'identity', id: 'SOLO' }
 
-      const fragment = toCypher(expr, 'edit', opts)
+      const fragment = toCypher(expr, EDIT, opts)
       expect(fragment).not.toBeNull()
 
       expect(fragment!.calls).toHaveLength(1)
@@ -147,7 +148,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // 2 CALL blocks — different node restrictions = different cache keys
@@ -164,7 +165,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // 2 CALL blocks — one unrestricted, one restricted
@@ -186,7 +187,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // Only 1 CALL block — same (id, perm, nodeRestriction)
@@ -205,7 +206,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // Deduplicated: same nodes after sorting
@@ -221,7 +222,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
           { kind: 'identity', id: 'C' },
         ],
       }
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
       expect(fragment!.calls).toHaveLength(3)
       expect(fragment!.condition).toBe('(_c0 AND NOT (_c1 OR _c2))')
@@ -235,7 +236,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
           { kind: 'identity', id: 'USER1', nodeRestriction: ['ws1', 'ws2'] },
         ],
       }
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
       // Same identity + same sorted nodeRestriction → deduplicates to 1 CALL block
       expect(fragment!.calls).toHaveLength(1)
@@ -250,16 +251,16 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
     it('same identity in separate toCypher calls with different perms are independent', () => {
       const expr: PrunedIdentityExpr = { kind: 'identity', id: 'USER1' }
 
-      const frag1 = toCypher(expr, 'read', opts)
-      const frag2 = toCypher(expr, 'edit', opts)
+      const frag1 = toCypher(expr, READ, opts)
+      const frag2 = toCypher(expr, EDIT, opts)
 
       // Each call creates its own cache — both produce 1 CALL block
       expect(frag1!.calls).toHaveLength(1)
       expect(frag2!.calls).toHaveLength(1)
 
       // Params reflect different perms
-      expect(frag1!.params['perm_0']).toBe('read')
-      expect(frag2!.params['perm_0']).toBe('edit')
+      expect(frag1!.params['perm_0']).toBe(READ)
+      expect(frag2!.params['perm_0']).toBe(EDIT)
     })
   })
 
@@ -278,7 +279,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // 2 different identities → 2 CALL blocks
@@ -295,7 +296,7 @@ describe('AUTH_V2: Cypher Leaf Deduplication', () => {
         ],
       }
 
-      const fragment = toCypher(expr, 'read', opts)
+      const fragment = toCypher(expr, READ, opts)
       expect(fragment).not.toBeNull()
 
       // Deduplicated: same (id, perm, no restriction)

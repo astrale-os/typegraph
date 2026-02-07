@@ -7,6 +7,7 @@
 
 import type { TestScenario } from './types'
 import { separateGrant, simpleGrant, union, identity } from './types'
+import { READ, EDIT } from '../../testing/helpers'
 
 /**
  * Complete flow for a simple app + user combo.
@@ -18,7 +19,7 @@ export const e2eSimpleAppScenario: TestScenario = {
   description: 'Complete flow: APP1 type + USER1 resource for read on M1',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
 }
@@ -32,7 +33,7 @@ export const e2eUserInheritedScenario: TestScenario = {
   description: 'Complete flow: USER1 read on M1 via root inheritance',
   principal: 'USER1',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: true,
 }
@@ -46,7 +47,7 @@ export const e2eComposedUnionScenario: TestScenario = {
   description: 'Complete flow: USER1 ∪ ROLE1 edit on M3',
   principal: 'USER1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: union(identity('USER1'), identity('ROLE1')),
@@ -63,7 +64,7 @@ export const e2eDeniedScenario: TestScenario = {
   description: 'Complete flow: USER1 edit on M3 (no permission)',
   principal: 'USER1',
   nodeId: 'M3',
-  perm: 'edit',
+  nodePerm: EDIT,
   grant: separateGrant('APP1', 'USER1'),
   expectedGranted: false,
   expectedDeniedBy: 'resource',
@@ -79,7 +80,7 @@ export const e2eIntersectionScenario: TestScenario = {
   description: 'Complete flow: X (A ∩ B) read on M1',
   principal: 'X',
   nodeId: 'M1',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     // X is defined in the graph as A ∩ B
@@ -99,7 +100,7 @@ export const e2eIntersectionDeniedScenario: TestScenario = {
   description: 'Complete flow: X (A ∩ B) read on M2 - B lacks it',
   principal: 'X',
   nodeId: 'M2',
-  perm: 'read',
+  nodePerm: READ,
   grant: {
     forType: { kind: 'identity', id: 'APP1' },
     forResource: { kind: 'intersect', operands: [identity('A'), identity('B')] },
