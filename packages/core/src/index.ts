@@ -14,5 +14,8 @@ export type * from './schema/types'
 export * from './ast'
 export type * from './ast/types'
 
+// Core definition exports
+export * from './core'
+
 // Error exports
 export * from './errors'

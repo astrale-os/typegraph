@@ -26,6 +26,11 @@
       "types": "./src/errors/index.ts",
       "import": "./src/errors/index.ts",
       "default": "./src/errors/index.ts"
+    },
+    "./core": {
+      "types": "./src/core/index.ts",
+      "import": "./src/core/index.ts",
+      "default": "./src/core/index.ts"
     }
   },
   "publishConfig": {
@@ -52,6 +57,11 @@
         "types": "./dist/errors/index.d.ts",
         "import": "./dist/errors/index.js",
         "require": "./dist/errors/index.cjs"
+      },
+      "./core": {
+        "types": "./dist/core/index.d.ts",
+        "import": "./dist/core/index.js",
+        "require": "./dist/core/index.cjs"
       }
     }
   },

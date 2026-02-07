@@ -387,3 +387,70 @@ export type ResolveHierarchyEdge<
   S extends AnySchema,
   E extends string | undefined,
 > = E extends string ? E : HierarchyEdge<S>
+
+/**
+ * Schema Diff Types
+ *
+ * Types for the result of comparing two schema versions.
+ * Used by diffSchema() to classify changes as breaking or non-breaking.
+ */
+
+/**
+ * A single change detected in a schema comparison.
+ * Discriminated by `kind` for programmatic handling.
+ */
+export interface SchemaChange {
+  /** What changed */
+  readonly kind:
+    | 'property-added'
+    | 'property-removed'
+    | 'property-changed'
+    | 'property-required-changed'
+    | 'index-added'
+    | 'index-removed'
+    | 'index-changed'
+    | 'label-added'
+    | 'label-removed'
+    | 'description-changed'
+    | 'from-changed'
+    | 'to-changed'
+    | 'cardinality-changed'
+    | 'hierarchy-added'
+    | 'hierarchy-removed'
+    | 'hierarchy-changed'
+  /** Human-readable description of the change */
+  readonly description: string
+  /** Whether this change breaks compatibility with existing data */
+  readonly breaking: boolean
+}
+
+/**
+ * The result of comparing two schema versions.
+ * Classifies all changes as breaking or non-breaking.
+ */
+export interface SchemaDiff {
+  readonly nodes: {
+    readonly added: readonly string[]
+    readonly removed: readonly string[]
+    readonly modified: readonly {
+      readonly label: string
+      readonly changes: readonly SchemaChange[]
+    }[]
+  }
+  readonly edges: {
+    readonly added: readonly string[]
+    readonly removed: readonly string[]
+    readonly modified: readonly {
+      readonly type: string
+      readonly changes: readonly SchemaChange[]
+    }[]
+  }
+  /** Hierarchy changes (empty array if no changes) */
+  readonly hierarchy: readonly SchemaChange[]
+  /** Whether any change requires explicit resolution */
+  readonly breaking: boolean
+  /** Human-readable reasons for breaking changes */
+  readonly breakingReasons: readonly string[]
+  /** Warnings for non-breaking but notable changes (index changes, hierarchy changes) */
+  readonly warnings: readonly string[]
+}

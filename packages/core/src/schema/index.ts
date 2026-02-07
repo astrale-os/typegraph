@@ -26,6 +26,10 @@ export type {
 } from './types'
 export { isCompositeIndex, isSinglePropertyIndex } from './types'
 
+// Schema diffing
+export { diffSchema } from './diff'
+export type { SchemaDiff, SchemaChange } from './diff-types'
+
 // Schema serialization
 export { toSchema } from './serializer'
 export type { SerializedSchema, SerializedNodeDef, SerializedEdgeDef } from './serializer'
