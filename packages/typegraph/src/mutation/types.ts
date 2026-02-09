@@ -7,6 +7,8 @@
 import type {
   AnySchema,
   NodeLabels,
+  NodeIdFor,
+  NodeIdMap,
   NodeProps,
   NodeInputProps,
   EdgeTypes,
@@ -52,9 +54,13 @@ export interface LinkInput<S extends AnySchema, E extends EdgeTypes<S>> {
 /**
  * Result of creating or updating a node.
  */
-export interface NodeResult<S extends AnySchema, N extends NodeLabels<S>> {
-  id: string
-  data: NodeProps<S, N>
+export interface NodeResult<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
+  id: NodeIdFor<S, N, M>
+  data: NodeProps<S, N, NodeIdFor<S, N, M>>
 }
 
 /**
@@ -112,11 +118,15 @@ export interface DeleteSubtreeResult {
 /**
  * Result of cloning a subtree.
  */
-export interface CloneSubtreeResult<S extends AnySchema, N extends NodeLabels<S>> {
-  root: NodeResult<S, N>
+export interface CloneSubtreeResult<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
+  root: NodeResult<S, N, M>
   clonedNodes: number
   /** Map from original ID to cloned ID */
-  idMapping: Record<string, string>
+  idMapping: Record<string, NodeIdFor<S, NodeLabels<S>, M>>
 }
 
 // =============================================================================
@@ -179,9 +189,13 @@ export interface CloneSubtreeOptions<S extends AnySchema> extends CloneOptions<S
 /**
  * Result of an upsert operation.
  */
-export interface UpsertResult<S extends AnySchema, N extends NodeLabels<S>> {
-  id: string
-  data: NodeProps<S, N>
+export interface UpsertResult<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
+  id: NodeIdFor<S, N, M>
+  data: NodeProps<S, N, NodeIdFor<S, N, M>>
   /** True if a new node was created, false if existing was updated */
   created: boolean
 }
@@ -212,7 +226,10 @@ export const defaultIdGenerator: IdGenerator = {
 /**
  * Main mutation API interface.
  */
-export interface GraphMutations<S extends AnySchema> {
+export interface GraphMutations<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
   // ---------------------------------------------------------------------------
   // NODE CRUD
   // ---------------------------------------------------------------------------
@@ -222,28 +239,28 @@ export interface GraphMutations<S extends AnySchema> {
     label: N,
     data: NodeInput<S, N>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Update node properties (partial update) */
   update<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Delete a node */
   delete<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     options?: DeleteOptions,
   ): Promise<DeleteResult>
 
   /** Upsert (create or update) a node by ID */
   upsert<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N>>
+  ): Promise<UpsertResult<S, N, M>>
 
   // ---------------------------------------------------------------------------
   // EDGE CRUD
@@ -288,7 +305,7 @@ export interface GraphMutations<S extends AnySchema> {
     parentId: string,
     data: NodeInput<S, N>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Move node to new parent */
   move(nodeId: string, newParentId: string, options?: HierarchyOptions<S>): Promise<MoveResult>
@@ -303,21 +320,21 @@ export interface GraphMutations<S extends AnySchema> {
   /** Clone a node (without children) */
   clone<N extends NodeLabels<S>>(
     label: N,
-    sourceId: string,
+    sourceId: NodeIdFor<S, N, M>,
     overrides?: Partial<NodeInput<S, N>>,
     options?: CloneOptions<S>,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Clone node and all descendants, preserving original node labels */
   cloneSubtree(
     sourceRootId: string,
     options?: CloneSubtreeOptions<S>,
-  ): Promise<CloneSubtreeResult<S, NodeLabels<S>>>
+  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, M>>
 
   /** Delete node and all descendants */
   deleteSubtree<N extends NodeLabels<S>>(
     label: N,
-    rootId: string,
+    rootId: NodeIdFor<S, N, M>,
     options?: HierarchyOptions<S>,
   ): Promise<DeleteSubtreeResult>
 
@@ -330,18 +347,18 @@ export interface GraphMutations<S extends AnySchema> {
     label: N,
     items: NodeInput<S, N>[],
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>[]>
+  ): Promise<NodeResult<S, N, M>[]>
 
   /** Update multiple nodes by ID */
   updateMany<N extends NodeLabels<S>>(
     label: N,
-    updates: Array<{ id: string; data: Partial<NodeInput<S, N>> }>,
-  ): Promise<NodeResult<S, N>[]>
+    updates: Array<{ id: NodeIdFor<S, N, M>; data: Partial<NodeInput<S, N>> }>,
+  ): Promise<NodeResult<S, N, M>[]>
 
   /** Delete multiple nodes by ID */
   deleteMany<N extends NodeLabels<S>>(
     label: N,
-    ids: string[],
+    ids: Array<NodeIdFor<S, N, M>>,
     options?: DeleteOptions,
   ): Promise<BatchDeleteResult>
 
@@ -377,7 +394,7 @@ export interface GraphMutations<S extends AnySchema> {
   // ---------------------------------------------------------------------------
 
   /** Execute mutations in a transaction */
-  transaction<T>(fn: (tx: MutationTransaction<S>) => Promise<T>): Promise<T>
+  transaction<T>(fn: (tx: MutationTransaction<S, M>) => Promise<T>): Promise<T>
 }
 
 // =============================================================================
@@ -387,34 +404,37 @@ export interface GraphMutations<S extends AnySchema> {
 /**
  * Transaction context for executing multiple mutations atomically.
  */
-export interface MutationTransaction<S extends AnySchema> {
+export interface MutationTransaction<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
   /** Create a new node */
   create<N extends NodeLabels<S>>(
     label: N,
     data: NodeInput<S, N>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Update node properties */
   update<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Delete a node */
   delete<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     options?: DeleteOptions,
   ): Promise<DeleteResult>
 
   /** Upsert (create or update) a node by ID */
   upsert<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N>>
+  ): Promise<UpsertResult<S, N, M>>
 
   /** Create an edge */
   link<E extends EdgeTypes<S>>(
@@ -450,7 +470,7 @@ export interface MutationTransaction<S extends AnySchema> {
     parentId: string,
     data: NodeInput<S, N>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N>>
+  ): Promise<NodeResult<S, N, M>>
 
   /** Move node to new parent */
   move(nodeId: string, newParentId: string, options?: HierarchyOptions<S>): Promise<MoveResult>

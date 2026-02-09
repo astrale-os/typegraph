@@ -5,7 +5,15 @@
  * Useful for validation, debugging, and testing.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps, EdgeProps } from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  NodeIdFor,
+  NodeIdMap,
+  NodeLabels,
+  EdgeTypes,
+  NodeProps,
+  EdgeProps,
+} from '@astrale/typegraph-core'
 import type {
   NodeInput,
   EdgeInput,
@@ -86,7 +94,7 @@ export class DryRunCollector {
 /**
  * Builder for creating dry-run results.
  */
-export class DryRunBuilder<S extends AnySchema> {
+export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> {
   private readonly idGenerator: IdGenerator
 
   constructor(_schema: S, idGenerator: IdGenerator) {
@@ -98,31 +106,31 @@ export class DryRunBuilder<S extends AnySchema> {
     data: NodeInput<S, N>,
     query: string,
     options?: CreateOptions,
-  ): DryRunResult<NodeResult<S, N>> {
-    const id = options?.id ?? this.idGenerator.generate(label as string)
+  ): DryRunResult<NodeResult<S, N, M>> {
+    const id = (options?.id ?? this.idGenerator.generate(label as string)) as NodeIdFor<S, N, M>
 
     return {
       query,
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N>,
+        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
       },
     }
   }
 
   updateNode<N extends NodeLabels<S>>(
     _label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: Partial<NodeInput<S, N>>,
     query: string,
-  ): DryRunResult<NodeResult<S, N>> {
+  ): DryRunResult<NodeResult<S, N, M>> {
     return {
       query,
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N>,
+        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
       },
     }
   }
@@ -170,15 +178,15 @@ export class DryRunBuilder<S extends AnySchema> {
     data: NodeInput<S, N>,
     query: string,
     _options?: HierarchyOptions<S>,
-  ): DryRunResult<NodeResult<S, N>> {
-    const id = this.idGenerator.generate(label as string)
+  ): DryRunResult<NodeResult<S, N, M>> {
+    const id = this.idGenerator.generate(label as string) as NodeIdFor<S, N, M>
 
     return {
       query,
       params: { id, parentId, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N>,
+        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
       },
     }
   }

@@ -19,9 +19,9 @@ import type { AnySchema, NodeDefinition, EdgeDefinition, Cardinality } from './t
  * - `id`: Unique identifier, auto-indexed by database
  * - `kind`: Node type/label, injected by SDK (pure SDK, no DB query needed)
  */
-export interface BaseNodeProps<K extends string = string> {
+export interface BaseNodeProps<K extends string = string, TId extends string = string> {
   /** Unique identifier - present on all nodes */
-  id: string
+  id: TId
   /** Node type - injected by SDK, matches the schema node key */
   kind: K
 }
@@ -32,18 +32,18 @@ export interface BaseNodeProps<K extends string = string> {
  *
  * Example: `mutate.create('user', { id, ...props })` - 'user' IS the kind
  */
-export interface BaseNodeInputProps {
+export interface BaseNodeInputProps<TId extends string = string> {
   /** Unique identifier - must be provided or auto-generated */
-  id: string
+  id: TId
 }
 
 /**
  * Base properties for edge OUTPUT (what you get back from queries).
  * Includes `id` and `kind` - structural properties always present in results.
  */
-export interface BaseEdgeProps<K extends string = string> {
+export interface BaseEdgeProps<K extends string = string, TId extends string = string> {
   /** Unique identifier - present on all edges */
-  id: string
+  id: TId
   /** Edge type - injected by SDK, matches the schema edge key */
   kind: K
 }
@@ -52,9 +52,9 @@ export interface BaseEdgeProps<K extends string = string> {
  * Base properties for edge INPUT (what you provide to mutations).
  * Only `id` is structural - `kind` is determined by the mutation call.
  */
-export interface BaseEdgeInputProps {
+export interface BaseEdgeInputProps<TId extends string = string> {
   /** Unique identifier - must be provided or auto-generated */
-  id: string
+  id: TId
 }
 
 // =============================================================================
@@ -82,9 +82,13 @@ type FindNodeKey<
  * Returns never if no refs.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExtractExtendsRefs<N extends NodeDefinition<any>> =
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  N extends { _extendsRefs: readonly (infer R)[] } ? (R extends NodeDefinition<any> ? R : never) : never
+type ExtractExtendsRefs<N extends NodeDefinition<any>> = N extends {
+  _extendsRefs: readonly (infer R)[]
+}
+  ? R extends NodeDefinition<any>
+    ? R
+    : never
+  : never
 
 /**
  * Resolve extends refs to string keys for a single node definition.
@@ -95,9 +99,10 @@ type ResolveNodeExtends<
   TNodes extends Record<string, NodeDefinition<any>>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   N extends NodeDefinition<any>,
-> = ExtractExtendsRefs<N> extends never
-  ? readonly string[]
-  : readonly FindNodeKey<TNodes, ExtractExtendsRefs<N>>[]
+> =
+  ExtractExtendsRefs<N> extends never
+    ? readonly string[]
+    : readonly FindNodeKey<TNodes, ExtractExtendsRefs<N>>[]
 
 /**
  * Map all nodes in a schema to have resolved string extends.
@@ -132,6 +137,22 @@ export type NodeLabels<S extends AnySchema> = keyof S['nodes'] & string
  * EdgeTypes<typeof schema> // 'authored' | 'likes' | 'commentedOn'
  */
 export type EdgeTypes<S extends AnySchema> = keyof S['edges'] & string
+
+/**
+ * Optional map of node labels to custom ID types.
+ *
+ * Labels not present in the map default to string IDs.
+ */
+export type NodeIdMap<S extends AnySchema> = Partial<Record<NodeLabels<S>, string>>
+
+/**
+ * Resolve the ID type for a specific node label from a NodeIdMap.
+ */
+export type NodeIdFor<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> = N extends keyof M ? Extract<M[N], string> : string
 
 // =============================================================================
 // LABEL INHERITANCE HELPERS
@@ -283,8 +304,11 @@ type MergedInputProps<S extends AnySchema, N extends NodeLabels<S>> = Omit<
  * // entity: { updatedAt: Date }, user: { email: string, labels: ['entity'] }
  * NodeProps<typeof schema, 'user'> // { id: string; kind: 'user'; email: string; updatedAt: Date; }
  */
-export type NodeProps<S extends AnySchema, N extends NodeLabels<S>> = BaseNodeProps<N> &
-  MergedProps<S, N>
+export type NodeProps<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  TId extends string = string,
+> = BaseNodeProps<N, TId> & MergedProps<S, N>
 
 /**
  * Extract the INPUT TypeScript type of a node's properties.
@@ -294,8 +318,11 @@ export type NodeProps<S extends AnySchema, N extends NodeLabels<S>> = BaseNodePr
  * @example
  * NodeInputProps<typeof schema, 'identity'> // { id: string; kind: 'identity'; iss: string; sub: string; frozen?: boolean }
  */
-export type NodeInputProps<S extends AnySchema, N extends NodeLabels<S>> = BaseNodeInputProps &
-  MergedInputProps<S, N>
+export type NodeInputProps<
+  S extends AnySchema,
+  N extends NodeLabels<S>,
+  TId extends string = string,
+> = BaseNodeInputProps<TId> & MergedInputProps<S, N>
 
 /**
  * Extract the inferred TypeScript type of an edge's properties (output type).
@@ -304,20 +331,24 @@ export type NodeInputProps<S extends AnySchema, N extends NodeLabels<S>> = BaseN
  * @example
  * EdgeProps<typeof schema, 'friendOf'> // { id: string; kind: 'friendOf'; since: Date; closeness: 'close' | 'acquaintance'; }
  */
-export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>> =
+export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>, TId extends string = string> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
-    ? BaseEdgeProps<E> & z.infer<z.ZodObject<TProps>>
+    ? BaseEdgeProps<E, TId> & z.infer<z.ZodObject<TProps>>
     : never
 
 /**
  * Extract the INPUT TypeScript type of an edge's properties.
  * Uses z.input which respects .optional().default() - fields with defaults are optional for input.
  */
-export type EdgeInputProps<S extends AnySchema, E extends EdgeTypes<S>> =
+export type EdgeInputProps<
+  S extends AnySchema,
+  E extends EdgeTypes<S>,
+  TId extends string = string,
+> =
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
-    ? BaseEdgeInputProps & z.input<z.ZodObject<TProps>>
+    ? BaseEdgeInputProps<TId> & z.input<z.ZodObject<TProps>>
     : never
 
 /**

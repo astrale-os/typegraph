@@ -372,7 +372,7 @@ When a request arrives with a JWT, the authenticator verifies it and produces an
 
 ```typescript
 interface AuthContext {
-  origin: 'backend' | 'shell' | 'system'
+  origin: 'internal' | 'external'
   principal: IdentityId
   grant: Grant
 }
@@ -380,7 +380,7 @@ interface AuthContext {
 
 | Field | Description |
 |-------|-------------|
-| `origin` | Where the request came from (kernel → 'system', external → 'backend') |
+| `origin` | Where the request came from (kernel self-call → 'internal', WS/RPC → 'external') |
 | `principal` | The authenticated identity |
 | `grant` | Resolved grant with `forType` and `forResource` expressions |
 

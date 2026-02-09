@@ -14,6 +14,8 @@ import type { QueryAST } from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
+  NodeIdFor,
+  NodeIdMap,
   NodeProps,
   OutgoingEdges,
   IncomingEdges,
@@ -32,7 +34,6 @@ import type {
 
 import { SingleNodeBuilder } from './single-node'
 import { CollectionBuilder } from './collection'
-import type { QueryExecutor } from './types'
 import { extractNodeFromRecord } from '../utils'
 import { ExecutionError } from '@astrale/typegraph-core'
 
@@ -49,10 +50,16 @@ export class OptionalNodeBuilder<
   N extends NodeLabels<S>,
   Aliases extends AliasMap<S> = Record<string, never>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
-> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases> {
-
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases, M> {
   protected _derive(ast: QueryAST): this {
-    return new OptionalNodeBuilder(ast, this._schema, this._aliases, this._edgeAliases, this._executor) as this
+    return new OptionalNodeBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    ) as this
   }
 
   // ===========================================================================
@@ -61,7 +68,7 @@ export class OptionalNodeBuilder<
 
   as<A extends string>(
     alias: A,
-  ): OptionalNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases> {
+  ): OptionalNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, M> {
     const { ast, aliases } = this._addAlias(alias)
     return new OptionalNodeBuilder(ast, this._schema, aliases, this._edgeAliases, this._executor)
   }
@@ -70,16 +77,27 @@ export class OptionalNodeBuilder<
   // OPTIONAL HANDLING
   // ===========================================================================
 
-  required(): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
-    return new SingleNodeBuilder(this._ast, this._schema, this._aliases, this._edgeAliases, this._executor)
+  required(): SingleNodeBuilder<S, N, Aliases, EdgeAliases, M> {
+    return new SingleNodeBuilder(
+      this._ast,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
-  async map<T>(mapper: (node: NodeProps<S, N>) => T, defaultValue: T): Promise<T> {
+  async map<T>(
+    mapper: (node: NodeProps<S, N, NodeIdFor<S, N, M>>) => T,
+    defaultValue: T,
+  ): Promise<T> {
     const result = await this.execute()
     return result ? mapper(result) : defaultValue
   }
 
-  orElse(_defaultValue: NodeProps<S, N>): SingleNodeBuilder<S, N, Aliases, EdgeAliases> {
+  orElse(
+    _defaultValue: NodeProps<S, N, NodeIdFor<S, N, M>>,
+  ): SingleNodeBuilder<S, N, Aliases, EdgeAliases, M> {
     throw new Error('orElse() not yet implemented')
   }
 
@@ -95,13 +113,15 @@ export class OptionalNodeBuilder<
         S,
         EdgeTargetsFrom<S, E, N>,
         Aliases,
-        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+        M
       >
     : CollectionBuilder<
         S,
         EdgeTargetsFrom<S, E, N>,
         Aliases,
-        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+        M
       > {
     const { ast, cardinality } = buildOutTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
@@ -113,9 +133,21 @@ export class OptionalNodeBuilder<
 
     // From an optional node, 'one' cardinality becomes optional (source might not exist)
     if (cardinality === 'one') {
-      return new OptionalNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new OptionalNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
-    return new CollectionBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+    return new CollectionBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+    ) as any
   }
 
   from<E extends IncomingEdges<S, N>, EA extends string | undefined = undefined>(
@@ -126,13 +158,15 @@ export class OptionalNodeBuilder<
         S,
         EdgeSourcesTo<S, E, N>,
         Aliases,
-        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+        M
       >
     : CollectionBuilder<
         S,
         EdgeSourcesTo<S, E, N>,
         Aliases,
-        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+        EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+        M
       > {
     const { ast, cardinality } = buildInTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
@@ -144,9 +178,21 @@ export class OptionalNodeBuilder<
 
     // From an optional node, 'one' cardinality becomes optional (source might not exist)
     if (cardinality === 'one') {
-      return new OptionalNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new OptionalNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
-    return new CollectionBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+    return new CollectionBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+    ) as any
   }
 
   // ===========================================================================
@@ -156,21 +202,21 @@ export class OptionalNodeBuilder<
   toAny<Edges extends readonly OutgoingEdges<S, N>[]>(
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases, M> {
     throw new Error('toAny() not yet implemented on OptionalNodeBuilder')
   }
 
   fromAny<Edges extends readonly IncomingEdges<S, N>[]>(
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases, M> {
     throw new Error('fromAny() not yet implemented on OptionalNodeBuilder')
   }
 
   viaAny<Edges extends readonly (OutgoingEdges<S, N> & IncomingEdges<S, N>)[]>(
     _edges: Edges,
     _options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases, M> {
     throw new Error('viaAny() not yet implemented on OptionalNodeBuilder')
   }
 
@@ -178,16 +224,24 @@ export class OptionalNodeBuilder<
   // EXECUTION
   // ===========================================================================
 
-  async execute(): Promise<NodeProps<S, N> | null> {
+  async execute(): Promise<NodeProps<S, N, NodeIdFor<S, N, M>> | null> {
     if (!this._executor) {
       throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
-    const results = await this._executor.run<Record<string, unknown>>(compiled.cypher, compiled.params, this._ast)
+    const results = await this._executor.run<Record<string, unknown>>(
+      compiled.cypher,
+      compiled.params,
+      this._ast,
+    )
 
     if (results.length === 0) return null
-    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
+    return extractNodeFromRecord(
+      results[0]!,
+      this._schema,
+      this.currentLabel as string,
+    ) as NodeProps<S, N, NodeIdFor<S, N, M>>
   }
 }
 

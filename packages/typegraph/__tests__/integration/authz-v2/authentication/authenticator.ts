@@ -16,7 +16,7 @@ import { type GrantDecoder, validateGrant } from './grant-decoder'
 // =============================================================================
 
 export interface AuthContext {
-  origin: 'backend' | 'shell' | 'system'
+  origin: 'internal' | 'external'
   principal: IdentityId
   grant: Grant
 }
@@ -54,7 +54,7 @@ export async function authenticate(
   }
 
   // 4. Determine originyeah y
-  const origin: AuthContext['origin'] = payload.iss === KERNEL_ISSUER ? 'system' : 'backend'
+  const origin: AuthContext['origin'] = payload.iss === KERNEL_ISSUER ? 'internal' : 'external'
 
   // 5. Decode grant
   const decodedGrant = await decoder.decodeGrant(payload.grant, principal)

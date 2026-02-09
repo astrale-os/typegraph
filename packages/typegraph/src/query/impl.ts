@@ -4,7 +4,13 @@
  * GraphQueryImpl class that implements the GraphQuery interface.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  NodeLabels,
+  EdgeTypes,
+  NodeIdFor,
+  NodeIdMap,
+} from '@astrale/typegraph-core'
 import { createEdgeProjection } from '@astrale/typegraph-core'
 import { QueryAST } from '@astrale/typegraph-core'
 import type { GraphQuery, QueryExecutor } from './types'
@@ -19,7 +25,10 @@ import { type PathBuilder } from './path'
  * Provides the entry points for building graph queries.
  * Creates and returns appropriate query builders.
  */
-export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
+export class GraphQueryImpl<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> implements GraphQuery<S, M> {
   private readonly _schema: S
   private readonly _executor: QueryExecutor | null
 
@@ -40,19 +49,23 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
   // NODE QUERIES
   // ---------------------------------------------------------------------------
 
-  node<N extends NodeLabels<S>>(label: N): CollectionBuilder<S, N, Record<string, never>> {
+  node<N extends NodeLabels<S>>(
+    label: N,
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     const ast = new QueryAST().addMatch(label as string)
     return new CollectionBuilder(ast, this._schema, {}, {}, this._executor)
   }
 
   nodeByIdWithLabel<N extends NodeLabels<S>>(
     label: N,
-    id: string,
-  ): SingleNodeBuilder<S, N, Record<string, never>> {
+    id: NodeIdFor<S, N, M>,
+  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this.node(label).byId(id)
   }
 
-  nodeById(id: string): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>> {
+  nodeById(
+    id: NodeIdFor<S, NodeLabels<S>, M>,
+  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, M> {
     const ast = new QueryAST().addMatchById(id)
     return new SingleNodeBuilder(ast, this._schema, {}, {}, this._executor)
   }
@@ -75,8 +88,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
   // ---------------------------------------------------------------------------
 
   intersect<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     if (queries.length < 2) {
       throw new Error('intersect() requires at least 2 queries')
     }
@@ -90,8 +103,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
   }
 
   union<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     if (queries.length < 2) {
       throw new Error('union() requires at least 2 queries')
     }
@@ -105,8 +118,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
   }
 
   unionAll<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     if (queries.length < 2) {
       throw new Error('unionAll() requires at least 2 queries')
     }
@@ -128,8 +141,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(_config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -141,8 +154,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(_config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -154,8 +167,8 @@ export class GraphQueryImpl<S extends AnySchema> implements GraphQuery<S> {
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(_config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
     maxDepth?: number

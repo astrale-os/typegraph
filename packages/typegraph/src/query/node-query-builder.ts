@@ -32,6 +32,7 @@ import type {
 import type {
   AnySchema,
   NodeLabels,
+  NodeIdMap,
   NodeProps,
   OutgoingEdges,
   IncomingEdges,
@@ -92,6 +93,7 @@ export abstract class NodeQueryBuilder<
   N extends NodeLabels<S>,
   Aliases extends AliasMap<S> = Record<string, never>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
 > extends BaseBuilder<S, N> {
   protected readonly _aliases: Aliases
   protected readonly _edgeAliases: EdgeAliases
@@ -142,7 +144,7 @@ export abstract class NodeQueryBuilder<
     ast: QueryAST,
     aliases?: AliasMap<S>,
     edgeAliases?: EdgeAliasMap<S>,
-  ): CollectionBuilderType<S, NN, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, NN, Aliases, EdgeAliases, M> {
     const CB = getCollectionBuilder()
     return new CB(
       ast,
@@ -302,7 +304,13 @@ export abstract class NodeQueryBuilder<
   via<E extends OutgoingEdges<S, N> & IncomingEdges<S, N>>(
     edge: E,
     options?: EdgeFilterOptions<S, E>,
-  ): CollectionBuilderType<S, EdgeTargetsFrom<S, E, N> | EdgeSourcesTo<S, E, N>, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<
+    S,
+    EdgeTargetsFrom<S, E, N> | EdgeSourcesTo<S, E, N>,
+    Aliases,
+    EdgeAliases,
+    M
+  > {
     const result = buildBiTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
     })
@@ -319,7 +327,7 @@ export abstract class NodeQueryBuilder<
   >(
     edgeOrOptions?: E | (HierarchyTraversalOptions & { untilKind?: K }),
     options?: HierarchyTraversalOptions & { untilKind?: K },
-  ): CollectionBuilderType<S, AncestorResult<S, N, E, K>, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, AncestorResult<S, N, E, K>, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addAncestors(this._ast, this._schema, edgeOrOptions, options)
     return this._collection(newAst)
   }
@@ -330,7 +338,7 @@ export abstract class NodeQueryBuilder<
   >(
     edgeOrOptions?: E | (HierarchyTraversalOptions & { untilKind?: K }),
     options?: HierarchyTraversalOptions & { untilKind?: K },
-  ): CollectionBuilderType<S, AncestorResult<S, N, E, K> | N, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, AncestorResult<S, N, E, K> | N, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addSelfAndAncestors(this._ast, this._schema, edgeOrOptions, options)
     return this._collection(newAst)
   }
@@ -338,19 +346,19 @@ export abstract class NodeQueryBuilder<
   descendants<E extends EdgeTypes<S> | undefined = undefined>(
     edgeOrOptions?: E | HierarchyTraversalOptions,
     options?: HierarchyTraversalOptions,
-  ): CollectionBuilderType<S, HierarchyChildren<S, N, E>, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, HierarchyChildren<S, N, E>, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addDescendants(this._ast, this._schema, edgeOrOptions, options)
     return this._collection(newAst)
   }
 
-  siblings(edge?: EdgeTypes<S>): CollectionBuilderType<S, N, Aliases, EdgeAliases> {
+  siblings(edge?: EdgeTypes<S>): CollectionBuilderType<S, N, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addSiblings(this._ast, this._schema, edge)
     return this._collection(newAst)
   }
 
   children<E extends EdgeTypes<S> | undefined = undefined>(
     edge?: E,
-  ): CollectionBuilderType<S, HierarchyChildren<S, N, E>, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, HierarchyChildren<S, N, E>, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addChildren(this._ast, this._schema, edge)
     return this._collection(newAst)
   }
@@ -362,7 +370,7 @@ export abstract class NodeQueryBuilder<
   reachable<Edges extends EdgeTypes<S> | readonly EdgeTypes<S>[]>(
     edges: Edges,
     options?: ReachableOptions,
-  ): CollectionBuilderType<S, N, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, N, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addReachable(this._ast, edges, options)
     return this._collection(newAst)
   }
@@ -370,7 +378,7 @@ export abstract class NodeQueryBuilder<
   selfAndReachable<Edges extends EdgeTypes<S> | readonly EdgeTypes<S>[]>(
     edges: Edges,
     options?: ReachableOptions,
-  ): CollectionBuilderType<S, N, Aliases, EdgeAliases> {
+  ): CollectionBuilderType<S, N, Aliases, EdgeAliases, M> {
     const newAst = hierarchy.addSelfAndReachable(this._ast, edges, options)
     return this._collection(newAst)
   }

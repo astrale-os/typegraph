@@ -7,6 +7,8 @@
 
 import type {
   AnySchema,
+  NodeIdFor,
+  NodeIdMap,
   NodeLabels,
   NodeProps,
   EdgeTypes,
@@ -134,7 +136,10 @@ export interface MutationConfig<S extends AnySchema = AnySchema> {
 /**
  * Implementation of GraphMutations interface.
  */
-export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S> {
+export class GraphMutationsImpl<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> implements GraphMutations<S, M> {
   private readonly schema: S
   private readonly executor: MutationExecutor
   private readonly idGenerator: IdGenerator
@@ -143,7 +148,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
   private readonly validator: MutationValidator<S>
   private readonly validationOptions: Required<ValidationOptions>
   private readonly dryRunMode: boolean
-  private readonly dryRunBuilder: DryRunBuilder<S>
+  private readonly dryRunBuilder: DryRunBuilder<S, M>
 
   constructor(schema: S, executor: MutationExecutor, config: MutationConfig<S> = {}) {
     this.schema = schema
@@ -154,7 +159,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     this.validator = new MutationValidator(schema)
     this.validationOptions = { ...defaultValidationOptions, ...config.validation }
     this.dryRunMode = typeof config.dryRun === 'boolean' ? config.dryRun : !!config.dryRun
-    this.dryRunBuilder = new DryRunBuilder(schema, this.idGenerator)
+    this.dryRunBuilder = new DryRunBuilder<S, M>(schema, this.idGenerator)
   }
 
   // ---------------------------------------------------------------------------
@@ -165,9 +170,9 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     label: N,
     data: NodeInput<S, N>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     const safeLabel = this.sanitize(label as string)
-    const id = options?.id ?? this.idGenerator.generate(safeLabel)
+    const id = (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
@@ -186,10 +191,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     }
 
     // Run before hooks with validated data
-    const hookData = await this.hooksRunner.runBeforeCreate(
-      label,
-      validatedData as NodeInput<S, N>,
-    )
+    const hookData = await this.hooksRunner.runBeforeCreate(label, validatedData as NodeInput<S, N>)
 
     // Prepare final data for DB: strip undefined and serialize dates
     const dbReadyData = serializeDates(stripUndefined(hookData as Record<string, unknown>))
@@ -229,7 +231,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     // Dry-run mode
     if (this.dryRunMode) {
       return this.dryRunBuilder.createNode(label, dbReadyData as NodeInput<S, N>, query, options)
-        .simulatedResult!
+        .simulatedResult! as unknown as NodeResult<S, N, M>
     }
 
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, params)
@@ -245,22 +247,22 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     }
 
     // Deserialize dates from ISO strings back to Date objects
-    const nodeResult: NodeResult<S, N> = {
+    const nodeResult: NodeResult<S, N, M> = {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N>,
+      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
     }
 
     // Run after hooks
-    await this.hooksRunner.runAfterCreate(nodeResult)
+    await this.hooksRunner.runAfterCreate(nodeResult as unknown as NodeResult<S, N>)
 
     return nodeResult
   }
 
   async update<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     // Validate input (partial mode - doesn't require all fields)
     let validatedData: Record<string, unknown>
     if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
@@ -293,7 +295,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
         id,
         dbReadyData as Partial<NodeInput<S, N>>,
         query,
-      ).simulatedResult!
+      ).simulatedResult! as unknown as NodeResult<S, N, M>
     }
 
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, params)
@@ -304,20 +306,20 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     }
 
     // Deserialize dates from ISO strings back to Date objects
-    const nodeResult: NodeResult<S, N> = {
+    const nodeResult: NodeResult<S, N, M> = {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N>,
+      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
     }
 
     // Run after hooks
-    await this.hooksRunner.runAfterUpdate(nodeResult)
+    await this.hooksRunner.runAfterUpdate(nodeResult as unknown as NodeResult<S, N>)
 
     return nodeResult
   }
 
   async delete<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
     const detach = options?.detach ?? true
@@ -375,9 +377,9 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
   async upsert<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N>> {
+  ): Promise<UpsertResult<S, N, M>> {
     // Validate input and apply defaults
     let validatedData: Record<string, unknown>
     if (this.validationOptions.enabled && this.validationOptions.onCreate) {
@@ -409,7 +411,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
     return {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N>,
+      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
       created: result.created,
     }
   }
@@ -611,10 +613,10 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     parentId: string,
     data: NodeInput<S, N>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     const safeLabel = this.sanitize(label as string)
     const edgeType = this.resolveHierarchyEdge(options?.edge)
-    const id = this.idGenerator.generate(safeLabel)
+    const id = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
@@ -630,7 +632,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.child }
+    return { id, data: result.child as NodeProps<S, N, NodeIdFor<S, N, M>> }
   }
 
   async move(
@@ -705,12 +707,12 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
   async clone<N extends NodeLabels<S>>(
     label: N,
-    sourceId: string,
+    sourceId: NodeIdFor<S, N, M>,
     overrides?: Partial<NodeInput<S, N>>,
     options?: CloneOptions<S>,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     const safeLabel = this.sanitize(label as string)
-    const newId = this.idGenerator.generate(safeLabel)
+    const newId = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
@@ -752,7 +754,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
       throw new SourceNotFoundError(label as string, sourceId)
     }
 
-    return { id: newId, data: result.clone }
+    return { id: newId, data: result.clone as NodeProps<S, N, NodeIdFor<S, N, M>> }
   }
 
   /**
@@ -763,7 +765,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
   async cloneSubtree(
     sourceRootId: string,
     options?: CloneSubtreeOptions<S>,
-  ): Promise<CloneSubtreeResult<S, NodeLabels<S>>> {
+  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, M>> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
 
     // Get all nodes in subtree with depth and their labels
@@ -785,18 +787,18 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
         : subtreeNodes
 
     // Create ID mapping - use each node's actual label for ID generation
-    const idMapping: Record<string, string> = {}
+    const idMapping: Record<string, NodeIdFor<S, NodeLabels<S>, M>> = {}
     const labelsMapping: Record<string, string[]> = {}
     for (const { node, nodeLabels } of nodesToClone) {
       const safeLabel = this.sanitize(nodeLabels[0]!)
-      idMapping[node.id] = this.idGenerator.generate(safeLabel)
+      idMapping[node.id] = this.idGenerator.generate(safeLabel) as NodeIdFor<S, NodeLabels<S>, M>
       // Store all labels for each node (from database, already includes base labels)
       labelsMapping[node.id] = nodeLabels.map((l) => this.sanitize(l))
     }
 
     // Clone in transaction
     const rootResult = await this.executor.runInTransaction(async (tx) => {
-      let clonedRoot: NodeResult<S, NodeLabels<S>> | null = null
+      let clonedRoot: NodeResult<S, NodeLabels<S>, M> | null = null
 
       // Clone nodes in order (root first, then by depth)
       for (const { node, depth } of nodesToClone) {
@@ -822,7 +824,10 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
         const createResult = createResults[0]
         if (depth === 0 && createResult) {
-          clonedRoot = { id: newId, data: createResult.n }
+          clonedRoot = {
+            id: newId as NodeIdFor<S, NodeLabels<S>, M>,
+            data: createResult.n as NodeProps<S, NodeLabels<S>, NodeIdFor<S, NodeLabels<S>, M>>,
+          }
         }
       }
 
@@ -879,7 +884,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
   async deleteSubtree<N extends NodeLabels<S>>(
     _label: N,
-    rootId: string,
+    rootId: NodeIdFor<S, N, M>,
     options?: HierarchyOptions<S>,
   ): Promise<DeleteSubtreeResult> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
@@ -902,11 +907,11 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     label: N,
     items: NodeInput<S, N>[],
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>[]> {
+  ): Promise<NodeResult<S, N, M>[]> {
     const safeLabel = this.sanitize(label as string)
 
     // Validate all items upfront (fail-fast)
-    const itemsWithIds: Array<{ id: string; props: Record<string, unknown> }> = []
+    const itemsWithIds: Array<{ id: NodeIdFor<S, N, M>; props: Record<string, unknown> }> = []
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
@@ -932,7 +937,7 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 
       // Serialize dates for DB
       itemsWithIds.push({
-        id: options?.id ?? this.idGenerator.generate(safeLabel),
+        id: (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>,
         props: serializeDates(validatedData),
       })
     }
@@ -949,15 +954,15 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { items: itemsWithIds })
 
     return results.map((r, i) => ({
-      id: itemsWithIds[i]?.id ?? '',
-      data: this.deserializeDates(label, r.n) as NodeProps<S, N>,
+      id: itemsWithIds[i]!.id,
+      data: this.deserializeDates(label, r.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
     }))
   }
 
   async updateMany<N extends NodeLabels<S>>(
     label: N,
-    updates: Array<{ id: string; data: Partial<NodeInput<S, N>> }>,
-  ): Promise<NodeResult<S, N>[]> {
+    updates: Array<{ id: NodeIdFor<S, N, M>; data: Partial<NodeInput<S, N>> }>,
+  ): Promise<NodeResult<S, N, M>[]> {
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
     const safeLabels = labels.map((l) => this.sanitize(l))
@@ -971,14 +976,14 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { updates: updateItems })
 
     return results.map((r) => ({
-      id: r.n.id,
-      data: r.n,
+      id: r.n.id as NodeIdFor<S, N, M>,
+      data: r.n as NodeProps<S, N, NodeIdFor<S, N, M>>,
     }))
   }
 
   async deleteMany<N extends NodeLabels<S>>(
     label: N,
-    ids: string[],
+    ids: Array<NodeIdFor<S, N, M>>,
     _options?: DeleteOptions,
   ): Promise<BatchDeleteResult> {
     // Resolve labels (includes base labels like :Node)
@@ -1062,9 +1067,9 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
   // TRANSACTIONS
   // ---------------------------------------------------------------------------
 
-  async transaction<T>(fn: (tx: MutationTransaction<S>) => Promise<T>): Promise<T> {
+  async transaction<T>(fn: (tx: MutationTransaction<S, M>) => Promise<T>): Promise<T> {
     return this.executor.runInTransaction(async (runner) => {
-      const txContext = new MutationTransactionImpl<S>(
+      const txContext = new MutationTransactionImpl<S, M>(
         this.schema,
         runner,
         this.idGenerator,
@@ -1127,7 +1132,10 @@ export class GraphMutationsImpl<S extends AnySchema> implements GraphMutations<S
 // MUTATION TRANSACTION IMPLEMENTATION
 // =============================================================================
 
-class MutationTransactionImpl<S extends AnySchema> implements MutationTransaction<S> {
+class MutationTransactionImpl<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> implements MutationTransaction<S, M> {
   private readonly schema: S
   private readonly runner: TransactionRunner
   private readonly idGenerator: IdGenerator
@@ -1149,9 +1157,9 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     label: N,
     data: NodeInput<S, N>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     const safeLabel = this.sanitize(label as string)
-    const id = options?.id ?? this.idGenerator.generate(safeLabel)
+    const id = (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
@@ -1204,14 +1212,14 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
       throw new Error(`Failed to create node: ${label}`)
     }
 
-    return { id, data: result.n }
+    return { id, data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>> }
   }
 
   async update<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
     const safeLabels = labels.map((l) => this.sanitize(l))
@@ -1224,12 +1232,12 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
       throw new NodeNotFoundError(label as string, id)
     }
 
-    return { id, data: result.n }
+    return { id, data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>> }
   }
 
   async delete<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
     const detach = options?.detach ?? true
@@ -1248,9 +1256,9 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
 
   async upsert<N extends NodeLabels<S>>(
     label: N,
-    id: string,
+    id: NodeIdFor<S, N, M>,
     data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N>> {
+  ): Promise<UpsertResult<S, N, M>> {
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
     const safeLabels = labels.map((l) => this.sanitize(l))
@@ -1269,7 +1277,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
 
     return {
       id,
-      data: result.n,
+      data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>>,
       created: result.created,
     }
   }
@@ -1402,10 +1410,10 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
     parentId: string,
     data: NodeInput<S, N>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N>> {
+  ): Promise<NodeResult<S, N, M>> {
     const safeLabel = this.sanitize(label as string)
     const edgeType = this.resolveHierarchyEdge(options?.edge)
-    const id = this.idGenerator.generate(safeLabel)
+    const id = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
 
     // Resolve labels (includes base labels like :Node)
     const labels = resolveNodeLabels(this.schema, label as string)
@@ -1423,7 +1431,7 @@ class MutationTransactionImpl<S extends AnySchema> implements MutationTransactio
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.child }
+    return { id, data: result.child as NodeProps<S, N, NodeIdFor<S, N, M>> }
   }
 
   async move(

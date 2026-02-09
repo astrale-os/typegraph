@@ -39,7 +39,7 @@
  * ```
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import type { AnySchema, NodeIdFor, NodeIdMap, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
 import type { GraphAdapter, TransactionContext } from './adapter'
 import type { GraphQuery, QueryExecutor } from './query/types'
 import { GraphQueryImpl } from './query/impl'
@@ -80,9 +80,12 @@ export interface GraphOptions<S extends AnySchema = AnySchema> {
 /**
  * Transaction scope providing access to mutations and raw queries within a transaction.
  */
-export interface TransactionScope<S extends AnySchema> {
+export interface TransactionScope<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> {
   /** Mutation API within the transaction */
-  readonly mutate: MutationTransaction<S>
+  readonly mutate: MutationTransaction<S, M>
   /** Execute a raw query within the transaction */
   raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
 }
@@ -95,13 +98,14 @@ export interface TransactionScope<S extends AnySchema> {
  * - Transaction support
  * - Connection lifecycle management
  */
-export interface Graph<S extends AnySchema> extends GraphQuery<S> {
+export interface Graph<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>
+  extends GraphQuery<S, M> {
   // ---------------------------------------------------------------------------
   // MUTATION API
   // ---------------------------------------------------------------------------
 
   /** Access the mutation API */
-  readonly mutate: GraphMutations<S>
+  readonly mutate: GraphMutations<S, M>
 
   // ---------------------------------------------------------------------------
   // TRANSACTION API
@@ -122,7 +126,7 @@ export interface Graph<S extends AnySchema> extends GraphQuery<S> {
    * })
    * ```
    */
-  transaction<T>(fn: (tx: TransactionScope<S>) => Promise<T>): Promise<T>
+  transaction<T>(fn: (tx: TransactionScope<S, M>) => Promise<T>): Promise<T>
 
   // ---------------------------------------------------------------------------
   // LIFECYCLE
@@ -180,11 +184,12 @@ function createMutationExecutorBridge(adapter: GraphAdapter): MutationExecutor {
  *
  * Thin orchestrator that delegates to GraphQueryImpl and GraphMutationsImpl.
  */
-class GraphImpl<S extends AnySchema> implements Graph<S> {
+class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>
+  implements Graph<S, M> {
   private readonly _schema: S
   private readonly _adapter: GraphAdapter
-  private readonly _query: GraphQuery<S>
-  private readonly _mutate: GraphMutations<S>
+  private readonly _query: GraphQuery<S, M>
+  private readonly _mutate: GraphMutations<S, M>
   private readonly _options: GraphOptions<S>
   private readonly _idGenerator: IdGenerator
 
@@ -196,7 +201,7 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
-    this._query = new GraphQueryImpl(schema, queryExecutor)
+    this._query = new GraphQueryImpl<S, M>(schema, queryExecutor)
 
     // Create mutation implementation with adapter bridge
     const mutationExecutor = createMutationExecutorBridge(this._adapter)
@@ -225,18 +230,22 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   // QUERY API (delegate to GraphQueryImpl)
   // ---------------------------------------------------------------------------
 
-  node<N extends NodeLabels<S>>(label: N): CollectionBuilder<S, N, Record<string, never>> {
+  node<N extends NodeLabels<S>>(
+    label: N,
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this._query.node(label)
   }
 
-  nodeById(id: string): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>> {
+  nodeById(
+    id: NodeIdFor<S, NodeLabels<S>, M>,
+  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, M> {
     return this._query.nodeById(id)
   }
 
   nodeByIdWithLabel<N extends NodeLabels<S>>(
     label: N,
-    id: string,
-  ): SingleNodeBuilder<S, N, Record<string, never>> {
+    id: NodeIdFor<S, N, M>,
+  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this._query.nodeByIdWithLabel(label, id)
   }
 
@@ -251,8 +260,8 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -264,8 +273,8 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -273,8 +282,8 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   }
 
   allPaths<NFrom extends NodeLabels<S>, NTo extends NodeLabels<S>, E extends EdgeTypes<S>>(config: {
-    from: { label: NFrom; id: string }
-    to: { label: NTo; id: string }
+    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
+    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
     via: E
     direction?: 'out' | 'in' | 'both'
     maxDepth?: number
@@ -283,20 +292,20 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   }
 
   intersect<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this._query.intersect(...queries)
   }
 
   union<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this._query.union(...queries)
   }
 
   unionAll<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any>[]
-  ): CollectionBuilder<S, N, Record<string, never>> {
+    ...queries: CollectionBuilder<S, N, any, any, M>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
     return this._query.unionAll(...queries)
   }
 
@@ -304,7 +313,7 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   // MUTATION API
   // ---------------------------------------------------------------------------
 
-  get mutate(): GraphMutations<S> {
+  get mutate(): GraphMutations<S, M> {
     return this._mutate
   }
 
@@ -312,7 +321,7 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
   // TRANSACTION API
   // ---------------------------------------------------------------------------
 
-  async transaction<T>(fn: (tx: TransactionScope<S>) => Promise<T>): Promise<T> {
+  async transaction<T>(fn: (tx: TransactionScope<S, M>) => Promise<T>): Promise<T> {
     return this._adapter.transaction<T>(async (txCtx: TransactionContext) => {
       // Create transaction-scoped mutation executor
       const txMutationExecutor: MutationExecutor = {
@@ -334,14 +343,18 @@ class GraphImpl<S extends AnySchema> implements Graph<S> {
       }
 
       // Create transaction-scoped mutations (inherits hooks/validation from graph)
-      const txMutate = new GraphMutationsImpl(this._schema, txMutationExecutor, {
+      const txMutate: MutationTransaction<S, M> = new GraphMutationsImpl(
+        this._schema,
+        txMutationExecutor,
+        {
         idGenerator: this._options.idGenerator,
         templates: this._options.mutationTemplates,
         hooks: this._options.hooks,
         validation: this._options.validation,
-      }) as unknown as MutationTransaction<S>
+        },
+      )
 
-      const scope: TransactionScope<S> = {
+      const scope: TransactionScope<S, M> = {
         mutate: txMutate,
         raw: <R>(cypher: string, params?: Record<string, unknown>): Promise<R[]> => {
           return txCtx.run<R>(cypher, params)

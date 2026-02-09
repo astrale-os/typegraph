@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NodeQueryBuilder } from './node-query-builder'
-import { BaseBuilder } from './base'
+import { type BaseBuilder } from './base'
 import { buildOutTraversal, buildInTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
 import * as hierarchy from './hierarchy'
@@ -16,6 +16,8 @@ import type { QueryAST } from '@astrale/typegraph-core'
 import type {
   AnySchema,
   NodeLabels,
+  NodeIdFor,
+  NodeIdMap,
   NodeProps,
   OutgoingEdges,
   IncomingEdges,
@@ -36,7 +38,6 @@ import type {
 
 import { CollectionBuilder } from './collection'
 import { OptionalNodeBuilder } from './optional-node'
-import type { QueryExecutor } from './types'
 import { extractNodeFromRecord } from '../utils'
 import { CardinalityError, ExecutionError } from '@astrale/typegraph-core'
 
@@ -53,17 +54,25 @@ export class SingleNodeBuilder<
   N extends NodeLabels<S>,
   Aliases extends AliasMap<S> = Record<string, never>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
-> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases> {
-
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases, M> {
   protected _derive(ast: QueryAST): this {
-    return new SingleNodeBuilder(ast, this._schema, this._aliases, this._edgeAliases, this._executor) as this
+    return new SingleNodeBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    ) as this
   }
 
   // ===========================================================================
   // ALIASING
   // ===========================================================================
 
-  as<A extends string>(alias: A): SingleNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases> {
+  as<A extends string>(
+    alias: A,
+  ): SingleNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, M> {
     const { ast, aliases } = this._addAlias(alias)
     return new SingleNodeBuilder(ast, this._schema, aliases, this._edgeAliases, this._executor)
   }
@@ -83,34 +92,34 @@ export class SingleNodeBuilder<
     E4 extends EdgeAliasMap<S> = Record<string, never>,
   >(
     branch1: (
-      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases>,
+      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases, M>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B1, E1>
-      | CollectionBuilder<S, NodeLabels<S>, B1, E1>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B1, E1>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B1, E1, M>
+      | CollectionBuilder<S, NodeLabels<S>, B1, E1, M>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B1, E1, M>,
     branch2?: (
-      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases>,
+      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases, M>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B2, E2>
-      | CollectionBuilder<S, NodeLabels<S>, B2, E2>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B2, E2>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B2, E2, M>
+      | CollectionBuilder<S, NodeLabels<S>, B2, E2, M>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B2, E2, M>,
     branch3?: (
-      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases>,
+      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases, M>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B3, E3>
-      | CollectionBuilder<S, NodeLabels<S>, B3, E3>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B3, E3>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B3, E3, M>
+      | CollectionBuilder<S, NodeLabels<S>, B3, E3, M>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B3, E3, M>,
     branch4?: (
-      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases>,
+      q: SingleNodeBuilder<S, N, Aliases, EdgeAliases, M>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B4, E4>
-      | CollectionBuilder<S, NodeLabels<S>, B4, E4>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B4, E4>,
-  ): CollectionBuilder<S, N, Aliases & B1 & B2 & B3 & B4, EdgeAliases & E1 & E2 & E3 & E4> {
+      | SingleNodeBuilder<S, NodeLabels<S>, B4, E4, M>
+      | CollectionBuilder<S, NodeLabels<S>, B4, E4, M>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B4, E4, M>,
+  ): CollectionBuilder<S, N, Aliases & B1 & B2 & B3 & B4, EdgeAliases & E1 & E2 & E3 & E4, M> {
     const ALIAS_OFFSET_PER_BRANCH = 10
 
     const createBranchBuilder = (branchIndex: number) =>
-      new SingleNodeBuilder<S, N, Aliases, EdgeAliases>(
+      new SingleNodeBuilder<S, N, Aliases, EdgeAliases, M>(
         this._ast.withAliasOffset(branchIndex * ALIAS_OFFSET_PER_BRANCH),
         this._schema,
         this._aliases,
@@ -136,7 +145,13 @@ export class SingleNodeBuilder<
       if (b._edgeAliases) mergedEdgeAliases = { ...mergedEdgeAliases, ...b._edgeAliases }
     }
 
-    return new CollectionBuilder(newAst, this._schema, mergedAliases, mergedEdgeAliases, this._executor)
+    return new CollectionBuilder(
+      newAst,
+      this._schema,
+      mergedAliases,
+      mergedEdgeAliases,
+      this._executor,
+    )
   }
 
   // ===========================================================================
@@ -175,12 +190,30 @@ export class SingleNodeBuilder<
       : this._edgeAliases
 
     if (cardinality === 'one') {
-      return new SingleNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new SingleNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
     if (cardinality === 'optional') {
-      return new OptionalNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new OptionalNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
-    return new CollectionBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+    return new CollectionBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+    ) as any
   }
 
   toOptional<E extends OutgoingEdges<S, N>>(
@@ -191,7 +224,13 @@ export class SingleNodeBuilder<
       where: options?.where as Record<string, unknown>,
       optional: true,
     })
-    return new OptionalNodeBuilder(ast, this._schema, this._aliases, this._edgeAliases, this._executor) as any
+    return new OptionalNodeBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    ) as any
   }
 
   from<E extends IncomingEdges<S, N>, EA extends string | undefined = undefined>(
@@ -226,12 +265,30 @@ export class SingleNodeBuilder<
       : this._edgeAliases
 
     if (cardinality === 'one') {
-      return new SingleNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new SingleNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
     if (cardinality === 'optional') {
-      return new OptionalNodeBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+      return new OptionalNodeBuilder(
+        ast,
+        this._schema,
+        this._aliases,
+        newEdgeAliases,
+        this._executor,
+      ) as any
     }
-    return new CollectionBuilder(ast, this._schema, this._aliases, newEdgeAliases, this._executor) as any
+    return new CollectionBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      newEdgeAliases,
+      this._executor,
+    ) as any
   }
 
   fromOptional<E extends IncomingEdges<S, N>>(
@@ -242,7 +299,13 @@ export class SingleNodeBuilder<
       where: options?.where as Record<string, unknown>,
       optional: true,
     })
-    return new OptionalNodeBuilder(ast, this._schema, this._aliases, this._edgeAliases, this._executor) as any
+    return new OptionalNodeBuilder(
+      ast,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    ) as any
   }
 
   // ===========================================================================
@@ -278,7 +341,13 @@ export class SingleNodeBuilder<
     edge?: E,
   ): SingleNodeBuilder<S, HierarchyParent<S, N, E>, Aliases, EdgeAliases> {
     const newAst = hierarchy.addRoot(this._ast, this._schema, edge)
-    return new SingleNodeBuilder(newAst, this._schema, this._aliases, this._edgeAliases, this._executor)
+    return new SingleNodeBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
   parent<E extends EdgeTypes<S> | undefined = undefined>(
@@ -288,9 +357,21 @@ export class SingleNodeBuilder<
     | OptionalNodeBuilder<S, HierarchyParent<S, N, E>, Aliases, EdgeAliases> {
     const { ast: newAst, cardinality } = hierarchy.addParent(this._ast, this._schema, edge)
     if (cardinality === 'optional') {
-      return new OptionalNodeBuilder(newAst, this._schema, this._aliases, this._edgeAliases, this._executor)
+      return new OptionalNodeBuilder(
+        newAst,
+        this._schema,
+        this._aliases,
+        this._edgeAliases,
+        this._executor,
+      )
     }
-    return new SingleNodeBuilder(newAst, this._schema, this._aliases, this._edgeAliases, this._executor)
+    return new SingleNodeBuilder(
+      newAst,
+      this._schema,
+      this._aliases,
+      this._edgeAliases,
+      this._executor,
+    )
   }
 
   depth(_edge?: EdgeTypes<S>): Promise<number> {
@@ -301,13 +382,17 @@ export class SingleNodeBuilder<
   // EXECUTION
   // ===========================================================================
 
-  async execute(): Promise<NodeProps<S, N>> {
+  async execute(): Promise<NodeProps<S, N, NodeIdFor<S, N, M>>> {
     if (!this._executor) {
       throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
-    const results = await this._executor.run<Record<string, unknown>>(compiled.cypher, compiled.params, this._ast)
+    const results = await this._executor.run<Record<string, unknown>>(
+      compiled.cypher,
+      compiled.params,
+      this._ast,
+    )
 
     if (results.length === 0) {
       throw new CardinalityError('one', 0)
@@ -316,19 +401,31 @@ export class SingleNodeBuilder<
       throw new CardinalityError('one', results.length)
     }
 
-    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
+    return extractNodeFromRecord(
+      results[0]!,
+      this._schema,
+      this.currentLabel as string,
+    ) as NodeProps<S, N, NodeIdFor<S, N, M>>
   }
 
-  async executeOrNull(): Promise<NodeProps<S, N> | null> {
+  async executeOrNull(): Promise<NodeProps<S, N, NodeIdFor<S, N, M>> | null> {
     if (!this._executor) {
       throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
 
     const compiled = this.compile()
-    const results = await this._executor.run<Record<string, unknown>>(compiled.cypher, compiled.params, this._ast)
+    const results = await this._executor.run<Record<string, unknown>>(
+      compiled.cypher,
+      compiled.params,
+      this._ast,
+    )
 
     if (results.length === 0) return null
-    return extractNodeFromRecord(results[0]!, this._schema, this.currentLabel as string) as NodeProps<S, N>
+    return extractNodeFromRecord(
+      results[0]!,
+      this._schema,
+      this.currentLabel as string,
+    ) as NodeProps<S, N, NodeIdFor<S, N, M>>
   }
 }
 

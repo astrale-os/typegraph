@@ -53,7 +53,7 @@ export * from '@astrale/typegraph-core'
 export { createGraph } from './graph'
 export type { Graph, GraphOptions, TransactionScope } from './graph'
 
-import type { AnySchema } from '@astrale/typegraph-core'
+import type { AnySchema, NodeIdMap } from '@astrale/typegraph-core'
 import type { GraphQuery } from './query'
 import { GraphQueryImpl } from './query'
 
@@ -67,8 +67,10 @@ import { GraphQueryImpl } from './query'
  * const compiled = query.node('user').where('status', 'eq', 'active').compile()
  * ```
  */
-export function createQueryBuilder<S extends AnySchema>(schema: S): GraphQuery<S> {
-  return new GraphQueryImpl(schema, null)
+export function createQueryBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>(
+  schema: S,
+): GraphQuery<S, M> {
+  return new GraphQueryImpl<S, M>(schema, null)
 }
 
 // =============================================================================

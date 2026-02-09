@@ -28,7 +28,7 @@ export { isCompositeIndex, isSinglePropertyIndex } from './types'
 
 // Schema diffing
 export { diffSchema } from './diff'
-export type { SchemaDiff, SchemaChange } from './diff-types'
+export type { SchemaDiff, SchemaChange } from './types'
 
 // Schema serialization
 export { toSchema } from './serializer'
@@ -41,6 +41,8 @@ export type {
   NodeLabels,
   EdgeTypes,
   NodeProps,
+  NodeIdMap,
+  NodeIdFor,
   NodeInputProps,
   EdgeProps,
   EdgeInputProps,
