@@ -18,7 +18,7 @@ import {
   NullableType,
   UnionType,
   EdgeRefType,
-} from '../ast.js'
+} from '../ast/index.js'
 
 export function provideDocumentSymbols(state: DocumentState): DocumentSymbol[] {
   const ast = state.result.artifacts?.ast

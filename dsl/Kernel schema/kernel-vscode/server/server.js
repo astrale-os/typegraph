@@ -8845,7 +8845,7 @@ var require_main4 = __commonJS({
       console.dir = function dir(arg, options) {
         logger.log((0, node_util_1.inspect)(arg, options));
       };
-      console.log = function log2(...args) {
+      console.log = function log(...args) {
         logger.log(serialize2(args));
       };
       console.error = function error(...args) {
@@ -10568,7 +10568,525 @@ function isKeyword(token, keyword) {
   return token.kind === "Ident" && token.text === keyword;
 }
 
-// src/parser.ts
+// src/parser/types.ts
+function parseTypeExpr(p) {
+  const first = parseNullableOrPrimary(p);
+  if (p.at("Pipe")) {
+    const children = [first];
+    const types = [
+      first
+    ];
+    while (p.at("Pipe")) {
+      const pipe = p.advance();
+      children.push(pipe);
+      const next = parseNullableOrPrimary(p);
+      children.push(next);
+      types.push(next);
+    }
+    return {
+      kind: "UnionType",
+      children,
+      types
+    };
+  }
+  return first;
+}
+function parseNullableOrPrimary(p) {
+  const primary = parsePrimaryType(p);
+  if (p.at("Question")) {
+    const question = p.advance();
+    const children = [primary, question];
+    return {
+      kind: "NullableType",
+      children,
+      inner: primary,
+      question
+    };
+  }
+  return primary;
+}
+function parsePrimaryType(p) {
+  if (p.atKeyword("edge") && p.peek(1).kind === "LAngle") {
+    return parseEdgeRefType(p);
+  }
+  const name = p.expectIdent();
+  return {
+    kind: "NamedType",
+    children: [name],
+    name
+  };
+}
+function parseEdgeRefType(p) {
+  const children = [];
+  const edgeKeyword = p.advance();
+  children.push(edgeKeyword);
+  const langle = p.expect("LAngle");
+  children.push(langle);
+  const target = p.expectIdent();
+  children.push(target);
+  const rangle = p.expect("RAngle");
+  children.push(rangle);
+  return {
+    kind: "EdgeRefType",
+    children,
+    edgeKeyword,
+    langle,
+    target,
+    rangle
+  };
+}
+
+// src/parser/modifiers.ts
+function parseModifierList(p) {
+  const children = [];
+  const lbracket = p.expect("LBracket");
+  children.push(lbracket);
+  const modifiers = [];
+  while (!p.at("RBracket") && !p.at("EOF")) {
+    if (isDeclStart(p.current())) {
+      p.diagnostics.error(
+        p.current().span,
+        DiagnosticCodes.P_UNCLOSED_BRACKET,
+        "Unclosed '['"
+      );
+      break;
+    }
+    const mod = parseModifier(p);
+    modifiers.push(mod);
+    children.push(mod);
+    if (p.at("Comma")) {
+      const comma = p.advance();
+      children.push(comma);
+    } else if (!p.at("RBracket")) {
+      break;
+    }
+  }
+  const rbracket = p.expect("RBracket");
+  children.push(rbracket);
+  return {
+    kind: "ModifierList",
+    children,
+    lbracket,
+    modifiers,
+    rbracket
+  };
+}
+function parseModifier(p) {
+  const children = [];
+  if (p.at("GtEq") || p.at("LtEq")) {
+    const op = p.advance();
+    children.push(op);
+    const num = p.expect("NumberLit");
+    children.push(num);
+    return { kind: "Modifier", children };
+  }
+  const name = p.expectIdent();
+  children.push(name);
+  if (p.at("Arrow")) {
+    const arrow = p.advance();
+    children.push(arrow);
+    parseCardinalityBound(p, children);
+    return { kind: "Modifier", children };
+  }
+  if (p.at("Colon")) {
+    const colon = p.advance();
+    children.push(colon);
+    if (p.at("LBracket")) {
+      const stringList = parseStringList(p);
+      children.push(stringList);
+      return { kind: "Modifier", children };
+    }
+    if (p.at("NumberLit") && p.peek(1).kind === "DotDot") {
+      const min = p.advance();
+      children.push(min);
+      const dotdot = p.advance();
+      children.push(dotdot);
+      const max = p.expect("NumberLit");
+      children.push(max);
+      return { kind: "Modifier", children };
+    }
+    if (p.at("Ident")) {
+      const value = p.advance();
+      children.push(value);
+      return { kind: "Modifier", children };
+    }
+    if (p.at("NumberLit")) {
+      const value = p.advance();
+      children.push(value);
+      return { kind: "Modifier", children };
+    }
+  }
+  if (p.at("DotDot")) {
+    const dotdot = p.advance();
+    children.push(dotdot);
+    const max = p.expect("NumberLit");
+    children.push(max);
+    return { kind: "Modifier", children };
+  }
+  return { kind: "Modifier", children };
+}
+function parseCardinalityBound(p, children) {
+  const num = p.expect("NumberLit");
+  children.push(num);
+  if (p.at("DotDot")) {
+    const dotdot = p.advance();
+    children.push(dotdot);
+    if (p.at("Star")) {
+      const star = p.advance();
+      children.push(star);
+    } else {
+      const max = p.expect("NumberLit");
+      children.push(max);
+    }
+  }
+}
+function parseStringList(p) {
+  const children = [];
+  const values = [];
+  const lbracket = p.expect("LBracket");
+  children.push(lbracket);
+  if (!p.at("RBracket") && !p.at("EOF")) {
+    const first = p.expect("StringLit");
+    children.push(first);
+    values.push(first);
+    while (p.at("Comma")) {
+      const comma = p.advance();
+      children.push(comma);
+      const str = p.expect("StringLit");
+      children.push(str);
+      values.push(str);
+    }
+  }
+  const rbracket = p.expect("RBracket");
+  children.push(rbracket);
+  return {
+    kind: "StringList",
+    children,
+    lbracket,
+    values,
+    rbracket
+  };
+}
+
+// src/parser/expressions.ts
+function parseExpression(p) {
+  const children = [];
+  if (p.at("StringLit")) {
+    const token = p.advance();
+    children.push(token);
+    return { kind: "Expression", children, token };
+  }
+  if (p.at("NumberLit")) {
+    const token = p.advance();
+    children.push(token);
+    return { kind: "Expression", children, token };
+  }
+  if (p.at("Ident")) {
+    const ident = p.advance();
+    children.push(ident);
+    if (p.at("LParen")) {
+      const lparen = p.advance();
+      children.push(lparen);
+      const rparen = p.expect("RParen");
+      children.push(rparen);
+      return { kind: "Expression", children, fn: ident, lparen, rparen };
+    }
+    return { kind: "Expression", children, token: ident };
+  }
+  const cur = p.current();
+  p.diagnostics.error(
+    cur.span,
+    DiagnosticCodes.P_EXPECTED_EXPRESSION,
+    `Expected expression, got ${cur.kind}`
+  );
+  const synthetic = {
+    kind: "Ident",
+    text: "null",
+    span: { start: cur.span.start, end: cur.span.start },
+    leadingTrivia: []
+  };
+  children.push(synthetic);
+  return { kind: "Expression", children, token: synthetic };
+}
+
+// src/parser/declarations.ts
+function parseDeclaration(p) {
+  if (p.atKeyword("type")) return parseTypeAlias(p);
+  if (p.atKeyword("interface")) return parseInterface(p);
+  if (p.atKeyword("class")) return parseClass(p);
+  if (p.atKeyword("extend")) return parseExtend(p);
+  p.diagnostics.error(
+    p.current().span,
+    DiagnosticCodes.P_EXPECTED_DECLARATION,
+    `Expected declaration (type, interface, class, extend), got '${p.current().text}'`
+  );
+  return null;
+}
+function parseTypeAlias(p) {
+  const children = [];
+  const typeKeyword = p.expectKeyword("type");
+  children.push(typeKeyword);
+  const name = p.expectIdent();
+  children.push(name);
+  const eq = p.expect("Eq");
+  children.push(eq);
+  const typeExpr = parseTypeExpr(p);
+  children.push(typeExpr);
+  let modifiers = null;
+  if (p.at("LBracket")) {
+    modifiers = parseModifierList(p);
+    children.push(modifiers);
+  }
+  return {
+    kind: "TypeAliasDecl",
+    children,
+    typeKeyword,
+    name,
+    eq,
+    typeExpr,
+    modifiers
+  };
+}
+function parseInterface(p) {
+  const children = [];
+  const interfaceKeyword = p.expectKeyword("interface");
+  children.push(interfaceKeyword);
+  const name = p.expectIdent();
+  children.push(name);
+  let extendsClause = null;
+  if (p.at("Colon")) {
+    extendsClause = parseExtendsClause(p);
+    children.push(extendsClause);
+  }
+  let body = null;
+  if (p.at("LBrace")) {
+    body = parseBody(p);
+    children.push(body);
+  }
+  return {
+    kind: "InterfaceDecl",
+    children,
+    interfaceKeyword,
+    name,
+    extendsClause,
+    body
+  };
+}
+function parseClass(p) {
+  const children = [];
+  const classKeyword = p.expectKeyword("class");
+  children.push(classKeyword);
+  const name = p.expectIdent();
+  children.push(name);
+  let signature = null;
+  if (p.at("LParen")) {
+    signature = parseSignature(p);
+    children.push(signature);
+  }
+  let extendsClause = null;
+  if (p.at("Colon")) {
+    extendsClause = parseExtendsClause(p);
+    children.push(extendsClause);
+  }
+  let modifiers = null;
+  if (p.at("LBracket")) {
+    modifiers = parseModifierList(p);
+    children.push(modifiers);
+  }
+  let body = null;
+  if (p.at("LBrace")) {
+    body = parseBody(p);
+    children.push(body);
+  }
+  return {
+    kind: "ClassDecl",
+    children,
+    classKeyword,
+    name,
+    signature,
+    extendsClause,
+    modifiers,
+    body
+  };
+}
+function parseExtend(p) {
+  const children = [];
+  const extendKeyword = p.expectKeyword("extend");
+  children.push(extendKeyword);
+  const uri = p.expect("StringLit");
+  children.push(uri);
+  const lbrace = p.expect("LBrace");
+  children.push(lbrace);
+  const imports = parseIdentList(p);
+  children.push(imports);
+  const rbrace = p.expect("RBrace");
+  children.push(rbrace);
+  return {
+    kind: "ExtendDecl",
+    children,
+    extendKeyword,
+    uri,
+    lbrace,
+    imports,
+    rbrace
+  };
+}
+function parseExtendsClause(p) {
+  const children = [];
+  const colon = p.expect("Colon");
+  children.push(colon);
+  const names = parseIdentList(p);
+  children.push(names);
+  return {
+    kind: "ExtendsClause",
+    children,
+    colon,
+    names
+  };
+}
+function parseIdentList(p) {
+  const children = [];
+  const items = [];
+  const first = p.expectIdent();
+  children.push(first);
+  items.push(first);
+  while (p.at("Comma")) {
+    const comma = p.advance();
+    children.push(comma);
+    const ident = p.expectIdent();
+    children.push(ident);
+    items.push(ident);
+  }
+  return {
+    kind: "IdentList",
+    children,
+    items
+  };
+}
+function parseSignature(p) {
+  const children = [];
+  const lparen = p.expect("LParen");
+  children.push(lparen);
+  const params = [];
+  if (!p.at("RParen") && !p.at("EOF")) {
+    const first = parseParam(p);
+    params.push(first);
+    children.push(first);
+    while (p.at("Comma")) {
+      const comma = p.advance();
+      children.push(comma);
+      const param = parseParam(p);
+      params.push(param);
+      children.push(param);
+    }
+  }
+  const rparen = p.expect("RParen");
+  children.push(rparen);
+  return {
+    kind: "Signature",
+    children,
+    lparen,
+    params,
+    rparen
+  };
+}
+function parseParam(p) {
+  const children = [];
+  const name = p.expectIdent();
+  children.push(name);
+  const colon = p.expect("Colon");
+  children.push(colon);
+  const typeExpr = parseTypeExpr(p);
+  children.push(typeExpr);
+  return {
+    kind: "Param",
+    children,
+    name,
+    colon,
+    typeExpr
+  };
+}
+function parseBody(p) {
+  const children = [];
+  const lbrace = p.expect("LBrace");
+  children.push(lbrace);
+  const attributes = [];
+  while (!p.at("RBrace") && !p.at("EOF")) {
+    if (isDeclStart(p.current())) {
+      p.diagnostics.error(
+        p.current().span,
+        DiagnosticCodes.P_UNCLOSED_BRACE,
+        "Unclosed '{'"
+      );
+      break;
+    }
+    const attr = parseAttribute(p);
+    if (attr) {
+      attributes.push(attr);
+      children.push(attr);
+    } else {
+      const skipped = p.advance();
+      children.push(skipped);
+    }
+  }
+  const rbrace = p.expect("RBrace");
+  children.push(rbrace);
+  return {
+    kind: "Body",
+    children,
+    lbrace,
+    attributes,
+    rbrace
+  };
+}
+function parseAttribute(p) {
+  if (!p.at("Ident")) return null;
+  if (p.peek(1).kind !== "Colon") return null;
+  const children = [];
+  const name = p.advance();
+  children.push(name);
+  const colon = p.expect("Colon");
+  children.push(colon);
+  const typeExpr = parseTypeExpr(p);
+  children.push(typeExpr);
+  let modifiers = null;
+  if (p.at("LBracket")) {
+    modifiers = parseModifierList(p);
+    children.push(modifiers);
+  }
+  let defaultValue = null;
+  if (p.at("Eq")) {
+    defaultValue = parseDefaultValue(p);
+    children.push(defaultValue);
+  }
+  if (p.at("Comma")) {
+    children.push(p.advance());
+  }
+  return {
+    kind: "Attribute",
+    children,
+    name,
+    colon,
+    typeExpr,
+    modifiers,
+    defaultValue
+  };
+}
+function parseDefaultValue(p) {
+  const children = [];
+  const eq = p.expect("Eq");
+  children.push(eq);
+  const expression = parseExpression(p);
+  children.push(expression);
+  return {
+    kind: "DefaultValue",
+    children,
+    eq,
+    expression
+  };
+}
+
+// src/parser/index.ts
 function parse(tokens, diagnostics) {
   const bag = diagnostics ?? new DiagnosticBag();
   const parser = new Parser(tokens, bag);
@@ -10681,13 +11199,17 @@ var Parser = class {
     const children = [];
     const declarations = [];
     while (!this.at("EOF")) {
-      const decl = this.parseDeclaration();
+      const decl = parseDeclaration(this);
       if (decl) {
         declarations.push(decl);
         children.push(decl);
       } else {
         const skipped = this.skipToSync();
-        children.push(...skipped);
+        if (skipped.length === 0 && !this.at("EOF")) {
+          children.push(this.advance());
+        } else {
+          children.push(...skipped);
+        }
       }
     }
     const eof = this.advance();
@@ -10699,550 +11221,9 @@ var Parser = class {
       eof
     };
   }
-  // --- Declarations ---
-  parseDeclaration() {
-    if (this.atKeyword("type")) return this.parseTypeAlias();
-    if (this.atKeyword("interface")) return this.parseInterface();
-    if (this.atKeyword("class")) return this.parseClass();
-    if (this.atKeyword("extend")) return this.parseExtend();
-    this.diagnostics.error(
-      this.current().span,
-      DiagnosticCodes.P_EXPECTED_DECLARATION,
-      `Expected declaration (type, interface, class, extend), got '${this.current().text}'`
-    );
-    return null;
-  }
-  // type Name = TypeExpr [modifiers]
-  parseTypeAlias() {
-    const children = [];
-    const typeKeyword = this.expectKeyword("type");
-    children.push(typeKeyword);
-    const name = this.expectIdent();
-    children.push(name);
-    const eq = this.expect("Eq");
-    children.push(eq);
-    const typeExpr = this.parseTypeExpr();
-    children.push(typeExpr);
-    let modifiers = null;
-    if (this.at("LBracket")) {
-      modifiers = this.parseModifierList();
-      children.push(modifiers);
-    }
-    return {
-      kind: "TypeAliasDecl",
-      children,
-      typeKeyword,
-      name,
-      eq,
-      typeExpr,
-      modifiers
-    };
-  }
-  // interface Name : Parents { body }
-  parseInterface() {
-    const children = [];
-    const interfaceKeyword = this.expectKeyword("interface");
-    children.push(interfaceKeyword);
-    const name = this.expectIdent();
-    children.push(name);
-    let extendsClause = null;
-    if (this.at("Colon")) {
-      extendsClause = this.parseExtendsClause();
-      children.push(extendsClause);
-    }
-    let body = null;
-    if (this.at("LBrace")) {
-      body = this.parseBody();
-      children.push(body);
-    }
-    return {
-      kind: "InterfaceDecl",
-      children,
-      interfaceKeyword,
-      name,
-      extendsClause,
-      body
-    };
-  }
-  // class Name(sig)? : Parents [mods] { body }
-  parseClass() {
-    const children = [];
-    const classKeyword = this.expectKeyword("class");
-    children.push(classKeyword);
-    const name = this.expectIdent();
-    children.push(name);
-    let signature = null;
-    if (this.at("LParen")) {
-      signature = this.parseSignature();
-      children.push(signature);
-    }
-    let extendsClause = null;
-    if (this.at("Colon")) {
-      extendsClause = this.parseExtendsClause();
-      children.push(extendsClause);
-    }
-    let modifiers = null;
-    if (this.at("LBracket")) {
-      modifiers = this.parseModifierList();
-      children.push(modifiers);
-    }
-    let body = null;
-    if (this.at("LBrace")) {
-      body = this.parseBody();
-      children.push(body);
-    }
-    return {
-      kind: "ClassDecl",
-      children,
-      classKeyword,
-      name,
-      signature,
-      extendsClause,
-      modifiers,
-      body
-    };
-  }
-  // extend "uri" { Ident, Ident }
-  parseExtend() {
-    const children = [];
-    const extendKeyword = this.expectKeyword("extend");
-    children.push(extendKeyword);
-    const uri = this.expect("StringLit");
-    children.push(uri);
-    const lbrace = this.expect("LBrace");
-    children.push(lbrace);
-    const imports = this.parseIdentList();
-    children.push(imports);
-    const rbrace = this.expect("RBrace");
-    children.push(rbrace);
-    return {
-      kind: "ExtendDecl",
-      children,
-      extendKeyword,
-      uri,
-      lbrace,
-      imports,
-      rbrace
-    };
-  }
-  // --- Shared Components ---
-  // : Ident, Ident, ...
-  parseExtendsClause() {
-    const children = [];
-    const colon = this.expect("Colon");
-    children.push(colon);
-    const names = this.parseIdentList();
-    children.push(names);
-    return {
-      kind: "ExtendsClause",
-      children,
-      colon,
-      names
-    };
-  }
-  // Ident (, Ident)*
-  parseIdentList() {
-    const children = [];
-    const items = [];
-    const first = this.expectIdent();
-    children.push(first);
-    items.push(first);
-    while (this.at("Comma")) {
-      const comma = this.advance();
-      children.push(comma);
-      const ident = this.expectIdent();
-      children.push(ident);
-      items.push(ident);
-    }
-    return {
-      kind: "IdentList",
-      children,
-      items
-    };
-  }
-  // ( Param, Param, ... )
-  parseSignature() {
-    const children = [];
-    const lparen = this.expect("LParen");
-    children.push(lparen);
-    const params = [];
-    if (!this.at("RParen") && !this.at("EOF")) {
-      const first = this.parseParam();
-      params.push(first);
-      children.push(first);
-      while (this.at("Comma")) {
-        const comma = this.advance();
-        children.push(comma);
-        const param = this.parseParam();
-        params.push(param);
-        children.push(param);
-      }
-    }
-    const rparen = this.expect("RParen");
-    children.push(rparen);
-    return {
-      kind: "Signature",
-      children,
-      lparen,
-      params,
-      rparen
-    };
-  }
-  // name : TypeExpr
-  parseParam() {
-    const children = [];
-    const name = this.expectIdent();
-    children.push(name);
-    const colon = this.expect("Colon");
-    children.push(colon);
-    const typeExpr = this.parseTypeExpr();
-    children.push(typeExpr);
-    return {
-      kind: "Param",
-      children,
-      name,
-      colon,
-      typeExpr
-    };
-  }
-  // { Attribute* }
-  parseBody() {
-    const children = [];
-    const lbrace = this.expect("LBrace");
-    children.push(lbrace);
-    const attributes = [];
-    while (!this.at("RBrace") && !this.at("EOF")) {
-      if (isDeclStart(this.current())) {
-        this.diagnostics.error(
-          this.current().span,
-          DiagnosticCodes.P_UNCLOSED_BRACE,
-          "Unclosed '{'"
-        );
-        break;
-      }
-      const attr = this.parseAttribute();
-      if (attr) {
-        attributes.push(attr);
-        children.push(attr);
-      } else {
-        const skipped = this.advance();
-        children.push(skipped);
-      }
-    }
-    const rbrace = this.expect("RBrace");
-    children.push(rbrace);
-    return {
-      kind: "Body",
-      children,
-      lbrace,
-      attributes,
-      rbrace
-    };
-  }
-  // name : TypeExpr [mods] = default
-  parseAttribute() {
-    if (!this.at("Ident")) return null;
-    if (this.peek(1).kind !== "Colon") return null;
-    const children = [];
-    const name = this.advance();
-    children.push(name);
-    const colon = this.expect("Colon");
-    children.push(colon);
-    const typeExpr = this.parseTypeExpr();
-    children.push(typeExpr);
-    let modifiers = null;
-    if (this.at("LBracket")) {
-      modifiers = this.parseModifierList();
-      children.push(modifiers);
-    }
-    let defaultValue = null;
-    if (this.at("Eq")) {
-      defaultValue = this.parseDefaultValue();
-      children.push(defaultValue);
-    }
-    if (this.at("Comma")) {
-      children.push(this.advance());
-    }
-    return {
-      kind: "Attribute",
-      children,
-      name,
-      colon,
-      typeExpr,
-      modifiers,
-      defaultValue
-    };
-  }
-  // = Expression
-  parseDefaultValue() {
-    const children = [];
-    const eq = this.expect("Eq");
-    children.push(eq);
-    const expression = this.parseExpression();
-    children.push(expression);
-    return {
-      kind: "DefaultValue",
-      children,
-      eq,
-      expression
-    };
-  }
-  // --- Type Expressions ---
-  parseTypeExpr() {
-    const first = this.parseNullableOrPrimary();
-    if (this.at("Pipe")) {
-      const children = [first];
-      const types = [
-        first
-      ];
-      while (this.at("Pipe")) {
-        const pipe = this.advance();
-        children.push(pipe);
-        const next = this.parseNullableOrPrimary();
-        children.push(next);
-        types.push(next);
-      }
-      return {
-        kind: "UnionType",
-        children,
-        types
-      };
-    }
-    return first;
-  }
-  parseNullableOrPrimary() {
-    const primary = this.parsePrimaryType();
-    if (this.at("Question")) {
-      const question = this.advance();
-      const children = [primary, question];
-      return {
-        kind: "NullableType",
-        children,
-        inner: primary,
-        question
-      };
-    }
-    return primary;
-  }
-  parsePrimaryType() {
-    if (this.atKeyword("edge") && this.peek(1).kind === "LAngle") {
-      return this.parseEdgeRefType();
-    }
-    const name = this.expectIdent();
-    return {
-      kind: "NamedType",
-      children: [name],
-      name
-    };
-  }
-  parseEdgeRefType() {
-    const children = [];
-    const edgeKeyword = this.advance();
-    children.push(edgeKeyword);
-    const langle = this.expect("LAngle");
-    children.push(langle);
-    const target = this.expectIdent();
-    children.push(target);
-    const rangle = this.expect("RAngle");
-    children.push(rangle);
-    return {
-      kind: "EdgeRefType",
-      children,
-      edgeKeyword,
-      langle,
-      target,
-      rangle
-    };
-  }
-  // --- Modifier List ---
-  // [ Modifier, Modifier, ... ]
-  parseModifierList() {
-    const children = [];
-    const lbracket = this.expect("LBracket");
-    children.push(lbracket);
-    const modifiers = [];
-    while (!this.at("RBracket") && !this.at("EOF")) {
-      if (isDeclStart(this.current())) {
-        this.diagnostics.error(
-          this.current().span,
-          DiagnosticCodes.P_UNCLOSED_BRACKET,
-          "Unclosed '['"
-        );
-        break;
-      }
-      const mod = this.parseModifier();
-      modifiers.push(mod);
-      children.push(mod);
-      if (this.at("Comma")) {
-        const comma = this.advance();
-        children.push(comma);
-      } else if (!this.at("RBracket")) {
-        break;
-      }
-    }
-    const rbracket = this.expect("RBracket");
-    children.push(rbracket);
-    return {
-      kind: "ModifierList",
-      children,
-      lbracket,
-      modifiers,
-      rbracket
-    };
-  }
-  /**
-   * Parse a single modifier. The CST doesn't classify them — the
-   * lowering pass does that. We just collect tokens intelligently:
-   *
-   *   flag:         Ident                          (no_self, acyclic, ...)
-   *   kv:           Ident Colon Value              (format: email)
-   *   cardinality:  Ident Arrow Bound              (child -> 0..1)
-   *   range:        GtEq/LtEq Number               (>= 5)
-   *   lifecycle:    Ident Colon Ident              (on_kill_source: cascade)
-   *   in:           Ident Colon [ StringList ]     (in: ["a", "b"])
-   *   length:       Ident Colon Number..Number     (length: 1..255)
-   */
-  parseModifier() {
-    const children = [];
-    if (this.at("GtEq") || this.at("LtEq")) {
-      const op = this.advance();
-      children.push(op);
-      const num = this.expect("NumberLit");
-      children.push(num);
-      return { kind: "Modifier", children };
-    }
-    const name = this.expectIdent();
-    children.push(name);
-    if (this.at("Arrow")) {
-      const arrow = this.advance();
-      children.push(arrow);
-      this.parseCardinalityBound(children);
-      return { kind: "Modifier", children };
-    }
-    if (this.at("Colon")) {
-      const colon = this.advance();
-      children.push(colon);
-      if (this.at("LBracket")) {
-        const stringList = this.parseStringList();
-        children.push(stringList);
-        return { kind: "Modifier", children };
-      }
-      if (this.at("NumberLit") && this.peek(1).kind === "DotDot") {
-        const min = this.advance();
-        children.push(min);
-        const dotdot = this.advance();
-        children.push(dotdot);
-        const max = this.expect("NumberLit");
-        children.push(max);
-        return { kind: "Modifier", children };
-      }
-      if (this.at("Ident")) {
-        const value = this.advance();
-        children.push(value);
-        return { kind: "Modifier", children };
-      }
-      if (this.at("NumberLit")) {
-        const value = this.advance();
-        children.push(value);
-        return { kind: "Modifier", children };
-      }
-    }
-    if (this.at("DotDot")) {
-      const dotdot = this.advance();
-      children.push(dotdot);
-      const max = this.expect("NumberLit");
-      children.push(max);
-      return { kind: "Modifier", children };
-    }
-    return { kind: "Modifier", children };
-  }
-  /** Parse cardinality bound: N, N..M, N..* */
-  parseCardinalityBound(children) {
-    const num = this.expect("NumberLit");
-    children.push(num);
-    if (this.at("DotDot")) {
-      const dotdot = this.advance();
-      children.push(dotdot);
-      if (this.at("Star")) {
-        const star = this.advance();
-        children.push(star);
-      } else {
-        const max = this.expect("NumberLit");
-        children.push(max);
-      }
-    }
-  }
-  // ["a", "b", "c"]
-  parseStringList() {
-    const children = [];
-    const values = [];
-    const lbracket = this.expect("LBracket");
-    children.push(lbracket);
-    if (!this.at("RBracket") && !this.at("EOF")) {
-      const first = this.expect("StringLit");
-      children.push(first);
-      values.push(first);
-      while (this.at("Comma")) {
-        const comma = this.advance();
-        children.push(comma);
-        const str = this.expect("StringLit");
-        children.push(str);
-        values.push(str);
-      }
-    }
-    const rbracket = this.expect("RBracket");
-    children.push(rbracket);
-    return {
-      kind: "StringList",
-      children,
-      lbracket,
-      values,
-      rbracket
-    };
-  }
-  // --- Expressions ---
-  parseExpression() {
-    const children = [];
-    if (this.at("StringLit")) {
-      const token = this.advance();
-      children.push(token);
-      return { kind: "Expression", children, token };
-    }
-    if (this.at("NumberLit")) {
-      const token = this.advance();
-      children.push(token);
-      return { kind: "Expression", children, token };
-    }
-    if (this.at("Ident")) {
-      const ident = this.advance();
-      children.push(ident);
-      if (this.at("LParen")) {
-        const lparen = this.advance();
-        children.push(lparen);
-        const rparen = this.expect("RParen");
-        children.push(rparen);
-        return { kind: "Expression", children, fn: ident, lparen, rparen };
-      }
-      return { kind: "Expression", children, token: ident };
-    }
-    const cur = this.current();
-    this.diagnostics.error(
-      cur.span,
-      DiagnosticCodes.P_EXPECTED_EXPRESSION,
-      `Expected expression, got ${cur.kind}`
-    );
-    const synthetic = {
-      kind: "Ident",
-      text: "null",
-      span: { start: cur.span.start, end: cur.span.start },
-      leadingTrivia: []
-    };
-    children.push(synthetic);
-    return { kind: "Expression", children, token: synthetic };
-  }
 };
 
-// src/cst.ts
+// src/cst/nodes.ts
 function isToken(child) {
   return "text" in child;
 }
@@ -11275,330 +11256,153 @@ function lastToken(node) {
   return void 0;
 }
 
-// src/lower.ts
-function lower(cst, diagnostics) {
-  const bag = diagnostics ?? new DiagnosticBag();
-  const l = new Lowering(bag);
-  const ast = l.lowerSchema(cst);
-  return { ast, diagnostics: bag };
+// src/lower/types.ts
+function lowerTypeExpr(node) {
+  switch (node.kind) {
+    case "UnionType": {
+      const union = node;
+      return {
+        kind: "UnionType",
+        types: union.types.map((t) => lowerTypeExpr(t)),
+        span: spanOf(node)
+      };
+    }
+    case "NullableType": {
+      const nullable = node;
+      return {
+        kind: "NullableType",
+        inner: lowerTypeExpr(nullable.inner),
+        span: spanOf(node)
+      };
+    }
+    case "NamedType": {
+      const named = node;
+      return {
+        kind: "NamedType",
+        name: lowerName(named.name),
+        span: spanOf(node)
+      };
+    }
+    case "EdgeRefType": {
+      const edge = node;
+      return {
+        kind: "EdgeRefType",
+        target: edge.target.text === "any" ? null : lowerName(edge.target),
+        span: spanOf(node)
+      };
+    }
+  }
 }
-var Lowering = class {
-  diagnostics;
-  constructor(diagnostics) {
-    this.diagnostics = diagnostics;
+
+// src/lower/modifiers.ts
+function lowerModifiers(ctx, list) {
+  if (!list) return [];
+  return list.modifiers.map((m) => lowerModifier(ctx, m));
+}
+function lowerModifier(ctx, mod) {
+  const tokens = mod.children.filter(isToken);
+  const span = spanOf(mod);
+  if (tokens.length === 0) {
+    return { kind: "FlagModifier", flag: "unique", span };
   }
-  // --- Schema ---
-  lowerSchema(cst) {
-    const declarations = [];
-    for (const d of cst.declarations) {
-      const lowered = this.lowerDeclaration(d);
-      if (lowered) declarations.push(lowered);
-    }
-    return {
-      declarations,
-      span: spanOf(cst)
-    };
-  }
-  // --- Declarations ---
-  lowerDeclaration(node) {
-    switch (node.kind) {
-      case "TypeAliasDecl":
-        return this.lowerTypeAlias(node);
-      case "InterfaceDecl":
-        return this.lowerInterface(node);
-      case "ClassDecl":
-        return this.lowerClass(node);
-      case "ExtendDecl":
-        return this.lowerExtend(node);
-      default:
-        return null;
+  const first = tokens[0];
+  if (first.kind === "GtEq" || first.kind === "LtEq") {
+    const value = tokens[1] ? parseNum(tokens[1].text, ctx.diagnostics, tokens[1].span) : 0;
+    if (first.kind === "GtEq") {
+      return { kind: "RangeModifier", operator: ">=", min: value, max: null, span };
+    } else {
+      return { kind: "RangeModifier", operator: "<=", min: null, max: value, span };
     }
   }
-  lowerTypeAlias(node) {
-    return {
-      kind: "TypeAliasDecl",
-      name: this.lowerName(node.name),
-      type: this.lowerTypeExpr(node.typeExpr),
-      modifiers: this.lowerModifiers(node.modifiers),
-      span: spanOf(node)
-    };
+  const name = first.text;
+  if (tokens.length >= 3 && tokens[1].kind === "Arrow") {
+    return lowerCardinalityModifier(ctx, tokens, span);
   }
-  lowerInterface(node) {
-    return {
-      kind: "InterfaceDecl",
-      name: this.lowerName(node.name),
-      extends: node.extendsClause ? node.extendsClause.names.items.map((t) => this.lowerName(t)) : [],
-      attributes: node.body ? node.body.attributes.map((a) => this.lowerAttribute(a)) : [],
-      span: spanOf(node)
-    };
+  if (tokens.length >= 2 && tokens[1].kind === "Colon") {
+    return lowerKvModifier(ctx, name, tokens, mod, span);
   }
-  lowerClass(node) {
-    if (node.signature) {
-      return this.lowerEdge(node);
-    }
-    return this.lowerNodeClass(node);
+  if (tokens.length >= 3 && tokens[1].kind === "DotDot") {
+    const min = parseNum(first.text, ctx.diagnostics, first.span);
+    const max = parseNum(tokens[2].text, ctx.diagnostics, tokens[2].span);
+    return { kind: "RangeModifier", operator: "..", min, max, span };
   }
-  lowerNodeClass(node) {
-    return {
-      kind: "NodeDecl",
-      name: this.lowerName(node.name),
-      implements: node.extendsClause ? node.extendsClause.names.items.map((t) => this.lowerName(t)) : [],
-      modifiers: this.lowerModifiers(node.modifiers),
-      attributes: node.body ? node.body.attributes.map((a) => this.lowerAttribute(a)) : [],
-      span: spanOf(node)
-    };
-  }
-  lowerEdge(node) {
-    return {
-      kind: "EdgeDecl",
-      name: this.lowerName(node.name),
-      params: node.signature.params.map((p) => this.lowerParam(p)),
-      implements: node.extendsClause ? node.extendsClause.names.items.map((t) => this.lowerName(t)) : [],
-      modifiers: this.lowerModifiers(node.modifiers),
-      attributes: node.body ? node.body.attributes.map((a) => this.lowerAttribute(a)) : [],
-      span: spanOf(node)
-    };
-  }
-  lowerExtend(node) {
-    return {
-      kind: "ExtendDecl",
-      uri: unquote(node.uri.text),
-      imports: node.imports.items.map((t) => this.lowerName(t)),
-      span: spanOf(node)
-    };
-  }
-  // --- Components ---
-  lowerParam(node) {
-    return {
-      name: this.lowerName(node.name),
-      type: this.lowerTypeExpr(node.typeExpr),
-      span: spanOf(node)
-    };
-  }
-  lowerAttribute(node) {
-    return {
-      name: this.lowerName(node.name),
-      type: this.lowerTypeExpr(node.typeExpr),
-      modifiers: this.lowerModifiers(node.modifiers),
-      defaultValue: node.defaultValue ? this.lowerExpression(node.defaultValue.expression) : null,
-      span: spanOf(node)
-    };
-  }
-  lowerName(token) {
-    return {
-      value: token.text,
-      span: token.span
-    };
-  }
-  // --- Type Expressions ---
-  lowerTypeExpr(node) {
-    switch (node.kind) {
-      case "UnionType": {
-        const union = node;
-        return {
-          kind: "UnionType",
-          types: union.types.map((t) => this.lowerTypeExpr(t)),
-          span: spanOf(node)
-        };
-      }
-      case "NullableType": {
-        const nullable = node;
-        return {
-          kind: "NullableType",
-          inner: this.lowerTypeExpr(nullable.inner),
-          span: spanOf(node)
-        };
-      }
-      case "NamedType": {
-        const named = node;
-        return {
-          kind: "NamedType",
-          name: this.lowerName(named.name),
-          span: spanOf(node)
-        };
-      }
-      case "EdgeRefType": {
-        const edge = node;
-        return {
-          kind: "EdgeRefType",
-          target: edge.target.text === "any" ? null : this.lowerName(edge.target),
-          span: spanOf(node)
-        };
-      }
-    }
-  }
-  // --- Modifiers ---
-  lowerModifiers(list) {
-    if (!list) return [];
-    return list.modifiers.map((m) => this.lowerModifier(m));
-  }
-  /**
-   * Classify a CST Modifier into a typed AST variant.
-   *
-   * CST modifier children patterns:
-   *   flag:         [Ident]                              → FlagModifier
-   *   format:       [Ident("format"), Colon, Ident]      → FormatModifier
-   *   match:        [Ident("match"), Colon, StringLit]   → MatchModifier
-   *   in:           [Ident("in"), Colon, StringList]     → InModifier
-   *   length:       [Ident("length"), Colon, N, .., M]   → LengthModifier
-   *   indexed:      [Ident("indexed"), Colon, Ident]     → IndexedModifier
-   *   cardinality:  [Ident, Arrow, N (.. M|*)?]          → CardinalityModifier
-   *   range:        [GtEq|LtEq, NumberLit]               → RangeModifier
-   *   lifecycle:    [Ident("on_kill_*"), Colon, Ident]   → LifecycleModifier
-   */
-  lowerModifier(mod) {
-    const tokens = mod.children.filter(isToken);
-    const span = spanOf(mod);
-    if (tokens.length === 0) {
-      return { kind: "FlagModifier", flag: "unique", span };
-    }
-    const first = tokens[0];
-    if (first.kind === "GtEq" || first.kind === "LtEq") {
-      const value = tokens[1] ? parseNum(tokens[1].text, this.diagnostics, tokens[1].span) : 0;
-      if (first.kind === "GtEq") {
-        return { kind: "RangeModifier", operator: ">=", min: value, max: null, span };
-      } else {
-        return { kind: "RangeModifier", operator: "<=", min: null, max: value, span };
-      }
-    }
-    const name = first.text;
-    if (tokens.length >= 3 && tokens[1].kind === "Arrow") {
-      return this.lowerCardinalityModifier(tokens, span);
-    }
-    if (tokens.length >= 2 && tokens[1].kind === "Colon") {
-      return this.lowerKvModifier(name, tokens, mod, span);
-    }
-    if (tokens.length >= 3 && tokens[1].kind === "DotDot") {
-      const min = parseNum(first.text, this.diagnostics, first.span);
-      const max = parseNum(tokens[2].text, this.diagnostics, tokens[2].span);
-      return { kind: "RangeModifier", operator: "..", min, max, span };
-    }
-    return this.lowerFlagModifier(name, span);
-  }
-  lowerFlagModifier(name, span) {
-    const FLAGS = ["no_self", "acyclic", "unique", "symmetric", "readonly", "indexed"];
-    if (FLAGS.includes(name)) {
-      return { kind: "FlagModifier", flag: name, span };
-    }
+  return lowerFlagModifier(name, span);
+}
+function lowerFlagModifier(name, span) {
+  const FLAGS = ["no_self", "acyclic", "unique", "symmetric", "readonly", "indexed"];
+  if (FLAGS.includes(name)) {
     return { kind: "FlagModifier", flag: name, span };
   }
-  lowerCardinalityModifier(tokens, span) {
-    const paramName = tokens[0];
-    const min = parseNum(tokens[2].text, this.diagnostics, tokens[2].span);
-    let max = min;
-    if (tokens.length >= 5 && tokens[3].kind === "DotDot") {
-      if (tokens[4].kind === "Star") {
-        max = null;
-      } else {
-        max = parseNum(tokens[4].text, this.diagnostics, tokens[4].span);
-      }
+  return { kind: "FlagModifier", flag: name, span };
+}
+function lowerCardinalityModifier(ctx, tokens, span) {
+  const paramName = tokens[0];
+  const min = parseNum(tokens[2].text, ctx.diagnostics, tokens[2].span);
+  let max = min;
+  if (tokens.length >= 5 && tokens[3].kind === "DotDot") {
+    if (tokens[4].kind === "Star") {
+      max = null;
+    } else {
+      max = parseNum(tokens[4].text, ctx.diagnostics, tokens[4].span);
     }
-    return {
-      kind: "CardinalityModifier",
-      param: { value: paramName.text, span: paramName.span },
-      min,
-      max,
-      span
-    };
   }
-  lowerKvModifier(name, tokens, mod, span) {
-    switch (name) {
-      case "format":
-        return {
-          kind: "FormatModifier",
-          format: tokens[2].text,
-          span
-        };
-      case "match":
-        return {
-          kind: "MatchModifier",
-          pattern: unquote(tokens[2].text),
-          span
-        };
-      case "in": {
-        const stringListNode = mod.children.find((c) => !isToken(c) && c.kind === "StringList");
-        const values = [];
-        if (stringListNode) {
-          for (const v of stringListNode.values) {
-            values.push(unquote(v.text));
-          }
+  return {
+    kind: "CardinalityModifier",
+    param: { value: paramName.text, span: paramName.span },
+    min,
+    max,
+    span
+  };
+}
+function lowerKvModifier(ctx, name, tokens, mod, span) {
+  switch (name) {
+    case "format":
+      return {
+        kind: "FormatModifier",
+        format: tokens[2].text,
+        span
+      };
+    case "match":
+      return {
+        kind: "MatchModifier",
+        pattern: unquote(tokens[2].text),
+        span
+      };
+    case "in": {
+      const stringListNode = mod.children.find((c) => !isToken(c) && c.kind === "StringList");
+      const values = [];
+      if (stringListNode) {
+        for (const v of stringListNode.values) {
+          values.push(unquote(v.text));
         }
-        return { kind: "InModifier", values, span };
       }
-      case "length": {
-        const min = tokens[2] ? parseNum(tokens[2].text, this.diagnostics, tokens[2].span) : 0;
-        const max = tokens[4] ? parseNum(tokens[4].text, this.diagnostics, tokens[4].span) : min;
-        return { kind: "LengthModifier", min, max, span };
-      }
-      case "indexed": {
-        const dir = tokens[2].text;
-        if (dir === "asc" || dir === "desc") {
-          return { kind: "IndexedModifier", direction: dir, span };
-        }
-        return { kind: "IndexedModifier", direction: "asc", span };
-      }
-      case "on_kill_source":
-      case "on_kill_target": {
-        const action = tokens[2].text;
-        return {
-          kind: "LifecycleModifier",
-          event: name,
-          action,
-          span
-        };
-      }
-      default:
-        return this.lowerFlagModifier(name, span);
+      return { kind: "InModifier", values, span };
     }
-  }
-  // --- Expressions ---
-  lowerExpression(node) {
-    const span = spanOf(node);
-    if ("fn" in node && "lparen" in node) {
-      const call = node;
+    case "length": {
+      const min = tokens[2] ? parseNum(tokens[2].text, ctx.diagnostics, tokens[2].span) : 0;
+      const max = tokens[4] ? parseNum(tokens[4].text, ctx.diagnostics, tokens[4].span) : min;
+      return { kind: "LengthModifier", min, max, span };
+    }
+    case "indexed": {
+      const dir = tokens[2].text;
+      if (dir === "asc" || dir === "desc") {
+        return { kind: "IndexedModifier", direction: dir, span };
+      }
+      return { kind: "IndexedModifier", direction: "asc", span };
+    }
+    case "on_kill_source":
+    case "on_kill_target": {
+      const action = tokens[2].text;
       return {
-        kind: "CallExpression",
-        fn: this.lowerName(call.fn),
+        kind: "LifecycleModifier",
+        event: name,
+        action,
         span
       };
     }
-    const lit = node;
-    const token = lit.token;
-    if (token.kind === "StringLit") {
-      return {
-        kind: "StringLiteral",
-        value: unquote(token.text),
-        span
-      };
-    }
-    if (token.kind === "NumberLit") {
-      return {
-        kind: "NumberLiteral",
-        value: parseNum(token.text, this.diagnostics, token.span),
-        span
-      };
-    }
-    if (token.text === "true") {
-      return { kind: "BooleanLiteral", value: true, span };
-    }
-    if (token.text === "false") {
-      return { kind: "BooleanLiteral", value: false, span };
-    }
-    if (token.text === "null") {
-      return { kind: "NullLiteral", span };
-    }
-    return {
-      kind: "StringLiteral",
-      value: token.text,
-      span
-    };
+    default:
+      return lowerFlagModifier(name, span);
   }
-};
-function unquote(s) {
-  if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
-    return s.slice(1, -1).replace(/\\(.)/g, "$1");
-  }
-  return s;
 }
 function parseNum(s, diagnostics, span) {
   const value = Number(s);
@@ -11609,7 +11413,166 @@ function parseNum(s, diagnostics, span) {
   return value;
 }
 
-// src/resolver.ts
+// src/lower/expressions.ts
+function lowerExpression(ctx, node) {
+  const span = spanOf(node);
+  if ("fn" in node && "lparen" in node) {
+    const call = node;
+    return {
+      kind: "CallExpression",
+      fn: lowerName(call.fn),
+      span
+    };
+  }
+  const lit = node;
+  const token = lit.token;
+  if (token.kind === "StringLit") {
+    return {
+      kind: "StringLiteral",
+      value: unquote(token.text),
+      span
+    };
+  }
+  if (token.kind === "NumberLit") {
+    return {
+      kind: "NumberLiteral",
+      value: parseNum(token.text, ctx.diagnostics, token.span),
+      span
+    };
+  }
+  if (token.text === "true") {
+    return { kind: "BooleanLiteral", value: true, span };
+  }
+  if (token.text === "false") {
+    return { kind: "BooleanLiteral", value: false, span };
+  }
+  if (token.text === "null") {
+    return { kind: "NullLiteral", span };
+  }
+  return {
+    kind: "StringLiteral",
+    value: token.text,
+    span
+  };
+}
+
+// src/lower/declarations.ts
+function lowerDeclaration(ctx, node) {
+  switch (node.kind) {
+    case "TypeAliasDecl":
+      return lowerTypeAlias(ctx, node);
+    case "InterfaceDecl":
+      return lowerInterface(ctx, node);
+    case "ClassDecl":
+      return lowerClass(ctx, node);
+    case "ExtendDecl":
+      return lowerExtend(node);
+    default:
+      return null;
+  }
+}
+function lowerTypeAlias(ctx, node) {
+  return {
+    kind: "TypeAliasDecl",
+    name: lowerName(node.name),
+    type: lowerTypeExpr(node.typeExpr),
+    modifiers: lowerModifiers(ctx, node.modifiers),
+    span: spanOf(node)
+  };
+}
+function lowerInterface(_ctx, node) {
+  return {
+    kind: "InterfaceDecl",
+    name: lowerName(node.name),
+    extends: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
+    attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(_ctx, a)) : [],
+    span: spanOf(node)
+  };
+}
+function lowerClass(ctx, node) {
+  if (node.signature) {
+    return lowerEdge(ctx, node);
+  }
+  return lowerNodeClass(ctx, node);
+}
+function lowerNodeClass(ctx, node) {
+  return {
+    kind: "NodeDecl",
+    name: lowerName(node.name),
+    implements: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
+    modifiers: lowerModifiers(ctx, node.modifiers),
+    attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
+    span: spanOf(node)
+  };
+}
+function lowerEdge(ctx, node) {
+  return {
+    kind: "EdgeDecl",
+    name: lowerName(node.name),
+    params: node.signature.params.map((p) => lowerParam(p)),
+    implements: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
+    modifiers: lowerModifiers(ctx, node.modifiers),
+    attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
+    span: spanOf(node)
+  };
+}
+function lowerExtend(node) {
+  return {
+    kind: "ExtendDecl",
+    uri: unquote(node.uri.text),
+    imports: node.imports.items.map((t) => lowerName(t)),
+    span: spanOf(node)
+  };
+}
+function lowerParam(node) {
+  return {
+    name: lowerName(node.name),
+    type: lowerTypeExpr(node.typeExpr),
+    span: spanOf(node)
+  };
+}
+function lowerAttribute(ctx, node) {
+  return {
+    name: lowerName(node.name),
+    type: lowerTypeExpr(node.typeExpr),
+    modifiers: lowerModifiers(ctx, node.modifiers),
+    defaultValue: node.defaultValue ? lowerExpression(ctx, node.defaultValue.expression) : null,
+    span: spanOf(node)
+  };
+}
+function lowerName(token) {
+  return {
+    value: token.text,
+    span: token.span
+  };
+}
+function unquote(s) {
+  if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
+    return s.slice(1, -1).replace(/\\(.)/g, "$1");
+  }
+  return s;
+}
+
+// src/lower/index.ts
+function lower(cst, diagnostics) {
+  const bag = diagnostics ?? new DiagnosticBag();
+  const ctx = { diagnostics: bag };
+  const ast = lowerSchema(ctx, cst);
+  return { ast, diagnostics: bag };
+}
+function lowerSchema(ctx, cst) {
+  const declarations = [];
+  for (const d of cst.declarations) {
+    const lowered = lowerDeclaration(ctx, d);
+    if (lowered) declarations.push(lowered);
+  }
+  return {
+    declarations,
+    span: spanOf(cst)
+  };
+}
+
+// src/resolver/scope.ts
 function resolve(ast, baseScope, diagnostics) {
   const bag = diagnostics ?? new DiagnosticBag();
   const resolver = new Resolver(bag, baseScope);
@@ -11779,11 +11742,234 @@ var Resolver = class {
   }
 };
 
-// src/validator.ts
+// src/validator/defaults.ts
+function validateAttribute(ctx, attr) {
+  for (const mod of attr.modifiers) {
+    if (!ATTR_MODIFIERS.has(mod.kind)) {
+      ctx.diagnostics.error(
+        mod.span,
+        DiagnosticCodes.V_INVALID_MODIFIER,
+        `Modifier '${modifierName(mod)}' is not valid on an attribute`
+      );
+    } else if (mod.kind === "FlagModifier") {
+      const flag = mod.flag;
+      if (!ATTR_FLAGS.has(flag)) {
+        ctx.diagnostics.error(
+          mod.span,
+          DiagnosticCodes.V_INVALID_MODIFIER,
+          `Flag '${flag}' is not valid on an attribute (valid: unique, readonly, indexed)`
+        );
+      }
+    }
+  }
+  validateDefaultValue(ctx, attr);
+}
+function validateDefaultValue(ctx, attr) {
+  if (!attr.defaultValue) return;
+  if (!isExpressionCompatibleWithType(ctx, attr.defaultValue, attr.type, /* @__PURE__ */ new Set())) {
+    ctx.diagnostics.error(
+      attr.defaultValue.span,
+      DiagnosticCodes.V_DEFAULT_TYPE_MISMATCH,
+      `Default value is incompatible with attribute type '${renderTypeExpr(attr.type)}'`
+    );
+  }
+  if (attr.defaultValue.kind === "CallExpression") {
+    const fnName = attr.defaultValue.fn.value;
+    if (!ctx.knownDefaultFunctions.has(fnName)) {
+      ctx.diagnostics.error(
+        attr.defaultValue.fn.span,
+        DiagnosticCodes.V_UNKNOWN_FUNCTION,
+        `Unknown default function '${fnName}()'`
+      );
+    }
+  }
+}
+function isExpressionCompatibleWithType(ctx, expr, type, visitedAliases) {
+  switch (type.kind) {
+    case "NullableType":
+      return expr.kind === "NullLiteral" || isExpressionCompatibleWithType(ctx, expr, type.inner, visitedAliases);
+    case "UnionType":
+      return type.types.some(
+        (candidate) => isExpressionCompatibleWithType(ctx, expr, candidate, visitedAliases)
+      );
+    case "NamedType":
+      return isExpressionCompatibleWithNamedType(
+        ctx,
+        expr,
+        type.name.value,
+        visitedAliases
+      );
+    // edge<...> cannot currently have compatible literal/call defaults
+    case "EdgeRefType":
+      return false;
+    default:
+      return false;
+  }
+}
+function isExpressionCompatibleWithNamedType(ctx, expr, typeName, visitedAliases) {
+  const expected = baseScalarForType(ctx, typeName, visitedAliases);
+  if (!expected) return false;
+  if (expr.kind === "CallExpression") {
+    return ctx.knownDefaultFunctions.has(expr.fn.value) && ctx.builtinScalarSet.has(expected);
+  }
+  switch (expr.kind) {
+    case "StringLiteral":
+      return expected === "String" || expected === "ByteString";
+    case "NumberLiteral":
+      return expected === "Int" || expected === "Float" || expected === "Bitmask";
+    case "BooleanLiteral":
+      return expected === "Boolean";
+    case "NullLiteral":
+      return false;
+    default:
+      return false;
+  }
+}
+function baseScalarForType(ctx, typeName, visitedAliases) {
+  if (ctx.builtinScalarSet.has(typeName)) {
+    return typeName;
+  }
+  const sym = ctx.schema.symbols.get(typeName);
+  if (!sym || sym.symbolKind !== "TypeAlias" || !sym.declaration || sym.declaration.kind !== "TypeAliasDecl") {
+    return null;
+  }
+  if (visitedAliases.has(typeName)) {
+    return null;
+  }
+  visitedAliases.add(typeName);
+  const aliasedType = sym.declaration.type;
+  if (aliasedType.kind === "NamedType") {
+    return baseScalarForType(ctx, aliasedType.name.value, visitedAliases);
+  }
+  return null;
+}
+
+// src/validator/declarations.ts
+function validateDeclarations(ctx) {
+  for (const decl of ctx.schema.declarations) {
+    switch (decl.kind) {
+      case "TypeAliasDecl":
+        validateTypeAlias(ctx, decl);
+        break;
+      case "InterfaceDecl":
+        validateInterface(ctx, decl);
+        break;
+      case "NodeDecl":
+        validateClass(ctx, decl);
+        break;
+      case "EdgeDecl":
+        validateEdge(ctx, decl);
+        break;
+      case "ExtendDecl":
+        break;
+    }
+  }
+}
+function validateTypeAlias(ctx, decl) {
+  for (const mod of decl.modifiers) {
+    if (!ALIAS_MODIFIERS.has(mod.kind)) {
+      ctx.diagnostics.error(
+        mod.span,
+        DiagnosticCodes.V_INVALID_MODIFIER,
+        `Modifier '${modifierName(mod)}' is not valid on a type alias`
+      );
+    }
+  }
+}
+function validateInterface(ctx, decl) {
+  for (const parent of decl.extends) {
+    const sym = ctx.schema.symbols.get(parent.value);
+    if (sym && sym.symbolKind !== "Interface") {
+      ctx.diagnostics.error(
+        parent.span,
+        DiagnosticCodes.V_INTERFACE_IMPLEMENTS,
+        `Interface '${decl.name.value}' can only extend interfaces, but '${parent.value}' is a ${sym.symbolKind}`
+      );
+    }
+  }
+  for (const attr of decl.attributes) {
+    validateAttribute(ctx, attr);
+  }
+}
+function validateClass(ctx, decl) {
+  for (const parent of decl.implements) {
+    const sym = ctx.schema.symbols.get(parent.value);
+    if (sym && sym.symbolKind !== "Interface") {
+      ctx.diagnostics.error(
+        parent.span,
+        DiagnosticCodes.V_CLASS_EXTENDS_CLASS,
+        `Class '${decl.name.value}' can only implement interfaces, but '${parent.value}' is a ${sym.symbolKind}`
+      );
+    }
+  }
+  for (const mod of decl.modifiers) {
+    ctx.diagnostics.warning(
+      mod.span,
+      DiagnosticCodes.V_INVALID_MODIFIER,
+      `Modifier '${modifierName(mod)}' on a node class has no effect`
+    );
+  }
+  for (const attr of decl.attributes) {
+    validateAttribute(ctx, attr);
+  }
+}
+function validateEdge(ctx, decl) {
+  for (const mod of decl.modifiers) {
+    validateEdgeModifier(ctx, mod, decl);
+  }
+  for (const attr of decl.attributes) {
+    validateAttribute(ctx, attr);
+  }
+}
+function validateEdgeModifier(ctx, mod, decl) {
+  if (!EDGE_MODIFIERS.has(mod.kind)) {
+    ctx.diagnostics.error(
+      mod.span,
+      DiagnosticCodes.V_INVALID_MODIFIER,
+      `Modifier '${modifierName(mod)}' is not valid on an edge`
+    );
+    return;
+  }
+  if (mod.kind === "FlagModifier") {
+    const flag = mod.flag;
+    if (!EDGE_FLAGS.has(flag)) {
+      ctx.diagnostics.error(
+        mod.span,
+        DiagnosticCodes.V_INVALID_MODIFIER,
+        `Flag '${flag}' is not valid on an edge (valid: no_self, acyclic, unique, symmetric)`
+      );
+    }
+  }
+  if (mod.kind === "CardinalityModifier") {
+    const card = mod;
+    const paramNames = decl.params.map((p) => p.name.value);
+    if (!paramNames.includes(card.param.value)) {
+      ctx.diagnostics.error(
+        card.param.span,
+        DiagnosticCodes.V_INVALID_CARDINALITY,
+        `Cardinality references parameter '${card.param.value}', but edge '${decl.name.value}' has parameters: ${paramNames.join(", ")}`
+      );
+    }
+    if (card.max !== null && card.min > card.max) {
+      ctx.diagnostics.error(
+        mod.span,
+        DiagnosticCodes.V_INVALID_CARDINALITY,
+        `Invalid cardinality: min (${card.min}) > max (${card.max})`
+      );
+    }
+  }
+}
+
+// src/validator/index.ts
 function validate(schema, diagnostics, options) {
   const bag = diagnostics ?? new DiagnosticBag();
-  const v = new Validator(schema, bag, options);
-  v.validate();
+  const ctx = {
+    schema,
+    diagnostics: bag,
+    builtinScalarSet: new Set(options?.scalars ?? []),
+    knownDefaultFunctions: new Set(options?.defaultFunctions ?? [])
+  };
+  validateDeclarations(ctx);
   return { valid: !bag.hasErrors(), diagnostics: bag };
 }
 var EDGE_MODIFIERS = /* @__PURE__ */ new Set([
@@ -11807,236 +11993,6 @@ var ALIAS_MODIFIERS = /* @__PURE__ */ new Set([
   "LengthModifier",
   "RangeModifier"
 ]);
-var Validator = class {
-  schema;
-  diagnostics;
-  builtinScalarSet;
-  knownDefaultFunctions;
-  constructor(schema, diagnostics, options) {
-    this.schema = schema;
-    this.diagnostics = diagnostics;
-    this.builtinScalarSet = new Set(options?.scalars ?? []);
-    this.knownDefaultFunctions = new Set(options?.defaultFunctions ?? []);
-  }
-  validate() {
-    for (const decl of this.schema.declarations) {
-      switch (decl.kind) {
-        case "TypeAliasDecl":
-          this.validateTypeAlias(decl);
-          break;
-        case "InterfaceDecl":
-          this.validateInterface(decl);
-          break;
-        case "NodeDecl":
-          this.validateClass(decl);
-          break;
-        case "EdgeDecl":
-          this.validateEdge(decl);
-          break;
-        case "ExtendDecl":
-          break;
-      }
-    }
-  }
-  // ─── Type Alias ────────────────────────────────────────────
-  validateTypeAlias(decl) {
-    for (const mod of decl.modifiers) {
-      if (!ALIAS_MODIFIERS.has(mod.kind)) {
-        this.diagnostics.error(
-          mod.span,
-          DiagnosticCodes.V_INVALID_MODIFIER,
-          `Modifier '${modifierName(mod)}' is not valid on a type alias`
-        );
-      }
-    }
-  }
-  // ─── Interface ─────────────────────────────────────────────
-  validateInterface(decl) {
-    for (const parent of decl.extends) {
-      const sym = this.schema.symbols.get(parent.value);
-      if (sym && sym.symbolKind !== "Interface") {
-        this.diagnostics.error(
-          parent.span,
-          DiagnosticCodes.V_INTERFACE_IMPLEMENTS,
-          `Interface '${decl.name.value}' can only extend interfaces, but '${parent.value}' is a ${sym.symbolKind}`
-        );
-      }
-    }
-    for (const attr of decl.attributes) {
-      this.validateAttribute(attr);
-    }
-  }
-  // ─── Class ─────────────────────────────────────────────────
-  validateClass(decl) {
-    for (const parent of decl.implements) {
-      const sym = this.schema.symbols.get(parent.value);
-      if (sym && sym.symbolKind !== "Interface") {
-        this.diagnostics.error(
-          parent.span,
-          DiagnosticCodes.V_CLASS_EXTENDS_CLASS,
-          `Class '${decl.name.value}' can only implement interfaces, but '${parent.value}' is a ${sym.symbolKind}`
-        );
-      }
-    }
-    for (const mod of decl.modifiers) {
-      this.diagnostics.warning(
-        mod.span,
-        DiagnosticCodes.V_INVALID_MODIFIER,
-        `Modifier '${modifierName(mod)}' on a node class has no effect`
-      );
-    }
-    for (const attr of decl.attributes) {
-      this.validateAttribute(attr);
-    }
-  }
-  // ─── Edge ──────────────────────────────────────────────────
-  validateEdge(decl) {
-    for (const mod of decl.modifiers) {
-      this.validateEdgeModifier(mod, decl);
-    }
-    for (const attr of decl.attributes) {
-      this.validateAttribute(attr);
-    }
-  }
-  validateEdgeModifier(mod, decl) {
-    if (!EDGE_MODIFIERS.has(mod.kind)) {
-      this.diagnostics.error(
-        mod.span,
-        DiagnosticCodes.V_INVALID_MODIFIER,
-        `Modifier '${modifierName(mod)}' is not valid on an edge`
-      );
-      return;
-    }
-    if (mod.kind === "FlagModifier") {
-      const flag = mod.flag;
-      if (!EDGE_FLAGS.has(flag)) {
-        this.diagnostics.error(
-          mod.span,
-          DiagnosticCodes.V_INVALID_MODIFIER,
-          `Flag '${flag}' is not valid on an edge (valid: no_self, acyclic, unique, symmetric)`
-        );
-      }
-    }
-    if (mod.kind === "CardinalityModifier") {
-      const card = mod;
-      const paramNames = decl.params.map((p) => p.name.value);
-      if (!paramNames.includes(card.param.value)) {
-        this.diagnostics.error(
-          card.param.span,
-          DiagnosticCodes.V_INVALID_CARDINALITY,
-          `Cardinality references parameter '${card.param.value}', but edge '${decl.name.value}' has parameters: ${paramNames.join(", ")}`
-        );
-      }
-      if (card.max !== null && card.min > card.max) {
-        this.diagnostics.error(
-          mod.span,
-          DiagnosticCodes.V_INVALID_CARDINALITY,
-          `Invalid cardinality: min (${card.min}) > max (${card.max})`
-        );
-      }
-    }
-  }
-  // ─── Attribute ─────────────────────────────────────────────
-  validateAttribute(attr) {
-    for (const mod of attr.modifiers) {
-      if (!ATTR_MODIFIERS.has(mod.kind)) {
-        this.diagnostics.error(
-          mod.span,
-          DiagnosticCodes.V_INVALID_MODIFIER,
-          `Modifier '${modifierName(mod)}' is not valid on an attribute`
-        );
-      } else if (mod.kind === "FlagModifier") {
-        const flag = mod.flag;
-        if (!ATTR_FLAGS.has(flag)) {
-          this.diagnostics.error(
-            mod.span,
-            DiagnosticCodes.V_INVALID_MODIFIER,
-            `Flag '${flag}' is not valid on an attribute (valid: unique, readonly, indexed)`
-          );
-        }
-      }
-    }
-    this.validateDefaultValue(attr);
-  }
-  validateDefaultValue(attr) {
-    if (!attr.defaultValue) return;
-    if (!this.isExpressionCompatibleWithType(attr.defaultValue, attr.type, /* @__PURE__ */ new Set())) {
-      this.diagnostics.error(
-        attr.defaultValue.span,
-        DiagnosticCodes.V_DEFAULT_TYPE_MISMATCH,
-        `Default value is incompatible with attribute type '${renderTypeExpr(attr.type)}'`
-      );
-    }
-    if (attr.defaultValue.kind === "CallExpression") {
-      const fnName = attr.defaultValue.fn.value;
-      if (!this.knownDefaultFunctions.has(fnName)) {
-        this.diagnostics.error(
-          attr.defaultValue.fn.span,
-          DiagnosticCodes.V_UNKNOWN_FUNCTION,
-          `Unknown default function '${fnName}()'`
-        );
-      }
-    }
-  }
-  isExpressionCompatibleWithType(expr, type, visitedAliases) {
-    switch (type.kind) {
-      case "NullableType":
-        return expr.kind === "NullLiteral" || this.isExpressionCompatibleWithType(expr, type.inner, visitedAliases);
-      case "UnionType":
-        return type.types.some(
-          (candidate) => this.isExpressionCompatibleWithType(expr, candidate, visitedAliases)
-        );
-      case "NamedType":
-        return this.isExpressionCompatibleWithNamedType(
-          expr,
-          type.name.value,
-          visitedAliases
-        );
-      // edge<...> cannot currently have compatible literal/call defaults
-      case "EdgeRefType":
-        return false;
-      default:
-        return false;
-    }
-  }
-  isExpressionCompatibleWithNamedType(expr, typeName, visitedAliases) {
-    const expected = this.baseScalarForType(typeName, visitedAliases);
-    if (!expected) return false;
-    if (expr.kind === "CallExpression") {
-      return this.knownDefaultFunctions.has(expr.fn.value) && this.builtinScalarSet.has(expected);
-    }
-    switch (expr.kind) {
-      case "StringLiteral":
-        return expected === "String" || expected === "ByteString";
-      case "NumberLiteral":
-        return expected === "Int" || expected === "Float" || expected === "Bitmask";
-      case "BooleanLiteral":
-        return expected === "Boolean";
-      case "NullLiteral":
-        return false;
-      default:
-        return false;
-    }
-  }
-  baseScalarForType(typeName, visitedAliases) {
-    if (this.builtinScalarSet.has(typeName)) {
-      return typeName;
-    }
-    const sym = this.schema.symbols.get(typeName);
-    if (!sym || sym.symbolKind !== "TypeAlias" || !sym.declaration || sym.declaration.kind !== "TypeAliasDecl") {
-      return null;
-    }
-    if (visitedAliases.has(typeName)) {
-      return null;
-    }
-    visitedAliases.add(typeName);
-    const aliasedType = sym.declaration.type;
-    if (aliasedType.kind === "NamedType") {
-      return this.baseScalarForType(aliasedType.name.value, visitedAliases);
-    }
-    return null;
-  }
-};
 function modifierName(mod) {
   switch (mod.kind) {
     case "FlagModifier":
@@ -12076,277 +12032,269 @@ function renderTypeExpr(type) {
   }
 }
 
-// src/serializer.ts
-function serialize(schema, options) {
-  const s = new Serializer(schema);
-  return s.serialize(options);
+// src/serializer/types.ts
+function serializeTypeRef(ctx, expr) {
+  switch (expr.kind) {
+    case "NamedType": {
+      const name = expr.name.value;
+      const sym = ctx.schema.symbols.get(name);
+      if (!sym) return { kind: "Scalar", name };
+      return symbolToTypeRef(sym, name);
+    }
+    case "NullableType":
+      return serializeTypeRef(ctx, expr.inner);
+    case "UnionType":
+      return {
+        kind: "Union",
+        types: expr.types.map((t) => serializeTypeRef(ctx, t))
+      };
+    case "EdgeRefType": {
+      const target = expr.target;
+      if (!target) return { kind: "AnyEdge" };
+      return { kind: "Edge", name: target.value };
+    }
+    default:
+      return { kind: "Scalar", name: "String" };
+  }
 }
-var Serializer = class {
-  schema;
-  constructor(schema) {
-    this.schema = schema;
+function symbolToTypeRef(sym, name) {
+  switch (sym.symbolKind) {
+    case "Scalar":
+      return { kind: "Scalar", name };
+    case "TypeAlias":
+      return { kind: "Alias", name };
+    case "Interface":
+    case "Class":
+      return { kind: "Node", name };
+    case "Edge":
+      return { kind: "Edge", name };
+    default:
+      return { kind: "Scalar", name };
   }
-  extractScalars() {
-    const scalars = [];
-    for (const [name, sym] of this.schema.symbols) {
-      if (sym.symbolKind === "Scalar") {
-        scalars.push(name);
+}
+
+// src/serializer/modifiers.ts
+function extractEdgeConstraints(modifiers) {
+  const result = {
+    no_self: false,
+    acyclic: false,
+    unique: false,
+    symmetric: false
+  };
+  for (const mod of modifiers) {
+    if (mod.kind === "FlagModifier") {
+      const flag = mod.flag;
+      if (flag === "no_self") result.no_self = true;
+      else if (flag === "acyclic") result.acyclic = true;
+      else if (flag === "unique") result.unique = true;
+      else if (flag === "symmetric") result.symmetric = true;
+    } else if (mod.kind === "LifecycleModifier") {
+      const lm = mod;
+      if (lm.event === "on_kill_source") result.on_kill_source = lm.action;
+      else if (lm.event === "on_kill_target") result.on_kill_target = lm.action;
+    }
+  }
+  return result;
+}
+function extractAttributeModifiers(modifiers) {
+  const result = {};
+  for (const mod of modifiers) {
+    if (mod.kind === "FlagModifier") {
+      const flag = mod.flag;
+      if (flag === "unique") result.unique = true;
+      else if (flag === "readonly") result.readonly = true;
+      else if (flag === "indexed") result.indexed = true;
+    } else if (mod.kind === "IndexedModifier") {
+      result.indexed = mod.direction;
+    }
+  }
+  return result;
+}
+function extractValueConstraints(modifiers) {
+  if (modifiers.length === 0) return null;
+  const result = {};
+  let hasAny = false;
+  for (const mod of modifiers) {
+    switch (mod.kind) {
+      case "FormatModifier":
+        result.format = mod.format;
+        hasAny = true;
+        break;
+      case "MatchModifier":
+        result.pattern = mod.pattern;
+        hasAny = true;
+        break;
+      case "InModifier":
+        result.enum_values = mod.values;
+        hasAny = true;
+        break;
+      case "LengthModifier":
+        result.length_min = mod.min;
+        result.length_max = mod.max;
+        hasAny = true;
+        break;
+      case "RangeModifier": {
+        const rm = mod;
+        if (rm.min !== null) result.value_min = rm.min;
+        if (rm.max !== null) result.value_max = rm.max;
+        hasAny = true;
+        break;
       }
     }
-    return scalars;
   }
-  serialize(options) {
-    const extensions = [];
-    const typeAliases = [];
-    const classes = [];
-    for (const decl of this.schema.declarations) {
-      switch (decl.kind) {
-        case "ExtendDecl":
-          extensions.push(this.serializeExtend(decl));
-          break;
-        case "TypeAliasDecl":
-          typeAliases.push(this.serializeTypeAlias(decl));
-          break;
-        case "InterfaceDecl":
-          classes.push(this.serializeInterface(decl));
-          break;
-        case "NodeDecl":
-          classes.push(this.serializeClass(decl));
-          break;
-        case "EdgeDecl":
-          classes.push(this.serializeEdge(decl));
-          break;
-      }
-    }
-    return {
-      version: "1.0",
-      meta: {
-        generated_at: (/* @__PURE__ */ new Date()).toISOString(),
-        source_hash: options?.sourceHash ?? ""
-      },
-      extensions,
-      builtin_scalars: this.extractScalars(),
-      type_aliases: typeAliases,
-      classes
-    };
+  return hasAny ? result : null;
+}
+
+// src/serializer/attributes.ts
+function serializeAttribute(ctx, attr) {
+  return {
+    name: attr.name.value,
+    type: serializeTypeRef(ctx, attr.type),
+    nullable: attr.type.kind === "NullableType",
+    default: attr.defaultValue ? serializeValueNode(attr.defaultValue) : null,
+    modifiers: extractAttributeModifiers(attr.modifiers)
+  };
+}
+function serializeValueNode(expr) {
+  switch (expr.kind) {
+    case "StringLiteral":
+      return { kind: "StringLiteral", value: expr.value };
+    case "NumberLiteral":
+      return { kind: "NumberLiteral", value: expr.value };
+    case "BooleanLiteral":
+      return { kind: "BooleanLiteral", value: expr.value };
+    case "NullLiteral":
+      return { kind: "Null" };
+    case "CallExpression":
+      return { kind: "Call", fn: expr.fn.value, args: [] };
+    default:
+      return { kind: "Null" };
   }
-  // ─── Declarations ──────────────────────────────────────────
-  serializeExtend(decl) {
-    return {
-      uri: decl.uri,
-      imported_types: decl.imports.map((i) => i.value)
-    };
+}
+
+// src/serializer/declarations.ts
+function serializeExtend(decl) {
+  return {
+    uri: decl.uri,
+    imported_types: decl.imports.map((i) => i.value)
+  };
+}
+function serializeTypeAlias(ctx, decl) {
+  let underlyingType = "";
+  if (decl.type.kind === "NamedType") {
+    underlyingType = decl.type.name.value;
   }
-  serializeTypeAlias(decl) {
-    let underlyingType = "";
-    if (decl.type.kind === "NamedType") {
-      underlyingType = decl.type.name.value;
-    }
-    return {
-      name: decl.name.value,
-      underlying_type: underlyingType,
-      constraints: this.extractValueConstraints(decl.modifiers)
-    };
-  }
-  serializeInterface(decl) {
-    return {
-      type: "node",
-      name: decl.name.value,
-      abstract: true,
-      implements: decl.extends.map((e) => e.value),
-      attributes: decl.attributes.map((a) => this.serializeAttribute(a))
-    };
-  }
-  serializeClass(decl) {
-    return {
-      type: "node",
-      name: decl.name.value,
-      abstract: false,
-      implements: decl.implements.map((i) => i.value),
-      attributes: decl.attributes.map((a) => this.serializeAttribute(a))
-    };
-  }
-  serializeEdge(decl) {
-    const cardinalityMap = /* @__PURE__ */ new Map();
-    for (const mod of decl.modifiers) {
-      if (mod.kind === "CardinalityModifier") {
-        const cm = mod;
-        cardinalityMap.set(cm.param.value, { min: cm.min, max: cm.max });
-      }
-    }
-    return {
-      type: "edge",
-      name: decl.name.value,
-      endpoints: decl.params.map((p) => this.serializeEndpoint(p, cardinalityMap)),
-      attributes: decl.attributes.map((a) => this.serializeAttribute(a)),
-      constraints: this.extractEdgeConstraints(decl.modifiers)
-    };
-  }
-  // ─── Endpoints ─────────────────────────────────────────────
-  serializeEndpoint(param, cardinalityMap) {
-    return {
-      param_name: param.name.value,
-      allowed_types: this.extractEndpointTypes(param.type),
-      cardinality: cardinalityMap.get(param.name.value) ?? null
-    };
-  }
-  extractEndpointTypes(expr) {
-    switch (expr.kind) {
-      case "NamedType":
-        return [this.serializeTypeRef(expr)];
-      case "UnionType":
-        return expr.types.flatMap((t) => this.extractEndpointTypes(t));
-      case "NullableType":
-        return this.extractEndpointTypes(expr.inner);
-      case "EdgeRefType": {
-        const target = expr.target;
-        if (!target) return [{ kind: "AnyEdge" }];
-        return [{ kind: "Edge", name: target.value }];
-      }
-      default:
-        return [];
+  return {
+    name: decl.name.value,
+    underlying_type: underlyingType,
+    constraints: extractValueConstraints(decl.modifiers)
+  };
+}
+function serializeInterface(ctx, decl) {
+  return {
+    type: "node",
+    name: decl.name.value,
+    abstract: true,
+    implements: decl.extends.map((e) => e.value),
+    attributes: decl.attributes.map((a) => serializeAttribute(ctx, a))
+  };
+}
+function serializeClass(ctx, decl) {
+  return {
+    type: "node",
+    name: decl.name.value,
+    abstract: false,
+    implements: decl.implements.map((i) => i.value),
+    attributes: decl.attributes.map((a) => serializeAttribute(ctx, a))
+  };
+}
+function serializeEdge(ctx, decl) {
+  const cardinalityMap = /* @__PURE__ */ new Map();
+  for (const mod of decl.modifiers) {
+    if (mod.kind === "CardinalityModifier") {
+      const cm = mod;
+      cardinalityMap.set(cm.param.value, { min: cm.min, max: cm.max });
     }
   }
-  // ─── Attributes ────────────────────────────────────────────
-  serializeAttribute(attr) {
-    const result = {
-      name: attr.name.value,
-      type: this.serializeTypeRef(attr.type),
-      nullable: attr.type.kind === "NullableType",
-      default: attr.defaultValue ? this.serializeValueNode(attr.defaultValue) : null,
-      modifiers: this.extractAttributeModifiers(attr.modifiers)
-    };
-    return result;
+  return {
+    type: "edge",
+    name: decl.name.value,
+    endpoints: decl.params.map((p) => serializeEndpoint(ctx, p, cardinalityMap)),
+    attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
+    constraints: extractEdgeConstraints(decl.modifiers)
+  };
+}
+function serializeEndpoint(ctx, param, cardinalityMap) {
+  return {
+    param_name: param.name.value,
+    allowed_types: extractEndpointTypes(ctx, param.type),
+    cardinality: cardinalityMap.get(param.name.value) ?? null
+  };
+}
+function extractEndpointTypes(ctx, expr) {
+  switch (expr.kind) {
+    case "NamedType":
+      return [serializeTypeRef(ctx, expr)];
+    case "UnionType":
+      return expr.types.flatMap((t) => extractEndpointTypes(ctx, t));
+    case "NullableType":
+      return extractEndpointTypes(ctx, expr.inner);
+    case "EdgeRefType": {
+      const target = expr.target;
+      if (!target) return [{ kind: "AnyEdge" }];
+      return [{ kind: "Edge", name: target.value }];
+    }
+    default:
+      return [];
   }
-  // ─── TypeRef ───────────────────────────────────────────────
-  serializeTypeRef(expr) {
-    switch (expr.kind) {
-      case "NamedType": {
-        const name = expr.name.value;
-        const sym = this.schema.symbols.get(name);
-        if (!sym) return { kind: "Scalar", name };
-        return this.symbolToTypeRef(sym, name);
-      }
-      case "NullableType":
-        return this.serializeTypeRef(expr.inner);
-      case "UnionType":
-        return {
-          kind: "Union",
-          types: expr.types.map((t) => this.serializeTypeRef(t))
-        };
-      case "EdgeRefType": {
-        const target = expr.target;
-        if (!target) return { kind: "AnyEdge" };
-        return { kind: "Edge", name: target.value };
-      }
-      default:
-        return { kind: "Scalar", name: "String" };
+}
+
+// src/serializer/index.ts
+function serialize(schema, options) {
+  const ctx = { schema };
+  return serializeSchema(ctx, options);
+}
+function serializeSchema(ctx, options) {
+  const extensions = [];
+  const typeAliases = [];
+  const classes = [];
+  for (const decl of ctx.schema.declarations) {
+    switch (decl.kind) {
+      case "ExtendDecl":
+        extensions.push(serializeExtend(decl));
+        break;
+      case "TypeAliasDecl":
+        typeAliases.push(serializeTypeAlias(ctx, decl));
+        break;
+      case "InterfaceDecl":
+        classes.push(serializeInterface(ctx, decl));
+        break;
+      case "NodeDecl":
+        classes.push(serializeClass(ctx, decl));
+        break;
+      case "EdgeDecl":
+        classes.push(serializeEdge(ctx, decl));
+        break;
     }
   }
-  symbolToTypeRef(sym, name) {
-    switch (sym.symbolKind) {
-      case "Scalar":
-        return { kind: "Scalar", name };
-      case "TypeAlias":
-        return { kind: "Alias", name };
-      case "Interface":
-      case "Class":
-        return { kind: "Node", name };
-      case "Edge":
-        return { kind: "Edge", name };
-      default:
-        return { kind: "Scalar", name };
+  const builtinScalars = [];
+  for (const [name, sym] of ctx.schema.symbols) {
+    if (sym.symbolKind === "Scalar") {
+      builtinScalars.push(name);
     }
   }
-  // ─── ValueNode ─────────────────────────────────────────────
-  serializeValueNode(expr) {
-    switch (expr.kind) {
-      case "StringLiteral":
-        return { kind: "StringLiteral", value: expr.value };
-      case "NumberLiteral":
-        return { kind: "NumberLiteral", value: expr.value };
-      case "BooleanLiteral":
-        return { kind: "BooleanLiteral", value: expr.value };
-      case "NullLiteral":
-        return { kind: "Null" };
-      case "CallExpression":
-        return { kind: "Call", fn: expr.fn.value, args: [] };
-      default:
-        return { kind: "Null" };
-    }
-  }
-  // ─── Constraint Extraction ─────────────────────────────────
-  extractEdgeConstraints(modifiers) {
-    const result = {
-      no_self: false,
-      acyclic: false,
-      unique: false,
-      symmetric: false
-    };
-    for (const mod of modifiers) {
-      if (mod.kind === "FlagModifier") {
-        const flag = mod.flag;
-        if (flag === "no_self") result.no_self = true;
-        else if (flag === "acyclic") result.acyclic = true;
-        else if (flag === "unique") result.unique = true;
-        else if (flag === "symmetric") result.symmetric = true;
-      } else if (mod.kind === "LifecycleModifier") {
-        const lm = mod;
-        if (lm.event === "on_kill_source") result.on_kill_source = lm.action;
-        else if (lm.event === "on_kill_target") result.on_kill_target = lm.action;
-      }
-    }
-    return result;
-  }
-  extractAttributeModifiers(modifiers) {
-    const result = {};
-    for (const mod of modifiers) {
-      if (mod.kind === "FlagModifier") {
-        const flag = mod.flag;
-        if (flag === "unique") result.unique = true;
-        else if (flag === "readonly") result.readonly = true;
-        else if (flag === "indexed") result.indexed = true;
-      } else if (mod.kind === "IndexedModifier") {
-        result.indexed = mod.direction;
-      }
-    }
-    return result;
-  }
-  extractValueConstraints(modifiers) {
-    if (modifiers.length === 0) return null;
-    const result = {};
-    let hasAny = false;
-    for (const mod of modifiers) {
-      switch (mod.kind) {
-        case "FormatModifier":
-          result.format = mod.format;
-          hasAny = true;
-          break;
-        case "MatchModifier":
-          result.pattern = mod.pattern;
-          hasAny = true;
-          break;
-        case "InModifier":
-          result.enum_values = mod.values;
-          hasAny = true;
-          break;
-        case "LengthModifier":
-          result.length_min = mod.min;
-          result.length_max = mod.max;
-          hasAny = true;
-          break;
-        case "RangeModifier": {
-          const rm = mod;
-          if (rm.min !== null) result.value_min = rm.min;
-          if (rm.max !== null) result.value_max = rm.max;
-          hasAny = true;
-          break;
-        }
-      }
-    }
-    return hasAny ? result : null;
-  }
-};
+  return {
+    version: "1.0",
+    meta: {
+      generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+      source_hash: options?.sourceHash ?? ""
+    },
+    extensions,
+    builtin_scalars: builtinScalars,
+    type_aliases: typeAliases,
+    classes
+  };
+}
 
 // src/prelude.ts
 var DEFAULT_PRELUDE = {
@@ -13232,19 +13180,7 @@ function classifyIdent(token, symbols, inModifier) {
 }
 
 // src/lsp/server.ts
-var import_node_fs = require("node:fs");
-var LOG_PATH = "/tmp/krl-lsp-debug.log";
-function log(msg) {
-  try {
-    (0, import_node_fs.appendFileSync)(LOG_PATH, `[${(/* @__PURE__ */ new Date()).toISOString()}] ${msg}
-`);
-  } catch {
-  }
-}
 function startServer(prelude) {
-  (0, import_node_fs.writeFileSync)(LOG_PATH, `=== KRL LSP started at ${(/* @__PURE__ */ new Date()).toISOString()} ===
-`);
-  log(`PID: ${process.pid}`);
   const connection = (0, import_node.createConnection)(import_node.ProposedFeatures.all, process.stdin, process.stdout);
   const workspace = new Workspace(prelude);
   const debounceTimers = /* @__PURE__ */ new Map();
@@ -13256,23 +13192,15 @@ function startServer(prelude) {
       uri,
       setTimeout(() => {
         debounceTimers.delete(uri);
-        const t0 = performance.now();
-        try {
-          const diagnostics = workspace.update(uri, text, version);
-          const ms = (performance.now() - t0).toFixed(1);
-          log(`recompile v${version} \u2192 ${diagnostics.length} diags (${ms}ms)`);
-          connection.sendDiagnostics({ uri, diagnostics });
-        } catch (err) {
-          log(`recompile CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-        }
+        const diagnostics = workspace.update(uri, text, version);
+        connection.sendDiagnostics({ uri, diagnostics });
       }, DEBOUNCE_MS)
     );
   }
   connection.onInitialize(() => {
-    log("onInitialize");
     return {
       capabilities: {
-        textDocumentSync: import_node.TextDocumentSyncKind.Incremental,
+        textDocumentSync: import_node.TextDocumentSyncKind.Full,
         hoverProvider: true,
         definitionProvider: true,
         completionProvider: {
@@ -13291,32 +13219,17 @@ function startServer(prelude) {
     };
   });
   connection.onDidOpenTextDocument((params) => {
-    log(`open ${params.textDocument.uri} v${params.textDocument.version}`);
     const { uri, text, version } = params.textDocument;
-    try {
-      const diagnostics = workspace.update(uri, text, version);
-      log(`open compiled \u2192 ${diagnostics.length} diags`);
-      connection.sendDiagnostics({ uri, diagnostics });
-    } catch (err) {
-      log(`open CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-    }
+    const diagnostics = workspace.update(uri, text, version);
+    connection.sendDiagnostics({ uri, diagnostics });
   });
   connection.onDidChangeTextDocument((params) => {
     const { uri, version } = params.textDocument;
-    log(`change ${uri} v${version} (${params.contentChanges.length} changes)`);
-    try {
-      const text = workspace.applyChanges(uri, params.contentChanges, version);
-      if (text == null) {
-        log("change: applyChanges returned null (no doc)");
-        return;
-      }
-      scheduleRecompile(uri, text, version);
-    } catch (err) {
-      log(`change CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-    }
+    const text = params.contentChanges[0]?.text ?? workspace.get(uri)?.document.getText();
+    if (text == null) return;
+    scheduleRecompile(uri, text, version);
   });
   connection.onDidCloseTextDocument((params) => {
-    log(`close ${params.textDocument.uri}`);
     const timer = debounceTimers.get(params.textDocument.uri);
     if (timer) {
       clearTimeout(timer);
@@ -13328,67 +13241,32 @@ function startServer(prelude) {
   connection.onHover((params) => {
     const state = workspace.get(params.textDocument.uri);
     if (!state) return null;
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
-      return provideHover(workspace, state, offset);
-    } catch (err) {
-      log(`hover CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-      return null;
-    }
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
+    return provideHover(workspace, state, offset);
   });
   connection.onDefinition((params) => {
     const state = workspace.get(params.textDocument.uri);
     if (!state) return null;
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
-      return provideDefinition(workspace, state, offset);
-    } catch (err) {
-      log(`definition CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-      return null;
-    }
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
+    return provideDefinition(workspace, state, offset);
   });
   connection.onCompletion((params) => {
     const state = workspace.get(params.textDocument.uri);
     if (!state) return [];
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
-      return provideCompletion(workspace, state, offset);
-    } catch (err) {
-      log(`completion CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-      return [];
-    }
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character);
+    return provideCompletion(workspace, state, offset);
   });
   connection.onDocumentSymbol((params) => {
     const state = workspace.get(params.textDocument.uri);
     if (!state) return [];
-    try {
-      return provideDocumentSymbols(state);
-    } catch (err) {
-      log(`symbols CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-      return [];
-    }
+    return provideDocumentSymbols(state);
   });
   connection.languages.semanticTokens.on((params) => {
     const state = workspace.get(params.textDocument.uri);
     if (!state) return { data: [] };
-    try {
-      const t0 = performance.now();
-      const data = provideSemanticTokens(state);
-      const ms = (performance.now() - t0).toFixed(1);
-      log(`semanticTokens \u2192 ${data.length / 5} tokens (${ms}ms)`);
-      return { data };
-    } catch (err) {
-      log(`semanticTokens CRASHED: ${err instanceof Error ? err.stack : String(err)}`);
-      return { data: [] };
-    }
+    const data = provideSemanticTokens(state);
+    return { data };
   });
-  process.on("uncaughtException", (err) => {
-    log(`UNCAUGHT EXCEPTION: ${err.stack || err.message}`);
-  });
-  process.on("unhandledRejection", (reason) => {
-    log(`UNHANDLED REJECTION: ${reason instanceof Error ? reason.stack : String(reason)}`);
-  });
-  log("Calling connection.listen()");
   connection.listen();
 }
 

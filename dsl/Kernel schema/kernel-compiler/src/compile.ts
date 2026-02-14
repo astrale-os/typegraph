@@ -10,16 +10,16 @@
 // ============================================================
 
 import { lex } from './lexer.js'
-import { parse } from './parser.js'
-import { lower } from './lower.js'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver.js'
-import { validate } from './validator.js'
-import { serialize, type SerializeOptions } from './serializer.js'
+import { parse } from './parser/index.js'
+import { lower } from './lower/index.js'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index.js'
+import { validate } from './validator/index.js'
+import { serialize, type SerializeOptions } from './serializer/index.js'
 import { type Prelude, DEFAULT_PRELUDE } from './prelude.js'
-import type { SchemaIR } from './ir.js'
+import type { SchemaIR } from './ir/index.js'
 import { DiagnosticBag } from './diagnostics.js'
-import type { SchemaNode } from './cst.js'
-import type { Schema as AstSchema } from './ast.js'
+import type { SchemaNode } from './cst/index.js'
+import type { Schema as AstSchema } from './ast/index.js'
 
 export interface CompileResult {
   /** The IR output. Null if there were errors preventing serialization. */

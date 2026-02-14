@@ -17,7 +17,7 @@ import {
   InsertTextFormat,
 } from 'vscode-languageserver-types'
 import { type Workspace, type DocumentState } from './workspace.js'
-import { type SymbolKind } from '../resolver.js'
+import { type SymbolKind } from '../resolver/index.js'
 
 const DECL_KEYWORDS: CompletionItem[] = [
   {

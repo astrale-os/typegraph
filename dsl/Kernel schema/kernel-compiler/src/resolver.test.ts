@@ -1,9 +1,9 @@
 // src/resolver.test.ts
 import { describe, it, expect } from 'vitest'
 import { lex } from './lexer.js'
-import { parse } from './parser.js'
-import { lower } from './lower.js'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver.js'
+import { parse } from './parser/index.js'
+import { lower } from './lower/index.js'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index.js'
 import { KERNEL_PRELUDE } from './kernel-prelude.js'
 import { DiagnosticBag } from './diagnostics.js'
 

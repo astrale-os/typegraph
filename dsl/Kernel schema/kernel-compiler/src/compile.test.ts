@@ -1,7 +1,7 @@
 // src/compile.test.ts
 import { describe, it, expect } from 'vitest'
 import { compile } from './compile.js'
-import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir.js'
+import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir/index.js'
 import { KERNEL_PRELUDE } from './kernel-prelude.js'
 
 /** Helpers to filter classes array by discriminator. */

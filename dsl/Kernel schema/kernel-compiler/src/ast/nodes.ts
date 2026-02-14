@@ -13,7 +13,7 @@
 //   - Every node carries a Span for diagnostics
 // ============================================================
 
-import { Span } from "./tokens.js";
+import { Span } from "../tokens.js";
 
 // --- Base ---
 

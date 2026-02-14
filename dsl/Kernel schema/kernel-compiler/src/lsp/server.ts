@@ -28,22 +28,8 @@ import {
   SEMANTIC_TOKEN_TYPES,
   SEMANTIC_TOKEN_MODIFIERS,
 } from './semantic-tokens.js'
-import { appendFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
-
-const LOG_PATH = '/tmp/krl-lsp-debug.log'
-
-function log(msg: string): void {
-  try {
-    appendFileSync(LOG_PATH, `[${new Date().toISOString()}] ${msg}\n`)
-  } catch {}
-}
 
 export function startServer(prelude?: Prelude): void {
-  writeFileSync(LOG_PATH, `=== KRL LSP started at ${new Date().toISOString()} ===\n`)
-  log(`PID: ${process.pid}`)
-
   const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout)
   const workspace = new Workspace(prelude)
 
@@ -59,15 +45,8 @@ export function startServer(prelude?: Prelude): void {
       uri,
       setTimeout(() => {
         debounceTimers.delete(uri)
-        const t0 = performance.now()
-        try {
-          const diagnostics = workspace.update(uri, text, version)
-          const ms = (performance.now() - t0).toFixed(1)
-          log(`recompile v${version} → ${diagnostics.length} diags (${ms}ms)`)
-          connection.sendDiagnostics({ uri, diagnostics })
-        } catch (err) {
-          log(`recompile CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-        }
+        const diagnostics = workspace.update(uri, text, version)
+        connection.sendDiagnostics({ uri, diagnostics })
       }, DEBOUNCE_MS),
     )
   }
@@ -75,10 +54,9 @@ export function startServer(prelude?: Prelude): void {
   // ─── Initialize ────────────────────────────────────────────
 
   connection.onInitialize((): InitializeResult => {
-    log('onInitialize')
     return {
       capabilities: {
-        textDocumentSync: TextDocumentSyncKind.Incremental,
+        textDocumentSync: TextDocumentSyncKind.Full,
 
         hoverProvider: true,
 
@@ -105,34 +83,19 @@ export function startServer(prelude?: Prelude): void {
   // ─── Document Lifecycle ────────────────────────────────────
 
   connection.onDidOpenTextDocument((params) => {
-    log(`open ${params.textDocument.uri} v${params.textDocument.version}`)
     const { uri, text, version } = params.textDocument
-    try {
-      const diagnostics = workspace.update(uri, text, version)
-      log(`open compiled → ${diagnostics.length} diags`)
-      connection.sendDiagnostics({ uri, diagnostics })
-    } catch (err) {
-      log(`open CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-    }
+    const diagnostics = workspace.update(uri, text, version)
+    connection.sendDiagnostics({ uri, diagnostics })
   })
 
   connection.onDidChangeTextDocument((params) => {
     const { uri, version } = params.textDocument
-    log(`change ${uri} v${version} (${params.contentChanges.length} changes)`)
-    try {
-      const text = workspace.applyChanges(uri, params.contentChanges, version)
-      if (text == null) {
-        log('change: applyChanges returned null (no doc)')
-        return
-      }
-      scheduleRecompile(uri, text, version)
-    } catch (err) {
-      log(`change CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-    }
+    const text = params.contentChanges[0]?.text ?? workspace.get(uri)?.document.getText()
+    if (text == null) return
+    scheduleRecompile(uri, text, version)
   })
 
   connection.onDidCloseTextDocument((params) => {
-    log(`close ${params.textDocument.uri}`)
     const timer = debounceTimers.get(params.textDocument.uri)
     if (timer) {
       clearTimeout(timer)
@@ -147,13 +110,10 @@ export function startServer(prelude?: Prelude): void {
   connection.onHover((params) => {
     const state = workspace.get(params.textDocument.uri)
     if (!state) return null
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
-      return provideHover(workspace, state, offset)
-    } catch (err) {
-      log(`hover CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-      return null
-    }
+
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
+
+    return provideHover(workspace, state, offset)
   })
 
   // ─── Definition ────────────────────────────────────────────
@@ -161,13 +121,10 @@ export function startServer(prelude?: Prelude): void {
   connection.onDefinition((params) => {
     const state = workspace.get(params.textDocument.uri)
     if (!state) return null
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
-      return provideDefinition(workspace, state, offset)
-    } catch (err) {
-      log(`definition CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-      return null
-    }
+
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
+
+    return provideDefinition(workspace, state, offset)
   })
 
   // ─── Completion ────────────────────────────────────────────
@@ -175,13 +132,10 @@ export function startServer(prelude?: Prelude): void {
   connection.onCompletion((params) => {
     const state = workspace.get(params.textDocument.uri)
     if (!state) return []
-    try {
-      const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
-      return provideCompletion(workspace, state, offset)
-    } catch (err) {
-      log(`completion CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-      return []
-    }
+
+    const offset = state.lineMap.offsetAt(params.position.line, params.position.character)
+
+    return provideCompletion(workspace, state, offset)
   })
 
   // ─── Document Symbols ──────────────────────────────────────
@@ -189,12 +143,8 @@ export function startServer(prelude?: Prelude): void {
   connection.onDocumentSymbol((params) => {
     const state = workspace.get(params.textDocument.uri)
     if (!state) return []
-    try {
-      return provideDocumentSymbols(state)
-    } catch (err) {
-      log(`symbols CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-      return []
-    }
+
+    return provideDocumentSymbols(state)
   })
 
   // ─── Semantic Tokens ───────────────────────────────────────
@@ -202,30 +152,12 @@ export function startServer(prelude?: Prelude): void {
   connection.languages.semanticTokens.on((params) => {
     const state = workspace.get(params.textDocument.uri)
     if (!state) return { data: [] }
-    try {
-      const t0 = performance.now()
-      const data = provideSemanticTokens(state)
-      const ms = (performance.now() - t0).toFixed(1)
-      log(`semanticTokens → ${data.length / 5} tokens (${ms}ms)`)
-      return { data }
-    } catch (err) {
-      log(`semanticTokens CRASHED: ${err instanceof Error ? err.stack : String(err)}`)
-      return { data: [] }
-    }
-  })
 
-  // ─── Catch-all error ───────────────────────────────────────
-
-  process.on('uncaughtException', (err) => {
-    log(`UNCAUGHT EXCEPTION: ${err.stack || err.message}`)
-  })
-
-  process.on('unhandledRejection', (reason) => {
-    log(`UNHANDLED REJECTION: ${reason instanceof Error ? reason.stack : String(reason)}`)
+    const data = provideSemanticTokens(state)
+    return { data }
   })
 
   // ─── Start ─────────────────────────────────────────────────
 
-  log('Calling connection.listen()')
   connection.listen()
 }

@@ -27,8 +27,8 @@ import {
   LifecycleModifier,
   RangeModifier,
   MatchModifier,
-} from "../ast.js";
-import { Symbol } from "../resolver.js";
+} from "../ast/index.js";
+import { Symbol } from "../resolver/index.js";
 
 export function provideHover(
   workspace: Workspace,

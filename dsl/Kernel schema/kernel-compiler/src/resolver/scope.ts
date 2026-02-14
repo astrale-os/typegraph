@@ -1,34 +1,19 @@
-// src/resolver.ts
+// resolver/scope.ts
 // ============================================================
-// Resolver — AST → Resolved Schema
+// Resolver — Symbol Table + Type Resolution
 //
-// Builds a symbol table from declarations, resolves all type
-// name references to their definitions, and reports unknown
-// types and duplicate names.
-//
-// Bootstrapping:
-//   1. Prelude scalars are injected first (String, Int, etc.)
-//   2. The prelude source is parsed and resolved against scalars
-//   3. User schemas are resolved against prelude + scalars
+// Pass 1: Register all declarations (forward declaration).
+// Pass 2: Resolve all type references within declarations.
 // ============================================================
 
 import {
   type Schema,
   type Declaration,
-  TypeAliasDecl,
-  InterfaceDecl,
-  NodeDecl,
-  EdgeDecl,
-  ExtendDecl,
   type TypeExpr,
-  NamedType,
-  NullableType,
-  UnionType,
-  EdgeRefType,
   type Name,
-} from './ast.js'
-import { type Span } from './tokens.js'
-import { DiagnosticBag, DiagnosticCodes } from './diagnostics.js'
+} from '../ast/index.js'
+import { type Span } from '../tokens.js'
+import { DiagnosticBag, DiagnosticCodes } from '../diagnostics.js'
 
 // ─── Resolved Schema Types ──────────────────────────────────
 

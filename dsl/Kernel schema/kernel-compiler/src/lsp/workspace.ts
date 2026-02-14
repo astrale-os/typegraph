@@ -15,10 +15,10 @@ import { type Diagnostic as LspDiagnostic, DiagnosticSeverity } from 'vscode-lan
 import { compile, type CompileResult } from '../compile.js'
 import { type DiagnosticBag } from '../diagnostics.js'
 import { LineMap } from '../linemap.js'
-import { type Declaration } from '../ast.js'
-import { type Symbol } from '../resolver.js'
+import { type Declaration } from '../ast/index.js'
+import { type Symbol } from '../resolver/index.js'
 import { type Token } from '../tokens.js'
-import { isToken, isNode, type CstNode } from '../cst.js'
+import { isToken, isNode, type CstNode } from '../cst/index.js'
 import { type Prelude, DEFAULT_PRELUDE } from '../prelude.js'
 
 export interface DocumentState {

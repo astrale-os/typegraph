@@ -23,8 +23,8 @@
 
 import { DocumentState } from "./workspace.js";
 import { Token, TokenKind, Span } from "../tokens.js";
-import { SymbolKind as ResolverSymbolKind } from "../resolver.js";
-import { CstNode, isToken, isNode, spanOf } from "../cst.js";
+import { SymbolKind as ResolverSymbolKind } from "../resolver/index.js";
+import { CstNode, isToken, isNode, spanOf } from "../cst/index.js";
 
 export const SEMANTIC_TOKEN_TYPES = [
   "type",

@@ -1,8 +1,8 @@
 // src/lower.test.ts
 import { describe, it, expect } from 'vitest'
 import { lex } from './lexer.js'
-import { parse } from './parser.js'
-import { lower } from './lower.js'
+import { parse } from './parser/index.js'
+import { lower } from './lower/index.js'
 import { KERNEL_PRELUDE } from './kernel-prelude.js'
 import { DiagnosticBag } from './diagnostics.js'
 import {
@@ -28,7 +28,7 @@ import {
   type NumberLiteral,
   type BooleanLiteral,
   type CallExpression,
-} from './ast.js'
+} from './ast/index.js'
 
 /** Helper: source → AST declarations (no errors expected). */
 function ast(source: string): Declaration[] {
