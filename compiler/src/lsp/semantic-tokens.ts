@@ -56,7 +56,7 @@ SEMANTIC_TOKEN_MODIFIERS.forEach((m, i) => { MOD_INDEX[m] = 1 << i; });
 
 // Keywords that get special highlighting
 const KEYWORD_SET = new Set([
-  "class", "interface", "type", "extend", "edge",
+  "class", "interface", "type", "extend", "edge", "fn",
 ]);
 
 const MODIFIER_KEYWORDS = new Set([

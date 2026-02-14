@@ -21,9 +21,13 @@ import {
   type ParamNode,
   type BodyNode,
   type AttributeNode,
+  type MethodNode,
+  type MethodParamNode,
+  type NullableTypeNode,
   type DefaultValueNode,
   type ModifierListNode,
 } from '../cst/index'
+import { isKeyword } from '../tokens'
 import { DiagnosticCodes } from '../diagnostics'
 import { type ParserContext, isDeclStart } from './index'
 import { parseTypeExpr } from './types'
@@ -293,7 +297,7 @@ function parseParam(p: ParserContext): ParamNode {
   }
 }
 
-// { Attribute* }
+// { (Attribute | Method)* }
 function parseBody(p: ParserContext): BodyNode {
   const children: CstChild[] = []
 
@@ -301,16 +305,21 @@ function parseBody(p: ParserContext): BodyNode {
   children.push(lbrace)
 
   const attributes: AttributeNode[] = []
+  const methods: MethodNode[] = []
 
   while (!p.at('RBrace') && !p.at('EOF')) {
     // If we see a declaration keyword or EOF, the body is probably missing its closing brace.
     if (isDeclStart(p.current())) {
-      p.diagnostics.error(
-        p.current().span,
-        DiagnosticCodes.P_UNCLOSED_BRACE,
-        "Unclosed '{'",
-      )
+      p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'")
       break
+    }
+
+    // fn keyword → method declaration
+    if (isKeyword(p.current(), 'fn')) {
+      const method = parseMethod(p)
+      methods.push(method)
+      children.push(method)
+      continue
     }
 
     const attr = parseAttribute(p)
@@ -332,6 +341,7 @@ function parseBody(p: ParserContext): BodyNode {
     children,
     lbrace,
     attributes,
+    methods,
     rbrace,
   }
 }
@@ -378,6 +388,106 @@ function parseAttribute(p: ParserContext): AttributeNode | null {
     colon,
     typeExpr,
     modifiers,
+    defaultValue,
+  }
+}
+
+// fn name(params): ReturnType[]?
+function parseMethod(p: ParserContext): MethodNode {
+  const children: CstChild[] = []
+
+  const fnKeyword = p.expectKeyword('fn')
+  children.push(fnKeyword)
+
+  const name = p.expectIdent()
+  children.push(name)
+
+  const lparen = p.expect('LParen')
+  children.push(lparen)
+
+  const params: MethodParamNode[] = []
+
+  if (!p.at('RParen') && !p.at('EOF')) {
+    const first = parseMethodParam(p)
+    params.push(first)
+    children.push(first)
+
+    while (p.at('Comma')) {
+      const comma = p.advance()
+      children.push(comma)
+      const param = parseMethodParam(p)
+      params.push(param)
+      children.push(param)
+    }
+  }
+
+  const rparen = p.expect('RParen')
+  children.push(rparen)
+
+  const colon = p.expect('Colon')
+  children.push(colon)
+
+  let returnType = parseTypeExpr(p)
+  children.push(returnType)
+
+  // The type parser may have consumed `?` as a NullableType — extract it
+  let nullable: Token | null = null
+  if (returnType.kind === 'NullableType') {
+    const nt = returnType as NullableTypeNode
+    nullable = nt.question
+    returnType = nt.inner
+  }
+
+  // Optional list suffix: []
+  let listSuffix: { lbracket: Token; rbracket: Token } | null = null
+  if (!nullable && p.at('LBracket') && p.peek(1).kind === 'RBracket') {
+    const lbracket = p.advance()
+    const rbracket = p.advance()
+    children.push(lbracket)
+    children.push(rbracket)
+    listSuffix = { lbracket, rbracket }
+  }
+
+  return {
+    kind: 'Method',
+    children,
+    fnKeyword,
+    name,
+    lparen,
+    params,
+    rparen,
+    colon,
+    returnType,
+    listSuffix,
+    nullable,
+  }
+}
+
+// name : TypeExpr = default
+function parseMethodParam(p: ParserContext): MethodParamNode {
+  const children: CstChild[] = []
+
+  const name = p.expectIdent()
+  children.push(name)
+
+  const colon = p.expect('Colon')
+  children.push(colon)
+
+  const typeExpr = parseTypeExpr(p)
+  children.push(typeExpr)
+
+  let defaultValue: DefaultValueNode | null = null
+  if (p.at('Eq')) {
+    defaultValue = parseDefaultValue(p)
+    children.push(defaultValue)
+  }
+
+  return {
+    kind: 'MethodParam',
+    children,
+    name,
+    colon,
+    typeExpr,
     defaultValue,
   }
 }

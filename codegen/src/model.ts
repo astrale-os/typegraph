@@ -19,11 +19,19 @@ export type {
   AttributeModifiers,
   TypeRef,
   ValueNode,
+  MethodDef,
+  MethodParam,
 } from '@astrale/kernel-compiler'
 
 // ─── Graph Model (enriched, indexed) ────────────────────────
 
-import type { IRAttribute, Endpoint, EdgeConstraints, ValueConstraints } from '@astrale/kernel-compiler'
+import type {
+  IRAttribute,
+  Endpoint,
+  EdgeConstraints,
+  ValueConstraints,
+  MethodDef,
+} from '@astrale/kernel-compiler'
 
 export interface GraphModel {
   scalars: string[]
@@ -48,6 +56,8 @@ export interface ResolvedNode {
   ownAttributes: IRAttribute[]
   /** Own + inherited, parents-first. Own attrs override inherited by name. */
   allAttributes: IRAttribute[]
+  ownMethods: MethodDef[]
+  allMethods: MethodDef[]
   origin?: string
 }
 
@@ -56,6 +66,8 @@ export interface ResolvedEdge {
   endpoints: Endpoint[]
   ownAttributes: IRAttribute[]
   allAttributes: IRAttribute[]
+  ownMethods: MethodDef[]
+  allMethods: MethodDef[]
   constraints: EdgeConstraints
   origin?: string
 }

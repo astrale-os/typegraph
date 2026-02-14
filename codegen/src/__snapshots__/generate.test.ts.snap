@@ -83,6 +83,41 @@ export interface FlaggedPayload {
   flagged_at: string
 }
 
+// ─── Methods ────────────────────────────────────────────────
+
+export type UserNode = User & {
+  readonly id: string
+  readonly __type: 'User'
+}
+
+export type OrganizationNode = Organization & {
+  readonly id: string
+  readonly __type: 'Organization'
+}
+
+export type PostNode = Post & {
+  readonly id: string
+  readonly __type: 'Post'
+}
+
+export type CommentNode = Comment & {
+  readonly id: string
+  readonly __type: 'Comment'
+}
+
+export type TagNode = Tag & {
+  readonly id: string
+  readonly __type: 'Tag'
+}
+
+export interface SchemaNodeTypeMap {
+  User: UserNode
+  Organization: OrganizationNode
+  Post: PostNode
+  Comment: CommentNode
+  Tag: TagNode
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

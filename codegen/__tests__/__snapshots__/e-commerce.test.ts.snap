@@ -82,6 +82,41 @@ export interface ReviewedPayload {
   verified: boolean
 }
 
+// ─── Methods ────────────────────────────────────────────────
+
+export type CustomerNode = Customer & {
+  readonly id: string
+  readonly __type: 'Customer'
+}
+
+export type ProductNode = Product & {
+  readonly id: string
+  readonly __type: 'Product'
+}
+
+export type CategoryNode = Category & {
+  readonly id: string
+  readonly __type: 'Category'
+}
+
+export type OrderNode = Order & {
+  readonly id: string
+  readonly __type: 'Order'
+}
+
+export type ReviewNode = Review & {
+  readonly id: string
+  readonly __type: 'Review'
+}
+
+export interface SchemaNodeTypeMap {
+  Customer: CustomerNode
+  Product: ProductNode
+  Category: CategoryNode
+  Order: OrderNode
+  Review: ReviewNode
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

@@ -39,6 +39,8 @@ export type CstNodeKind =
   | 'Param'
   | 'Body'
   | 'Attribute'
+  | 'Method'
+  | 'MethodParam'
   | 'DefaultValue'
   | 'Expression'
   | 'TypeExpr'
@@ -138,11 +140,12 @@ export interface ParamNode extends CstNode {
   typeExpr: TypeExprNode
 }
 
-// { Attribute* }
+// { Attribute* Method* }
 export interface BodyNode extends CstNode {
   kind: 'Body'
   lbrace: Token
   attributes: AttributeNode[]
+  methods: MethodNode[]
   rbrace: Token
 }
 
@@ -153,6 +156,29 @@ export interface AttributeNode extends CstNode {
   colon: Token
   typeExpr: TypeExprNode
   modifiers: ModifierListNode | null
+  defaultValue: DefaultValueNode | null
+}
+
+// fn name(params): ReturnType[]?
+export interface MethodNode extends CstNode {
+  kind: 'Method'
+  fnKeyword: Token
+  name: Token
+  lparen: Token
+  params: MethodParamNode[]
+  rparen: Token
+  colon: Token
+  returnType: TypeExprNode
+  listSuffix: { lbracket: Token; rbracket: Token } | null
+  nullable: Token | null
+}
+
+// name : TypeExpr = default
+export interface MethodParamNode extends CstNode {
+  kind: 'MethodParam'
+  name: Token
+  colon: Token
+  typeExpr: TypeExprNode
   defaultValue: DefaultValueNode | null
 }
 

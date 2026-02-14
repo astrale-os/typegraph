@@ -135,6 +135,14 @@ const DEFAULT_VALUE_ITEMS: CompletionItem[] = [
   { label: '0', kind: CompletionItemKind.Value },
 ]
 
+const FN_SNIPPET: CompletionItem = {
+  label: 'fn',
+  kind: CompletionItemKind.Keyword,
+  insertText: 'fn ${1:name}(${2}): ${3:ReturnType}',
+  insertTextFormat: InsertTextFormat.Snippet,
+  detail: 'Method declaration',
+}
+
 export function provideCompletion(
   workspace: Workspace,
   state: DocumentState,
@@ -162,6 +170,9 @@ export function provideCompletion(
     case 'edge_target':
       return edgeTargetCompletions(state)
 
+    case 'body':
+      return [FN_SNIPPET, ...typeCompletions(state)]
+
     default:
       // Fallback: offer everything
       return [...DECL_KEYWORDS, ...typeCompletions(state)]
@@ -175,6 +186,7 @@ type CompletionContext =
   | 'modifier'
   | 'default'
   | 'edge_target'
+  | 'body'
   | 'unknown'
 
 /**
@@ -211,6 +223,11 @@ function inferContext(text: string, offset: number): CompletionContext {
 
   // After `,` inside extends → more type names
   if (/(?:class|interface)\s+\w+\s*:\s*[\w,\s]+,\s*$/.test(trimmed)) return 'extends'
+
+  // Inside body braces → attribute or method start
+  const lastBrace = before.lastIndexOf('{')
+  const lastCloseBrace = before.lastIndexOf('}')
+  if (lastBrace > lastCloseBrace) return 'body'
 
   // Start of line or after `}` → new declaration
   if (/(?:^|\n|}\s*)\s*$/.test(before)) return 'declaration'

@@ -12,6 +12,7 @@ import {
   NodeDecl,
   EdgeDecl,
   Attribute,
+  Method,
   TypeExpr,
   NamedType,
   NullableType,
@@ -94,8 +95,7 @@ function renderInterface(decl: InterfaceDecl): string {
   const ext = decl.extends.length > 0
     ? `: ${decl.extends.map((e) => e.value).join(", ")}`
     : "";
-  const attrs = decl.attributes.map(renderAttribute).join("\n  ");
-  const body = attrs ? ` {\n  ${attrs}\n}` : " {}";
+  const body = renderBody(decl.attributes, decl.methods);
   return `\`\`\`krl\ninterface ${decl.name.value}${ext}${body}\n\`\`\``;
 }
 
@@ -103,8 +103,7 @@ function renderClass(decl: NodeDecl): string {
   const impl = decl.implements.length > 0
     ? `: ${decl.implements.map((i) => i.value).join(", ")}`
     : "";
-  const attrs = decl.attributes.map(renderAttribute).join("\n  ");
-  const body = attrs ? ` {\n  ${attrs}\n}` : " {}";
+  const body = renderBody(decl.attributes, decl.methods);
   return `\`\`\`krl\nclass ${decl.name.value}${impl}${body}\n\`\`\``;
 }
 
@@ -118,8 +117,7 @@ function renderEdge(decl: EdgeDecl): string {
   const mods = decl.modifiers.length > 0
     ? ` [${decl.modifiers.map(renderModifier).join(", ")}]`
     : "";
-  const attrs = decl.attributes.map(renderAttribute).join("\n  ");
-  const body = attrs ? ` {\n  ${attrs}\n}` : "";
+  const body = renderBody(decl.attributes, decl.methods);
   return `\`\`\`krl\nclass ${decl.name.value}(${params})${impl}${mods}${body}\n\`\`\``;
 }
 
@@ -129,6 +127,21 @@ function renderAttribute(attr: Attribute): string {
     : "";
   const def = attr.defaultValue ? ` = ...` : "";
   return `${attr.name.value}: ${renderTypeExpr(attr.type)}${mods}${def}`;
+}
+
+function renderMethod(m: Method): string {
+  const params = m.params.map(p => `${p.name.value}: ${renderTypeExpr(p.type)}`).join(", ");
+  const ret = renderTypeExpr(m.returnType);
+  const suffix = m.returnList ? "[]" : m.returnNullable ? "?" : "";
+  return `fn ${m.name.value}(${params}): ${ret}${suffix}`;
+}
+
+function renderBody(attributes: Attribute[], methods: Method[]): string {
+  const lines: string[] = [
+    ...attributes.map(renderAttribute),
+    ...methods.map(renderMethod),
+  ];
+  return lines.length > 0 ? ` {\n  ${lines.join("\n  ")}\n}` : " {}";
 }
 
 function renderTypeExpr(expr: TypeExpr): string {

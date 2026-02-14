@@ -25,10 +25,23 @@ export type { Token, Span, Trivia, TokenKind, TriviaKind } from './tokens'
 export type { CstNode, CstChild, SchemaNode } from './cst/index'
 export type { Schema, Declaration } from './ast/index'
 export type {
-  SchemaIR, ClassDef, NodeDef, EdgeDef,
-  IRAttribute, Endpoint, EdgeConstraints, ValueConstraints, AttributeModifiers,
-  TypeRef, ValueNode, Cardinality, LifecycleAction,
-  Extension, TypeAlias,
+  SchemaIR,
+  ClassDef,
+  NodeDef,
+  EdgeDef,
+  IRAttribute,
+  Endpoint,
+  EdgeConstraints,
+  ValueConstraints,
+  AttributeModifiers,
+  TypeRef,
+  ValueNode,
+  Cardinality,
+  LifecycleAction,
+  Extension,
+  TypeAlias,
+  MethodDef,
+  MethodParam,
 } from './ir/index'
 export type { ResolvedSchema, Symbol, SymbolKind } from './resolver/index'
 export { DiagnosticBag, DiagnosticCodes } from './diagnostics'

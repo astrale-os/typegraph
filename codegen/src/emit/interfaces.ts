@@ -82,18 +82,44 @@ export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
   switch (ref.kind) {
     case 'Scalar':
       return scalarToTs(ref.name)
-    case 'Alias': {
-      // Use the alias name directly — it references the generated type alias or enum
+    case 'Alias':
       return ref.name
-    }
     case 'Node':
       return 'string' // node reference = ID
     case 'Edge':
       return 'string'
     case 'AnyEdge':
       return 'string'
+    case 'List':
+      return `${resolveTypeRef(model, ref.element)}[]`
     case 'Union':
       return ref.types.map((t) => resolveTypeRef(model, t)).join(' | ')
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Resolve a TypeRef for method signatures.
+ * Unlike resolveTypeRef, Node refs resolve to the interface name (not 'string'),
+ * since method params/returns deal with actual objects, not IDs.
+ */
+export function resolveMethodTypeRef(model: GraphModel, ref: TypeRef): string {
+  switch (ref.kind) {
+    case 'Scalar':
+      return scalarToTs(ref.name)
+    case 'Alias':
+      return ref.name
+    case 'Node':
+      return ref.name // interface name, not 'string'
+    case 'Edge':
+      return pascalCase(ref.name) + 'Payload'
+    case 'AnyEdge':
+      return 'unknown'
+    case 'List':
+      return `${resolveMethodTypeRef(model, ref.element)}[]`
+    case 'Union':
+      return ref.types.map((t) => resolveMethodTypeRef(model, t)).join(' | ')
     default:
       return 'unknown'
   }

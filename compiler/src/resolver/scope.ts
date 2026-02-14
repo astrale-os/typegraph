@@ -175,6 +175,12 @@ class Resolver {
         for (const attr of decl.attributes) {
           this.resolveTypeExpr(attr.type)
         }
+        for (const method of decl.methods) {
+          for (const param of method.params) {
+            this.resolveTypeExpr(param.type)
+          }
+          this.resolveTypeExpr(method.returnType)
+        }
         break
 
       case 'NodeDecl':
@@ -183,6 +189,12 @@ class Resolver {
         }
         for (const attr of decl.attributes) {
           this.resolveTypeExpr(attr.type)
+        }
+        for (const method of decl.methods) {
+          for (const param of method.params) {
+            this.resolveTypeExpr(param.type)
+          }
+          this.resolveTypeExpr(method.returnType)
         }
         break
 
@@ -195,6 +207,12 @@ class Resolver {
         }
         for (const attr of decl.attributes) {
           this.resolveTypeExpr(attr.type)
+        }
+        for (const method of decl.methods) {
+          for (const param of method.params) {
+            this.resolveTypeExpr(param.type)
+          }
+          this.resolveTypeExpr(method.returnType)
         }
         break
 

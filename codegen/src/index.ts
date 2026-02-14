@@ -9,6 +9,8 @@ export type {
   ResolvedAlias,
   ResolvedNode,
   ResolvedEdge,
+  MethodDef,
+  MethodParam,
   SchemaIR,
   ClassDef,
   NodeDef,

@@ -13,6 +13,7 @@ import {
   type EdgeDecl,
   type ExtendDecl,
   type Attribute,
+  type Method,
   type TypeExpr,
   NamedType,
   NullableType,
@@ -64,7 +65,10 @@ function interfaceSymbol(decl: InterfaceDecl, state: DocumentState): DocumentSym
     kind: SymbolKind.Interface,
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.name.span, state),
-    children: decl.attributes.map((a) => attributeSymbol(a, state)),
+    children: [
+      ...decl.attributes.map((a) => attributeSymbol(a, state)),
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+    ],
   }
 }
 
@@ -77,7 +81,10 @@ function classSymbol(decl: NodeDecl, state: DocumentState): DocumentSymbol {
     kind: SymbolKind.Class,
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.name.span, state),
-    children: decl.attributes.map((a) => attributeSymbol(a, state)),
+    children: [
+      ...decl.attributes.map((a) => attributeSymbol(a, state)),
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+    ],
   }
 }
 
@@ -89,7 +96,10 @@ function edgeSymbol(decl: EdgeDecl, state: DocumentState): DocumentSymbol {
     kind: SymbolKind.Event,
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.name.span, state),
-    children: decl.attributes.map((a) => attributeSymbol(a, state)),
+    children: [
+      ...decl.attributes.map((a) => attributeSymbol(a, state)),
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+    ],
   }
 }
 
@@ -110,6 +120,19 @@ function attributeSymbol(attr: Attribute, state: DocumentState): DocumentSymbol 
     kind: SymbolKind.Field,
     range: spanToRange(attr.span, state),
     selectionRange: spanToRange(attr.name.span, state),
+  }
+}
+
+function methodSymbol(m: Method, state: DocumentState): DocumentSymbol {
+  const params = m.params.map((p) => p.name.value).join(', ')
+  const ret = renderTypeExpr(m.returnType)
+  const suffix = m.returnList ? '[]' : m.returnNullable ? '?' : ''
+  return {
+    name: m.name.value,
+    detail: `(${params}): ${ret}${suffix}`,
+    kind: SymbolKind.Method,
+    range: spanToRange(m.span, state),
+    selectionRange: spanToRange(m.name.span, state),
   }
 }
 

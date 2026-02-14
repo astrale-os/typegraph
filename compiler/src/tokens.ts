@@ -17,29 +17,29 @@
 /** Byte offset range in source. 0-indexed. */
 export interface Span {
   /** Byte offset of first character. */
-  start: number;
+  start: number
   /** Byte offset one past last character. */
-  end: number;
+  end: number
 }
 
 /** Trivia: whitespace or comment preceding a token. */
 export interface Trivia {
-  kind: TriviaKind;
-  text: string;
-  span: Span;
+  kind: TriviaKind
+  text: string
+  span: Span
 }
 
-export type TriviaKind = "Whitespace" | "Comment";
+export type TriviaKind = 'Whitespace' | 'Comment'
 
 // --- Token ---
 
 export interface Token {
-  kind: TokenKind;
+  kind: TokenKind
   /** Raw source text of the token. */
-  text: string;
-  span: Span;
+  text: string
+  span: Span
   /** Leading trivia (whitespace/comments before this token). */
-  leadingTrivia: Trivia[];
+  leadingTrivia: Trivia[]
 }
 
 /**
@@ -55,55 +55,74 @@ export interface Token {
  */
 export type TokenKind =
   // Atoms
-  | "Ident"         // [a-zA-Z_][a-zA-Z0-9_]*
-  | "StringLit"     // "..."
-  | "NumberLit"     // 123, 0.5
+  | 'Ident' // [a-zA-Z_][a-zA-Z0-9_]*
+  | 'StringLit' // "..."
+  | 'NumberLit' // 123, 0.5
 
   // Punctuation
-  | "LParen"        // (
-  | "RParen"        // )
-  | "LBrace"        // {
-  | "RBrace"        // }
-  | "LBracket"      // [
-  | "RBracket"      // ]
-  | "LAngle"        // <
-  | "RAngle"        // >
-  | "Colon"         // :
-  | "Comma"         // ,
-  | "Eq"            // =
-  | "Pipe"          // |
-  | "Question"      // ?
-  | "Arrow"         // ->
-  | "DotDot"        // ..
-  | "Star"          // *
-  | "GtEq"         // >=
-  | "LtEq"         // <=
+  | 'LParen' // (
+  | 'RParen' // )
+  | 'LBrace' // {
+  | 'RBrace' // }
+  | 'LBracket' // [
+  | 'RBracket' // ]
+  | 'LAngle' // <
+  | 'RAngle' // >
+  | 'Colon' // :
+  | 'Comma' // ,
+  | 'Eq' // =
+  | 'Pipe' // |
+  | 'Question' // ?
+  | 'Arrow' // ->
+  | 'DotDot' // ..
+  | 'Star' // *
+  | 'GtEq' // >=
+  | 'LtEq' // <=
 
   // Control
-  | "EOF";
+  | 'EOF'
 
 // --- Helpers ---
 
 /** Check if a token's text matches a contextual keyword. */
 export function isKeyword(token: Token, keyword: string): boolean {
-  return token.kind === "Ident" && token.text === keyword;
+  return token.kind === 'Ident' && token.text === keyword
 }
 
 /** The set of contextual keywords the parser recognizes. */
 export const CONTEXTUAL_KEYWORDS = [
   // Declaration keywords
-  "type", "interface", "class", "extend",
+  'type',
+  'interface',
+  'class',
+  'extend',
+  'fn',
   // Literals
-  "true", "false", "null",
+  'true',
+  'false',
+  'null',
   // Type expressions
-  "edge", "any",
+  'edge',
+  'any',
   // Flag modifiers
-  "no_self", "acyclic", "unique", "symmetric", "readonly", "indexed",
+  'no_self',
+  'acyclic',
+  'unique',
+  'symmetric',
+  'readonly',
+  'indexed',
   // KV modifier keys
-  "format", "match", "in", "length",
+  'format',
+  'match',
+  'in',
+  'length',
   // Lifecycle
-  "on_kill_source", "on_kill_target",
-  "cascade", "unlink", "prevent",
+  'on_kill_source',
+  'on_kill_target',
+  'cascade',
+  'unlink',
+  'prevent',
   // Sort direction
-  "asc", "desc",
-] as const;
+  'asc',
+  'desc',
+] as const

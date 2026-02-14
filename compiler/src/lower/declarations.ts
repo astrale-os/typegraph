@@ -14,6 +14,8 @@ import {
   type ExtendDeclNode,
   type AttributeNode,
   type ParamNode,
+  type MethodNode,
+  type MethodParamNode,
   spanOf,
 } from '../cst/index'
 import {
@@ -25,6 +27,8 @@ import {
   type ExtendDecl,
   type Attribute,
   type Param,
+  type Method,
+  type MethodParam,
   type Name,
 } from '../ast/index'
 import { type Token } from '../tokens'
@@ -60,14 +64,13 @@ function lowerTypeAlias(ctx: LoweringContext, node: TypeAliasDeclNode): TypeAlia
   }
 }
 
-function lowerInterface(_ctx: LoweringContext, node: InterfaceDeclNode): InterfaceDecl {
+function lowerInterface(ctx: LoweringContext, node: InterfaceDeclNode): InterfaceDecl {
   return {
     kind: 'InterfaceDecl',
     name: lowerName(node.name),
-    extends: node.extendsClause
-      ? node.extendsClause.names.items.map((t) => lowerName(t))
-      : [],
-    attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(_ctx, a)) : [],
+    extends: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
+    attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
+    methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
     span: spanOf(node),
   }
 }
@@ -84,11 +87,10 @@ function lowerNodeClass(ctx: LoweringContext, node: ClassDeclNode): NodeDecl {
   return {
     kind: 'NodeDecl',
     name: lowerName(node.name),
-    implements: node.extendsClause
-      ? node.extendsClause.names.items.map((t) => lowerName(t))
-      : [],
+    implements: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
+    methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
     span: spanOf(node),
   }
 }
@@ -98,11 +100,10 @@ function lowerEdge(ctx: LoweringContext, node: ClassDeclNode): EdgeDecl {
     kind: 'EdgeDecl',
     name: lowerName(node.name),
     params: node.signature!.params.map((p) => lowerParam(p)),
-    implements: node.extendsClause
-      ? node.extendsClause.names.items.map((t) => lowerName(t))
-      : [],
+    implements: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
+    methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
     span: spanOf(node),
   }
 }
@@ -122,6 +123,27 @@ function lowerParam(node: ParamNode): Param {
   return {
     name: lowerName(node.name),
     type: lowerTypeExpr(node.typeExpr),
+    span: spanOf(node),
+  }
+}
+
+function lowerMethod(ctx: LoweringContext, node: MethodNode): Method {
+  return {
+    kind: 'Method',
+    name: lowerName(node.name),
+    params: node.params.map((p) => lowerMethodParam(ctx, p)),
+    returnType: lowerTypeExpr(node.returnType),
+    returnList: node.listSuffix !== null,
+    returnNullable: node.nullable !== null,
+    span: spanOf(node),
+  }
+}
+
+function lowerMethodParam(ctx: LoweringContext, node: MethodParamNode): MethodParam {
+  return {
+    name: lowerName(node.name),
+    type: lowerTypeExpr(node.typeExpr),
+    defaultValue: node.defaultValue ? lowerExpression(ctx, node.defaultValue.expression) : null,
     span: spanOf(node),
   }
 }

@@ -12,6 +12,8 @@ import {
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
+  type Method,
+  type MethodParam as AstMethodParam,
   type NamedType,
   type TypeExpr,
   type NullableType,
@@ -24,13 +26,15 @@ import {
   type TypeAlias,
   type NodeDef,
   type EdgeDef,
+  type MethodDef,
+  type MethodParam,
   type Endpoint,
   type Cardinality,
   type TypeRef,
 } from '../ir/index'
 import { type SerializerContext } from './index'
 import { serializeTypeRef } from './types'
-import { serializeAttribute } from './attributes'
+import { serializeAttribute, serializeValueNode } from './attributes'
 import { extractEdgeConstraints, extractValueConstraints } from './modifiers'
 
 export function serializeExtend(decl: ExtendDecl): Extension {
@@ -60,6 +64,7 @@ export function serializeInterface(ctx: SerializerContext, decl: InterfaceDecl):
     abstract: true,
     implements: decl.extends.map((e) => e.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
+    methods: decl.methods.map((m) => serializeMethod(ctx, m)),
   }
 }
 
@@ -70,6 +75,7 @@ export function serializeNode(ctx: SerializerContext, decl: NodeDecl): NodeDef {
     abstract: false,
     implements: decl.implements.map((i) => i.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
+    methods: decl.methods.map((m) => serializeMethod(ctx, m)),
   }
 }
 
@@ -88,7 +94,30 @@ export function serializeEdge(ctx: SerializerContext, decl: EdgeDecl): EdgeDef {
     name: decl.name.value,
     endpoints: decl.params.map((p) => serializeEndpoint(ctx, p, cardinalityMap)),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
+    methods: decl.methods.map((m) => serializeMethod(ctx, m)),
     constraints: extractEdgeConstraints(decl.modifiers),
+  }
+}
+
+function serializeMethod(ctx: SerializerContext, method: Method): MethodDef {
+  let returnType = serializeTypeRef(ctx, method.returnType)
+  if (method.returnList) {
+    returnType = { kind: 'List', element: returnType }
+  }
+
+  return {
+    name: method.name.value,
+    params: method.params.map((p) => serializeMethodParam(ctx, p)),
+    return_type: returnType,
+    return_nullable: method.returnNullable,
+  }
+}
+
+function serializeMethodParam(ctx: SerializerContext, param: AstMethodParam): MethodParam {
+  return {
+    name: param.name.value,
+    type: serializeTypeRef(ctx, param.type),
+    default: param.defaultValue ? serializeValueNode(param.defaultValue) : null,
   }
 }
 

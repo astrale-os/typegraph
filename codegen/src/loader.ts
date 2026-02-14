@@ -9,6 +9,7 @@ import type {
   ResolvedAlias,
   ResolvedNode,
   ResolvedEdge,
+  MethodDef,
 } from './model'
 
 // ─── Public API ─────────────────────────────────────────────
@@ -124,6 +125,8 @@ function registerNode(model: GraphModel, node: NodeDef, strict: boolean): void {
     implements: node.implements ?? [],
     ownAttributes: node.attributes,
     allAttributes: [], // populated by resolveInheritance
+    ownMethods: node.methods ?? [],
+    allMethods: [], // populated by resolveInheritance
     origin: node.origin,
   })
 }
@@ -140,6 +143,8 @@ function registerEdge(model: GraphModel, edge: EdgeDef, strict: boolean): void {
     endpoints: edge.endpoints,
     ownAttributes: edge.attributes,
     allAttributes: [], // edges don't inherit; set to ownAttributes below
+    ownMethods: edge.methods ?? [],
+    allMethods: [], // edges don't inherit; set to ownMethods below
     constraints: edge.constraints,
     origin: edge.origin,
   })
@@ -150,23 +155,27 @@ function registerEdge(model: GraphModel, edge: EdgeDef, strict: boolean): void {
 function resolveInheritance(model: GraphModel): void {
   const resolved = new Set<string>()
   for (const [name] of model.nodeDefs) {
-    resolveNodeAttributes(model, name, resolved, new Set())
+    resolveNodeInheritance(model, name, resolved, new Set())
   }
   for (const [, edge] of model.edgeDefs) {
     edge.allAttributes = [...edge.ownAttributes]
+    edge.allMethods = [...edge.ownMethods]
   }
 }
 
-function resolveNodeAttributes(
+function resolveNodeInheritance(
   model: GraphModel,
   name: string,
   resolved: Set<string>,
   visiting: Set<string>,
-): IRAttribute[] {
-  if (resolved.has(name)) return model.nodeDefs.get(name)!.allAttributes
+): { attributes: IRAttribute[]; methods: MethodDef[] } {
+  if (resolved.has(name)) {
+    const node = model.nodeDefs.get(name)!
+    return { attributes: node.allAttributes, methods: node.allMethods }
+  }
 
   const node = model.nodeDefs.get(name)
-  if (!node) return [] // imported/external — no attributes yet
+  if (!node) return { attributes: [], methods: [] } // imported/external
 
   if (visiting.has(name)) {
     throw new Error(`Circular inheritance detected: ${name}`)
@@ -174,23 +183,33 @@ function resolveNodeAttributes(
   visiting.add(name)
 
   // Collect inherited attributes (parent-first, later parents override earlier)
-  const merged = new Map<string, IRAttribute>()
+  const mergedAttrs = new Map<string, IRAttribute>()
+  const mergedMethods = new Map<string, MethodDef>()
+
   for (const parentName of node.implements) {
-    for (const attr of resolveNodeAttributes(model, parentName, resolved, visiting)) {
-      merged.set(attr.name, attr)
+    const parent = resolveNodeInheritance(model, parentName, resolved, visiting)
+    for (const attr of parent.attributes) {
+      mergedAttrs.set(attr.name, attr)
+    }
+    for (const method of parent.methods) {
+      mergedMethods.set(method.name, method)
     }
   }
 
-  // Own attributes override inherited
+  // Own attributes/methods override inherited
   for (const attr of node.ownAttributes) {
-    merged.set(attr.name, attr)
+    mergedAttrs.set(attr.name, attr)
+  }
+  for (const method of node.ownMethods) {
+    mergedMethods.set(method.name, method)
   }
 
-  node.allAttributes = [...merged.values()]
+  node.allAttributes = [...mergedAttrs.values()]
+  node.allMethods = [...mergedMethods.values()]
   resolved.add(name)
   visiting.delete(name)
 
-  return node.allAttributes
+  return { attributes: node.allAttributes, methods: node.allMethods }
 }
 
 // ─── Import Stubs ───────────────────────────────────────────
@@ -206,6 +225,8 @@ function createImportStubs(model: GraphModel): void {
           implements: [],
           ownAttributes: [],
           allAttributes: [],
+          ownMethods: [],
+          allMethods: [],
           origin,
         })
       }
@@ -231,7 +252,8 @@ function structurallyEqualNode(a: ResolvedNode, b: NodeDef): boolean {
     a.name === b.name &&
     a.abstract === b.abstract &&
     JSON.stringify(a.implements) === JSON.stringify(b.implements ?? []) &&
-    JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes)
+    JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes) &&
+    JSON.stringify(a.ownMethods) === JSON.stringify(b.methods ?? [])
   )
 }
 
@@ -240,7 +262,8 @@ function structurallyEqualEdge(a: ResolvedEdge, b: EdgeDef): boolean {
     a.name === b.name &&
     JSON.stringify(a.endpoints) === JSON.stringify(b.endpoints) &&
     JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes) &&
-    JSON.stringify(a.constraints) === JSON.stringify(b.constraints)
+    JSON.stringify(a.constraints) === JSON.stringify(b.constraints) &&
+    JSON.stringify(a.ownMethods) === JSON.stringify(b.methods ?? [])
   )
 }
 

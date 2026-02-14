@@ -1,4 +1,4 @@
-import type { GraphModel, TypeRef, EdgeConstraints } from '../model'
+import type { GraphModel, TypeRef, EdgeConstraints, MethodDef, MethodParam, ValueNode } from '../model'
 
 /**
  * Emit a `schema` const that captures graph topology at runtime:
@@ -62,6 +62,26 @@ export function emitSchemaValue(model: GraphModel): string {
   }
   lines.push('  },')
 
+  // Methods metadata
+  const typesWithMethods = [
+    ...[...model.nodeDefs.values()].filter((n) => n.ownMethods.length > 0),
+    ...[...model.edgeDefs.values()].filter((e) => e.ownMethods.length > 0),
+  ]
+  if (typesWithMethods.length > 0) {
+    lines.push('')
+    lines.push('  methods: {')
+    for (const def of typesWithMethods) {
+      lines.push(`    ${def.name}: {`)
+      for (const m of def.ownMethods) {
+        const params = emitMethodParams(m.params)
+        const returns = emitReturnTypeStr(m)
+        lines.push(`      ${m.name}: { params: ${params}, returns: '${returns}' },`)
+      }
+      lines.push('    },')
+    }
+    lines.push('  },')
+  }
+
   lines.push('} as const')
   return lines.join('\n')
 }
@@ -93,4 +113,49 @@ function constraintEntries(c: EdgeConstraints): string | null {
   if (c.on_kill_source) parts.push(`on_kill_source: '${c.on_kill_source}'`)
   if (c.on_kill_target) parts.push(`on_kill_target: '${c.on_kill_target}'`)
   return parts.length > 0 ? parts.join(', ') : null
+}
+
+function emitMethodParams(params: MethodParam[]): string {
+  if (params.length === 0) return '{}'
+  const entries = params.map((p) => {
+    const typeStr = typeRefToStr(p.type)
+    if (p.default !== null) {
+      const defaultVal = valueNodeToLiteral(p.default)
+      return `${p.name}: { type: '${typeStr}', default: ${defaultVal} }`
+    }
+    return `${p.name}: { type: '${typeStr}' }`
+  })
+  return `{ ${entries.join(', ')} }`
+}
+
+function emitReturnTypeStr(m: MethodDef): string {
+  const base = typeRefToStr(m.return_type)
+  if (m.return_type.kind === 'List') return `${base}[]`
+  if (m.return_nullable) return `${base}?`
+  return base
+}
+
+function typeRefToStr(ref: TypeRef): string {
+  switch (ref.kind) {
+    case 'Scalar':
+    case 'Node':
+    case 'Alias':
+    case 'Edge':
+      return ref.name
+    case 'List':
+      return typeRefToStr(ref.element)
+    default:
+      return ref.kind
+  }
+}
+
+function valueNodeToLiteral(v: ValueNode | null): string {
+  if (v === null) return 'null'
+  switch (v.kind) {
+    case 'NumberLiteral': return String(v.value)
+    case 'StringLiteral': return `'${v.value}'`
+    case 'BooleanLiteral': return String(v.value)
+    case 'Null': return 'null'
+    case 'Call': return `${v.fn}()`
+  }
 }
