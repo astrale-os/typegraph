@@ -1,4 +1,11 @@
-import type { GraphModel, ResolvedNode, ResolvedEdge, IRAttribute, TypeRef } from '../model'
+import type {
+  GraphModel,
+  ResolvedNode,
+  ResolvedEdge,
+  ResolvedValueType,
+  IRAttribute,
+  TypeRef,
+} from '../model'
 import { scalarToTs } from './scalars'
 import { pascalCase, section } from './utils'
 
@@ -17,6 +24,16 @@ export function emitInterfaces(model: GraphModel): string {
       parts.push(`export type ${alias.name} = ${tsType}`)
     }
     parts.push('')
+  }
+
+  // Value types → interfaces
+  const valueTypes = [...model.valueTypes.values()]
+  if (valueTypes.length > 0) {
+    parts.push(section('Value Types'))
+    parts.push('')
+    for (const vt of valueTypes) {
+      parts.push(emitValueTypeInterface(model, vt))
+    }
   }
 
   // Abstract nodes → interfaces
@@ -54,6 +71,20 @@ export function emitInterfaces(model: GraphModel): string {
 
 // ─── Helpers ────────────────────────────────────────────────
 
+function emitValueTypeInterface(model: GraphModel, vt: ResolvedValueType): string {
+  if (vt.fields.length === 0) {
+    return `export interface ${vt.name} {}\n`
+  }
+
+  const fields = vt.fields.map((f) => {
+    const tsType = resolveTypeRef(model, f.type)
+    const optional = f.nullable ? '?' : ''
+    const nullUnion = f.nullable ? ' | null' : ''
+    return `  ${f.name}${optional}: ${tsType}${nullUnion}`
+  })
+  return `export interface ${vt.name} {\n${fields.join('\n')}\n}\n`
+}
+
 function emitNodeInterface(model: GraphModel, node: ResolvedNode): string {
   const extendsClause = node.implements.length > 0 ? ` extends ${node.implements.join(', ')}` : ''
 
@@ -88,6 +119,8 @@ export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
       return 'string' // node reference = ID
     case 'Edge':
       return 'string'
+    case 'ValueType':
+      return ref.name
     case 'AnyEdge':
       return 'string'
     case 'List':
@@ -114,6 +147,8 @@ export function resolveMethodTypeRef(model: GraphModel, ref: TypeRef): string {
       return ref.name // interface name, not 'string'
     case 'Edge':
       return pascalCase(ref.name) + 'Payload'
+    case 'ValueType':
+      return ref.name
     case 'AnyEdge':
       return 'unknown'
     case 'List':

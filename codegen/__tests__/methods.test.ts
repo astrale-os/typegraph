@@ -82,7 +82,13 @@ function buildTestIR(): SchemaIR {
         abstract: true,
         implements: [],
         attributes: [
-          { name: 'created_at', type: { kind: 'Scalar', name: 'Timestamp' }, nullable: false, default: null, modifiers: {} },
+          {
+            name: 'created_at',
+            type: { kind: 'Scalar', name: 'Timestamp' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
         ],
         methods: ageMethods,
       } as any,
@@ -92,8 +98,20 @@ function buildTestIR(): SchemaIR {
         abstract: false,
         implements: ['Timestamped'],
         attributes: [
-          { name: 'email', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null, modifiers: {} },
-          { name: 'name', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null, modifiers: {} },
+          {
+            name: 'email',
+            type: { kind: 'Scalar', name: 'String' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
+          {
+            name: 'name',
+            type: { kind: 'Scalar', name: 'String' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
         ],
         methods: customerMethods,
       } as any,
@@ -103,8 +121,20 @@ function buildTestIR(): SchemaIR {
         abstract: false,
         implements: ['Timestamped'],
         attributes: [
-          { name: 'title', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null, modifiers: {} },
-          { name: 'price_cents', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null, modifiers: {} },
+          {
+            name: 'title',
+            type: { kind: 'Scalar', name: 'String' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
+          {
+            name: 'price_cents',
+            type: { kind: 'Scalar', name: 'Int' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
         ],
         methods: [],
       } as any,
@@ -114,8 +144,20 @@ function buildTestIR(): SchemaIR {
         abstract: false,
         implements: ['Timestamped'],
         attributes: [
-          { name: 'status', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null, modifiers: {} },
-          { name: 'total_cents', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null, modifiers: {} },
+          {
+            name: 'status',
+            type: { kind: 'Scalar', name: 'String' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
+          {
+            name: 'total_cents',
+            type: { kind: 'Scalar', name: 'Int' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
         ],
         methods: orderMethods,
       } as any,
@@ -123,12 +165,32 @@ function buildTestIR(): SchemaIR {
         type: 'edge',
         name: 'order_item',
         endpoints: [
-          { param_name: 'order', allowed_types: [{ kind: 'Node', name: 'Order' }], cardinality: null },
-          { param_name: 'product', allowed_types: [{ kind: 'Node', name: 'Product' }], cardinality: null },
+          {
+            param_name: 'order',
+            allowed_types: [{ kind: 'Node', name: 'Order' }],
+            cardinality: null,
+          },
+          {
+            param_name: 'product',
+            allowed_types: [{ kind: 'Node', name: 'Product' }],
+            cardinality: null,
+          },
         ],
         attributes: [
-          { name: 'quantity', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null, modifiers: {} },
-          { name: 'unit_price_cents', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null, modifiers: {} },
+          {
+            name: 'quantity',
+            type: { kind: 'Scalar', name: 'Int' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
+          {
+            name: 'unit_price_cents',
+            type: { kind: 'Scalar', name: 'Int' },
+            nullable: false,
+            default: null,
+            modifiers: {},
+          },
         ],
         constraints: { no_self: false, acyclic: false, unique: false, symmetric: false },
         methods: edgeMethods,
@@ -137,8 +199,16 @@ function buildTestIR(): SchemaIR {
         type: 'edge',
         name: 'placed_order',
         endpoints: [
-          { param_name: 'customer', allowed_types: [{ kind: 'Node', name: 'Customer' }], cardinality: null },
-          { param_name: 'order', allowed_types: [{ kind: 'Node', name: 'Order' }], cardinality: null },
+          {
+            param_name: 'customer',
+            allowed_types: [{ kind: 'Node', name: 'Customer' }],
+            cardinality: null,
+          },
+          {
+            param_name: 'order',
+            allowed_types: [{ kind: 'Node', name: 'Order' }],
+            cardinality: null,
+          },
         ],
         attributes: [],
         constraints: { no_self: false, acyclic: false, unique: true, symmetric: false },
@@ -155,7 +225,11 @@ describe('method codegen', () => {
     const model = load([ir])
     const customer = model.nodeDefs.get('Customer')!
     expect(customer.ownMethods).toHaveLength(3)
-    expect(customer.ownMethods.map((m) => m.name)).toEqual(['displayName', 'canPurchase', 'recentOrders'])
+    expect(customer.ownMethods.map((m) => m.name)).toEqual([
+      'displayName',
+      'canPurchase',
+      'recentOrders',
+    ])
   })
 
   it('resolves inherited methods', () => {
@@ -206,7 +280,9 @@ describe('method codegen', () => {
     // Customer config includes inherited 'age'
     expect(source).toContain('age: (ctx: MethodContext<Customer>) => number | Promise<number>')
     // Edge method config
-    expect(source).toContain('subtotal: (ctx: EdgeMethodContext<OrderItemPayload>) => number | Promise<number>')
+    expect(source).toContain(
+      'subtotal: (ctx: EdgeMethodContext<OrderItemPayload>) => number | Promise<number>',
+    )
   })
 
   it('generates enriched node types', () => {
@@ -233,8 +309,12 @@ describe('method codegen', () => {
     expect(source).toContain('methods: {')
     expect(source).toContain("age: { params: {}, returns: 'Int' },")
     expect(source).toContain("displayName: { params: {}, returns: 'String' },")
-    expect(source).toContain("canPurchase: { params: { product: { type: 'Product' } }, returns: 'Boolean' },")
-    expect(source).toContain("recentOrders: { params: { limit: { type: 'Int', default: 10 } }, returns: 'Order[]' },")
+    expect(source).toContain(
+      "canPurchase: { params: { product: { type: 'Product' } }, returns: 'Boolean' },",
+    )
+    expect(source).toContain(
+      "recentOrders: { params: { limit: { type: 'Int', default: 10 } }, returns: 'Order[]' },",
+    )
     expect(source).toContain("subtotal: { params: {}, returns: 'Int' },")
   })
 
@@ -266,7 +346,13 @@ describe('method codegen — edge cases', () => {
           abstract: false,
           implements: [],
           attributes: [
-            { name: 'name', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null, modifiers: {} },
+            {
+              name: 'name',
+              type: { kind: 'Scalar', name: 'String' },
+              nullable: false,
+              default: null,
+              modifiers: {},
+            },
           ],
         } as any,
       ],
@@ -310,7 +396,14 @@ describe('method codegen — edge cases', () => {
           abstract: true,
           implements: [],
           attributes: [],
-          methods: [{ name: 'x', params: [], return_type: { kind: 'Scalar', name: 'Int' }, return_nullable: false }],
+          methods: [
+            {
+              name: 'x',
+              params: [],
+              return_type: { kind: 'Scalar', name: 'Int' },
+              return_nullable: false,
+            },
+          ],
         } as any,
         {
           type: 'node',

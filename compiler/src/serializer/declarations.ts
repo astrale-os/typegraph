@@ -9,6 +9,8 @@
 import {
   type ExtendDecl,
   type TypeAliasDecl,
+  type ValueTypeDecl,
+  type ValueTypeField as AstValueTypeField,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -24,6 +26,8 @@ import {
 import {
   type Extension,
   type TypeAlias,
+  type ValueTypeDef,
+  type ValueTypeField,
   type NodeDef,
   type EdgeDef,
   type MethodDef,
@@ -54,6 +58,27 @@ export function serializeTypeAlias(ctx: SerializerContext, decl: TypeAliasDecl):
     name: decl.name.value,
     underlying_type: underlyingType,
     constraints: extractValueConstraints(decl.modifiers),
+  }
+}
+
+export function serializeValueType(ctx: SerializerContext, decl: ValueTypeDecl): ValueTypeDef {
+  return {
+    name: decl.name.value,
+    fields: decl.fields.map((f) => serializeValueTypeField(ctx, f)),
+  }
+}
+
+function serializeValueTypeField(ctx: SerializerContext, field: AstValueTypeField): ValueTypeField {
+  let typeRef = serializeTypeRef(ctx, field.type)
+  if (field.list) {
+    typeRef = { kind: 'List', element: typeRef }
+  }
+
+  return {
+    name: field.name.value,
+    type: typeRef,
+    nullable: field.nullable,
+    default: field.defaultValue ? serializeValueNode(field.defaultValue) : null,
   }
 }
 

@@ -1,4 +1,11 @@
-import type { GraphModel, TypeRef, EdgeConstraints, MethodDef, MethodParam, ValueNode } from '../model'
+import type {
+  GraphModel,
+  TypeRef,
+  EdgeConstraints,
+  MethodDef,
+  MethodParam,
+  ValueNode,
+} from '../model'
 
 /**
  * Emit a `schema` const that captures graph topology at runtime:
@@ -61,6 +68,17 @@ export function emitSchemaValue(model: GraphModel): string {
     lines.push('    },')
   }
   lines.push('  },')
+
+  // Value types
+  if (model.valueTypes.size > 0) {
+    lines.push('')
+    lines.push('  valueTypes: {')
+    for (const [, vt] of model.valueTypes) {
+      const fieldNames = vt.fields.map((f) => `'${f.name}'`).join(', ')
+      lines.push(`    ${vt.name}: { fields: [${fieldNames}] },`)
+    }
+    lines.push('  },')
+  }
 
   // Methods metadata
   const typesWithMethods = [
@@ -141,6 +159,7 @@ function typeRefToStr(ref: TypeRef): string {
     case 'Node':
     case 'Alias':
     case 'Edge':
+    case 'ValueType':
       return ref.name
     case 'List':
       return typeRefToStr(ref.element)
@@ -152,10 +171,15 @@ function typeRefToStr(ref: TypeRef): string {
 function valueNodeToLiteral(v: ValueNode | null): string {
   if (v === null) return 'null'
   switch (v.kind) {
-    case 'NumberLiteral': return String(v.value)
-    case 'StringLiteral': return `'${v.value}'`
-    case 'BooleanLiteral': return String(v.value)
-    case 'Null': return 'null'
-    case 'Call': return `${v.fn}()`
+    case 'NumberLiteral':
+      return String(v.value)
+    case 'StringLiteral':
+      return `'${v.value}'`
+    case 'BooleanLiteral':
+      return String(v.value)
+    case 'Null':
+      return 'null'
+    case 'Call':
+      return `${v.fn}()`
   }
 }

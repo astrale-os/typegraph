@@ -12,20 +12,25 @@
 import {
   type SchemaIR,
   type TypeAlias,
+  type ValueTypeDef,
   type ClassDef,
   type Extension,
 } from '../ir/index'
 import { type ResolvedSchema } from '../resolver/index'
-import { serializeExtend, serializeTypeAlias, serializeInterface, serializeNode, serializeEdge } from './declarations'
+import {
+  serializeExtend,
+  serializeTypeAlias,
+  serializeValueType,
+  serializeInterface,
+  serializeNode,
+  serializeEdge,
+} from './declarations'
 
 export interface SerializeOptions {
-  sourceHash?: string;
+  sourceHash?: string
 }
 
-export function serialize(
-  schema: ResolvedSchema,
-  options?: SerializeOptions,
-): SchemaIR {
+export function serialize(schema: ResolvedSchema, options?: SerializeOptions): SchemaIR {
   const ctx: SerializerContext = { schema }
   return serializeSchema(ctx, options)
 }
@@ -41,6 +46,7 @@ export interface SerializerContext {
 function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): SchemaIR {
   const extensions: Extension[] = []
   const typeAliases: TypeAlias[] = []
+  const valueTypes: ValueTypeDef[] = []
   const classes: ClassDef[] = []
 
   for (const decl of ctx.schema.declarations) {
@@ -50,6 +56,9 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
         break
       case 'TypeAliasDecl':
         typeAliases.push(serializeTypeAlias(ctx, decl))
+        break
+      case 'ValueTypeDecl':
+        valueTypes.push(serializeValueType(ctx, decl))
         break
       case 'InterfaceDecl':
         classes.push(serializeInterface(ctx, decl))
@@ -80,6 +89,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
     extensions,
     builtin_scalars: builtinScalars,
     type_aliases: typeAliases,
+    value_types: valueTypes,
     classes,
   }
 }

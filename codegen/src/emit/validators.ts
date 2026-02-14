@@ -21,6 +21,26 @@ export function emitValidators(model: GraphModel): string {
   }
   lines.push('')
 
+  // Value type validators
+  if (model.valueTypes.size > 0) {
+    for (const [, vt] of model.valueTypes) {
+      lines.push(`  ${vt.name}: z.object({`)
+      for (const field of vt.fields) {
+        let chain = resolveZodTypeRef(model, field.type)
+        if (field.nullable) {
+          chain = `${chain}.nullable().optional()`
+        }
+        if (field.default) {
+          const val = renderDefault(field.default)
+          if (val !== null) chain = `${chain}.default(${val})`
+        }
+        lines.push(`    ${field.name}: ${chain},`)
+      }
+      lines.push('  }),')
+    }
+    lines.push('')
+  }
+
   // Concrete node validators (flattened with inherited attributes)
   for (const [, node] of model.nodeDefs) {
     if (node.abstract) continue
@@ -79,6 +99,8 @@ function resolveZodTypeRef(model: GraphModel, ref: TypeRef): string {
       return 'z.string()' // ID ref
     case 'Edge':
       return 'z.string()'
+    case 'ValueType':
+      return `validators.${ref.name}`
     case 'AnyEdge':
       return 'z.string()'
     case 'Union':

@@ -9,6 +9,7 @@
 import {
   type Schema,
   type Declaration,
+  type ValueTypeDecl,
   type TypeExpr,
   type Name,
 } from '../ast/index'
@@ -17,7 +18,7 @@ import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
 
 // ─── Resolved Schema Types ──────────────────────────────────
 
-export type SymbolKind = 'Scalar' | 'TypeAlias' | 'Interface' | 'Class' | 'Edge'
+export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'Interface' | 'Class' | 'Edge'
 
 export interface Symbol {
   name: string
@@ -97,6 +98,9 @@ class Resolver {
       this.resolveDeclaration(decl)
     }
 
+    // Pass 3: Detect circular value type references
+    this.detectValueTypeCycles(ast.declarations)
+
     return {
       symbols: this.symbols,
       declarations: ast.declarations,
@@ -110,6 +114,9 @@ class Resolver {
     switch (decl.kind) {
       case 'TypeAliasDecl':
         this.registerSymbol(decl.name, 'TypeAlias', decl)
+        break
+      case 'ValueTypeDecl':
+        this.registerSymbol(decl.name, 'ValueType', decl)
         break
       case 'InterfaceDecl':
         this.registerSymbol(decl.name, 'Interface', decl)
@@ -166,6 +173,12 @@ class Resolver {
     switch (decl.kind) {
       case 'TypeAliasDecl':
         this.resolveTypeExpr(decl.type)
+        break
+
+      case 'ValueTypeDecl':
+        for (const field of decl.fields) {
+          this.resolveTypeExpr(field.type)
+        }
         break
 
       case 'InterfaceDecl':
@@ -225,7 +238,7 @@ class Resolver {
   private resolveTypeExpr(expr: TypeExpr): void {
     switch (expr.kind) {
       case 'NamedType':
-        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'Interface', 'Class'])
+        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'Interface', 'Class'])
         break
 
       case 'NullableType':
@@ -244,6 +257,52 @@ class Resolver {
         }
         // edge<any> doesn't need resolution
         break
+    }
+  }
+
+  // ─── Cycle Detection for Value Types ─────────────────────
+
+  private detectValueTypeCycles(declarations: Declaration[]): void {
+    const valueTypes = new Map<string, ValueTypeDecl>()
+    for (const decl of declarations) {
+      if (decl.kind === 'ValueTypeDecl') {
+        valueTypes.set(decl.name.value, decl)
+      }
+    }
+
+    const visited = new Set<string>()
+    const inStack = new Set<string>()
+
+    const visit = (name: string): void => {
+      if (visited.has(name)) return
+      if (inStack.has(name)) {
+        const decl = valueTypes.get(name)!
+        this.diagnostics.error(
+          decl.name.span,
+          DiagnosticCodes.V_CIRCULAR_VALUE_TYPE,
+          `Circular value type reference: '${name}' references itself`,
+        )
+        return
+      }
+
+      const decl = valueTypes.get(name)
+      if (!decl) return
+
+      inStack.add(name)
+      for (const field of decl.fields) {
+        if (field.type.kind === 'NamedType') {
+          const sym = this.symbols.get(field.type.name.value)
+          if (sym?.symbolKind === 'ValueType') {
+            visit(field.type.name.value)
+          }
+        }
+      }
+      inStack.delete(name)
+      visited.add(name)
+    }
+
+    for (const name of valueTypes.keys()) {
+      visit(name)
     }
   }
 

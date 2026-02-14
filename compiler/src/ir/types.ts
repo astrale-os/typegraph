@@ -15,6 +15,7 @@ export interface SchemaIR {
   extensions: Extension[]
   builtin_scalars: string[]
   type_aliases: TypeAlias[]
+  value_types: ValueTypeDef[]
   classes: ClassDef[]
 }
 
@@ -27,6 +28,20 @@ export interface TypeAlias {
   name: string
   underlying_type: string
   constraints: ValueConstraints | null
+}
+
+// --- Value Type Definitions ---
+
+export interface ValueTypeDef {
+  name: string
+  fields: ValueTypeField[]
+}
+
+export interface ValueTypeField {
+  name: string
+  type: TypeRef
+  nullable: boolean
+  default: ValueNode | null
 }
 
 // --- Class Definitions (discriminated on `type`) ---
@@ -94,6 +109,7 @@ export type TypeRef =
   | { kind: 'Edge'; name: string }
   | { kind: 'AnyEdge' }
   | { kind: 'Union'; types: TypeRef[] }
+  | { kind: 'ValueType'; name: string }
   | { kind: 'List'; element: TypeRef }
 
 // --- ValueNode (structured defaults) ---

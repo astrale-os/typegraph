@@ -11,6 +11,9 @@ import {
   type ClassDeclNode,
   type InterfaceDeclNode,
   type TypeAliasDeclNode,
+  type ValueTypeDeclNode,
+  type ValueTypeFieldNode,
+  type NullableTypeNode,
   type ExtendDeclNode,
   type AttributeNode,
   type ParamNode,
@@ -21,6 +24,8 @@ import {
 import {
   type Declaration,
   type TypeAliasDecl,
+  type ValueTypeDecl,
+  type ValueTypeField,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -43,6 +48,8 @@ export function lowerDeclaration(ctx: LoweringContext, node: DeclarationNode): D
   switch (node.kind) {
     case 'TypeAliasDecl':
       return lowerTypeAlias(ctx, node)
+    case 'ValueTypeDecl':
+      return lowerValueType(ctx, node)
     case 'InterfaceDecl':
       return lowerInterface(ctx, node)
     case 'ClassDecl':
@@ -60,6 +67,36 @@ function lowerTypeAlias(ctx: LoweringContext, node: TypeAliasDeclNode): TypeAlia
     name: lowerName(node.name),
     type: lowerTypeExpr(node.typeExpr),
     modifiers: lowerModifiers(ctx, node.modifiers),
+    span: spanOf(node),
+  }
+}
+
+function lowerValueType(ctx: LoweringContext, node: ValueTypeDeclNode): ValueTypeDecl {
+  return {
+    kind: 'ValueTypeDecl',
+    name: lowerName(node.name),
+    fields: node.fields.map((f) => lowerValueTypeField(ctx, f)),
+    span: spanOf(node),
+  }
+}
+
+function lowerValueTypeField(ctx: LoweringContext, node: ValueTypeFieldNode): ValueTypeField {
+  // The parser already unwraps NullableType and extracts listSuffix,
+  // but handle the case where typeExpr might still be nullable (shouldn't happen, but be safe)
+  let typeExpr = node.typeExpr
+  let nullable = node.nullable !== null
+  if (typeExpr.kind === 'NullableType') {
+    const nt = typeExpr as NullableTypeNode
+    typeExpr = nt.inner
+    nullable = true
+  }
+
+  return {
+    name: lowerName(node.name),
+    type: lowerTypeExpr(typeExpr),
+    nullable,
+    list: node.listSuffix !== null,
+    defaultValue: node.defaultValue ? lowerExpression(ctx, node.defaultValue.expression) : null,
     span: spanOf(node),
   }
 }

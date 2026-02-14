@@ -42,6 +42,8 @@ export type {
   TypeAlias,
   MethodDef,
   MethodParam,
+  ValueTypeDef,
+  ValueTypeField,
 } from './ir/index'
 export type { ResolvedSchema, Symbol, SymbolKind } from './resolver/index'
 export { DiagnosticBag, DiagnosticCodes } from './diagnostics'

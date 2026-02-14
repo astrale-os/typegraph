@@ -2,6 +2,7 @@ import type { SchemaIR, GraphModel } from './model'
 import { load } from './loader'
 import { emitEnums } from './emit/enums'
 import { emitInterfaces } from './emit/interfaces'
+import { emitMethods } from './emit/methods'
 import { emitValidators } from './emit/validators'
 import { emitSchemaValue } from './emit/schema-value'
 import { emitSchemaTypes } from './emit/schema-types'
@@ -47,6 +48,14 @@ export function generate(inputs: SchemaIR[], options?: GenerateOptions): Generat
   const interfaces = emitInterfaces(model)
   if (interfaces.trim()) {
     parts.push(interfaces)
+  }
+
+  // Methods (method interfaces, context types, MethodsConfig, enriched node types)
+  const methods = emitMethods(model)
+  if (methods.trim()) {
+    parts.push(section('Methods'))
+    parts.push('')
+    parts.push(methods)
   }
 
   // Validators (single object with Zod schemas)

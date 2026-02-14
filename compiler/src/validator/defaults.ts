@@ -8,6 +8,7 @@
 
 import {
   type Attribute,
+  type ValueTypeField,
   type TypeExpr,
   type NamedType,
   type NullableType,
@@ -47,6 +48,29 @@ export function validateAttribute(ctx: ValidatorContext, attr: Attribute): void 
   }
 
   validateDefaultValue(ctx, attr)
+}
+
+export function validateFieldDefault(ctx: ValidatorContext, field: ValueTypeField): void {
+  if (!field.defaultValue) return
+
+  if (!isExpressionCompatibleWithType(ctx, field.defaultValue, field.type, new Set())) {
+    ctx.diagnostics.error(
+      field.defaultValue.span,
+      DiagnosticCodes.V_DEFAULT_TYPE_MISMATCH,
+      `Default value is incompatible with field type '${renderTypeExpr(field.type)}'`,
+    )
+  }
+
+  if (field.defaultValue.kind === 'CallExpression') {
+    const fnName = field.defaultValue.fn.value
+    if (!ctx.knownDefaultFunctions.has(fnName)) {
+      ctx.diagnostics.error(
+        field.defaultValue.fn.span,
+        DiagnosticCodes.V_UNKNOWN_FUNCTION,
+        `Unknown default function '${fnName}()'`,
+      )
+    }
+  }
 }
 
 function validateDefaultValue(ctx: ValidatorContext, attr: Attribute): void {

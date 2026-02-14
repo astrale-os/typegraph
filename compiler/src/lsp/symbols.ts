@@ -8,6 +8,7 @@ import { type DocumentState } from './workspace'
 import {
   type Declaration,
   type TypeAliasDecl,
+  type ValueTypeDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -34,6 +35,8 @@ function declarationToSymbol(decl: Declaration, state: DocumentState): DocumentS
   switch (decl.kind) {
     case 'TypeAliasDecl':
       return typeAliasSymbol(decl, state)
+    case 'ValueTypeDecl':
+      return valueTypeSymbol(decl, state)
     case 'InterfaceDecl':
       return interfaceSymbol(decl, state)
     case 'NodeDecl':
@@ -54,6 +57,23 @@ function typeAliasSymbol(decl: TypeAliasDecl, state: DocumentState): DocumentSym
     kind: SymbolKind.TypeParameter,
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.name.span, state),
+  }
+}
+
+function valueTypeSymbol(decl: ValueTypeDecl, state: DocumentState): DocumentSymbol {
+  return {
+    name: decl.name.value,
+    detail: 'value type',
+    kind: SymbolKind.Struct,
+    range: spanToRange(decl.span, state),
+    selectionRange: spanToRange(decl.name.span, state),
+    children: decl.fields.map((f) => ({
+      name: f.name.value,
+      detail: renderTypeExpr(f.type) + (f.list ? '[]' : '') + (f.nullable ? '?' : ''),
+      kind: SymbolKind.Field,
+      range: spanToRange(f.span, state),
+      selectionRange: spanToRange(f.name.span, state),
+    })),
   }
 }
 

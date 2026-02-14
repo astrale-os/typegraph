@@ -32,6 +32,7 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
   const model: GraphModel = {
     scalars: [],
     aliases: new Map(),
+    valueTypes: new Map(),
     nodeDefs: new Map(),
     edgeDefs: new Map(),
     extensions: [],
@@ -60,6 +61,19 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
         constraints: alias.constraints,
         isEnum: enumValues !== null && enumValues.length > 0,
         enumValues,
+      })
+    }
+
+    for (const vt of ir.value_types ?? []) {
+      const existing = model.valueTypes.get(vt.name)
+      if (existing) {
+        if (JSON.stringify(existing.fields) === JSON.stringify(vt.fields)) continue
+        if (strict) throw new ConflictError('value type', vt.name)
+        continue
+      }
+      model.valueTypes.set(vt.name, {
+        name: vt.name,
+        fields: vt.fields,
       })
     }
 
@@ -106,6 +120,7 @@ export function normalizeIR(raw: Record<string, unknown>): SchemaIR {
     extensions: (raw.extensions as SchemaIR['extensions']) ?? [],
     builtin_scalars: (raw.builtin_scalars as string[]) ?? [],
     type_aliases: (raw.type_aliases as SchemaIR['type_aliases']) ?? [],
+    value_types: (raw.value_types as SchemaIR['value_types']) ?? [],
     classes,
   }
 }

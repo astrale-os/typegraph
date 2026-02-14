@@ -13,6 +13,7 @@ import {
   type NodeDecl,
   type EdgeDecl,
   type TypeAliasDecl,
+  type ValueTypeDecl,
   type Method,
   type Modifier,
   type FlagModifier,
@@ -27,13 +28,16 @@ import {
   modifierName,
   renderTypeExpr,
 } from './index'
-import { validateAttribute } from './defaults'
+import { validateAttribute, validateFieldDefault } from './defaults'
 
 export function validateDeclarations(ctx: ValidatorContext): void {
   for (const decl of ctx.schema.declarations) {
     switch (decl.kind) {
       case 'TypeAliasDecl':
         validateTypeAlias(ctx, decl)
+        break
+      case 'ValueTypeDecl':
+        validateValueType(ctx, decl)
         break
       case 'InterfaceDecl':
         validateInterface(ctx, decl)
@@ -62,6 +66,24 @@ function validateTypeAlias(ctx: ValidatorContext, decl: TypeAliasDecl): void {
         `Modifier '${modifierName(mod)}' is not valid on a type alias`,
       )
     }
+  }
+}
+
+// ─── Value Type ─────────────────────────────────────────────
+
+function validateValueType(ctx: ValidatorContext, decl: ValueTypeDecl): void {
+  const seen = new Set<string>()
+  for (const field of decl.fields) {
+    if (seen.has(field.name.value)) {
+      ctx.diagnostics.error(
+        field.name.span,
+        DiagnosticCodes.V_DUPLICATE_FIELD,
+        `Duplicate field '${field.name.value}' in value type '${decl.name.value}'`,
+      )
+    }
+    seen.add(field.name.value)
+
+    validateFieldDefault(ctx, field)
   }
 }
 

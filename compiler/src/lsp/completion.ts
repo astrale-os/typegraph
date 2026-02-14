@@ -309,6 +309,8 @@ function symbolKindToCompletion(kind: SymbolKind): CompletionItemKind {
       return CompletionItemKind.Interface
     case 'Class':
       return CompletionItemKind.Class
+    case 'ValueType':
+      return CompletionItemKind.Struct
     case 'Edge':
       return CompletionItemKind.Reference
     default:

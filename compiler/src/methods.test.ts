@@ -9,16 +9,8 @@ import { parse } from './parser/index'
 import { lower } from './lower/index'
 import { compile } from './compile'
 import { KERNEL_PRELUDE } from './kernel-prelude'
-import {
-  type ClassDeclNode,
-  type InterfaceDeclNode,
-  type MethodNode,
-} from './cst/index'
-import {
-  type InterfaceDecl,
-  type NodeDecl,
-  type EdgeDecl,
-} from './ast/index'
+import { type ClassDeclNode, type InterfaceDeclNode, type MethodNode } from './cst/index'
+import { type InterfaceDecl, type NodeDecl, type EdgeDecl } from './ast/index'
 import { type SchemaIR, type NodeDef, type EdgeDef, type MethodDef } from './ir/index'
 import { DiagnosticBag } from './diagnostics'
 
@@ -321,6 +313,52 @@ describe('Validator — Methods', () => {
 
   it('accepts class with no methods (empty methods list)', () => {
     const { diagnostics } = compile(`class Foo {}`)
+    expect(diagnostics.hasErrors()).toBe(false)
+  })
+
+  it('allows same name for attribute and method', () => {
+    const { diagnostics } = compile(`
+      class Foo {
+        name: String,
+        fn name(): String
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+  })
+
+  it('allows override with different param signature', () => {
+    const { diagnostics } = compile(`
+      interface Searchable {
+        fn search(query: String, limit: Int): String
+      }
+      class Index: Searchable {
+        fn search(): String
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+  })
+
+  it('rejects incompatible override between interfaces', () => {
+    const { diagnostics } = compile(`
+      interface A {
+        fn render(): String
+      }
+      interface B: A {
+        fn render(): Int
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(true)
+    expect(diagnostics.getErrors().some((e) => e.code === 'V011')).toBe(true)
+  })
+
+  it('inherits methods through grandparent chain', () => {
+    const { diagnostics } = compile(`
+      interface A {
+        fn deepMethod(): String
+      }
+      interface B: A {}
+      class C: B {}
+    `)
     expect(diagnostics.hasErrors()).toBe(false)
   })
 })

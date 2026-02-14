@@ -20,6 +20,7 @@ import {
   type Schema,
   type Declaration,
   type TypeAliasDecl,
+  type ValueTypeDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -40,6 +41,7 @@ import {
 export interface AstVisitor<R = void> {
   visitSchema?(schema: Schema): R
   visitTypeAlias?(decl: TypeAliasDecl): R
+  visitValueType?(decl: ValueTypeDecl): R
   visitInterface?(decl: InterfaceDecl): R
   visitNode?(decl: NodeDecl): R
   visitEdge?(decl: EdgeDecl): R
@@ -66,6 +68,11 @@ export function walkDeclaration(visitor: AstVisitor, decl: Declaration): void {
       visitor.visitTypeAlias?.(decl)
       walkTypeExpr(visitor, decl.type)
       for (const mod of decl.modifiers) visitor.visitModifier?.(mod)
+      break
+
+    case 'ValueTypeDecl':
+      visitor.visitValueType?.(decl)
+      for (const field of decl.fields) walkTypeExpr(visitor, field.type)
       break
 
     case 'InterfaceDecl':
@@ -130,6 +137,7 @@ export function walkTypeExpr(visitor: AstVisitor, expr: TypeExpr): void {
 export class AstWalker implements AstVisitor {
   visitSchema(_schema: Schema): void {}
   visitTypeAlias(_decl: TypeAliasDecl): void {}
+  visitValueType(_decl: ValueTypeDecl): void {}
   visitInterface(_decl: InterfaceDecl): void {}
   visitNode(_decl: NodeDecl): void {}
   visitEdge(_decl: EdgeDecl): void {}

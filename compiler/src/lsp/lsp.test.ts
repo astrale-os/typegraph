@@ -6,8 +6,9 @@ import { provideHover } from './hover'
 import { provideDefinition } from './definition'
 import { provideCompletion } from './completion'
 import { provideDocumentSymbols } from './symbols'
-import { provideSemanticTokens } from './semantic-tokens'
+import { provideSemanticTokens, SEMANTIC_TOKEN_TYPES } from './semantic-tokens'
 import { KERNEL_PRELUDE } from '../kernel-prelude'
+import { SymbolKind } from 'vscode-languageserver-types'
 
 // ─── LineMap ─────────────────────────────────────────────────
 
@@ -276,5 +277,195 @@ describe('Semantic Tokens', () => {
     const data = provideSemanticTokens(state)
     // Should have classified many tokens
     expect(data.length / 5).toBeGreaterThan(10)
+  })
+})
+
+// ─── Method-Aware LSP Tests ─────────────────────────────────
+
+const METHODS_SAMPLE = `
+interface Auditable {
+  fn audit(reason: String): Boolean
+}
+
+class User: Auditable {
+  username: String,
+  fn greet(greeting: String): String,
+  fn friends(): User[],
+  fn nickname(): String?,
+  fn audit(reason: String): Boolean
+}
+
+class follows(source: User, target: User) {
+  fn weight(): Int
+}
+`
+
+describe('Methods — Hover', () => {
+  const ws = new Workspace(KERNEL_PRELUDE)
+  const uri = 'file:///test/methods-hover.krl'
+  ws.update(uri, METHODS_SAMPLE, 1)
+
+  it('shows method signatures in class hover', () => {
+    const state = ws.get(uri)!
+    const idx = METHODS_SAMPLE.indexOf('class User')
+    const hover = provideHover(ws, state, idx + 6) // in "User"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('fn greet(greeting: String): String')
+    expect(value).toContain('fn friends(): User[]')
+    expect(value).toContain('fn nickname(): String?')
+    expect(value).toContain('fn audit(reason: String): Boolean')
+  })
+
+  it('shows method signatures in interface hover', () => {
+    const state = ws.get(uri)!
+    const idx = METHODS_SAMPLE.indexOf('interface Auditable')
+    const hover = provideHover(ws, state, idx + 10) // in "Auditable"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('fn audit(reason: String): Boolean')
+  })
+
+  it('shows method signatures in edge hover', () => {
+    const state = ws.get(uri)!
+    const idx = METHODS_SAMPLE.indexOf('class follows')
+    const hover = provideHover(ws, state, idx + 6) // in "follows"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('fn weight(): Int')
+  })
+})
+
+describe('Methods — Document Symbols', () => {
+  const ws = new Workspace(KERNEL_PRELUDE)
+  const uri = 'file:///test/methods-symbols.krl'
+  ws.update(uri, METHODS_SAMPLE, 1)
+
+  it('includes methods as children of class', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const user = symbols.find((s) => s.name === 'User')!
+    expect(user.children).toBeDefined()
+    const childNames = user.children!.map((c) => c.name)
+    expect(childNames).toContain('username')
+    expect(childNames).toContain('greet')
+    expect(childNames).toContain('friends')
+    expect(childNames).toContain('nickname')
+    expect(childNames).toContain('audit')
+  })
+
+  it('marks methods with SymbolKind.Method', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const user = symbols.find((s) => s.name === 'User')!
+    const greet = user.children!.find((c) => c.name === 'greet')!
+    expect(greet.kind).toBe(SymbolKind.Method)
+  })
+
+  it('shows correct method detail strings', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const user = symbols.find((s) => s.name === 'User')!
+    const greet = user.children!.find((c) => c.name === 'greet')!
+    expect(greet.detail).toBe('(greeting): String')
+    const friends = user.children!.find((c) => c.name === 'friends')!
+    expect(friends.detail).toBe('(): User[]')
+    const nickname = user.children!.find((c) => c.name === 'nickname')!
+    expect(nickname.detail).toBe('(): String?')
+  })
+
+  it('includes methods as children of interface', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const auditable = symbols.find((s) => s.name === 'Auditable')!
+    expect(auditable.children).toBeDefined()
+    const audit = auditable.children!.find((c) => c.name === 'audit')!
+    expect(audit.kind).toBe(SymbolKind.Method)
+    expect(audit.detail).toBe('(reason): Boolean')
+  })
+
+  it('includes methods as children of edge', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const follows = symbols.find((s) => s.name === 'follows')!
+    expect(follows.children).toBeDefined()
+    const weight = follows.children!.find((c) => c.name === 'weight')!
+    expect(weight.kind).toBe(SymbolKind.Method)
+    expect(weight.detail).toBe('(): Int')
+  })
+})
+
+describe('Methods — Completion', () => {
+  const ws = new Workspace(KERNEL_PRELUDE)
+  const uri = 'file:///test/methods-comp.krl'
+  ws.update(uri, METHODS_SAMPLE, 1)
+
+  it('offers fn keyword inside body', () => {
+    const state = ws.get(uri)!
+    // Position cursor inside the User class body after an attribute
+    const idx = METHODS_SAMPLE.indexOf('username: String,') + 'username: String,'.length + 1
+    const items = provideCompletion(ws, state, idx)
+    expect(items.some((i) => i.label === 'fn')).toBe(true)
+  })
+
+  it('fn completion is a snippet with placeholders', () => {
+    const state = ws.get(uri)!
+    const idx = METHODS_SAMPLE.indexOf('username: String,') + 'username: String,'.length + 1
+    const items = provideCompletion(ws, state, idx)
+    const fn = items.find((i) => i.label === 'fn')!
+    expect(fn.insertText).toContain('${1:name}')
+    expect(fn.insertText).toContain('${3:ReturnType}')
+    expect(fn.insertTextFormat).toBe(2) // InsertTextFormat.Snippet
+  })
+
+  it('also offers type completions inside body', () => {
+    const state = ws.get(uri)!
+    const idx = METHODS_SAMPLE.indexOf('username: String,') + 'username: String,'.length + 1
+    const items = provideCompletion(ws, state, idx)
+    expect(items.some((i) => i.label === 'String')).toBe(true)
+  })
+})
+
+describe('Methods — Semantic Tokens', () => {
+  const ws = new Workspace(KERNEL_PRELUDE)
+  const uri = 'file:///test/methods-sem.krl'
+  ws.update(uri, METHODS_SAMPLE, 1)
+
+  it('classifies fn as keyword', () => {
+    const state = ws.get(uri)!
+    const data = provideSemanticTokens(state)
+    const keywordTypeIdx = SEMANTIC_TOKEN_TYPES.indexOf('keyword')
+
+    // Decode token data to find fn tokens
+    const tokens = state.tokenIndex
+    const lineMap = state.lineMap
+
+    let prevLine = 0
+    let prevChar = 0
+    let fnIsKeyword = false
+
+    for (let i = 0; i < data.length; i += 5) {
+      const deltaLine = data[i]
+      const deltaChar = data[i + 1]
+      const length = data[i + 2]
+      const typeIdx = data[i + 3]
+
+      const line = prevLine + deltaLine
+      const char = deltaLine === 0 ? prevChar + deltaChar : deltaChar
+
+      // Find the corresponding text at this position
+      const offset = lineMap.offsetAt(line, char)
+      const text = METHODS_SAMPLE.slice(offset, offset + length)
+
+      if (text === 'fn' && typeIdx === keywordTypeIdx) {
+        fnIsKeyword = true
+        break
+      }
+
+      prevLine = line
+      prevChar = char
+    }
+
+    expect(fnIsKeyword).toBe(true)
   })
 })

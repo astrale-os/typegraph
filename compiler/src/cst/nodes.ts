@@ -30,6 +30,8 @@ export interface CstNode {
 export type CstNodeKind =
   | 'Schema'
   | 'TypeAliasDecl'
+  | 'ValueTypeDecl'
+  | 'ValueTypeField'
   | 'InterfaceDecl'
   | 'ClassDecl'
   | 'ExtendDecl'
@@ -64,7 +66,12 @@ export interface SchemaNode extends CstNode {
   eof: Token
 }
 
-export type DeclarationNode = TypeAliasDeclNode | InterfaceDeclNode | ClassDeclNode | ExtendDeclNode
+export type DeclarationNode =
+  | TypeAliasDeclNode
+  | ValueTypeDeclNode
+  | InterfaceDeclNode
+  | ClassDeclNode
+  | ExtendDeclNode
 
 // type Name = TypeExpr [modifiers]
 export interface TypeAliasDeclNode extends CstNode {
@@ -74,6 +81,28 @@ export interface TypeAliasDeclNode extends CstNode {
   eq: Token // =
   typeExpr: TypeExprNode
   modifiers: ModifierListNode | null
+}
+
+// type Name = { field: Type, ... }
+export interface ValueTypeDeclNode extends CstNode {
+  kind: 'ValueTypeDecl'
+  typeKeyword: Token
+  name: Token
+  eq: Token
+  lbrace: Token
+  fields: ValueTypeFieldNode[]
+  rbrace: Token
+}
+
+// name : TypeExpr[]? = default
+export interface ValueTypeFieldNode extends CstNode {
+  kind: 'ValueTypeField'
+  name: Token
+  colon: Token
+  typeExpr: TypeExprNode
+  listSuffix: { lbracket: Token; rbracket: Token } | null
+  nullable: Token | null
+  defaultValue: DefaultValueNode | null
 }
 
 // interface Name : Parents { body }

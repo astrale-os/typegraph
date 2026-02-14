@@ -27,7 +27,13 @@ export interface Schema extends AstNode {
   declarations: Declaration[]
 }
 
-export type Declaration = TypeAliasDecl | InterfaceDecl | NodeDecl | EdgeDecl | ExtendDecl
+export type Declaration =
+  | TypeAliasDecl
+  | ValueTypeDecl
+  | InterfaceDecl
+  | NodeDecl
+  | EdgeDecl
+  | ExtendDecl
 
 // --- Type Alias ---
 // type Email = String [format: email]
@@ -37,6 +43,23 @@ export interface TypeAliasDecl extends AstNode {
   name: Name
   type: TypeExpr
   modifiers: Modifier[]
+}
+
+// --- Value Type ---
+// type Coordinates = { lat: Float, lng: Float }
+
+export interface ValueTypeDecl extends AstNode {
+  kind: 'ValueTypeDecl'
+  name: Name
+  fields: ValueTypeField[]
+}
+
+export interface ValueTypeField extends AstNode {
+  name: Name
+  type: TypeExpr
+  nullable: boolean
+  list: boolean
+  defaultValue: Expression | null
 }
 
 // --- Interface ---

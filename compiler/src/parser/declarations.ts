@@ -12,6 +12,8 @@ import {
   type CstChild,
   type DeclarationNode,
   type TypeAliasDeclNode,
+  type ValueTypeDeclNode,
+  type ValueTypeFieldNode,
   type InterfaceDeclNode,
   type ClassDeclNode,
   type ExtendDeclNode,
@@ -50,9 +52,9 @@ export function parseDeclaration(p: ParserContext): DeclarationNode | null {
   return null
 }
 
-// --- type Name = TypeExpr [modifiers] ---
+// --- type Name = TypeExpr [modifiers]  or  type Name = { fields } ---
 
-function parseTypeAlias(p: ParserContext): TypeAliasDeclNode {
+function parseTypeAlias(p: ParserContext): TypeAliasDeclNode | ValueTypeDeclNode {
   const children: CstChild[] = []
 
   const typeKeyword = p.expectKeyword('type')
@@ -63,6 +65,11 @@ function parseTypeAlias(p: ParserContext): TypeAliasDeclNode {
 
   const eq = p.expect('Eq')
   children.push(eq)
+
+  // Branch: if next token is `{`, parse as structured value type
+  if (p.at('LBrace')) {
+    return parseValueType(p, children, typeKeyword, name, eq)
+  }
 
   const typeExpr = parseTypeExpr(p)
   children.push(typeExpr)
@@ -81,6 +88,108 @@ function parseTypeAlias(p: ParserContext): TypeAliasDeclNode {
     eq,
     typeExpr,
     modifiers,
+  }
+}
+
+// --- type Name = { field: Type, ... } ---
+
+function parseValueType(
+  p: ParserContext,
+  children: CstChild[],
+  typeKeyword: Token,
+  name: Token,
+  eq: Token,
+): ValueTypeDeclNode {
+  const lbrace = p.expect('LBrace')
+  children.push(lbrace)
+
+  const fields: ValueTypeFieldNode[] = []
+
+  while (!p.at('RBrace') && !p.at('EOF')) {
+    if (isDeclStart(p.current())) {
+      p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'")
+      break
+    }
+
+    const field = parseValueTypeField(p)
+    if (field) {
+      fields.push(field)
+      children.push(field)
+    } else {
+      // Recovery: skip one token
+      const skipped = p.advance()
+      children.push(skipped)
+    }
+  }
+
+  const rbrace = p.expect('RBrace')
+  children.push(rbrace)
+
+  return {
+    kind: 'ValueTypeDecl',
+    children,
+    typeKeyword,
+    name,
+    eq,
+    lbrace,
+    fields,
+    rbrace,
+  }
+}
+
+function parseValueTypeField(p: ParserContext): ValueTypeFieldNode | null {
+  if (!p.at('Ident')) return null
+  if (p.peek(1).kind !== 'Colon') return null
+
+  const children: CstChild[] = []
+
+  const name = p.advance()
+  children.push(name)
+
+  const colon = p.expect('Colon')
+  children.push(colon)
+
+  let typeExpr = parseTypeExpr(p)
+  children.push(typeExpr)
+
+  // Unwrap NullableType if the type parser consumed `?`
+  let nullable: Token | null = null
+  if (typeExpr.kind === 'NullableType') {
+    const nt = typeExpr as NullableTypeNode
+    nullable = nt.question
+    typeExpr = nt.inner
+  }
+
+  // Optional list suffix: []
+  let listSuffix: { lbracket: Token; rbracket: Token } | null = null
+  if (!nullable && p.at('LBracket') && p.peek(1).kind === 'RBracket') {
+    const lbracket = p.advance()
+    const rbracket = p.advance()
+    children.push(lbracket)
+    children.push(rbracket)
+    listSuffix = { lbracket, rbracket }
+  }
+
+  let defaultValue: DefaultValueNode | null = null
+  if (p.at('Eq')) {
+    defaultValue = parseDefaultValue(p)
+    children.push(defaultValue)
+  }
+
+  // Optional trailing comma
+  if (p.at('Comma')) {
+    children.push(p.advance())
+  }
+
+  return {
+    kind: 'ValueTypeField',
+    children,
+    name,
+    colon,
+    typeExpr,
+    listSuffix,
+    nullable,
+    defaultValue,
   }
 }
 

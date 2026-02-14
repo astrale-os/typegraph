@@ -21,6 +21,8 @@ export type {
   ValueNode,
   MethodDef,
   MethodParam,
+  ValueTypeDef,
+  ValueTypeField,
 } from '@astrale/kernel-compiler'
 
 // ─── Graph Model (enriched, indexed) ────────────────────────
@@ -31,14 +33,21 @@ import type {
   EdgeConstraints,
   ValueConstraints,
   MethodDef,
+  ValueTypeField,
 } from '@astrale/kernel-compiler'
 
 export interface GraphModel {
   scalars: string[]
   aliases: Map<string, ResolvedAlias>
+  valueTypes: Map<string, ResolvedValueType>
   nodeDefs: Map<string, ResolvedNode>
   edgeDefs: Map<string, ResolvedEdge>
   extensions: { uri: string; importedTypes: string[] }[]
+}
+
+export interface ResolvedValueType {
+  name: string
+  fields: ValueTypeField[]
 }
 
 export interface ResolvedAlias {
