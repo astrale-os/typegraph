@@ -17,8 +17,8 @@ jobs:
     strategy:
       matrix:
         package:
-          - packages/typegraph
-          - packages/memory
+          - typegraph
+          - memory
     steps:
       - uses: actions/checkout@v4
       - uses: astrale-os/config/.github/actions/publish/jsr@main

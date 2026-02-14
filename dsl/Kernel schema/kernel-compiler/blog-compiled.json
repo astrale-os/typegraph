@@ -1,0 +1,579 @@
+{
+  "version": "1.0",
+  "meta": {
+    "generated_at": "2026-02-13T18:00:59.255Z",
+    "source_hash": "blog-schema-v1"
+  },
+  "extensions": [
+    {
+      "uri": "https://kernel.astrale.ai/v1",
+      "imported_types": [
+        "Identity"
+      ]
+    }
+  ],
+  "builtin_scalars": [
+    "String",
+    "Int",
+    "Float",
+    "Boolean",
+    "Timestamp",
+    "Bitmask",
+    "ByteString"
+  ],
+  "type_aliases": [
+    {
+      "name": "Email",
+      "underlying_type": "String",
+      "constraints": {
+        "format": "email"
+      }
+    },
+    {
+      "name": "Slug",
+      "underlying_type": "String",
+      "constraints": {
+        "format": "slug"
+      }
+    },
+    {
+      "name": "Plan",
+      "underlying_type": "String",
+      "constraints": {
+        "enum_values": [
+          "free",
+          "pro",
+          "enterprise"
+        ]
+      }
+    },
+    {
+      "name": "OrgRole",
+      "underlying_type": "String",
+      "constraints": {
+        "enum_values": [
+          "member",
+          "admin",
+          "owner"
+        ]
+      }
+    },
+    {
+      "name": "PostStatus",
+      "underlying_type": "String",
+      "constraints": {
+        "enum_values": [
+          "draft",
+          "published",
+          "archived"
+        ]
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Timestamped",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "created_at",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "Call",
+            "fn": "now",
+            "args": []
+          },
+          "modifiers": {
+            "readonly": true,
+            "indexed": "desc"
+          }
+        },
+        {
+          "name": "updated_at",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "Publishable",
+      "abstract": true,
+      "implements": [
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "published_at",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "status",
+          "type": {
+            "kind": "Alias",
+            "name": "PostStatus"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "StringLiteral",
+            "value": "draft"
+          },
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "Reactable",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "reaction_count",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "NumberLiteral",
+            "value": 0
+          },
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "abstract": false,
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "username",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "email",
+          "type": {
+            "kind": "Alias",
+            "name": "Email"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "display_name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "bio",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "Organization",
+      "abstract": false,
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "slug",
+          "type": {
+            "kind": "Alias",
+            "name": "Slug"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "plan",
+          "type": {
+            "kind": "Alias",
+            "name": "Plan"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "StringLiteral",
+            "value": "free"
+          },
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "Post",
+      "abstract": false,
+      "implements": [
+        "Publishable",
+        "Reactable"
+      ],
+      "attributes": [
+        {
+          "name": "title",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "body",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "slug",
+          "type": {
+            "kind": "Alias",
+            "name": "Slug"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comment",
+      "abstract": false,
+      "implements": [
+        "Reactable",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "body",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        }
+      ]
+    },
+    {
+      "name": "Tag",
+      "abstract": false,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "slug",
+          "type": {
+            "kind": "Alias",
+            "name": "Slug"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "name": "follows",
+      "endpoints": [
+        {
+          "param_name": "follower",
+          "allowed_types": [
+            { "kind": "Node", "name": "User" }
+          ],
+          "cardinality": {
+            "min": 0,
+            "max": 5000
+          }
+        },
+        {
+          "param_name": "followee",
+          "allowed_types": [
+            { "kind": "Node", "name": "User" }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "constraints": {
+        "no_self": true,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    },
+    {
+      "name": "authored",
+      "endpoints": [
+        {
+          "param_name": "author",
+          "allowed_types": [
+            { "kind": "Node", "name": "User" }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "content",
+          "allowed_types": [
+            { "kind": "Node", "name": "Post" },
+            { "kind": "Node", "name": "Comment" }
+          ],
+          "cardinality": {
+            "min": 1,
+            "max": 1
+          }
+        }
+      ],
+      "attributes": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "name": "comment_on",
+      "endpoints": [
+        {
+          "param_name": "comment",
+          "allowed_types": [
+            { "kind": "Node", "name": "Comment" }
+          ],
+          "cardinality": {
+            "min": 1,
+            "max": 1
+          }
+        },
+        {
+          "param_name": "target",
+          "allowed_types": [
+            { "kind": "Node", "name": "Post" },
+            { "kind": "Node", "name": "Comment" }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": true,
+        "unique": false,
+        "symmetric": false,
+        "on_kill_target": "cascade"
+      }
+    },
+    {
+      "name": "tagged_with",
+      "endpoints": [
+        {
+          "param_name": "post",
+          "allowed_types": [
+            { "kind": "Node", "name": "Post" }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "tag",
+          "allowed_types": [
+            { "kind": "Node", "name": "Tag" }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    },
+    {
+      "name": "member_of",
+      "endpoints": [
+        {
+          "param_name": "user",
+          "allowed_types": [
+            { "kind": "Node", "name": "User" }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "org",
+          "allowed_types": [
+            { "kind": "Node", "name": "Organization" }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [
+        {
+          "name": "role",
+          "type": {
+            "kind": "Alias",
+            "name": "OrgRole"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "StringLiteral",
+            "value": "member"
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "joined_at",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "Call",
+            "fn": "now",
+            "args": []
+          },
+          "modifiers": {}
+        }
+      ],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    },
+    {
+      "name": "flagged",
+      "endpoints": [
+        {
+          "param_name": "about",
+          "allowed_types": [
+            { "kind": "AnyEdge" }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [
+        {
+          "name": "reason",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "flagged_by",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "flagged_at",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "Call",
+            "fn": "now",
+            "args": []
+          },
+          "modifiers": {}
+        }
+      ],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    }
+  ]
+}

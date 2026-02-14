@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kernel.astrale.ai/ir/v1",
+  "title": "Kernel Schema IR v1",
+  "description": "Serialized, fully-resolved graph schema. All type references are qualified IDs. All inheritance is resolved. This is the contract between the compiler and the runtime/SDK.",
+
+  "type": "object",
+  "required": ["version", "meta", "scalars", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "1.0"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["generated_at", "source_hash"],
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "source_hash": {
+          "description": "SHA-256 of the concatenated source inputs (prelude + user schema). Allows downstream consumers to detect stale IR.",
+          "type": "string"
+        }
+      }
+    },
+
+    "extensions": {
+      "description": "Remote schemas this schema depends on. Types imported here appear in nodes/edges with origin set to the URI.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["uri", "imported_types"],
+        "properties": {
+          "uri": { "type": "string", "format": "uri" },
+          "imported_types": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "scalars": {
+      "description": "Primitive types declared via `scalar` in the prelude. The compiler maps these to backing storage types. Keyed by name.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/ScalarType" }
+    },
+
+    "type_aliases": {
+      "description": "Resolved type aliases. Included for SDK generation and documentation. All attribute type references are already resolved through aliases.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/TypeAlias" }
+    },
+
+    "nodes": {
+      "description": "All node types: both interfaces (abstract) and classes (concrete).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/NodeType" }
+    },
+
+    "edges": {
+      "description": "All edge types (classes with signatures). Each edge defines a typed, constrained relationship between node types.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/EdgeType" }
+    }
+  },
+
+  "$defs": {
+    "ScalarType": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "constraints": {
+          "description": "Optional constraints on the scalar (e.g., a scalar declared with modifiers).",
+          "$ref": "#/$defs/ValueConstraints"
+        }
+      }
+    },
+
+    "TypeAlias": {
+      "type": "object",
+      "required": ["name", "underlying_type"],
+      "properties": {
+        "name": { "type": "string" },
+        "underlying_type": { "type": "string" },
+        "constraints": { "$ref": "#/$defs/ValueConstraints" }
+      }
+    },
+
+    "NodeType": {
+      "type": "object",
+      "required": ["name", "abstract", "attributes"],
+      "properties": {
+        "name": {
+          "description": "Unique type name.",
+          "type": "string"
+        },
+        "abstract": {
+          "description": "true = interface (cannot be instantiated), false = class (concrete).",
+          "type": "boolean"
+        },
+        "implements": {
+          "description": "Direct parent interfaces (by name). Not the transitive closure.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "attributes": {
+          "description": "Own attributes only. Inherited attributes resolved by walking `implements` at runtime.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attribute" }
+        },
+        "origin": {
+          "description": "Source URI if imported via `extend`. Absent for locally defined types.",
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+
+    "EdgeType": {
+      "type": "object",
+      "required": ["name", "endpoints", "attributes", "constraints"],
+      "properties": {
+        "name": { "type": "string" },
+        "endpoints": {
+          "description": "Ordered, named parameters from the edge signature. Preserves parameter names and per-endpoint cardinality. Supports N-ary edges.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Endpoint" }
+        },
+        "attributes": {
+          "description": "Payload attributes on the edge.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attribute" }
+        },
+        "constraints": { "$ref": "#/$defs/EdgeConstraints" },
+        "origin": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+
+    "Endpoint": {
+      "type": "object",
+      "required": ["param_name", "allowed_types"],
+      "properties": {
+        "param_name": {
+          "description": "The named parameter from the signature (e.g., 'follower', 'followee').",
+          "type": "string"
+        },
+        "allowed_types": {
+          "description": "Discriminated type references for this endpoint. Each entry is a TypeRef identifying what type of entity this endpoint connects to.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/TypeRef" }
+        },
+        "cardinality": {
+          "description": "Per-endpoint cardinality constraint. Null = unconstrained.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Cardinality" }]
+        }
+      }
+    },
+
+    "Cardinality": {
+      "type": "object",
+      "required": ["min", "max"],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "description": "null = unbounded.",
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        }
+      }
+    },
+
+    "EdgeConstraints": {
+      "description": "Typed structural constraints. Each field has defined semantics — no bag-of-strings.",
+      "type": "object",
+      "properties": {
+        "no_self": {
+          "description": "Prevents edges where all endpoints resolve to the same instance.",
+          "type": "boolean",
+          "default": false
+        },
+        "acyclic": {
+          "description": "Prevents cycles through this edge type.",
+          "type": "boolean",
+          "default": false
+        },
+        "unique": {
+          "description": "At most one edge of this type between the same tuple of instances.",
+          "type": "boolean",
+          "default": false
+        },
+        "symmetric": {
+          "description": "Edge is order-independent.",
+          "type": "boolean",
+          "default": false
+        },
+        "on_kill_source": { "$ref": "#/$defs/LifecycleAction" },
+        "on_kill_target": { "$ref": "#/$defs/LifecycleAction" }
+      }
+    },
+
+    "LifecycleAction": {
+      "type": "string",
+      "enum": ["cascade", "unlink", "prevent"]
+    },
+
+    "Attribute": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "$ref": "#/$defs/TypeRef" },
+        "nullable": {
+          "type": "boolean",
+          "default": false
+        },
+        "default": {
+          "description": "Structured default value. Null/absent = no default.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ValueNode" }]
+        },
+        "value_constraints": { "$ref": "#/$defs/ValueConstraints" },
+        "modifiers": { "$ref": "#/$defs/AttributeModifiers" }
+      }
+    },
+
+    "TypeRef": {
+      "description": "Discriminated type reference. Every reference is tagged with its kind so consumers never guess.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "Scalar" },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "Node" },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "Alias" },
+            "name": {
+              "description": "The alias name (e.g., 'Email', 'Plan'). Resolve through type_aliases to get underlying scalar + constraints.",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "const": "Edge" },
+            "name": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "AnyEdge" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "types"],
+          "properties": {
+            "kind": { "const": "Union" },
+            "types": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/TypeRef" },
+              "minItems": 2
+            }
+          }
+        }
+      ]
+    },
+
+    "ValueNode": {
+      "description": "Structured representation of default values. No string-encoded expressions — consumers never need to parse.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "StringLiteral" },
+            "value": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "NumberLiteral" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "BooleanLiteral" },
+            "value": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "const": "Null" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "fn"],
+          "properties": {
+            "kind": { "const": "Call" },
+            "fn": {
+              "description": "Function name (e.g., 'now', 'uuid'). The set of allowed functions is defined by the runtime.",
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/ValueNode" },
+              "default": []
+            }
+          }
+        }
+      ]
+    },
+
+    "ValueConstraints": {
+      "description": "Constraints on scalar values. Propagated from type aliases to attributes.",
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["email", "url", "uuid", "slug", "phone"]
+        },
+        "pattern": { "type": "string" },
+        "enum_values": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "length_min": { "type": "integer" },
+        "length_max": { "type": "integer" },
+        "value_min": { "type": "number" },
+        "value_max": { "type": "number" }
+      }
+    },
+
+    "AttributeModifiers": {
+      "type": "object",
+      "properties": {
+        "unique": { "type": "boolean", "default": false },
+        "readonly": { "type": "boolean", "default": false },
+        "indexed": {
+          "oneOf": [{ "type": "boolean" }, { "type": "string", "enum": ["asc", "desc"] }],
+          "default": false
+        }
+      }
+    }
+  }
+}

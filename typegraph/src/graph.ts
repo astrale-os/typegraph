@@ -39,7 +39,13 @@
  * ```
  */
 
-import type { AnySchema, NodeIdFor, NodeIdMap, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import type {
+  AnySchema,
+  NodeIdFor,
+  NodeIdMap,
+  NodeLabels,
+  EdgeTypes,
+} from '@astrale/typegraph-core'
 import type { GraphAdapter, TransactionContext } from './adapter'
 import type { GraphQuery, QueryExecutor } from './query/types'
 import { GraphQueryImpl } from './query/impl'
@@ -80,10 +86,7 @@ export interface GraphOptions<S extends AnySchema = AnySchema> {
 /**
  * Transaction scope providing access to mutations and raw queries within a transaction.
  */
-export interface TransactionScope<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
+export interface TransactionScope<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> {
   /** Mutation API within the transaction */
   readonly mutate: MutationTransaction<S, M>
   /** Execute a raw query within the transaction */
@@ -98,8 +101,10 @@ export interface TransactionScope<
  * - Transaction support
  * - Connection lifecycle management
  */
-export interface Graph<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>
-  extends GraphQuery<S, M> {
+export interface Graph<
+  S extends AnySchema,
+  M extends NodeIdMap<S> = NodeIdMap<S>,
+> extends GraphQuery<S, M> {
   // ---------------------------------------------------------------------------
   // MUTATION API
   // ---------------------------------------------------------------------------
@@ -184,8 +189,7 @@ function createMutationExecutorBridge(adapter: GraphAdapter): MutationExecutor {
  *
  * Thin orchestrator that delegates to GraphQueryImpl and GraphMutationsImpl.
  */
-class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>
-  implements Graph<S, M> {
+class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> implements Graph<S, M> {
   private readonly _schema: S
   private readonly _adapter: GraphAdapter
   private readonly _query: GraphQuery<S, M>
@@ -347,10 +351,10 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>>
         this._schema,
         txMutationExecutor,
         {
-        idGenerator: this._options.idGenerator,
-        templates: this._options.mutationTemplates,
-        hooks: this._options.hooks,
-        validation: this._options.validation,
+          idGenerator: this._options.idGenerator,
+          templates: this._options.mutationTemplates,
+          hooks: this._options.hooks,
+          validation: this._options.validation,
         },
       )
 

@@ -1,0 +1,233 @@
+(* ============================================================
+   Kernel Schema Language — Formal Grammar v3 (EBNF)
+   ============================================================
+   
+   Changes from v2:
+     - Removed `scalar_decl`. Primitive types (String, Int, etc.)
+       are compiler builtins, not grammar-level declarations.
+   
+   Conventions:
+     UPPER_CASE  = terminal tokens (from lexer)
+     lower_case  = production rules
+     ?           = optional
+     *           = zero or more
+     +           = one or more
+     |           = alternation
+     ( )         = grouping
+   ============================================================ *)
+
+
+(* ────────────────────────────────────────────────────────────
+   1. Top-Level
+   ──────────────────────────────────────────────────────────── *)
+
+schema
+  = declaration* EOF
+  ;
+
+declaration
+  = type_alias
+  | interface_decl
+  | class_decl
+  | extend_decl
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   2. Type Alias
+   ──────────────────────────────────────────────────────────── *)
+
+type_alias
+  = 'type' IDENT '=' type_expr modifier_list?
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   3. Interface Declaration
+   ──────────────────────────────────────────────────────────── *)
+
+interface_decl
+  = 'interface' IDENT extends_clause? body?
+  ;
+
+extends_clause
+  = ':' ident_list
+  ;
+
+ident_list
+  = IDENT (',' IDENT)*
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   4. Class Declaration (Node or Edge)
+   
+   Disambiguation:
+     - Parenthesized signature after name → Edge class
+     - No parentheses → Node class
+   ──────────────────────────────────────────────────────────── *)
+
+class_decl
+  = 'class' IDENT signature? extends_clause? modifier_list? body?
+  ;
+
+signature
+  = '(' param (',' param)* ')'
+  ;
+
+param
+  = IDENT ':' type_expr
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   5. Extend Declaration
+   ──────────────────────────────────────────────────────────── *)
+
+extend_decl
+  = 'extend' STRING_LIT '{' ident_list '}'
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   6. Body (shared by interfaces and classes)
+   ──────────────────────────────────────────────────────────── *)
+
+body
+  = '{' attribute* '}'
+  ;
+
+attribute
+  = IDENT ':' type_expr modifier_list? default_value?
+  ;
+
+default_value
+  = '=' expression
+  ;
+
+expression
+  = STRING_LIT
+  | NUMBER_LIT
+  | 'true' | 'false'
+  | 'null'
+  | IDENT '(' ')'              (* nullary function call: now(), uuid() *)
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   7. Type Expressions
+   ──────────────────────────────────────────────────────────── *)
+
+type_expr
+  = union_type
+  ;
+
+union_type
+  = nullable_type ('|' nullable_type)*
+  ;
+
+nullable_type
+  = primary_type '?'?
+  ;
+
+primary_type
+  = IDENT
+  | 'edge' '<' edge_target '>'
+  ;
+
+edge_target
+  = IDENT
+  | 'any'
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   8. Modifier Lists
+   ──────────────────────────────────────────────────────────── *)
+
+modifier_list
+  = '[' modifier (',' modifier)* ']'
+  ;
+
+modifier
+  = flag_modifier
+  | kv_modifier
+  | cardinality_modifier
+  | range_modifier
+  | lifecycle_modifier
+  ;
+
+flag_modifier
+  = 'no_self'
+  | 'acyclic'
+  | 'unique'
+  | 'symmetric'
+  | 'readonly'
+  | 'indexed'
+  ;
+
+kv_modifier
+  = 'format' ':' IDENT
+  | 'match' ':' STRING_LIT
+  | 'in' ':' '[' string_list ']'
+  | 'length' ':' range
+  | 'indexed' ':' ('asc' | 'desc')
+  ;
+
+cardinality_modifier
+  = IDENT '->' cardinality_bound
+  ;
+
+cardinality_bound
+  = NUMBER_LIT
+  | NUMBER_LIT '..' NUMBER_LIT
+  | NUMBER_LIT '..' '*'
+  ;
+
+range_modifier
+  = '>=' NUMBER_LIT
+  | '<=' NUMBER_LIT
+  | NUMBER_LIT '..' NUMBER_LIT
+  ;
+
+lifecycle_modifier
+  = 'on_kill_source' ':' lifecycle_action
+  | 'on_kill_target' ':' lifecycle_action
+  ;
+
+lifecycle_action
+  = 'cascade' | 'unlink' | 'prevent'
+  ;
+
+string_list
+  = STRING_LIT (',' STRING_LIT)*
+  ;
+
+range
+  = NUMBER_LIT '..' NUMBER_LIT
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   9. Lexical Tokens
+   ──────────────────────────────────────────────────────────── *)
+
+IDENT
+  = [a-zA-Z_] [a-zA-Z0-9_]*
+  ;
+
+STRING_LIT
+  = '"' ( ~["\\\n] | '\\' . )* '"'
+  ;
+
+NUMBER_LIT
+  = [0-9]+ ('.' [0-9]+)?
+  ;
+
+COMMENT
+  = '--' ~[\n]* '\n'
+  ;
+
+WS
+  = [ \t\r\n]+
+  ;

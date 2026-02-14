@@ -92,7 +92,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/astrale-os/typegraph.git",
-    "directory": "packages/typegraph-core"
+    "directory": "core"
   },
   "dependencies": {
     "zod": "^4.3.6"

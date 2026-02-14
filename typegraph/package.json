@@ -58,7 +58,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/astrale-os/typegraph.git",
-    "directory": "packages/typegraph"
+    "directory": "typegraph"
   },
   "dependencies": {
     "@astrale/typegraph-core": "workspace:*",

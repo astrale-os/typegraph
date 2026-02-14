@@ -1,0 +1,79 @@
+{
+  "name": "kernel-lang",
+  "displayName": "Kernel Schema Language",
+  "description": "Language support for .krl schema files — syntax highlighting, diagnostics, hover, go-to-definition, completions, and outline.",
+  "version": "0.1.0",
+  "publisher": "astrale",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "krl",
+        "aliases": ["Kernel", "krl"],
+        "extensions": [".krl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "krl",
+        "scopeName": "source.krl",
+        "path": "./syntaxes/krl.tmLanguage.json"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "krl",
+        "scopes": {
+          "type": ["entity.name.type.krl"],
+          "class": ["entity.name.type.class.krl"],
+          "interface": ["entity.name.type.interface.krl"],
+          "enum": ["entity.name.type.alias.krl"],
+          "property": ["variable.other.property.krl"],
+          "variable": ["entity.name.type.edge.krl"],
+          "keyword": ["keyword.control.krl"],
+          "string": ["string.quoted.double.krl"],
+          "number": ["constant.numeric.krl"],
+          "operator": ["keyword.operator.krl"],
+          "comment": ["comment.line.krl"],
+          "decorator": ["entity.other.attribute-name.modifier.krl"]
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Kernel",
+      "properties": {
+        "krl.trace.server": {
+          "type": "string",
+          "scope": "window",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --target=node18 --sourcemap",
+    "build:server": "cd ../kernel-compiler && node scripts/bundle-server.mjs",
+    "build": "npm run build:server && npm run build:ext",
+    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch --sourcemap",
+    "package": "npm run build && npx @vscode/vsce package --no-dependencies",
+    "install-local": "npm run package && code --install-extension kernel-lang-0.1.0.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0"
+  }
+}

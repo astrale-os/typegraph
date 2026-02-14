@@ -9,8 +9,8 @@ Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB).
 
 | Package                                                  | Description                              |
 | -------------------------------------------------------- | ---------------------------------------- |
-| [`@astrale/typegraph`](./packages/typegraph)             | Core query builder and mutation DSL      |
-| [`@astrale/typegraph-adapter-memory`](./packages/memory) | In-memory adapter (testing, prototyping) |
+| [`@astrale/typegraph`](./typegraph)             | Core query builder and mutation DSL      |
+| [`@astrale/typegraph-adapter-memory`](./memory) | In-memory adapter (testing, prototyping) |
 
 ## Installation
 

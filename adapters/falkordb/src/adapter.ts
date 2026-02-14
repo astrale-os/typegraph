@@ -110,8 +110,7 @@ export class FalkorDBAdapter implements GraphAdapter {
     const start = Date.now()
     this.queryCount++
 
-    // Use roQuery for read-only optimization
-    const result = await this.graph.roQuery(
+    const result = await this.graph.query(
       cypher,
       params ? { params: toQueryParams(params) } : undefined,
     )

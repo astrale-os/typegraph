@@ -1,4 +1,4 @@
 {
-  "packages/typegraph": "0.2.4",
-  "packages/memory": "0.2.6"
+  "typegraph": "0.2.4",
+  "memory": "0.2.6"
 }

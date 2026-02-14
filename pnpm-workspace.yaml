@@ -1,3 +1,6 @@
 packages:
-  - 'packages/*'
+  - 'core'
+  - 'memory'
+  - 'typegraph'
+  - 'typegraph/__tests__/app'
   - 'adapters/*'
