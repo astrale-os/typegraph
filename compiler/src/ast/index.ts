@@ -1,2 +1,2 @@
-export * from './nodes.js'
-export * from './visitor.js'
+export * from './nodes'
+export * from './visitor'

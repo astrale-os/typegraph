@@ -8,14 +8,14 @@
 import {
   type Attribute,
   type Expression,
-} from '../ast/index.js'
+} from '../ast/index'
 import {
   type IRAttribute,
   type ValueNode,
-} from '../ir/index.js'
-import { type SerializerContext } from './index.js'
-import { serializeTypeRef } from './types.js'
-import { extractAttributeModifiers } from './modifiers.js'
+} from '../ir/index'
+import { type SerializerContext } from './index'
+import { serializeTypeRef } from './types'
+import { extractAttributeModifiers } from './modifiers'
 
 export function serializeAttribute(ctx: SerializerContext, attr: Attribute): IRAttribute {
   return {

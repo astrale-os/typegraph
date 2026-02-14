@@ -21,10 +21,10 @@
 //  11: modifier    — modifier flags (unique, readonly, etc.)
 // ============================================================
 
-import { DocumentState } from "./workspace.js";
-import { Token, TokenKind, Span } from "../tokens.js";
-import { SymbolKind as ResolverSymbolKind } from "../resolver/index.js";
-import { CstNode, isToken, isNode, spanOf } from "../cst/index.js";
+import { DocumentState } from "./workspace";
+import { Token, TokenKind, Span } from "../tokens";
+import { SymbolKind as ResolverSymbolKind } from "../resolver/index";
+import { CstNode, isToken, isNode, spanOf } from "../cst/index";
 
 export const SEMANTIC_TOKEN_TYPES = [
   "type",

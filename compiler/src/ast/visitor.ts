@@ -33,7 +33,7 @@ import {
   type EdgeRefType,
   type Modifier,
   type Expression,
-} from './nodes.js'
+} from './nodes'
 
 // ─── Visitor Interface ──────────────────────────────────────
 

@@ -2,15 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kernel.astrale.ai/ir/v1",
   "title": "Kernel Schema IR v1",
-  "description": "Serialized, fully-resolved graph schema. All type references are qualified IDs. All inheritance is resolved. This is the contract between the compiler and the runtime/SDK.",
+  "description": "Serialized, fully-resolved graph schema. Single `classes` array with `type` discriminator (\"node\" | \"edge\"). Interfaces are nodes with `abstract: true`. This is the contract between the compiler and the runtime/SDK.",
 
   "type": "object",
-  "required": ["version", "meta", "scalars", "nodes", "edges"],
+  "required": ["version", "meta", "builtin_scalars", "classes"],
   "additionalProperties": false,
   "properties": {
     "version": {
       "const": "1.0"
     },
+
     "meta": {
       "type": "object",
       "required": ["generated_at", "source_hash"],
@@ -24,7 +25,7 @@
     },
 
     "extensions": {
-      "description": "Remote schemas this schema depends on. Types imported here appear in nodes/edges with origin set to the URI.",
+      "description": "Remote schemas this schema depends on. Types imported here appear in classes with `origin` set to the URI.",
       "type": "array",
       "items": {
         "type": "object",
@@ -39,10 +40,10 @@
       }
     },
 
-    "scalars": {
-      "description": "Primitive types declared via `scalar` in the prelude. The compiler maps these to backing storage types. Keyed by name.",
+    "builtin_scalars": {
+      "description": "Primitive type names injected by the prelude (e.g., String, Int, Float, Boolean, Timestamp).",
       "type": "array",
-      "items": { "$ref": "#/$defs/ScalarType" }
+      "items": { "type": "string" }
     },
 
     "type_aliases": {
@@ -51,46 +52,25 @@
       "items": { "$ref": "#/$defs/TypeAlias" }
     },
 
-    "nodes": {
-      "description": "All node types: both interfaces (abstract) and classes (concrete).",
+    "classes": {
+      "description": "All class definitions: nodes (abstract or concrete) and edges, discriminated by `type`.",
       "type": "array",
-      "items": { "$ref": "#/$defs/NodeType" }
-    },
-
-    "edges": {
-      "description": "All edge types (classes with signatures). Each edge defines a typed, constrained relationship between node types.",
-      "type": "array",
-      "items": { "$ref": "#/$defs/EdgeType" }
+      "items": { "$ref": "#/$defs/ClassDef" }
     }
   },
 
   "$defs": {
-    "ScalarType": {
-      "type": "object",
-      "required": ["name"],
-      "properties": {
-        "name": { "type": "string" },
-        "constraints": {
-          "description": "Optional constraints on the scalar (e.g., a scalar declared with modifiers).",
-          "$ref": "#/$defs/ValueConstraints"
-        }
-      }
+    "ClassDef": {
+      "description": "Discriminated union: `type: \"node\"` for node/interface definitions, `type: \"edge\"` for edge definitions.",
+      "oneOf": [{ "$ref": "#/$defs/NodeDef" }, { "$ref": "#/$defs/EdgeDef" }]
     },
 
-    "TypeAlias": {
+    "NodeDef": {
       "type": "object",
-      "required": ["name", "underlying_type"],
+      "required": ["type", "name", "abstract", "attributes"],
+      "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
-        "underlying_type": { "type": "string" },
-        "constraints": { "$ref": "#/$defs/ValueConstraints" }
-      }
-    },
-
-    "NodeType": {
-      "type": "object",
-      "required": ["name", "abstract", "attributes"],
-      "properties": {
+        "type": { "const": "node" },
         "name": {
           "description": "Unique type name.",
           "type": "string"
@@ -117,10 +97,12 @@
       }
     },
 
-    "EdgeType": {
+    "EdgeDef": {
       "type": "object",
-      "required": ["name", "endpoints", "attributes", "constraints"],
+      "required": ["type", "name", "endpoints", "attributes", "constraints"],
+      "additionalProperties": false,
       "properties": {
+        "type": { "const": "edge" },
         "name": { "type": "string" },
         "endpoints": {
           "description": "Ordered, named parameters from the edge signature. Preserves parameter names and per-endpoint cardinality. Supports N-ary edges.",
@@ -135,9 +117,20 @@
         },
         "constraints": { "$ref": "#/$defs/EdgeConstraints" },
         "origin": {
+          "description": "Source URI if imported via `extend`. Absent for locally defined types.",
           "type": "string",
           "format": "uri"
         }
+      }
+    },
+
+    "TypeAlias": {
+      "type": "object",
+      "required": ["name", "underlying_type"],
+      "properties": {
+        "name": { "type": "string" },
+        "underlying_type": { "type": "string" },
+        "constraints": { "$ref": "#/$defs/ValueConstraints" }
       }
     },
 
@@ -177,7 +170,7 @@
     },
 
     "EdgeConstraints": {
-      "description": "Typed structural constraints. Each field has defined semantics — no bag-of-strings.",
+      "description": "Typed structural constraints. Each field has defined semantics.",
       "type": "object",
       "properties": {
         "no_self": {

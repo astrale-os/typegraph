@@ -1,0 +1,31 @@
+{
+  "name": "@astrale/typegraph-codegen",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "typegraph-codegen": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@astrale/kernel-compiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
+    "@types/node": "~22.15.6",
+    "typescript": "~5.9.3",
+    "vitest": "~3.2.2"
+  }
+}

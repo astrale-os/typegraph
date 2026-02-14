@@ -17,17 +17,17 @@ import {
   TextDocumentSyncKind,
   type InitializeResult,
 } from 'vscode-languageserver/node.js'
-import { Workspace } from './workspace.js'
-import { type Prelude } from '../prelude.js'
-import { provideHover } from './hover.js'
-import { provideDefinition } from './definition.js'
-import { provideCompletion } from './completion.js'
-import { provideDocumentSymbols } from './symbols.js'
+import { Workspace } from './workspace'
+import { type Prelude } from '../prelude'
+import { provideHover } from './hover'
+import { provideDefinition } from './definition'
+import { provideCompletion } from './completion'
+import { provideDocumentSymbols } from './symbols'
 import {
   provideSemanticTokens,
   SEMANTIC_TOKEN_TYPES,
   SEMANTIC_TOKEN_MODIFIERS,
-} from './semantic-tokens.js'
+} from './semantic-tokens'
 
 export function startServer(prelude?: Prelude): void {
   const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout)

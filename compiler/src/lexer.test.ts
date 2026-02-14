@@ -1,7 +1,7 @@
 // src/lexer.test.ts
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer.js'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
+import { lex } from './lexer'
+import { KERNEL_PRELUDE } from './kernel-prelude'
 
 /** Helper: lex and return just the non-EOF token kinds + text pairs. */
 function tokens(source: string): [string, string][] {

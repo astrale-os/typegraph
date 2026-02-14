@@ -13,8 +13,8 @@ import {
   type NullableTypeNode,
   type NamedTypeNode,
   type EdgeRefTypeNode,
-} from '../cst/index.js'
-import { type ParserContext } from './index.js'
+} from '../cst/index'
+import { type ParserContext } from './index'
 
 export function parseTypeExpr(p: ParserContext): TypeExprNode {
   const first = parseNullableOrPrimary(p)

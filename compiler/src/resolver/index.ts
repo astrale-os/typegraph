@@ -12,5 +12,5 @@
 //   3. User schemas are resolved against prelude + scalars
 // ============================================================
 
-export type { ResolvedSchema, ResolveResult, Symbol, SymbolKind } from './scope.js'
-export { resolve, createBuiltinScope } from './scope.js'
+export type { ResolvedSchema, ResolveResult, Symbol, SymbolKind } from './scope'
+export { resolve, createBuiltinScope } from './scope'

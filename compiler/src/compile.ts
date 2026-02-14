@@ -9,17 +9,17 @@
 // → user code) and produces the IR JSON.
 // ============================================================
 
-import { lex } from './lexer.js'
-import { parse } from './parser/index.js'
-import { lower } from './lower/index.js'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index.js'
-import { validate } from './validator/index.js'
-import { serialize, type SerializeOptions } from './serializer/index.js'
-import { type Prelude, DEFAULT_PRELUDE } from './prelude.js'
-import type { SchemaIR } from './ir/index.js'
-import { DiagnosticBag } from './diagnostics.js'
-import type { SchemaNode } from './cst/index.js'
-import type { Schema as AstSchema } from './ast/index.js'
+import { lex } from './lexer'
+import { parse } from './parser/index'
+import { lower } from './lower/index'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
+import { validate } from './validator/index'
+import { serialize, type SerializeOptions } from './serializer/index'
+import { type Prelude, DEFAULT_PRELUDE } from './prelude'
+import type { SchemaIR } from './ir/index'
+import { DiagnosticBag } from './diagnostics'
+import type { SchemaNode } from './cst/index'
+import type { Schema as AstSchema } from './ast/index'
 
 export interface CompileResult {
   /** The IR output. Null if there were errors preventing serialization. */

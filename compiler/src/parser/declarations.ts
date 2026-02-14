@@ -7,7 +7,7 @@
 // body, attributes, default values).
 // ============================================================
 
-import { type Token } from '../tokens.js'
+import { type Token } from '../tokens'
 import {
   type CstChild,
   type DeclarationNode,
@@ -23,12 +23,12 @@ import {
   type AttributeNode,
   type DefaultValueNode,
   type ModifierListNode,
-} from '../cst/index.js'
-import { DiagnosticCodes } from '../diagnostics.js'
-import { type ParserContext, isDeclStart } from './index.js'
-import { parseTypeExpr } from './types.js'
-import { parseModifierList } from './modifiers.js'
-import { parseExpression } from './expressions.js'
+} from '../cst/index'
+import { DiagnosticCodes } from '../diagnostics'
+import { type ParserContext, isDeclStart } from './index'
+import { parseTypeExpr } from './types'
+import { parseModifierList } from './modifiers'
+import { parseExpression } from './expressions'
 
 // --- Declaration dispatch ---
 

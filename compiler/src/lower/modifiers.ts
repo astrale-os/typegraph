@@ -6,7 +6,13 @@
 // Flag, Format, Match, In, Length, Indexed, Cardinality, Range, Lifecycle
 // ============================================================
 
-import { type ModifierListNode, type ModifierNode, type StringListNode, isToken, spanOf } from '../cst/index.js'
+import {
+  type ModifierListNode,
+  type ModifierNode,
+  type StringListNode,
+  isToken,
+  spanOf,
+} from '../cst/index'
 import {
   type Modifier,
   type FlagModifier,
@@ -17,11 +23,11 @@ import {
   type IndexedModifier,
   type CardinalityModifier,
   type LifecycleModifier,
-} from '../ast/index.js'
-import { type Token, type Span } from '../tokens.js'
-import { DiagnosticBag, DiagnosticCodes } from '../diagnostics.js'
-import { type LoweringContext } from './index.js'
-import { unquote } from './declarations.js'
+} from '../ast/index'
+import { type Token, type Span } from '../tokens'
+import { type DiagnosticBag, DiagnosticCodes } from '../diagnostics'
+import { type LoweringContext } from './index'
+import { unquote } from './declarations'
 
 export function lowerModifiers(ctx: LoweringContext, list: ModifierListNode | null): Modifier[] {
   if (!list) return []
@@ -97,7 +103,11 @@ function lowerFlagModifier(name: string, span: Span): FlagModifier {
   return { kind: 'FlagModifier', flag: name as any, span }
 }
 
-function lowerCardinalityModifier(ctx: LoweringContext, tokens: Token[], span: Span): CardinalityModifier {
+function lowerCardinalityModifier(
+  ctx: LoweringContext,
+  tokens: Token[],
+  span: Span,
+): CardinalityModifier {
   const paramName = tokens[0]
   // tokens: [Ident, Arrow, NumberLit, (DotDot, NumberLit|Star)?]
   const min = parseNum(tokens[2].text, ctx.diagnostics, tokens[2].span)
@@ -120,7 +130,13 @@ function lowerCardinalityModifier(ctx: LoweringContext, tokens: Token[], span: S
   }
 }
 
-function lowerKvModifier(ctx: LoweringContext, name: string, tokens: Token[], mod: ModifierNode, span: Span): Modifier {
+function lowerKvModifier(
+  ctx: LoweringContext,
+  name: string,
+  tokens: Token[],
+  mod: ModifierNode,
+  span: Span,
+): Modifier {
   switch (name) {
     case 'format':
       return {

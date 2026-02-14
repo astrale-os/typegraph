@@ -11,10 +11,10 @@
 // closing braces/brackets) and continue parsing.
 // ============================================================
 
-import { type Token, type TokenKind, isKeyword } from '../tokens.js'
-import { type CstChild, type SchemaNode, type DeclarationNode } from '../cst/index.js'
-import { DiagnosticBag, DiagnosticCodes } from '../diagnostics.js'
-import { parseDeclaration } from './declarations.js'
+import { type Token, type TokenKind, isKeyword } from '../tokens'
+import { type CstChild, type SchemaNode, type DeclarationNode } from '../cst/index'
+import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
+import { parseDeclaration } from './declarations'
 
 export interface ParseResult {
   cst: SchemaNode

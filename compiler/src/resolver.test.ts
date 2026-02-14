@@ -1,11 +1,11 @@
 // src/resolver.test.ts
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer.js'
-import { parse } from './parser/index.js'
-import { lower } from './lower/index.js'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index.js'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
-import { DiagnosticBag } from './diagnostics.js'
+import { lex } from './lexer'
+import { parse } from './parser/index'
+import { lower } from './lower/index'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
+import { KERNEL_PRELUDE } from './kernel-prelude'
+import { DiagnosticBag } from './diagnostics'
 
 /** Helper: full pipeline source → resolved schema. */
 function resolveSource(

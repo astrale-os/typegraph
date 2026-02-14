@@ -10,7 +10,7 @@
 // kernel (the default for Astrale users).
 // ============================================================
 
-import type { Prelude } from './prelude.js'
+import type { Prelude } from './prelude'
 
 export const KERNEL_PRELUDE: Prelude = {
   scalars: ['String', 'Int', 'Float', 'Boolean', 'Timestamp', 'Bitmask', 'ByteString'],

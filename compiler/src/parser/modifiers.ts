@@ -7,15 +7,15 @@
 // lifecycle, string lists.
 // ============================================================
 
-import { type Token } from '../tokens.js'
+import { type Token } from '../tokens'
 import {
   type CstChild,
   type ModifierListNode,
   type ModifierNode,
   type StringListNode,
-} from '../cst/index.js'
-import { DiagnosticCodes } from '../diagnostics.js'
-import { type ParserContext, isDeclStart } from './index.js'
+} from '../cst/index'
+import { DiagnosticCodes } from '../diagnostics'
+import { type ParserContext, isDeclStart } from './index'
 
 // [ Modifier, Modifier, ... ]
 export function parseModifierList(p: ParserContext): ModifierListNode {

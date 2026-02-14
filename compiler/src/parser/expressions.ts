@@ -6,10 +6,10 @@
 // and zero-arg function calls like now().
 // ============================================================
 
-import { type Token } from '../tokens.js'
-import { type CstChild, type ExpressionNode, type LiteralExprNode, type CallExprNode } from '../cst/index.js'
-import { DiagnosticCodes } from '../diagnostics.js'
-import { type ParserContext } from './index.js'
+import { type Token } from '../tokens'
+import { type CstChild, type ExpressionNode, type LiteralExprNode, type CallExprNode } from '../cst/index'
+import { DiagnosticCodes } from '../diagnostics'
+import { type ParserContext } from './index'
 
 export function parseExpression(p: ParserContext): ExpressionNode {
   const children: CstChild[] = []

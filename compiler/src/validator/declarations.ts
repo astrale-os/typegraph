@@ -16,16 +16,16 @@ import {
   type Modifier,
   type FlagModifier,
   type CardinalityModifier,
-} from '../ast/index.js'
-import { DiagnosticCodes } from '../diagnostics.js'
+} from '../ast/index'
+import { DiagnosticCodes } from '../diagnostics'
 import {
   type ValidatorContext,
   EDGE_MODIFIERS,
   EDGE_FLAGS,
   ALIAS_MODIFIERS,
   modifierName,
-} from './index.js'
-import { validateAttribute } from './defaults.js'
+} from './index'
+import { validateAttribute } from './defaults'
 
 export function validateDeclarations(ctx: ValidatorContext): void {
   for (const decl of ctx.schema.declarations) {

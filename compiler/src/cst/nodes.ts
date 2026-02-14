@@ -16,7 +16,7 @@
 //   - Span is computed lazily from first/last child
 // ============================================================
 
-import { type Token, type Span } from '../tokens.js'
+import { type Token, type Span } from '../tokens'
 
 // --- Base ---
 

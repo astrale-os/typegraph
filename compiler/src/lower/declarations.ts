@@ -15,7 +15,7 @@ import {
   type AttributeNode,
   type ParamNode,
   spanOf,
-} from '../cst/index.js'
+} from '../cst/index'
 import {
   type Declaration,
   type TypeAliasDecl,
@@ -26,12 +26,12 @@ import {
   type Attribute,
   type Param,
   type Name,
-} from '../ast/index.js'
-import { type Token } from '../tokens.js'
-import { type LoweringContext } from './index.js'
-import { lowerTypeExpr } from './types.js'
-import { lowerModifiers } from './modifiers.js'
-import { lowerExpression } from './expressions.js'
+} from '../ast/index'
+import { type Token } from '../tokens'
+import { type LoweringContext } from './index'
+import { lowerTypeExpr } from './types'
+import { lowerModifiers } from './modifiers'
+import { lowerExpression } from './expressions'
 
 // --- Declaration dispatch ---
 

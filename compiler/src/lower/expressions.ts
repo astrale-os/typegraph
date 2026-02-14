@@ -6,12 +6,7 @@
 // StringLiteral, NumberLiteral, BooleanLiteral, NullLiteral, CallExpression
 // ============================================================
 
-import {
-  type ExpressionNode,
-  type LiteralExprNode,
-  type CallExprNode,
-  spanOf,
-} from '../cst/index.js'
+import { type ExpressionNode, type LiteralExprNode, type CallExprNode, spanOf } from '../cst/index'
 import {
   type Expression,
   type StringLiteral,
@@ -19,10 +14,10 @@ import {
   type BooleanLiteral,
   type NullLiteral,
   type CallExpression,
-} from '../ast/index.js'
-import { type LoweringContext } from './index.js'
-import { lowerName, unquote } from './declarations.js'
-import { parseNum } from './modifiers.js'
+} from '../ast/index'
+import { type LoweringContext } from './index'
+import { lowerName, unquote } from './declarations'
+import { parseNum } from './modifiers'
 
 export function lowerExpression(ctx: LoweringContext, node: ExpressionNode): Expression {
   const span = spanOf(node)

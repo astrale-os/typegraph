@@ -10,15 +10,15 @@ import {
   type NamedTypeNode,
   type EdgeRefTypeNode,
   spanOf,
-} from '../cst/index.js'
+} from '../cst/index'
 import {
   type TypeExpr,
   type NamedType,
   type NullableType,
   type UnionType,
   type EdgeRefType,
-} from '../ast/index.js'
-import { lowerName } from './declarations.js'
+} from '../ast/index'
+import { lowerName } from './declarations'
 
 export function lowerTypeExpr(node: TypeExprNode): TypeExpr {
   switch (node.kind) {

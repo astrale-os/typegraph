@@ -1,10 +1,10 @@
 // src/lower.test.ts
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer.js'
-import { parse } from './parser/index.js'
-import { lower } from './lower/index.js'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
-import { DiagnosticBag } from './diagnostics.js'
+import { lex } from './lexer'
+import { parse } from './parser/index'
+import { lower } from './lower/index'
+import { KERNEL_PRELUDE } from './kernel-prelude'
+import { DiagnosticBag } from './diagnostics'
 import {
   type Declaration,
   type TypeAliasDecl,
@@ -28,7 +28,7 @@ import {
   type NumberLiteral,
   type BooleanLiteral,
   type CallExpression,
-} from './ast/index.js'
+} from './ast/index'
 
 /** Helper: source → AST declarations (no errors expected). */
 function ast(source: string): Declaration[] {

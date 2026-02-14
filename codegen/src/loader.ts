@@ -1,0 +1,256 @@
+import type {
+  SchemaIR,
+  ClassDef,
+  NodeDef,
+  EdgeDef,
+  IRAttribute,
+  ValueConstraints,
+  GraphModel,
+  ResolvedAlias,
+  ResolvedNode,
+  ResolvedEdge,
+} from './model'
+
+// ─── Public API ─────────────────────────────────────────────
+
+export interface LoadOptions {
+  /** Throw on conflicting definitions across multiple schemas. Default: true. */
+  strict?: boolean
+}
+
+/**
+ * Build a `GraphModel` from one or more `SchemaIR` inputs.
+ *
+ * Handles deduplication (identical definitions are merged silently)
+ * and conflict detection (same name, different shape → error).
+ * Resolves node inheritance to produce flattened `allAttributes`.
+ */
+export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
+  const strict = options?.strict ?? true
+
+  const model: GraphModel = {
+    scalars: [],
+    aliases: new Map(),
+    nodeDefs: new Map(),
+    edgeDefs: new Map(),
+    extensions: [],
+  }
+
+  const scalarSet = new Set<string>()
+
+  for (const ir of inputs) {
+    for (const s of ir.builtin_scalars) scalarSet.add(s)
+
+    for (const ext of ir.extensions) {
+      model.extensions.push({ uri: ext.uri, importedTypes: ext.imported_types })
+    }
+
+    for (const alias of ir.type_aliases) {
+      const existing = model.aliases.get(alias.name)
+      if (existing) {
+        if (structurallyEqualAlias(existing, alias)) continue
+        if (strict) throw new ConflictError('type alias', alias.name)
+        continue
+      }
+      const enumValues = alias.constraints?.enum_values ?? null
+      model.aliases.set(alias.name, {
+        name: alias.name,
+        underlyingType: alias.underlying_type,
+        constraints: alias.constraints,
+        isEnum: enumValues !== null && enumValues.length > 0,
+        enumValues,
+      })
+    }
+
+    for (const cls of ir.classes) {
+      if (cls.type === 'node') registerNode(model, cls, strict)
+      else registerEdge(model, cls, strict)
+    }
+  }
+
+  model.scalars = [...scalarSet]
+
+  resolveInheritance(model)
+  createImportStubs(model)
+
+  return model
+}
+
+/**
+ * Normalize a raw JSON value into a canonical `SchemaIR`.
+ *
+ * Accepts either:
+ * - Canonical format: `{ classes: [...] }`
+ * - Legacy format: `{ nodes: [...], edges: [...] }`
+ */
+export function normalizeIR(raw: Record<string, unknown>): SchemaIR {
+  if (Array.isArray((raw as any).classes)) return raw as unknown as SchemaIR
+
+  // Legacy format: separate nodes/edges arrays without `type` discriminator
+  const classes: ClassDef[] = []
+  if (Array.isArray((raw as any).nodes)) {
+    for (const n of (raw as any).nodes) {
+      classes.push({ ...n, type: 'node' as const })
+    }
+  }
+  if (Array.isArray((raw as any).edges)) {
+    for (const e of (raw as any).edges) {
+      classes.push({ ...e, type: 'edge' as const })
+    }
+  }
+
+  return {
+    version: (raw.version as '1.0') ?? '1.0',
+    meta: (raw.meta as SchemaIR['meta']) ?? { generated_at: '', source_hash: '' },
+    extensions: (raw.extensions as SchemaIR['extensions']) ?? [],
+    builtin_scalars: (raw.builtin_scalars as string[]) ?? [],
+    type_aliases: (raw.type_aliases as SchemaIR['type_aliases']) ?? [],
+    classes,
+  }
+}
+
+// ─── Registration ───────────────────────────────────────────
+
+function registerNode(model: GraphModel, node: NodeDef, strict: boolean): void {
+  const existing = model.nodeDefs.get(node.name)
+  if (existing) {
+    if (structurallyEqualNode(existing, node)) return
+    if (strict) throw new ConflictError('node', node.name)
+    return
+  }
+  model.nodeDefs.set(node.name, {
+    name: node.name,
+    abstract: node.abstract,
+    implements: node.implements ?? [],
+    ownAttributes: node.attributes,
+    allAttributes: [], // populated by resolveInheritance
+    origin: node.origin,
+  })
+}
+
+function registerEdge(model: GraphModel, edge: EdgeDef, strict: boolean): void {
+  const existing = model.edgeDefs.get(edge.name)
+  if (existing) {
+    if (structurallyEqualEdge(existing, edge)) return
+    if (strict) throw new ConflictError('edge', edge.name)
+    return
+  }
+  model.edgeDefs.set(edge.name, {
+    name: edge.name,
+    endpoints: edge.endpoints,
+    ownAttributes: edge.attributes,
+    allAttributes: [], // edges don't inherit; set to ownAttributes below
+    constraints: edge.constraints,
+    origin: edge.origin,
+  })
+}
+
+// ─── Inheritance Resolution ─────────────────────────────────
+
+function resolveInheritance(model: GraphModel): void {
+  const resolved = new Set<string>()
+  for (const [name] of model.nodeDefs) {
+    resolveNodeAttributes(model, name, resolved, new Set())
+  }
+  for (const [, edge] of model.edgeDefs) {
+    edge.allAttributes = [...edge.ownAttributes]
+  }
+}
+
+function resolveNodeAttributes(
+  model: GraphModel,
+  name: string,
+  resolved: Set<string>,
+  visiting: Set<string>,
+): IRAttribute[] {
+  if (resolved.has(name)) return model.nodeDefs.get(name)!.allAttributes
+
+  const node = model.nodeDefs.get(name)
+  if (!node) return [] // imported/external — no attributes yet
+
+  if (visiting.has(name)) {
+    throw new Error(`Circular inheritance detected: ${name}`)
+  }
+  visiting.add(name)
+
+  // Collect inherited attributes (parent-first, later parents override earlier)
+  const merged = new Map<string, IRAttribute>()
+  for (const parentName of node.implements) {
+    for (const attr of resolveNodeAttributes(model, parentName, resolved, visiting)) {
+      merged.set(attr.name, attr)
+    }
+  }
+
+  // Own attributes override inherited
+  for (const attr of node.ownAttributes) {
+    merged.set(attr.name, attr)
+  }
+
+  node.allAttributes = [...merged.values()]
+  resolved.add(name)
+  visiting.delete(name)
+
+  return node.allAttributes
+}
+
+// ─── Import Stubs ───────────────────────────────────────────
+
+function createImportStubs(model: GraphModel): void {
+  for (const [, node] of model.nodeDefs) {
+    for (const parent of node.implements) {
+      if (!model.nodeDefs.has(parent)) {
+        const origin = model.extensions.find((e) => e.importedTypes.includes(parent))?.uri
+        model.nodeDefs.set(parent, {
+          name: parent,
+          abstract: true,
+          implements: [],
+          ownAttributes: [],
+          allAttributes: [],
+          origin,
+        })
+      }
+    }
+  }
+}
+
+// ─── Structural Equality ────────────────────────────────────
+
+function structurallyEqualAlias(
+  a: ResolvedAlias,
+  b: { name: string; underlying_type: string; constraints: ValueConstraints | null },
+): boolean {
+  return (
+    a.name === b.name &&
+    a.underlyingType === b.underlying_type &&
+    JSON.stringify(a.constraints) === JSON.stringify(b.constraints)
+  )
+}
+
+function structurallyEqualNode(a: ResolvedNode, b: NodeDef): boolean {
+  return (
+    a.name === b.name &&
+    a.abstract === b.abstract &&
+    JSON.stringify(a.implements) === JSON.stringify(b.implements ?? []) &&
+    JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes)
+  )
+}
+
+function structurallyEqualEdge(a: ResolvedEdge, b: EdgeDef): boolean {
+  return (
+    a.name === b.name &&
+    JSON.stringify(a.endpoints) === JSON.stringify(b.endpoints) &&
+    JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes) &&
+    JSON.stringify(a.constraints) === JSON.stringify(b.constraints)
+  )
+}
+
+// ─── Errors ─────────────────────────────────────────────────
+
+export class ConflictError extends Error {
+  constructor(kind: string, name: string) {
+    super(
+      `Conflicting ${kind} definition: '${name}' is defined in multiple schemas with different shapes`,
+    )
+    this.name = 'ConflictError'
+  }
+}

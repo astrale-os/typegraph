@@ -9,12 +9,12 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve, basename, dirname } from 'path'
-import { compile } from './compile.js'
-import { type DiagnosticBag, Diagnostic } from './diagnostics.js'
-import { LineMap } from './linemap.js'
+import { compile } from './compile'
+import { type DiagnosticBag, Diagnostic } from './diagnostics'
+import { LineMap } from './linemap'
 import { createHash } from 'crypto'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
-import { DEFAULT_PRELUDE, type Prelude } from './prelude.js'
+import { KERNEL_PRELUDE } from './kernel-prelude'
+import { DEFAULT_PRELUDE, type Prelude } from './prelude'
 
 // ─── Colors (ANSI, no deps) ─────────────────────────────────
 

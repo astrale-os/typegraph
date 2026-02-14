@@ -1,8 +1,8 @@
 // src/compile.test.ts
 import { describe, it, expect } from 'vitest'
-import { compile } from './compile.js'
-import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir/index.js'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
+import { compile } from './compile'
+import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir/index'
+import { KERNEL_PRELUDE } from './kernel-prelude'
 
 /** Helpers to filter classes array by discriminator. */
 function nodes(ir: SchemaIR): NodeDef[] {

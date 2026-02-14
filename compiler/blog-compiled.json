@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "meta": {
-    "generated_at": "2026-02-13T18:00:59.255Z",
+    "generated_at": "2026-02-14T15:01:07.600Z",
     "source_hash": "blog-schema-v1"
   },
   "extensions": [
@@ -17,9 +17,7 @@
     "Int",
     "Float",
     "Boolean",
-    "Timestamp",
-    "Bitmask",
-    "ByteString"
+    "Timestamp"
   ],
   "type_aliases": [
     {
@@ -70,8 +68,9 @@
       }
     }
   ],
-  "nodes": [
+  "classes": [
     {
+      "type": "node",
       "name": "Timestamped",
       "abstract": true,
       "implements": [],
@@ -106,6 +105,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Publishable",
       "abstract": true,
       "implements": [
@@ -138,6 +138,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Reactable",
       "abstract": true,
       "implements": [],
@@ -158,6 +159,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "User",
       "abstract": false,
       "implements": [
@@ -212,6 +214,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Organization",
       "abstract": false,
       "implements": [
@@ -257,6 +260,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Post",
       "abstract": false,
       "implements": [
@@ -299,6 +303,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Comment",
       "abstract": false,
       "implements": [
@@ -319,6 +324,7 @@
       ]
     },
     {
+      "type": "node",
       "name": "Tag",
       "abstract": false,
       "implements": [],
@@ -348,16 +354,18 @@
           }
         }
       ]
-    }
-  ],
-  "edges": [
+    },
     {
+      "type": "edge",
       "name": "follows",
       "endpoints": [
         {
           "param_name": "follower",
           "allowed_types": [
-            { "kind": "Node", "name": "User" }
+            {
+              "kind": "Node",
+              "name": "User"
+            }
           ],
           "cardinality": {
             "min": 0,
@@ -367,7 +375,10 @@
         {
           "param_name": "followee",
           "allowed_types": [
-            { "kind": "Node", "name": "User" }
+            {
+              "kind": "Node",
+              "name": "User"
+            }
           ],
           "cardinality": null
         }
@@ -381,20 +392,30 @@
       }
     },
     {
+      "type": "edge",
       "name": "authored",
       "endpoints": [
         {
           "param_name": "author",
           "allowed_types": [
-            { "kind": "Node", "name": "User" }
+            {
+              "kind": "Node",
+              "name": "User"
+            }
           ],
           "cardinality": null
         },
         {
           "param_name": "content",
           "allowed_types": [
-            { "kind": "Node", "name": "Post" },
-            { "kind": "Node", "name": "Comment" }
+            {
+              "kind": "Node",
+              "name": "Post"
+            },
+            {
+              "kind": "Node",
+              "name": "Comment"
+            }
           ],
           "cardinality": {
             "min": 1,
@@ -411,12 +432,16 @@
       }
     },
     {
+      "type": "edge",
       "name": "comment_on",
       "endpoints": [
         {
           "param_name": "comment",
           "allowed_types": [
-            { "kind": "Node", "name": "Comment" }
+            {
+              "kind": "Node",
+              "name": "Comment"
+            }
           ],
           "cardinality": {
             "min": 1,
@@ -426,8 +451,14 @@
         {
           "param_name": "target",
           "allowed_types": [
-            { "kind": "Node", "name": "Post" },
-            { "kind": "Node", "name": "Comment" }
+            {
+              "kind": "Node",
+              "name": "Post"
+            },
+            {
+              "kind": "Node",
+              "name": "Comment"
+            }
           ],
           "cardinality": null
         }
@@ -442,19 +473,26 @@
       }
     },
     {
+      "type": "edge",
       "name": "tagged_with",
       "endpoints": [
         {
           "param_name": "post",
           "allowed_types": [
-            { "kind": "Node", "name": "Post" }
+            {
+              "kind": "Node",
+              "name": "Post"
+            }
           ],
           "cardinality": null
         },
         {
           "param_name": "tag",
           "allowed_types": [
-            { "kind": "Node", "name": "Tag" }
+            {
+              "kind": "Node",
+              "name": "Tag"
+            }
           ],
           "cardinality": null
         }
@@ -468,19 +506,26 @@
       }
     },
     {
+      "type": "edge",
       "name": "member_of",
       "endpoints": [
         {
           "param_name": "user",
           "allowed_types": [
-            { "kind": "Node", "name": "User" }
+            {
+              "kind": "Node",
+              "name": "User"
+            }
           ],
           "cardinality": null
         },
         {
           "param_name": "org",
           "allowed_types": [
-            { "kind": "Node", "name": "Organization" }
+            {
+              "kind": "Node",
+              "name": "Organization"
+            }
           ],
           "cardinality": null
         }
@@ -522,12 +567,15 @@
       }
     },
     {
+      "type": "edge",
       "name": "flagged",
       "endpoints": [
         {
           "param_name": "about",
           "allowed_types": [
-            { "kind": "AnyEdge" }
+            {
+              "kind": "AnyEdge"
+            }
           ],
           "cardinality": null
         }

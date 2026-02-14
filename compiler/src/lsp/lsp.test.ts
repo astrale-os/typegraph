@@ -1,13 +1,13 @@
 // src/lsp/lsp.test.ts
 import { describe, it, expect } from 'vitest'
-import { LineMap } from '../linemap.js'
-import { Workspace } from './workspace.js'
-import { provideHover } from './hover.js'
-import { provideDefinition } from './definition.js'
-import { provideCompletion } from './completion.js'
-import { provideDocumentSymbols } from './symbols.js'
-import { provideSemanticTokens } from './semantic-tokens.js'
-import { KERNEL_PRELUDE } from '../kernel-prelude.js'
+import { LineMap } from '../linemap'
+import { Workspace } from './workspace'
+import { provideHover } from './hover'
+import { provideDefinition } from './definition'
+import { provideCompletion } from './completion'
+import { provideDocumentSymbols } from './symbols'
+import { provideSemanticTokens } from './semantic-tokens'
+import { KERNEL_PRELUDE } from '../kernel-prelude'
 
 // ─── LineMap ─────────────────────────────────────────────────
 

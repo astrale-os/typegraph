@@ -2,5 +2,5 @@
 // Entry point for the bundled LSP server.
 // When loaded by the VS Code extension, starts immediately.
 
-import { startServer } from "./server.js";
+import { startServer } from "./server";
 startServer();

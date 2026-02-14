@@ -11,10 +11,10 @@ import {
   type NullableType,
   type UnionType,
   type EdgeRefType,
-} from '../ast/index.js'
-import { type TypeRef } from '../ir/index.js'
-import { type Symbol } from '../resolver/index.js'
-import { type SerializerContext } from './index.js'
+} from '../ast/index'
+import { type TypeRef } from '../ir/index'
+import { type Symbol } from '../resolver/index'
+import { type SerializerContext } from './index'
 
 export function serializeTypeRef(ctx: SerializerContext, expr: TypeExpr): TypeRef {
   switch (expr.kind) {

@@ -18,7 +18,7 @@ import {
   type UnionType,
   type EdgeRefType,
   type CardinalityModifier,
-} from '../ast/index.js'
+} from '../ast/index'
 import {
   type Extension,
   type TypeAlias,
@@ -27,11 +27,11 @@ import {
   type Endpoint,
   type Cardinality,
   type TypeRef,
-} from '../ir/index.js'
-import { type SerializerContext } from './index.js'
-import { serializeTypeRef } from './types.js'
-import { serializeAttribute } from './attributes.js'
-import { extractEdgeConstraints, extractValueConstraints } from './modifiers.js'
+} from '../ir/index'
+import { type SerializerContext } from './index'
+import { serializeTypeRef } from './types'
+import { serializeAttribute } from './attributes'
+import { extractEdgeConstraints, extractValueConstraints } from './modifiers'
 
 export function serializeExtend(decl: ExtendDecl): Extension {
   return {
@@ -63,7 +63,7 @@ export function serializeInterface(ctx: SerializerContext, decl: InterfaceDecl):
   }
 }
 
-export function serializeClass(ctx: SerializerContext, decl: NodeDecl): NodeDef {
+export function serializeNode(ctx: SerializerContext, decl: NodeDecl): NodeDef {
   return {
     type: 'node',
     name: decl.name.value,

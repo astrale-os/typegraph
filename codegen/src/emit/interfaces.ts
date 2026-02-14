@@ -1,0 +1,100 @@
+import type { GraphModel, ResolvedNode, ResolvedEdge, IRAttribute, TypeRef } from '../model'
+import { scalarToTs } from './scalars'
+import { pascalCase, section } from './utils'
+
+export function emitInterfaces(model: GraphModel): string {
+  const parts: string[] = []
+
+  // Non-enum type aliases (e.g. Email = string, Slug = string)
+  const nonEnumAliases = [...model.aliases.values()].filter((a) => !a.isEnum)
+  if (nonEnumAliases.length > 0) {
+    parts.push(section('Type Aliases'))
+    for (const alias of nonEnumAliases) {
+      const tsType = scalarToTs(alias.underlyingType)
+      if (alias.constraints?.format) {
+        parts.push(`/** ${alias.underlyingType} with format: ${alias.constraints.format} */`)
+      }
+      parts.push(`export type ${alias.name} = ${tsType}`)
+    }
+    parts.push('')
+  }
+
+  // Abstract nodes → interfaces
+  const abstracts = [...model.nodeDefs.values()].filter((n) => n.abstract)
+  if (abstracts.length > 0) {
+    parts.push(section('Node Interfaces'))
+    parts.push('')
+    for (const node of abstracts) {
+      parts.push(emitNodeInterface(model, node))
+    }
+  }
+
+  // Concrete nodes → interfaces
+  const concretes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
+  if (concretes.length > 0) {
+    parts.push(section('Node Types'))
+    parts.push('')
+    for (const node of concretes) {
+      parts.push(emitNodeInterface(model, node))
+    }
+  }
+
+  // Edge payloads (only edges with attributes)
+  const edgesWithPayload = [...model.edgeDefs.values()].filter((e) => e.ownAttributes.length > 0)
+  if (edgesWithPayload.length > 0) {
+    parts.push(section('Edge Payloads'))
+    parts.push('')
+    for (const edge of edgesWithPayload) {
+      parts.push(emitEdgePayload(model, edge))
+    }
+  }
+
+  return parts.join('\n')
+}
+
+// ─── Helpers ────────────────────────────────────────────────
+
+function emitNodeInterface(model: GraphModel, node: ResolvedNode): string {
+  const extendsClause = node.implements.length > 0 ? ` extends ${node.implements.join(', ')}` : ''
+
+  if (node.ownAttributes.length === 0) {
+    return `export interface ${node.name}${extendsClause} {}\n`
+  }
+
+  const fields = node.ownAttributes.map((a) => formatField(model, a))
+  return `export interface ${node.name}${extendsClause} {\n${fields.join('\n')}\n}\n`
+}
+
+function emitEdgePayload(_model: GraphModel, edge: ResolvedEdge): string {
+  const name = `${pascalCase(edge.name)}Payload`
+  const fields = edge.ownAttributes.map((a) => formatField(_model, a))
+  return `export interface ${name} {\n${fields.join('\n')}\n}\n`
+}
+
+function formatField(model: GraphModel, attr: IRAttribute): string {
+  const tsType = resolveTypeRef(model, attr.type)
+  const optional = attr.nullable ? '?' : ''
+  const nullUnion = attr.nullable ? ' | null' : ''
+  return `  ${attr.name}${optional}: ${tsType}${nullUnion}`
+}
+
+export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
+  switch (ref.kind) {
+    case 'Scalar':
+      return scalarToTs(ref.name)
+    case 'Alias': {
+      // Use the alias name directly — it references the generated type alias or enum
+      return ref.name
+    }
+    case 'Node':
+      return 'string' // node reference = ID
+    case 'Edge':
+      return 'string'
+    case 'AnyEdge':
+      return 'string'
+    case 'Union':
+      return ref.types.map((t) => resolveTypeRef(model, t)).join(' | ')
+    default:
+      return 'unknown'
+  }
+}

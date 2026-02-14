@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Hover, MarkupContent, MarkupKind } from "vscode-languageserver-types";
-import { Workspace, DocumentState } from "./workspace.js";
+import { Workspace, DocumentState } from "./workspace";
 import {
   Declaration,
   TypeAliasDecl,
@@ -27,8 +27,8 @@ import {
   LifecycleModifier,
   RangeModifier,
   MatchModifier,
-} from "../ast/index.js";
-import { Symbol } from "../resolver/index.js";
+} from "../ast/index";
+import { Symbol } from "../resolver/index";
 
 export function provideHover(
   workspace: Workspace,

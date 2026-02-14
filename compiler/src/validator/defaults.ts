@@ -14,15 +14,15 @@ import {
   type UnionType,
   type Expression,
   type FlagModifier,
-} from '../ast/index.js'
-import { DiagnosticCodes } from '../diagnostics.js'
+} from '../ast/index'
+import { DiagnosticCodes } from '../diagnostics'
 import {
   type ValidatorContext,
   ATTR_MODIFIERS,
   ATTR_FLAGS,
   modifierName,
   renderTypeExpr,
-} from './index.js'
+} from './index'
 
 // ─── Attribute ─────────────────────────────────────────────
 

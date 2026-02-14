@@ -5,7 +5,7 @@
 // Transforms the resolved AST declarations into the flat,
 // graph-DDL-oriented IR format.
 //
-// All class definitions (interfaces, node classes, edges)
+// All class definitions (interfaces, nodes, edges)
 // go into a single `classes` array, discriminated by `type`.
 // ============================================================
 
@@ -14,9 +14,9 @@ import {
   type TypeAlias,
   type ClassDef,
   type Extension,
-} from '../ir/index.js'
-import { type ResolvedSchema } from '../resolver/index.js'
-import { serializeExtend, serializeTypeAlias, serializeInterface, serializeClass, serializeEdge } from './declarations.js'
+} from '../ir/index'
+import { type ResolvedSchema } from '../resolver/index'
+import { serializeExtend, serializeTypeAlias, serializeInterface, serializeNode, serializeEdge } from './declarations'
 
 export interface SerializeOptions {
   sourceHash?: string;
@@ -55,7 +55,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
         classes.push(serializeInterface(ctx, decl))
         break
       case 'NodeDecl':
-        classes.push(serializeClass(ctx, decl))
+        classes.push(serializeNode(ctx, decl))
         break
       case 'EdgeDecl':
         classes.push(serializeEdge(ctx, decl))

@@ -11,9 +11,9 @@ import {
   type Declaration,
   type TypeExpr,
   type Name,
-} from '../ast/index.js'
-import { type Span } from '../tokens.js'
-import { DiagnosticBag, DiagnosticCodes } from '../diagnostics.js'
+} from '../ast/index'
+import { type Span } from '../tokens'
+import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
 
 // ─── Resolved Schema Types ──────────────────────────────────
 

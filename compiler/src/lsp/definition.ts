@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Location, Range } from "vscode-languageserver-types";
-import { Workspace, DocumentState } from "./workspace.js";
+import { Workspace, DocumentState } from "./workspace";
 
 export function provideDefinition(
   workspace: Workspace,

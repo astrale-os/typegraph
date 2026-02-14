@@ -12,8 +12,8 @@
 //   - No contradictory modifiers
 // ============================================================
 
-import { type ResolvedSchema } from '../resolver/index.js'
-import { DiagnosticBag } from '../diagnostics.js'
+import { type ResolvedSchema } from '../resolver/index'
+import { DiagnosticBag } from '../diagnostics'
 import {
   type Modifier,
   type FlagModifier,
@@ -23,8 +23,8 @@ import {
   type RangeModifier,
   type LifecycleModifier,
   type TypeExpr,
-} from '../ast/index.js'
-import { validateDeclarations } from './declarations.js'
+} from '../ast/index'
+import { validateDeclarations } from './declarations'
 
 export interface ValidateOptions {
   /** Known scalar type names for default-value type-checking. */

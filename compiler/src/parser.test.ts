@@ -1,8 +1,8 @@
 // src/parser.test.ts
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer.js'
-import { parse } from './parser/index.js'
-import { KERNEL_PRELUDE } from './kernel-prelude.js'
+import { lex } from './lexer'
+import { parse } from './parser/index'
+import { KERNEL_PRELUDE } from './kernel-prelude'
 import {
   SchemaNode,
   type ClassDeclNode,
@@ -12,8 +12,8 @@ import {
   isToken,
   isNode,
   spanOf,
-} from './cst/index.js'
-import { DiagnosticBag } from './diagnostics.js'
+} from './cst/index'
+import { DiagnosticBag } from './diagnostics'
 
 /** Helper: lex + parse, return CST root and diagnostics. */
 function parseSource(source: string) {

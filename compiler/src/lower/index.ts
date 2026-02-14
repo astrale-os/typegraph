@@ -10,11 +10,11 @@
 //   - Converts number literal text to numbers
 // ============================================================
 
-import { type SchemaNode } from '../cst/index.js'
-import { type Schema, type Declaration } from '../ast/index.js'
-import { spanOf } from '../cst/index.js'
-import { DiagnosticBag } from '../diagnostics.js'
-import { lowerDeclaration } from './declarations.js'
+import { type SchemaNode } from '../cst/index'
+import { type Schema, type Declaration } from '../ast/index'
+import { spanOf } from '../cst/index'
+import { DiagnosticBag } from '../diagnostics'
+import { lowerDeclaration } from './declarations'
 
 export interface LowerResult {
   ast: Schema

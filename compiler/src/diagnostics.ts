@@ -7,7 +7,7 @@
 // The LSP layer maps these directly to LSP diagnostics.
 // ============================================================
 
-import { Span } from "./tokens.js";
+import { Span } from "./tokens";
 
 export type Severity = "error" | "warning" | "info";
 
