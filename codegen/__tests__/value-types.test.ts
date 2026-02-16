@@ -200,6 +200,7 @@ describe('Method + Value Type Integration', () => {
             methods: [
               {
                 name: 'setLocation',
+                access: 'public',
                 params: [
                   {
                     name: 'coords',
@@ -232,6 +233,7 @@ describe('Method + Value Type Integration', () => {
             methods: [
               {
                 name: 'getLocation',
+                access: 'public',
                 params: [],
                 return_type: { kind: 'ValueType', name: 'Coordinates' },
                 return_nullable: false,

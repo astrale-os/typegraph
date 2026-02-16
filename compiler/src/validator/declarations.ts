@@ -164,6 +164,12 @@ function validateEdge(ctx: ValidatorContext, decl: EdgeDecl): void {
   }
 
   validateMethods(ctx, decl.methods)
+  validateMethodOverrides(
+    ctx,
+    decl.name.value,
+    decl.methods,
+    decl.implements.map((i) => i.value),
+  )
 }
 
 function validateEdgeModifier(ctx: ValidatorContext, mod: Modifier, decl: EdgeDecl): void {
@@ -264,6 +270,15 @@ function validateMethodOverrides(
           `Method '${method.name.value}' on '${typeName}' has incompatible return type '${ownReturn}' (expected '${parentReturn}' from '${parent.source}')`,
         )
       }
+
+      // Cannot widen access from private to public
+      if (parent.method.access === 'private' && method.access === 'public') {
+        ctx.diagnostics.error(
+          method.name.span,
+          DiagnosticCodes.V_ACCESS_WIDENING,
+          `Method '${method.name.value}' on '${typeName}' cannot widen access from 'private' (inherited from '${parent.source}') to 'public'`,
+        )
+      }
     }
   }
 
@@ -283,9 +298,19 @@ function validateMethodOverrides(
     if (signatures.size > 1) {
       const sources = entries.map((e) => e.source).join("', '")
       ctx.diagnostics.error(
-        { start: 0, end: 0 }, // Use a zero span since this is a structural error
+        { start: 0, end: 0 },
         DiagnosticCodes.V_DIAMOND_CONFLICT,
         `Conflicting method '${methodName}' inherited from '${sources}' with different signatures on '${typeName}'`,
+      )
+    }
+
+    const accesses = new Set(entries.map((e) => e.method.access))
+    if (accesses.size > 1) {
+      const sources = entries.map((e) => e.source).join("', '")
+      ctx.diagnostics.error(
+        { start: 0, end: 0 },
+        DiagnosticCodes.V_DIAMOND_CONFLICT,
+        `Conflicting access for method '${methodName}' inherited from '${sources}' on '${typeName}'`,
       )
     }
   }

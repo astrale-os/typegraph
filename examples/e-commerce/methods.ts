@@ -1,19 +1,24 @@
-// Method implementations — defined as kernel operations.
-// Each method receives { self, params, kernel, auth } in the execute hook.
+import {
+  defineCustomerMethods,
+  defineOrderMethods,
+  defineOrderItemMethods,
+  CustomerOps,
+  OrderOps,
+  OrderItemOps,
+} from './schema.generated'
+import { READ, EDIT } from '@astrale-os/kernel-core'
 
-import { method } from '@astrale-os/kernel'
-import { CustomerOps, OrderOps, OrderItemOps } from './schema.generated'
-
-export const CustomerMethods = [
-  method.internal(CustomerOps.displayName, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+export const CustomerMethods = defineCustomerMethods(CustomerOps, {
+  displayName: {
+    // authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
+    authorize: () => undefined,
     execute: async ({ self }) => `${self.name} <${self.email}>`,
-  }),
-
-  method.internal(CustomerOps.recentOrders, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+  },
+  recentOrders: {
+    // authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
+    authorize: () => undefined,
     execute: async ({ self, params, kernel, auth }) => {
-      return kernel.graph
+      const orders = await kernel.graph
         .as(auth)
         .node('Customer')
         .byId(self.id)
@@ -21,13 +26,15 @@ export const CustomerMethods = [
         .orderBy('createdAt', 'DESC')
         .limit(params?.limit ?? 10)
         .execute()
+      return orders
     },
-  }),
-]
+  },
+})
 
-export const OrderMethods = [
-  method.internal(OrderOps.cancel, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'write' }),
+export const OrderMethods = defineOrderMethods(OrderOps, {
+  cancel: {
+    // authorize: ({ self }) => ({ nodeIds: [self.id], perm: EDIT }),
+    authorize: () => undefined,
     execute: async ({ self, kernel, auth }) => {
       if (self.status === 'cancelled') return false
       if (self.status === 'shipped' || self.status === 'delivered') return false
@@ -35,12 +42,13 @@ export const OrderMethods = [
       await kernel.graph.as(auth).mutate.update('Order', self.id, { status: 'cancelled' })
       return true
     },
-  }),
-]
+  },
+})
 
-export const OrderItemMethods = [
-  method.internal(OrderItemOps.subtotal, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+export const OrderItemMethods = defineOrderItemMethods(OrderItemOps, {
+  subtotal: {
+    // authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
+    authorize: () => undefined,
     execute: async ({ self }) => self.quantity * self.unitPriceCents,
-  }),
-]
+  },
+})

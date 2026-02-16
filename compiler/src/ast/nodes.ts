@@ -125,6 +125,7 @@ export interface Attribute extends AstNode {
 export interface Method extends AstNode {
   kind: 'Method'
   name: Name
+  access: 'public' | 'private'
   params: MethodParam[]
   returnType: TypeExpr
   returnList: boolean

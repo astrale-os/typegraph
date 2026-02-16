@@ -30,8 +30,6 @@ export type EdgeProps<S extends SchemaShape, E extends EdgeTypes<S>> = {
 } & Record<string, unknown>
 
 // ─── Edge Navigation ─────────────────────────────────────────
-// In the codegen world, precise edge filtering is runtime.
-// At the type level, these return all possible types.
 
 export type OutgoingEdges<S extends SchemaShape, _N extends NodeLabels<S>> = EdgeTypes<S>
 export type IncomingEdges<S extends SchemaShape, _N extends NodeLabels<S>> = EdgeTypes<S>
@@ -41,16 +39,56 @@ export type ConnectedEdges<S extends SchemaShape, N extends NodeLabels<S>> =
 
 export type EdgeTarget<S extends SchemaShape, _E extends EdgeTypes<S>> = NodeLabels<S>
 export type EdgeSource<S extends SchemaShape, _E extends EdgeTypes<S>> = NodeLabels<S>
+
+// ─── Endpoint type extraction ────────────────────────────────
+// When the schema is `as const`, endpoint `types` are literal tuples (e.g. readonly ['Order']).
+// We exploit this to narrow traversal results to the actual target node types.
+
+/** Extract all endpoints from an edge definition. */
+type _Endpoints<S extends SchemaShape, E extends EdgeTypes<S>> = S['edges'][E] extends {
+  endpoints: infer EPs
+}
+  ? EPs
+  : never
+
+/** Union of all node types across every endpoint of an edge. */
+type _AllEndpointTypes<EPs> = {
+  [K in keyof EPs]: EPs[K] extends { types: readonly (infer U)[] } ? U : never
+}[keyof EPs]
+
+/** Node types from endpoints that do NOT contain N (i.e. the "other side"). */
+type _NonSourceTypes<EPs, N extends string> = {
+  [K in keyof EPs]: EPs[K] extends { types: readonly (infer U)[] }
+    ? N extends U
+      ? never
+      : U
+    : never
+}[keyof EPs]
+
+/**
+ * Resolve target node types when traversing FROM node N via edge E.
+ * Returns the types of the non-source endpoint.
+ * For self-referencing edges (all endpoints contain N), falls back to all endpoint types.
+ */
 export type EdgeTargetsFrom<
   S extends SchemaShape,
-  _E extends EdgeTypes<S>,
-  _N extends NodeLabels<S>,
-> = NodeLabels<S>
+  E extends EdgeTypes<S>,
+  N extends NodeLabels<S>,
+> = [_NonSourceTypes<_Endpoints<S, E>, N & string>] extends [never]
+  ? _AllEndpointTypes<_Endpoints<S, E>> & NodeLabels<S>
+  : _NonSourceTypes<_Endpoints<S, E>, N & string> & NodeLabels<S>
+
+/**
+ * Resolve source node types when traversing TO node N via edge E (reverse direction).
+ * Same logic as EdgeTargetsFrom — returns the "other side" from N.
+ */
 export type EdgeSourcesTo<
   S extends SchemaShape,
-  _E extends EdgeTypes<S>,
-  _N extends NodeLabels<S>,
-> = NodeLabels<S>
+  E extends EdgeTypes<S>,
+  N extends NodeLabels<S>,
+> = [_NonSourceTypes<_Endpoints<S, E>, N & string>] extends [never]
+  ? _AllEndpointTypes<_Endpoints<S, E>> & NodeLabels<S>
+  : _NonSourceTypes<_Endpoints<S, E>, N & string> & NodeLabels<S>
 
 export type EdgeOutboundCardinality<S extends SchemaShape, _E extends EdgeTypes<S>> = Cardinality
 export type EdgeInboundCardinality<S extends SchemaShape, _E extends EdgeTypes<S>> = Cardinality

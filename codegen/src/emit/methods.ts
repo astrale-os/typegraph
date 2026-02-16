@@ -1,5 +1,5 @@
 import type { GraphModel, MethodDef } from '../model'
-import { resolveMethodTypeRef } from './interfaces'
+import { resolveMethodReturnTypeRef, resolveMethodParamTypeRef } from './interfaces'
 import { pascalCase } from './utils'
 
 /**
@@ -54,7 +54,7 @@ function emitMethodInterface(model: GraphModel, typeName: string, methods: Metho
 }
 
 function formatReturnType(model: GraphModel, m: MethodDef): string {
-  let ts = resolveMethodTypeRef(model, m.return_type)
+  let ts = resolveMethodReturnTypeRef(model, m.return_type)
   if (m.return_nullable) ts = `${ts} | null`
   return `${ts} | Promise<${ts}>`
 }
@@ -65,7 +65,7 @@ function formatMethodParams(model: GraphModel, m: MethodDef): string {
   const allHaveDefaults = m.params.every((p) => p.default !== null)
 
   const fields = m.params.map((p) => {
-    const ts = resolveMethodTypeRef(model, p.type)
+    const ts = resolveMethodParamTypeRef(model, p.type)
     const opt = p.default !== null ? '?' : ''
     return `${p.name}${opt}: ${ts}`
   })
@@ -85,7 +85,7 @@ function emitEnrichedTypes(model: GraphModel): string {
     const methodPart = methodIntersections.length > 0 ? ' & ' + methodIntersections.join(' & ') : ''
 
     lines.push(`export type ${node.name}Node = ${node.name} & {`)
-    lines.push(`  readonly id: string`)
+    lines.push(`  readonly id: ${node.name}Id`)
     lines.push(`  readonly __type: '${node.name}'`)
     lines.push(`}${methodPart}`)
     lines.push('')

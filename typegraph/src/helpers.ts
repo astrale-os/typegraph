@@ -168,8 +168,11 @@ export function edgeTo(schema: SchemaShape, edgeType: string): string[] {
 }
 
 /**
- * Get the outbound/inbound cardinality for an edge.
- * Maps from endpoint cardinalities to the old { outbound, inbound } format.
+ * Get the outbound/inbound traversal cardinality for an edge.
+ *
+ * Endpoint cardinality describes how many edges that endpoint participates in.
+ * Endpoints follow KRL declaration order: params[0] = source, params[1] = target.
+ * Source participation → outbound; target participation → inbound.
  */
 export function edgeCardinality(
   schema: SchemaShape,
@@ -177,14 +180,11 @@ export function edgeCardinality(
 ): { outbound: Cardinality; inbound: Cardinality } {
   const ep = schema.edges[edgeType]?.endpoints
   if (!ep) return { outbound: 'many', inbound: 'many' }
+
   const params = Object.keys(ep)
-
-  const fromCard = ep[params[0]]?.cardinality
-  const toCard = ep[params[1]]?.cardinality
-
   return {
-    outbound: cardinalityFromMinMax(toCard),
-    inbound: cardinalityFromMinMax(fromCard),
+    outbound: cardinalityFromMinMax(ep[params[0]]?.cardinality),
+    inbound: cardinalityFromMinMax(ep[params[1]]?.cardinality),
   }
 }
 

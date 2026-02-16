@@ -9,8 +9,15 @@
  *   npx tsx playground.ts      (from examples/)
  */
 
-import { createTypedGraph, schema, type CustomerNode, type ProductNode, type OrderNode } from './e-commerce/schema.generated'
+import {
+  createTypedGraph,
+  schema,
+  type CustomerNode,
+  type ProductNode,
+  type OrderNode,
+} from './e-commerce/schema.generated'
 import { core } from './e-commerce/core'
+import { installCore } from '@astrale/typegraph'
 import { falkordb, clearGraph } from '@astrale/typegraph-adapter-falkordb'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -32,47 +39,9 @@ function log(label: string, data: unknown) {
   console.log(`  ${label}:`, JSON.stringify(data, null, 2))
 }
 
-// ─── Seed from Core Definition ───────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type Refs = Record<string, string>
-
-async function seedCore(graph: Awaited<ReturnType<typeof createTypedGraph>>): Promise<Refs> {
-  const refs: Refs = {}
-  const now = new Date().toISOString()
-
-  // Recursively create nodes from core definition
-  async function createNodes(
-    nodes: Record<string, { readonly __type: string; readonly props: Record<string, unknown>; readonly children?: Record<string, any> }>,
-  ) {
-    for (const [refName, def] of Object.entries(nodes)) {
-      // Inject timestamps — KRL marks these `[readonly] = now()`, auto-filled at creation
-      const props = { createdAt: now, ...def.props }
-      const result = await graph.mutate.create(def.__type as any, props as any)
-      refs[refName] = result.id
-      console.log(`  ${def.__type} "${refName}" → ${result.id}`)
-
-      if ('children' in def && def.children) {
-        await createNodes(def.children as any)
-      }
-    }
-  }
-
-  await createNodes(core.nodes)
-
-  // Create edges using refs to resolve symbolic IDs
-  if (core.edges) {
-    for (const edgeDef of core.edges) {
-      const endpoints = edgeDef.endpoints as Record<string, string>
-      const [fromKey, toKey] = Object.values(endpoints)
-      const fromId = refs[fromKey!] ?? fromKey!
-      const toId = refs[toKey!] ?? toKey!
-      await graph.mutate.link(edgeDef.__type as any, fromId, toId, (edgeDef as any).props)
-      console.log(`  ${edgeDef.__type}: ${fromKey} → ${toKey}`)
-    }
-  }
-
-  return refs
-}
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -81,21 +50,35 @@ async function main() {
 
   section('Setup')
 
-  try { await clearGraph(adapterConfig) } catch { /* no-op if graph doesn't exist */ }
+  try {
+    await clearGraph(adapterConfig)
+  } catch {
+    /* no-op if graph doesn't exist */
+  }
 
   const graph = await createTypedGraph({
     adapter: falkordb(adapterConfig),
   })
 
   console.log('  Connected to FalkorDB')
-  console.log('  Schema nodes:', Object.keys(schema.nodes).filter(n => !(schema.nodes as any)[n].abstract))
+  console.log(
+    '  Schema nodes:',
+    Object.keys(schema.nodes).filter((n) => !(schema.nodes as any)[n].abstract),
+  )
   console.log('  Schema edges:', Object.keys(schema.edges))
 
   // ── Seed core data ────────────────────────────────────────────────────────
 
   section('Seed — Core Data (from core.ts)')
 
-  const refs = await seedCore(graph)
+  const { refs } = await installCore(graph, core, {
+    beforeCreate: (_type: string, props: Record<string, unknown>) => ({
+      createdAt: new Date().toISOString(),
+      ...props,
+    }),
+    onNode: (ref: string, type: string, id: string) => console.log(`  ${type} "${ref}" → ${id}`),
+    onEdge: (type: string, from: string, to: string) => console.log(`  ${type}: ${from} → ${to}`),
+  })
 
   // ── Seed extra data via mutations ─────────────────────────────────────────
 
@@ -143,11 +126,20 @@ async function main() {
   console.log('  placedOrder: bob → order2')
 
   // Link order items
-  await graph.mutate.link('orderItem', refs['order1']!, refs['iphone']!, { quantity: 1, unitPriceCents: 99900 })
+  await graph.mutate.link('orderItem', refs['order1']!, refs['iphone']!, {
+    quantity: 1,
+    unitPriceCents: 99900,
+  })
   console.log('  orderItem: order1 → iphone (qty: 1)')
 
-  await graph.mutate.link('orderItem', refs['order2']!, refs['iphone']!, { quantity: 1, unitPriceCents: 99900 })
-  await graph.mutate.link('orderItem', refs['order2']!, refs['macbook']!, { quantity: 1, unitPriceCents: 129900 })
+  await graph.mutate.link('orderItem', refs['order2']!, refs['iphone']!, {
+    quantity: 1,
+    unitPriceCents: 99900,
+  })
+  await graph.mutate.link('orderItem', refs['order2']!, refs['macbook']!, {
+    quantity: 1,
+    unitPriceCents: 129900,
+  })
   console.log('  orderItem: order2 → iphone + macbook')
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -186,7 +178,11 @@ async function main() {
   log("Bob's order products", bobProducts)
 
   section('Traversal — Reverse: Phones ← inCategory ← Products')
-  const phonesProducts = await graph.node('Category').byId(refs['phones']!).from('inCategory').execute()
+  const phonesProducts = await graph
+    .node('Category')
+    .byId(refs['phones']!)
+    .from('inCategory')
+    .execute()
   log('Products in Phones', phonesProducts)
 
   section('Compile — Inspect generated Cypher')

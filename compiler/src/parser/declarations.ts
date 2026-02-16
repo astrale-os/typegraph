@@ -423,8 +423,11 @@ function parseBody(p: ParserContext): BodyNode {
       break
     }
 
-    // fn keyword → method declaration
-    if (isKeyword(p.current(), 'fn')) {
+    // fn or private fn → method declaration
+    if (
+      isKeyword(p.current(), 'fn') ||
+      (isKeyword(p.current(), 'private') && isKeyword(p.peek(1), 'fn'))
+    ) {
       const method = parseMethod(p)
       methods.push(method)
       children.push(method)
@@ -501,9 +504,15 @@ function parseAttribute(p: ParserContext): AttributeNode | null {
   }
 }
 
-// fn name(params): ReturnType[]?
+// [private] fn name(params): ReturnType[]?
 function parseMethod(p: ParserContext): MethodNode {
   const children: CstChild[] = []
+
+  let privateKeyword: Token | null = null
+  if (isKeyword(p.current(), 'private')) {
+    privateKeyword = p.advance()
+    children.push(privateKeyword)
+  }
 
   const fnKeyword = p.expectKeyword('fn')
   children.push(fnKeyword)
@@ -560,6 +569,7 @@ function parseMethod(p: ParserContext): MethodNode {
   return {
     kind: 'Method',
     children,
+    privateKeyword,
     fnKeyword,
     name,
     lparen,

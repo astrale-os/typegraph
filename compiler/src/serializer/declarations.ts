@@ -132,6 +132,7 @@ function serializeMethod(ctx: SerializerContext, method: Method): MethodDef {
 
   return {
     name: method.name.value,
+    access: method.access,
     params: method.params.map((p) => serializeMethodParam(ctx, p)),
     return_type: returnType,
     return_nullable: method.returnNullable,

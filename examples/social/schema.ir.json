@@ -82,6 +82,7 @@
       "methods": [
         {
           "name": "followerCount",
+          "access": "public",
           "params": [],
           "return_type": {
             "kind": "Scalar",
@@ -91,6 +92,7 @@
         },
         {
           "name": "isFollowing",
+          "access": "public",
           "params": [
             {
               "name": "other",
@@ -131,6 +133,7 @@
       "methods": [
         {
           "name": "likeCount",
+          "access": "public",
           "params": [],
           "return_type": {
             "kind": "Scalar",

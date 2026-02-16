@@ -95,21 +95,23 @@ function emitNodeHelper(lines: string[]): void {
   lines.push('  props: CoreNodeProps[T],')
   lines.push('): CoreNodeDef<T>')
 
-  // Overload 2: with children (preserves literal keys via C)
-  lines.push('export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(')
+  // Overload 2: children as direct 3rd argument
+  lines.push(
+    'export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(',
+  )
   lines.push('  type: T,')
   lines.push('  props: CoreNodeProps[T],')
-  lines.push('  options: { children: C },')
+  lines.push('  children: C,')
   lines.push('): CoreNodeDef<T> & { readonly children: C }')
 
   // Implementation
   lines.push('export function node(')
   lines.push('  type: string,')
   lines.push('  props: Record<string, unknown>,')
-  lines.push('  options?: { children?: Record<string, CoreNodeDef> },')
+  lines.push('  children?: Record<string, CoreNodeDef>,')
   lines.push('): CoreNodeDef {')
   lines.push(
-    "  return { __type: type as SchemaNodeType, props, ...(options?.children ? { children: options.children } : {}) }",
+    '  return { __type: type as SchemaNodeType, props, ...(children ? { children } : {}) }',
   )
   lines.push('}')
   lines.push('')
@@ -122,7 +124,9 @@ function emitEdgeHelper(lines: string[], hasPayloads: boolean): void {
     lines.push('  endpoints: CoreEdgeEndpoints[T],')
     lines.push('  props?: T extends keyof CoreEdgeProps ? CoreEdgeProps[T] : never,')
     lines.push('): CoreEdgeDef<T> {')
-    lines.push('  return { __type: type, endpoints, ...(props ? { props } : {}) } as CoreEdgeDef<T>')
+    lines.push(
+      '  return { __type: type, endpoints, ...(props ? { props } : {}) } as CoreEdgeDef<T>',
+    )
     lines.push('}')
   } else {
     lines.push('export function edge<T extends SchemaEdgeType>(')
@@ -137,10 +141,12 @@ function emitEdgeHelper(lines: string[], hasPayloads: boolean): void {
 
 function emitRefsType(lines: string[]): void {
   lines.push('type FlattenCoreKeys<T extends Record<string, any>> =')
-  lines.push('  { [K in keyof T & string]: K | (T[K] extends { readonly children: infer C extends Record<string, any> } ? FlattenCoreKeys<C> : never) }[keyof T & string]')
+  lines.push(
+    '  { [K in keyof T & string]: K | (T[K] extends { readonly children: infer C extends Record<string, any> } ? FlattenCoreKeys<C> : never) }[keyof T & string]',
+  )
   lines.push('')
-  lines.push('export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T[\'nodes\']>')
+  lines.push("export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>")
   lines.push('')
   lines.push('export type Refs<T extends CoreDefinition = CoreDefinition> =')
-  lines.push('  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>')
+  lines.push('  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>')
 }

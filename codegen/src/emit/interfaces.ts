@@ -133,18 +133,18 @@ export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
 }
 
 /**
- * Resolve a TypeRef for method signatures.
- * Unlike resolveTypeRef, Node refs resolve to the interface name (not 'string'),
- * since method params/returns deal with actual objects, not IDs.
+ * Resolve a TypeRef for method return types.
+ * Node refs resolve to the interface name (e.g. `Order`),
+ * since method returns deal with actual objects.
  */
-export function resolveMethodTypeRef(model: GraphModel, ref: TypeRef): string {
+export function resolveMethodReturnTypeRef(model: GraphModel, ref: TypeRef): string {
   switch (ref.kind) {
     case 'Scalar':
       return scalarToTs(ref.name)
     case 'Alias':
       return ref.name
     case 'Node':
-      return ref.name // interface name, not 'string'
+      return ref.name
     case 'Edge':
       return pascalCase(ref.name) + 'Payload'
     case 'ValueType':
@@ -152,9 +152,37 @@ export function resolveMethodTypeRef(model: GraphModel, ref: TypeRef): string {
     case 'AnyEdge':
       return 'unknown'
     case 'List':
-      return `${resolveMethodTypeRef(model, ref.element)}[]`
+      return `${resolveMethodReturnTypeRef(model, ref.element)}[]`
     case 'Union':
-      return ref.types.map((t) => resolveMethodTypeRef(model, t)).join(' | ')
+      return ref.types.map((t) => resolveMethodReturnTypeRef(model, t)).join(' | ')
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Resolve a TypeRef for method parameters.
+ * Node refs resolve to branded IDs (e.g. `UserId`),
+ * since callers pass node references by ID.
+ */
+export function resolveMethodParamTypeRef(model: GraphModel, ref: TypeRef): string {
+  switch (ref.kind) {
+    case 'Scalar':
+      return scalarToTs(ref.name)
+    case 'Alias':
+      return ref.name
+    case 'Node':
+      return `${ref.name}Id`
+    case 'Edge':
+      return pascalCase(ref.name) + 'Payload'
+    case 'ValueType':
+      return ref.name
+    case 'AnyEdge':
+      return 'unknown'
+    case 'List':
+      return `${resolveMethodParamTypeRef(model, ref.element)}[]`
+    case 'Union':
+      return ref.types.map((t) => resolveMethodParamTypeRef(model, t)).join(' | ')
     default:
       return 'unknown'
   }

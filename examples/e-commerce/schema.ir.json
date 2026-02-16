@@ -203,6 +203,7 @@
       "methods": [
         {
           "name": "displayName",
+          "access": "public",
           "params": [],
           "return_type": {
             "kind": "Scalar",
@@ -212,6 +213,7 @@
         },
         {
           "name": "recentOrders",
+          "access": "private",
           "params": [
             {
               "name": "limit",
@@ -372,6 +374,7 @@
       "methods": [
         {
           "name": "cancel",
+          "access": "private",
           "params": [],
           "return_type": {
             "kind": "Scalar",
@@ -502,6 +505,7 @@
       "methods": [
         {
           "name": "subtotal",
+          "access": "private",
           "params": [],
           "return_type": {
             "kind": "Scalar",

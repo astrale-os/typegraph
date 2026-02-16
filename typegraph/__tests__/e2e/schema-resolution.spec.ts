@@ -155,12 +155,12 @@ describe('edge endpoint resolution', () => {
 // =============================================================================
 
 describe('edge cardinality', () => {
-  it('wrote_review: review has min:1/max:1 → inbound one, outbound many', () => {
+  it('wrote_review: review has min:1/max:1 → outbound one, inbound many', () => {
     const card = edgeCardinality(schema, 'wrote_review')
-    // review endpoint has cardinality { min: 1, max: 1 } → inbound is 'one'
-    // customer endpoint has no cardinality → outbound is 'many'
-    expect(card.inbound).toBe('one')
-    expect(card.outbound).toBe('many')
+    // review (source) has cardinality { min: 1, max: 1 } → outbound is 'one'
+    // customer (target) has no cardinality → inbound is 'many'
+    expect(card.outbound).toBe('one')
+    expect(card.inbound).toBe('many')
   })
 
   it('placed_order: no cardinality constraints → both many', () => {
@@ -169,18 +169,18 @@ describe('edge cardinality', () => {
     expect(card.inbound).toBe('many')
   })
 
-  it('category_parent: child has min:0/max:1 → inbound optional', () => {
+  it('category_parent: child has min:0/max:1 → outbound optional', () => {
     const card = edgeCardinality(schema, 'category_parent')
-    // child endpoint has cardinality { min: 0, max: 1 } → inbound is 'optional'
-    // parent endpoint has no cardinality → outbound is 'many'
-    expect(card.inbound).toBe('optional')
-    expect(card.outbound).toBe('many')
+    // child (source) has cardinality { min: 0, max: 1 } → outbound is 'optional'
+    // parent (target) has no cardinality → inbound is 'many'
+    expect(card.outbound).toBe('optional')
+    expect(card.inbound).toBe('many')
   })
 
-  it('review_of: review has min:1/max:1 → inbound one, outbound many', () => {
+  it('review_of: review has min:1/max:1 → outbound one, inbound many', () => {
     const card = edgeCardinality(schema, 'review_of')
-    expect(card.inbound).toBe('one')
-    expect(card.outbound).toBe('many')
+    expect(card.outbound).toBe('one')
+    expect(card.inbound).toBe('many')
   })
 
   it('unknown edge → both many (default)', () => {

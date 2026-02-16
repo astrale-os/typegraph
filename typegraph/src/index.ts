@@ -306,6 +306,19 @@ export type { MethodDispatchFn, OperationSelf, MethodSchemaInfo } from './method
 export { collectMethodNames } from './methods'
 
 // =============================================================================
+// CORE INSTALLATION
+// =============================================================================
+
+export { installCore } from './core'
+export type {
+  CoreNodeDef,
+  CoreEdgeDef,
+  CoreDefinition,
+  InstallCoreOptions,
+  InstallCoreResult,
+} from './core'
+
+// =============================================================================
 // ENRICHMENT
 // =============================================================================
 

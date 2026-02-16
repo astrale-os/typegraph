@@ -152,7 +152,9 @@ describe('generate', () => {
     const ir = loadBlogIR()
     const { source } = generate([ir])
 
-    expect(source).toContain("export type SchemaNodeType = 'User' | 'Organization' | 'Post' | 'Comment' | 'Tag'")
+    expect(source).toContain(
+      "export type SchemaNodeType = 'User' | 'Organization' | 'Post' | 'Comment' | 'Tag'",
+    )
     // Abstract nodes should NOT appear in SchemaNodeType
     expect(source).not.toMatch(/SchemaNodeType\s*=.*'Timestamped'/)
     expect(source).not.toMatch(/SchemaNodeType\s*=.*'Publishable'/)
@@ -215,7 +217,9 @@ describe('generate', () => {
     // First overload: without children
     expect(source).toContain('export function node<T extends SchemaNodeType>(')
     // Second overload: with children (preserves literal keys)
-    expect(source).toContain('export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(')
+    expect(source).toContain(
+      'export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(',
+    )
   })
 
   it('emits edge() with conditional props', () => {
@@ -230,7 +234,9 @@ describe('generate', () => {
     const ir = loadBlogIR()
     const { source } = generate([ir])
 
-    expect(source).toContain('export function defineCore<const T extends CoreDefinition>(def: T): T {')
+    expect(source).toContain(
+      'export function defineCore<const T extends CoreDefinition>(def: T): T {',
+    )
   })
 
   it('emits Refs type with recursive key extraction', () => {
@@ -240,7 +246,7 @@ describe('generate', () => {
     expect(source).toContain('type FlattenCoreKeys<T extends Record<string, any>>')
     expect(source).toContain('export type ExtractCoreKeys<T extends CoreDefinition>')
     expect(source).toContain('export type Refs<T extends CoreDefinition = CoreDefinition>')
-    expect(source).toContain('Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>')
+    expect(source).toContain('Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>')
   })
 
   it('snapshot — full generated output', () => {

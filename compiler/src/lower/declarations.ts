@@ -168,6 +168,7 @@ function lowerMethod(ctx: LoweringContext, node: MethodNode): Method {
   return {
     kind: 'Method',
     name: lowerName(node.name),
+    access: node.privateKeyword ? 'private' : 'public',
     params: node.params.map((p) => lowerMethodParam(ctx, p)),
     returnType: lowerTypeExpr(node.returnType),
     returnList: node.listSuffix !== null,

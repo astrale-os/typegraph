@@ -11,7 +11,13 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "lib": ["ES2022"],
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@astrale-os/kernel-core": ["../../kernel/core/index.ts"],
+      "@astrale-os/kernel-api": ["../../kernel/api/index.ts"],
+      "@astrale-os/kernel-runtime": ["../../kernel/runtime/index.ts"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]

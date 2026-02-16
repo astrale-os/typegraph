@@ -22,6 +22,7 @@ function makeIR(overrides?: Partial<SchemaIR>): SchemaIR {
 const ageMethods: MethodDef[] = [
   {
     name: 'age',
+    access: 'public',
     params: [],
     return_type: { kind: 'Scalar', name: 'Int' },
     return_nullable: false,
@@ -31,18 +32,21 @@ const ageMethods: MethodDef[] = [
 const customerMethods: MethodDef[] = [
   {
     name: 'displayName',
+    access: 'public',
     params: [],
     return_type: { kind: 'Scalar', name: 'String' },
     return_nullable: false,
   },
   {
     name: 'canPurchase',
+    access: 'public',
     params: [{ name: 'product', type: { kind: 'Node', name: 'Product' }, default: null }],
     return_type: { kind: 'Scalar', name: 'Boolean' },
     return_nullable: false,
   },
   {
     name: 'recentOrders',
+    access: 'private',
     params: [
       {
         name: 'limit',
@@ -58,6 +62,7 @@ const customerMethods: MethodDef[] = [
 const orderMethods: MethodDef[] = [
   {
     name: 'cancel',
+    access: 'private',
     params: [],
     return_type: { kind: 'Scalar', name: 'Boolean' },
     return_nullable: false,
@@ -67,6 +72,7 @@ const orderMethods: MethodDef[] = [
 const edgeMethods: MethodDef[] = [
   {
     name: 'subtotal',
+    access: 'private',
     params: [],
     return_type: { kind: 'Scalar', name: 'Int' },
     return_nullable: false,
@@ -262,7 +268,7 @@ describe('method codegen', () => {
   it('generates correct param signatures', () => {
     const { source } = generate([ir])
     // canPurchase has required param
-    expect(source).toContain('canPurchase(args: { product: Product }): boolean | Promise<boolean>')
+    expect(source).toContain('canPurchase(args: { product: ProductId }): boolean | Promise<boolean>')
     // recentOrders has param with default → optional
     expect(source).toContain('recentOrders(args?: { limit?: number }): Order[] | Promise<Order[]>')
   })
@@ -307,16 +313,62 @@ describe('method codegen', () => {
     expect(source).toContain("subtotal: { params: {}, returns: 'Int' },")
   })
 
-  it('types with no methods get no *Methods interface', () => {
+  it('types with no own methods get no *Methods interface', () => {
     const { source } = generate([ir])
-    expect(source).not.toContain('ProductMethods')
-    expect(source).not.toContain('PlacedOrderMethods')
+    expect(source).not.toContain('interface ProductMethods')
+    expect(source).not.toContain('interface PlacedOrderMethods')
   })
 
   it('edges without methods not in MethodsConfig', () => {
     const { source } = generate([ir])
     // placed_order has no methods — should not appear in MethodsConfig
     expect(source).not.toMatch(/placed_order:.*ctx:/)
+  })
+
+  it('emits createMethodFactory and OperationSelf imports when methods exist', () => {
+    const { source } = generate([ir])
+    expect(source).toContain("import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runtime'")
+  })
+
+  it('emits defineMethods factory and per-type wrappers', () => {
+    const { source } = generate([ir])
+    expect(source).toContain(
+      'export const defineMethods = createMethodFactory<typeof schema, GeneratedTypeMap>()',
+    )
+    expect(source).toContain('export const defineCustomerMethods = defineMethods.withSelf<CustomerNode>()')
+    expect(source).toContain('export const defineOrderMethods = defineMethods.withSelf<OrderNode>()')
+    expect(source).toContain('export const defineOrderItemMethods = defineMethods.withSelf<OrderItemPayload & OperationSelf>()')
+  })
+
+  it('emits Method Factory section header', () => {
+    const { source } = generate([ir])
+    expect(source).toContain('Method Factory')
+  })
+
+  it('result schema for Node return type uses validators (not z.string())', () => {
+    const { source } = generate([ir])
+    expect(source).toContain('z.array(validators.Order)')
+    expect(source).not.toContain("recentOrders: op('Customer.recentOrders', 'private', z.object({ limit: z.number().int().default(10) }), z.array(z.string()))")
+  })
+
+  it('param schema for Node param type stays as z.string()', () => {
+    const { source } = generate([ir])
+    expect(source).toContain("canPurchase: op('Customer.canPurchase', 'public', z.object({ product: z.string() })")
+  })
+
+  it('scaffold uses per-type define functions', () => {
+    const { scaffold } = generate([ir])
+    expect(scaffold).not.toContain('@astrale-os/kernel-runtime')
+    expect(scaffold).toContain("from './schema.generated'")
+    expect(scaffold).toContain('defineCustomerMethods(CustomerOps, {')
+    expect(scaffold).toContain('defineOrderMethods(OrderOps, {')
+    expect(scaffold).toContain('defineOrderItemMethods(OrderItemOps, {')
+  })
+
+  it('scaffold imports per-type define functions and ops in single import', () => {
+    const { scaffold } = generate([ir])
+    expect(scaffold).toMatch(/^import \{ define.*Methods, .*Ops.* \} from '\.\/schema\.generated'/m)
+    expect(scaffold).not.toContain("from '@astrale-os/kernel-runtime'")
   })
 
   it('snapshot — methods codegen', () => {
@@ -350,6 +402,32 @@ describe('method codegen — edge cases', () => {
     expect(source).not.toContain('SimpleMethods')
   })
 
+  it('IR with no methods does not emit factory or createMethodFactory import', () => {
+    const ir = makeIR({
+      classes: [
+        {
+          type: 'node',
+          name: 'Simple',
+          abstract: false,
+          implements: [],
+          attributes: [
+            {
+              name: 'name',
+              type: { kind: 'Scalar', name: 'String' },
+              nullable: false,
+              default: null,
+              modifiers: {},
+            },
+          ],
+        } as any,
+      ],
+    })
+    const { source } = generate([ir])
+    expect(source).not.toContain('createMethodFactory')
+    expect(source).not.toContain('Method Factory')
+    expect(source).not.toContain('defineMethods')
+  })
+
   it('nullable return type', () => {
     const ir = makeIR({
       classes: [
@@ -362,6 +440,7 @@ describe('method codegen — edge cases', () => {
           methods: [
             {
               name: 'findParent',
+              access: 'public',
               params: [],
               return_type: { kind: 'Node', name: 'Foo' },
               return_nullable: true,
@@ -386,6 +465,7 @@ describe('method codegen — edge cases', () => {
           methods: [
             {
               name: 'x',
+              access: 'public',
               params: [],
               return_type: { kind: 'Scalar', name: 'Int' },
               return_nullable: false,
@@ -478,7 +558,7 @@ describe('method codegen — KRL integration', () => {
         fn canPurchase(product: Product): Boolean
       }
     `)
-    expect(source).toContain('canPurchase(args: { product: Product }): boolean | Promise<boolean>')
+    expect(source).toContain('canPurchase(args: { product: ProductId }): boolean | Promise<boolean>')
   })
 
   it('generates method with default params from KRL', () => {

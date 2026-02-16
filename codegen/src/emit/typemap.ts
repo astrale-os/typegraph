@@ -1,13 +1,8 @@
 import type { GraphModel } from '../model'
-import { pascalCase, section } from './utils'
+import { pascalCase } from './utils'
 
 /**
- * Emit TypeMap interface and typed createGraph wrapper.
- *
- * Produces:
- *  1. Node input types (*Input) — writable attributes (excludes readonly/computed)
- *  2. TypeMap interface — maps node/edge names to concrete TS types
- *  3. Typed createGraph() wrapper
+ * Emit TypeMap interface, node input types, and typed createGraph wrapper.
  *
  * Depends on: interfaces emitter (node interfaces, edge payloads),
  *             methods emitter (enriched *Node types).
@@ -20,29 +15,7 @@ export function emitTypemap(model: GraphModel): string {
 
   const lines: string[] = []
 
-  lines.push(section('Node Input Types'))
-  lines.push('')
-  lines.push(emitNodeInputTypes(model, concretes))
-
-  lines.push(section('TypeMap'))
-  lines.push('')
-  lines.push(emitTypeMapInterface(model, concretes, allEdges))
-
-  lines.push(section('Typed Graph Factory'))
-  lines.push('')
-  lines.push(emitCreateGraphWrapper())
-
-  return lines.join('\n')
-}
-
-// ─── Node Input Types ─────────────────────────────────────────
-
-function emitNodeInputTypes(
-  _model: GraphModel,
-  concretes: { name: string; allAttributes: { name: string; readonly?: boolean }[] }[],
-): string {
-  const lines: string[] = []
-
+  // Node input types (writable attributes, excluding readonly/computed)
   for (const node of concretes) {
     const readonlyFields = node.allAttributes
       .filter((a) => isReadonlyAttribute(a.name))
@@ -56,40 +29,17 @@ function emitNodeInputTypes(
       lines.push(`export type ${node.name}Input = ${node.name}`)
     }
   }
-
   lines.push('')
-  return lines.join('\n')
-}
 
-/**
- * Heuristic for readonly/computed fields.
- * These are excluded from mutation input types.
- */
-function isReadonlyAttribute(name: string): boolean {
-  return name === 'created_at' || name === 'updated_at'
-}
-
-// ─── TypeMap Interface ────────────────────────────────────────
-
-function emitTypeMapInterface(
-  _model: GraphModel,
-  concretes: { name: string }[],
-  allEdges: { name: string; ownAttributes: unknown[] }[],
-): string {
-  const lines: string[] = []
-
+  // TypeMap interface
   lines.push("import type { TypeMap } from '@astrale/typegraph'")
   lines.push('')
   lines.push('export interface GeneratedTypeMap extends TypeMap {')
-
-  // nodes
   lines.push('  nodes: {')
   for (const node of concretes) {
     lines.push(`    ${node.name}: ${node.name}Node`)
   }
   lines.push('  }')
-
-  // edges
   lines.push('  edges: {')
   for (const edge of allEdges) {
     const payloadType =
@@ -97,25 +47,15 @@ function emitTypeMapInterface(
     lines.push(`    ${edge.name}: ${payloadType}`)
   }
   lines.push('  }')
-
-  // nodeInputs
   lines.push('  nodeInputs: {')
   for (const node of concretes) {
     lines.push(`    ${node.name}: ${node.name}Input`)
   }
   lines.push('  }')
-
   lines.push('}')
   lines.push('')
 
-  return lines.join('\n')
-}
-
-// ─── Typed createGraph Wrapper ────────────────────────────────
-
-function emitCreateGraphWrapper(): string {
-  const lines: string[] = []
-
+  // Typed createGraph wrapper
   lines.push("import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'")
   lines.push('')
   lines.push("export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {")
@@ -127,4 +67,12 @@ function emitCreateGraphWrapper(): string {
   lines.push('')
 
   return lines.join('\n')
+}
+
+/**
+ * Heuristic for readonly/computed fields.
+ * These are excluded from mutation input types.
+ */
+function isReadonlyAttribute(name: string): boolean {
+  return name === 'created_at' || name === 'updated_at'
 }

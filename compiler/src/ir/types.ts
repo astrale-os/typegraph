@@ -125,6 +125,7 @@ export type ValueNode =
 
 export interface MethodDef {
   name: string
+  access: 'public' | 'private'
   params: MethodParam[]
   return_type: TypeRef
   return_nullable: boolean

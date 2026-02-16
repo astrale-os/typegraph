@@ -132,6 +132,55 @@ describe('Parser — Methods', () => {
     const cls = d as ClassDeclNode
     expect(cls.body!.methods[0].params).toHaveLength(0)
   })
+
+  it('parses a public method (default) with null privateKeyword', () => {
+    const [d] = decls(`class Foo { fn greet(): String }`)
+    const cls = d as ClassDeclNode
+    const m = cls.body!.methods[0]
+    expect(m.privateKeyword).toBeNull()
+  })
+
+  it('parses a private method', () => {
+    const [d] = decls(`class Foo { private fn secret(): String }`)
+    const cls = d as ClassDeclNode
+    const m = cls.body!.methods[0]
+    expect(m.privateKeyword).not.toBeNull()
+    expect(m.name.text).toBe('secret')
+  })
+
+  it('parses mixed public and private methods', () => {
+    const [d] = decls(`class Foo {
+      fn publicMethod(): String
+      private fn privateMethod(): Int
+      fn anotherPublic(): Boolean
+    }`)
+    const cls = d as ClassDeclNode
+    expect(cls.body!.methods).toHaveLength(3)
+    expect(cls.body!.methods[0].privateKeyword).toBeNull()
+    expect(cls.body!.methods[1].privateKeyword).not.toBeNull()
+    expect(cls.body!.methods[2].privateKeyword).toBeNull()
+  })
+
+  it('parses private method on interface', () => {
+    const [d] = decls(`interface Foo { private fn internal(): Int }`)
+    const iface = d as InterfaceDeclNode
+    expect(iface.body!.methods[0].privateKeyword).not.toBeNull()
+  })
+
+  it('parses private method on edge', () => {
+    const [d] = decls(`class membership(user: User, org: Org) { private fn promote(): Boolean }`)
+    const cls = d as ClassDeclNode
+    expect(cls.body!.methods[0].privateKeyword).not.toBeNull()
+    expect(cls.body!.methods[0].name.text).toBe('promote')
+  })
+
+  it('allows attribute named "private" (contextual keyword safety)', () => {
+    const [d] = decls(`class Foo { private: String }`)
+    const cls = d as ClassDeclNode
+    expect(cls.body!.attributes).toHaveLength(1)
+    expect(cls.body!.attributes[0].name.text).toBe('private')
+    expect(cls.body!.methods).toHaveLength(0)
+  })
 })
 
 // ─── Lowering Tests ─────────────────────────────────────────
@@ -195,6 +244,18 @@ describe('Lowering — Methods', () => {
     const edge = ast.declarations[0] as EdgeDecl
     expect(edge.methods).toHaveLength(1)
     expect(edge.methods[0].name.value).toBe('promote')
+  })
+
+  it('lowers public method with access = public', () => {
+    const ast = lowerSource(`class Foo { fn greet(): String }`)
+    const node = ast.declarations[0] as NodeDecl
+    expect(node.methods[0].access).toBe('public')
+  })
+
+  it('lowers private method with access = private', () => {
+    const ast = lowerSource(`class Foo { private fn secret(): String }`)
+    const node = ast.declarations[0] as NodeDecl
+    expect(node.methods[0].access).toBe('private')
   })
 })
 
@@ -364,6 +425,72 @@ describe('Validator — Methods', () => {
     `)
     expect(diagnostics.hasErrors()).toBe(false)
   })
+
+  it('allows narrowing access (public → private override)', () => {
+    const { diagnostics } = compile(`
+      interface Base {
+        fn doIt(): String
+      }
+      class Child: Base {
+        private fn doIt(): String
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+  })
+
+  it('rejects widening access (private → public override)', () => {
+    const { diagnostics } = compile(`
+      interface Base {
+        private fn doIt(): String
+      }
+      class Child: Base {
+        fn doIt(): String
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(true)
+    expect(diagnostics.getErrors().some((e) => e.code === 'V016')).toBe(true)
+  })
+
+  it('allows same access in override', () => {
+    const { diagnostics } = compile(`
+      interface Base {
+        private fn doIt(): String
+      }
+      class Child: Base {
+        private fn doIt(): String
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+  })
+
+  it('rejects diamond with conflicting access', () => {
+    const { diagnostics } = compile(`
+      interface A {
+        fn doIt(): String
+      }
+      interface B {
+        private fn doIt(): String
+      }
+      class C: A, B {}
+    `)
+    expect(diagnostics.hasErrors()).toBe(true)
+    expect(diagnostics.getErrors().some((e) => e.code === 'V012')).toBe(true)
+  })
+
+  it('reports both widening and return-type errors simultaneously', () => {
+    const { diagnostics } = compile(`
+      interface Base {
+        private fn doIt(): String
+      }
+      class Child: Base {
+        fn doIt(): Int
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(true)
+    const codes = diagnostics.getErrors().map((e) => e.code)
+    expect(codes).toContain('V011')
+    expect(codes).toContain('V016')
+  })
 })
 
 // ─── Full Pipeline / Serializer Tests ───────────────────────
@@ -524,5 +651,32 @@ describe('Full pipeline — Methods', () => {
     expect(m.params[1].type).toEqual({ kind: 'Alias', name: 'Currency' })
     expect(m.params[2].type).toEqual({ kind: 'Scalar', name: 'String' })
     expect(m.params[2].default).toEqual({ kind: 'StringLiteral', value: 'none' })
+  })
+
+  it('serializes method access to IR', () => {
+    const { ir, diagnostics } = compile(`
+      class Foo {
+        fn publicMethod(): String
+        private fn privateMethod(): Int
+      }
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+    const foo = findNode(ir!, 'Foo')
+    expect(findMethod(foo.methods, 'publicMethod').access).toBe('public')
+    expect(findMethod(foo.methods, 'privateMethod').access).toBe('private')
+  })
+
+  it('inherited method preserves original access', () => {
+    const { ir, diagnostics } = compile(`
+      interface Base {
+        fn publicFn(): String
+        private fn privateFn(): Int
+      }
+      class Child: Base {}
+    `)
+    expect(diagnostics.hasErrors()).toBe(false)
+    const base = findNode(ir!, 'Base')
+    expect(findMethod(base.methods, 'publicFn').access).toBe('public')
+    expect(findMethod(base.methods, 'privateFn').access).toBe('private')
   })
 })

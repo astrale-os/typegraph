@@ -45,7 +45,11 @@ describe('core DSL', () => {
   it('generates node() with overloads', () => {
     const { source } = compileAndGenerate(`class A {}`)
     expect(source).toMatch(/export function node<T extends SchemaNodeType>\(\s*type: T,/)
-    expect(source).toMatch(/export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>\(/)
+    expect(source).toMatch(
+      /export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>\(/,
+    )
+    expect(source).toContain('children: C,')
+    expect(source).not.toContain('options: { children: C }')
   })
 
   it('generates edge() with conditional props', () => {
@@ -58,7 +62,9 @@ describe('core DSL', () => {
 
   it('generates defineCore with const type parameter', () => {
     const { source } = compileAndGenerate(`class A {}`)
-    expect(source).toContain('export function defineCore<const T extends CoreDefinition>(def: T): T')
+    expect(source).toContain(
+      'export function defineCore<const T extends CoreDefinition>(def: T): T',
+    )
   })
 
   it('generates Refs type with recursive flattening', () => {

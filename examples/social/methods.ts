@@ -1,36 +1,33 @@
-// Method implementations for the social domain — defined as kernel operations.
+import { defineUserMethods, definePostMethods, UserOps, PostOps } from './schema.generated'
+import { READ } from '@astrale-os/kernel-core'
 
-import { method } from '@astrale-os/kernel'
-import { UserOps, PostOps } from './schema.generated'
-
-export const UserMethods = [
-  method.internal(UserOps.followerCount, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+export const UserMethods = defineUserMethods(UserOps, {
+  followerCount: {
+    authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
     execute: async ({ self, kernel, auth }) => {
       return kernel.graph.as(auth).node('User').byId(self.id).from('follows').count()
     },
-  }),
-
-  method.internal(UserOps.isFollowing, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+  },
+  isFollowing: {
+    authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
     execute: async ({ self, params, kernel, auth }) => {
       const edges = await kernel.graph
         .as(auth)
         .node('User')
         .byId(self.id)
         .to('follows')
-        .where('id', 'eq', params.other.id)
+        .where('id', 'eq', params.other)
         .count()
       return edges > 0
     },
-  }),
-]
+  },
+})
 
-export const PostMethods = [
-  method.internal(PostOps.likeCount, {
-    authorize: ({ self }) => ({ nodeIds: [self.id], perm: 'read' }),
+export const PostMethods = definePostMethods(PostOps, {
+  likeCount: {
+    authorize: ({ self }) => ({ nodeIds: [self.id], perm: READ }),
     execute: async ({ self, kernel, auth }) => {
       return kernel.graph.as(auth).node('Post').byId(self.id).from('liked').count()
     },
-  }),
-]
+  },
+})

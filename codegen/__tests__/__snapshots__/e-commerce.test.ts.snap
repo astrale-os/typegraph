@@ -13,6 +13,24 @@ export type Currency = (typeof CurrencyValues)[number]
 export const OrderStatusValues = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
 export type OrderStatus = (typeof OrderStatusValues)[number]
 
+// ─── Branded IDs ────────────────────────────────────────────
+
+type NodeBrand = { readonly __nodeId: true }
+
+export type NodeId = string & NodeBrand
+export type CustomerId = NodeId & { readonly __customerId: true }
+export type ProductId = NodeId & { readonly __productId: true }
+export type CategoryId = NodeId & { readonly __categoryId: true }
+export type OrderId = NodeId & { readonly __orderId: true }
+export type ReviewId = NodeId & { readonly __reviewId: true }
+
+export const NodeId = (id: string) => id as NodeId
+export const CustomerId = (id: string) => id as CustomerId
+export const ProductId = (id: string) => id as ProductId
+export const CategoryId = (id: string) => id as CategoryId
+export const OrderId = (id: string) => id as OrderId
+export const ReviewId = (id: string) => id as ReviewId
+
 // ─── Type Aliases ───────────────────────────────────────────
 export type SKU = string
 /** String with format: email */
@@ -85,27 +103,27 @@ export interface ReviewedPayload {
 // ─── Methods ────────────────────────────────────────────────
 
 export type CustomerNode = Customer & {
-  readonly id: string
+  readonly id: CustomerId
   readonly __type: 'Customer'
 }
 
 export type ProductNode = Product & {
-  readonly id: string
+  readonly id: ProductId
   readonly __type: 'Product'
 }
 
 export type CategoryNode = Category & {
-  readonly id: string
+  readonly id: CategoryId
   readonly __type: 'Category'
 }
 
 export type OrderNode = Order & {
-  readonly id: string
+  readonly id: OrderId
   readonly __type: 'Order'
 }
 
 export type ReviewNode = Review & {
-  readonly id: string
+  readonly id: ReviewId
   readonly __type: 'Review'
 }
 
@@ -119,15 +137,11 @@ export interface SchemaNodeTypeMap {
 
 // ─── TypeMap ────────────────────────────────────────────────
 
-// ─── Node Input Types ───────────────────────────────────────
-
 export type CustomerInput = Omit<Customer, 'created_at' | 'updated_at'>
 export type ProductInput = Omit<Product, 'created_at' | 'updated_at'>
 export type CategoryInput = Category
 export type OrderInput = Omit<Order, 'created_at' | 'updated_at'>
 export type ReviewInput = Omit<Review, 'created_at' | 'updated_at'>
-
-// ─── TypeMap ────────────────────────────────────────────────
 
 import type { TypeMap } from '@astrale/typegraph'
 
@@ -156,14 +170,10 @@ export interface GeneratedTypeMap extends TypeMap {
   }
 }
 
-// ─── Typed Graph Factory ────────────────────────────────────
-
 import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
 
-export type SchemaType = typeof schema
-
 export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
-  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {
+  return _createGraph<typeof schema, GeneratedTypeMap>(schema, {
     ...options,
     validation: { validators, ...options.validation },
   })
@@ -374,14 +384,14 @@ export function node<T extends SchemaNodeType>(
 export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(
   type: T,
   props: CoreNodeProps[T],
-  options: { children: C },
+  children: C,
 ): CoreNodeDef<T> & { readonly children: C }
 export function node(
   type: string,
   props: Record<string, unknown>,
-  options?: { children?: Record<string, CoreNodeDef> },
+  children?: Record<string, CoreNodeDef>,
 ): CoreNodeDef {
-  return { __type: type as SchemaNodeType, props, ...(options?.children ? { children: options.children } : {}) }
+  return { __type: type as SchemaNodeType, props, ...(children ? { children } : {}) }
 }
 
 export function edge<T extends SchemaEdgeType>(
@@ -402,5 +412,5 @@ type FlattenCoreKeys<T extends Record<string, any>> =
 export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>
 
 export type Refs<T extends CoreDefinition = CoreDefinition> =
-  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>"
+  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>"
 `;

@@ -37,7 +37,7 @@ class Customer: Identity, Timestamped {
   phone: String?,
 
   fn displayName(): String,
-  fn recentOrders(limit: Int = 10): Order[]
+  private fn recentOrders(limit: Int = 10): Order[]
 }
 
 class Product: Timestamped, HasSlug, Priceable {
@@ -57,7 +57,7 @@ class Order: Timestamped {
   totalCents: Int,
   notes: String?,
 
-  fn cancel(): Boolean
+  private fn cancel(): Boolean
 }
 
 class Review: Timestamped {
@@ -73,7 +73,7 @@ class orderItem(order: Order, product: Product) [] {
   quantity: Int = 1,
   unitPriceCents: Int,
 
-  fn subtotal(): Int
+  private fn subtotal(): Int
 }
 
 class inCategory(product: Product, category: Category) []

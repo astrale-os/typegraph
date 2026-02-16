@@ -16,10 +16,8 @@ export const core = defineCore({
       'Category',
       { name: 'Electronics', slug: 'electronics' },
       {
-        children: {
-          phones: node('Category', { name: 'Phones', slug: 'phones' }),
-          laptops: node('Category', { name: 'Laptops', slug: 'laptops' }),
-        },
+        phones: node('Category', { name: 'Phones', slug: 'phones' }),
+        laptops: node('Category', { name: 'Laptops', slug: 'laptops' }),
       },
     ),
 

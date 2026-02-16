@@ -16,6 +16,24 @@ export type OrgRole = (typeof OrgRoleValues)[number]
 export const PostStatusValues = ['draft', 'published', 'archived'] as const
 export type PostStatus = (typeof PostStatusValues)[number]
 
+// ─── Branded IDs ────────────────────────────────────────────
+
+type NodeBrand = { readonly __nodeId: true }
+
+export type NodeId = string & NodeBrand
+export type UserId = NodeId & { readonly __userId: true }
+export type OrganizationId = NodeId & { readonly __organizationId: true }
+export type PostId = NodeId & { readonly __postId: true }
+export type CommentId = NodeId & { readonly __commentId: true }
+export type TagId = NodeId & { readonly __tagId: true }
+
+export const NodeId = (id: string) => id as NodeId
+export const UserId = (id: string) => id as UserId
+export const OrganizationId = (id: string) => id as OrganizationId
+export const PostId = (id: string) => id as PostId
+export const CommentId = (id: string) => id as CommentId
+export const TagId = (id: string) => id as TagId
+
 // ─── Type Aliases ───────────────────────────────────────────
 /** String with format: email */
 export type Email = string
@@ -86,27 +104,27 @@ export interface FlaggedPayload {
 // ─── Methods ────────────────────────────────────────────────
 
 export type UserNode = User & {
-  readonly id: string
+  readonly id: UserId
   readonly __type: 'User'
 }
 
 export type OrganizationNode = Organization & {
-  readonly id: string
+  readonly id: OrganizationId
   readonly __type: 'Organization'
 }
 
 export type PostNode = Post & {
-  readonly id: string
+  readonly id: PostId
   readonly __type: 'Post'
 }
 
 export type CommentNode = Comment & {
-  readonly id: string
+  readonly id: CommentId
   readonly __type: 'Comment'
 }
 
 export type TagNode = Tag & {
-  readonly id: string
+  readonly id: TagId
   readonly __type: 'Tag'
 }
 
@@ -120,15 +138,11 @@ export interface SchemaNodeTypeMap {
 
 // ─── TypeMap ────────────────────────────────────────────────
 
-// ─── Node Input Types ───────────────────────────────────────
-
 export type UserInput = Omit<User, 'created_at' | 'updated_at'>
 export type OrganizationInput = Omit<Organization, 'created_at' | 'updated_at'>
 export type PostInput = Omit<Post, 'created_at' | 'updated_at'>
 export type CommentInput = Omit<Comment, 'created_at' | 'updated_at'>
 export type TagInput = Tag
-
-// ─── TypeMap ────────────────────────────────────────────────
 
 import type { TypeMap } from '@astrale/typegraph'
 
@@ -157,14 +171,10 @@ export interface GeneratedTypeMap extends TypeMap {
   }
 }
 
-// ─── Typed Graph Factory ────────────────────────────────────
-
 import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
 
-export type SchemaType = typeof schema
-
 export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
-  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {
+  return _createGraph<typeof schema, GeneratedTypeMap>(schema, {
     ...options,
     validation: { validators, ...options.validation },
   })
@@ -373,14 +383,14 @@ export function node<T extends SchemaNodeType>(
 export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(
   type: T,
   props: CoreNodeProps[T],
-  options: { children: C },
+  children: C,
 ): CoreNodeDef<T> & { readonly children: C }
 export function node(
   type: string,
   props: Record<string, unknown>,
-  options?: { children?: Record<string, CoreNodeDef> },
+  children?: Record<string, CoreNodeDef>,
 ): CoreNodeDef {
-  return { __type: type as SchemaNodeType, props, ...(options?.children ? { children: options.children } : {}) }
+  return { __type: type as SchemaNodeType, props, ...(children ? { children } : {}) }
 }
 
 export function edge<T extends SchemaEdgeType>(
@@ -401,5 +411,5 @@ type FlattenCoreKeys<T extends Record<string, any>> =
 export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>
 
 export type Refs<T extends CoreDefinition = CoreDefinition> =
-  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>"
+  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>"
 `;

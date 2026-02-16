@@ -191,6 +191,7 @@ export interface AttributeNode extends CstNode {
 // fn name(params): ReturnType[]?
 export interface MethodNode extends CstNode {
   kind: 'Method'
+  privateKeyword: Token | null
   fnKeyword: Token
   name: Token
   lparen: Token
