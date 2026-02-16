@@ -4,11 +4,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@astrale/typegraph": ["../../typegraph/src/index.ts"]
-    }
+    "rootDir": ".",
+    "outDir": "dist"
   },
   "include": ["src/**/*", "__tests__/**/*", "examples/**/*"],
   "exclude": ["node_modules", "dist"]
