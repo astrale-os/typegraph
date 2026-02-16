@@ -68,6 +68,52 @@ export interface SchemaNodeTypeMap {
   Document: DocumentNode
 }
 
+// ─── TypeMap ────────────────────────────────────────────────
+
+// ─── Node Input Types ───────────────────────────────────────
+
+export type UserInput = User
+export type TeamInput = Team
+export type SpaceInput = Space
+export type DocumentInput = Document
+
+// ─── TypeMap ────────────────────────────────────────────────
+
+import type { TypeMap } from '@astrale/typegraph'
+
+export interface GeneratedTypeMap extends TypeMap {
+  nodes: {
+    User: UserNode
+    Team: TeamNode
+    Space: SpaceNode
+    Document: DocumentNode
+  }
+  edges: {
+    memberOf: MemberOfPayload
+    owns: Record<string, never>
+    contains: Record<string, never>
+  }
+  nodeInputs: {
+    User: UserInput
+    Team: TeamInput
+    Space: SpaceInput
+    Document: DocumentInput
+  }
+}
+
+// ─── Typed Graph Factory ────────────────────────────────────
+
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+
+export type SchemaType = typeof schema
+
+export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
+  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {
+    ...options,
+    validation: { validators, ...options.validation },
+  })
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

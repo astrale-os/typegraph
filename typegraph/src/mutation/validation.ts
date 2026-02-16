@@ -26,16 +26,17 @@ export type ValidatorMap = Record<string, ZodLike>
 
 /**
  * Minimal Zod schema interface — avoids a hard dependency on the `zod` package.
- * Any object with `.parse()`, `.partial()`, and `.safeParse()` satisfies this.
+ * Any object with `.parse()` and `.safeParse()` satisfies this.
+ * `.partial()` is only available on object schemas (used for update validation).
  */
 export interface ZodLike {
   parse(data: unknown): unknown
   safeParse(data: unknown): { success: boolean; data?: unknown; error?: ZodErrorLike }
-  partial(): ZodLike
+  partial?(): ZodLike
 }
 
 interface ZodErrorLike {
-  issues: Array<{ path: (string | number)[]; message: string; code: string }>
+  issues: Array<{ path: PropertyKey[]; message: string; code: string }>
 }
 
 // =============================================================================
@@ -327,7 +328,7 @@ export class MutationValidator<S extends SchemaShape> {
     }
 
     let zodSchema = this.validators[key]!
-    if (partial) {
+    if (partial && zodSchema.partial) {
       zodSchema = zodSchema.partial()
     }
 
@@ -346,7 +347,7 @@ export class MutationValidator<S extends SchemaShape> {
     if (!this.validators || !(key in this.validators)) return
 
     let zodSchema = this.validators[key]!
-    if (partial) {
+    if (partial && zodSchema.partial) {
       zodSchema = zodSchema.partial()
     }
 

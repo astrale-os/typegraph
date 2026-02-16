@@ -1,0 +1,20 @@
+{
+  "name": "@astrale/typegraph-examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "playground": "tsx playground.ts",
+    "playground:ecommerce": "tsx playground.ts",
+    "generate": "tsx generate.ts --all"
+  },
+  "dependencies": {
+    "@astrale/typegraph": "workspace:*",
+    "@astrale/typegraph-adapter-falkordb": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.3"
+  }
+}

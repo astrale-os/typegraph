@@ -144,10 +144,11 @@ The final developer-facing code. Creates the graph, runs queries, shows what the
 import { createGraph } from './schema.generated'
 import { core } from './core'
 import { methods } from './methods'
-import { MemoryAdapter } from '@astrale/typegraph-adapter-memory'
+import { queryExecutor, mutationExecutor } from './adapter'
 
 const graph = createGraph(schema, {
-  adapter: new MemoryAdapter(),
+  queryExecutor,
+  mutationExecutor,
   core,
   methods,
 })

@@ -7,13 +7,7 @@ import { z } from 'zod'
 export const CurrencyValues = ['USD', 'EUR', 'GBP', 'JPY'] as const
 export type Currency = (typeof CurrencyValues)[number]
 
-export const OrderStatusValues = [
-  'pending',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-] as const
+export const OrderStatusValues = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
 export type OrderStatus = (typeof OrderStatusValues)[number]
 
 // ─── Type Aliases ───────────────────────────────────────────
@@ -133,6 +127,56 @@ export interface SchemaNodeTypeMap {
   Review: ReviewNode
 }
 
+// ─── TypeMap ────────────────────────────────────────────────
+
+// ─── Node Input Types ───────────────────────────────────────
+
+export type CustomerInput = Customer
+export type ProductInput = Product
+export type CategoryInput = Category
+export type OrderInput = Order
+export type ReviewInput = Review
+
+// ─── TypeMap ────────────────────────────────────────────────
+
+import type { TypeMap } from '@astrale/typegraph'
+
+export interface GeneratedTypeMap extends TypeMap {
+  nodes: {
+    Customer: CustomerNode
+    Product: ProductNode
+    Category: CategoryNode
+    Order: OrderNode
+    Review: ReviewNode
+  }
+  edges: {
+    placedOrder: Record<string, never>
+    orderItem: OrderItemPayload
+    inCategory: Record<string, never>
+    parentCategory: Record<string, never>
+    reviewed: ReviewedPayload
+    wishlisted: Record<string, never>
+  }
+  nodeInputs: {
+    Customer: CustomerInput
+    Product: ProductInput
+    Category: CategoryInput
+    Order: OrderInput
+    Review: ReviewInput
+  }
+}
+
+// ─── Typed Graph Factory ────────────────────────────────────
+
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+
+export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
+  return _createGraph<typeof schema, GeneratedTypeMap>(schema, {
+    ...options,
+    validation: { validators, ...options.validation },
+  })
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {
@@ -195,7 +239,7 @@ export const validators = {
 export const schema = {
   scalars: ['String', 'Int', 'Float', 'Boolean', 'Timestamp', 'Bitmask', 'ByteString'],
 
-  nodeDefs: {
+  nodes: {
     Timestamped: {
       abstract: true,
       attributes: ['createdAt', 'updatedAt'],
@@ -216,18 +260,7 @@ export const schema = {
     Product: {
       abstract: false,
       implements: ['Timestamped', 'HasSlug', 'Priceable'],
-      attributes: [
-        'createdAt',
-        'updatedAt',
-        'slug',
-        'priceCents',
-        'currency',
-        'title',
-        'description',
-        'sku',
-        'inStock',
-        'imageUrl',
-      ],
+      attributes: ['createdAt', 'updatedAt', 'slug', 'priceCents', 'currency', 'title', 'description', 'sku', 'inStock', 'imageUrl'],
     },
     Category: {
       abstract: false,
@@ -248,7 +281,8 @@ export const schema = {
       abstract: true,
     },
   },
-  edgeDefs: {
+
+  edges: {
     placedOrder: {
       endpoints: {
         customer: { types: ['Customer'] },
@@ -310,13 +344,7 @@ export const schema = {
 // ─── Schema Types ───────────────────────────────────────────
 
 export type SchemaNodeType = 'Customer' | 'Product' | 'Category' | 'Order' | 'Review'
-export type SchemaEdgeType =
-  | 'placedOrder'
-  | 'orderItem'
-  | 'inCategory'
-  | 'parentCategory'
-  | 'reviewed'
-  | 'wishlisted'
+export type SchemaEdgeType = 'placedOrder' | 'orderItem' | 'inCategory' | 'parentCategory' | 'reviewed' | 'wishlisted'
 export type SchemaType = SchemaNodeType | SchemaEdgeType
 
 // ─── Core ───────────────────────────────────────────────────
@@ -360,7 +388,10 @@ export interface CoreDefinition {
   edges?: CoreEdgeDef[]
 }
 
-export function node<T extends SchemaNodeType>(type: T, props: CoreNodeProps[T]): CoreNodeDef<T>
+export function node<T extends SchemaNodeType>(
+  type: T,
+  props: CoreNodeProps[T],
+): CoreNodeDef<T>
 export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(
   type: T,
   props: CoreNodeProps[T],
@@ -371,11 +402,7 @@ export function node(
   props: Record<string, unknown>,
   options?: { children?: Record<string, CoreNodeDef> },
 ): CoreNodeDef {
-  return {
-    __type: type as SchemaNodeType,
-    props,
-    ...(options?.children ? { children: options.children } : {}),
-  }
+  return { __type: type as SchemaNodeType, props, ...(options?.children ? { children: options.children } : {}) }
 }
 
 export function edge<T extends SchemaEdgeType>(
@@ -390,17 +417,10 @@ export function defineCore<const T extends CoreDefinition>(def: T): T {
   return def
 }
 
-type FlattenCoreKeys<T extends Record<string, any>> = {
-  [K in keyof T & string]:
-    | K
-    | (T[K] extends { readonly children: infer C extends Record<string, any> }
-        ? FlattenCoreKeys<C>
-        : never)
-}[keyof T & string]
+type FlattenCoreKeys<T extends Record<string, any>> =
+  { [K in keyof T & string]: K | (T[K] extends { readonly children: infer C extends Record<string, any> } ? FlattenCoreKeys<C> : never) }[keyof T & string]
 
 export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>
 
-export type Refs<T extends CoreDefinition = CoreDefinition> = Record<
-  SchemaType | Extract<ExtractCoreKeys<T>, string>,
-  string
->
+export type Refs<T extends CoreDefinition = CoreDefinition> =
+  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>

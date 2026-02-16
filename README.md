@@ -10,7 +10,6 @@ Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB).
 | Package                                                  | Description                              |
 | -------------------------------------------------------- | ---------------------------------------- |
 | [`@astrale/typegraph`](./typegraph)             | Core query builder and mutation DSL      |
-| [`@astrale/typegraph-adapter-memory`](./memory) | In-memory adapter (testing, prototyping) |
 
 ## Installation
 
@@ -333,34 +332,6 @@ await graph.mutate.transaction(async (tx) => {
   const post = await tx.create('post', { title: 'Hello', ... })
   await tx.link('authored', user.id, post.id)
 })
-```
-
-## In-Memory Adapter
-
-Zero-infrastructure graph database for testing and prototyping:
-
-```bash
-# Deno
-deno add jsr:@astrale/typegraph-adapter-memory
-
-# npm (via JSR)
-npx jsr add @astrale/typegraph-adapter-memory
-```
-
-```typescript
-import { createInMemoryGraph } from '@astrale/typegraph-adapter-memory'
-
-const graph = createInMemoryGraph(schema)
-
-// Same API as production
-const user = await graph.mutate.create('user', { name: 'Test', ... })
-const users = await graph.node('user').execute()
-
-// In-memory specific features
-graph.clear()                    // Clear all data
-const data = graph.export()      // Export for serialization
-graph.import(data)               // Import from serialization
-const stats = graph.stats()      // Get statistics
 ```
 
 ## Type Safety
