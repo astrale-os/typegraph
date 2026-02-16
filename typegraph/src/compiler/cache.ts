@@ -5,7 +5,7 @@
  * Uses WeakMap for automatic garbage collection when schemas are no longer referenced.
  */
 
-import type { AnySchema } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
 import { CypherCompiler } from './cypher'
 import type { CompilerOptions } from './types'
 
@@ -13,7 +13,7 @@ import type { CompilerOptions } from './types'
  * Cache for compiler instances, keyed by schema reference.
  * WeakMap ensures compilers are GC'd when their schema is no longer used.
  */
-const compilerCache = new WeakMap<AnySchema, CypherCompiler>()
+const compilerCache = new WeakMap<SchemaShape, CypherCompiler>()
 
 /**
  * Get or create a cached CypherCompiler for the given schema.
@@ -25,7 +25,7 @@ const compilerCache = new WeakMap<AnySchema, CypherCompiler>()
  * @param options - Compiler options (only used on first creation)
  * @returns Cached or newly created compiler instance
  */
-export function getCompiler(schema: AnySchema, options?: CompilerOptions): CypherCompiler {
+export function getCompiler(schema: SchemaShape, options?: CompilerOptions): CypherCompiler {
   let compiler = compilerCache.get(schema)
   if (!compiler) {
     compiler = new CypherCompiler(schema, options)

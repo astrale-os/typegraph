@@ -14,4 +14,4 @@ export {
   transformMultiAliasResults,
 } from './neo4j'
 
-export { isDateSchema, deserializeDateFields } from './dates'
+export { deserializeDateFields } from './dates'

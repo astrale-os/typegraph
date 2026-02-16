@@ -5,8 +5,9 @@
  * Catches invalid node labels, edge types, and property names before execution.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
-import { getNodesSatisfying } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, EdgeTypes } from '../inference'
+import { getNodesSatisfying, edgeFrom, edgeTo } from '../helpers'
 
 // =============================================================================
 // VALIDATION ERRORS
@@ -37,7 +38,7 @@ export type QueryValidationErrorCode =
 /**
  * Validates queries against a schema definition.
  */
-export class SchemaValidator<S extends AnySchema> {
+export class SchemaValidator<S extends SchemaShape> {
   constructor(private readonly schema: S) {}
 
   /**
@@ -77,18 +78,13 @@ export class SchemaValidator<S extends AnySchema> {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) return
 
-    // properties is a ZodObject - access its shape to get property keys
-    const zodSchema = nodeDef.properties
-    if (zodSchema && 'shape' in zodSchema) {
-      const shape = (zodSchema as { shape: Record<string, unknown> }).shape
-      if (!(property in shape) && property !== 'id') {
-        const validProps = Object.keys(shape)
-        throw new QueryValidationError(
-          `Invalid property "${property}" on node "${label as string}". Valid properties are: id, ${validProps.join(', ')}`,
-          'INVALID_PROPERTY',
-          { label, property, validProperties: ['id', ...validProps] },
-        )
-      }
+    const attrs = nodeDef.attributes
+    if (attrs && !attrs.includes(property) && property !== 'id') {
+      throw new QueryValidationError(
+        `Invalid property "${property}" on node "${label as string}". Valid properties are: id, ${attrs.join(', ')}`,
+        'INVALID_PROPERTY',
+        { label, property, validProperties: ['id', ...attrs] },
+      )
     }
   }
 
@@ -101,18 +97,13 @@ export class SchemaValidator<S extends AnySchema> {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) return
 
-    // properties is a ZodObject - access its shape to get property keys
-    const zodSchema = edgeDef.properties
-    if (zodSchema && 'shape' in zodSchema) {
-      const shape = (zodSchema as { shape: Record<string, unknown> }).shape
-      if (!(property in shape) && property !== 'id') {
-        const validProps = Object.keys(shape)
-        throw new QueryValidationError(
-          `Invalid property "${property}" on edge "${edgeType as string}". Valid properties are: id, ${validProps.join(', ')}`,
-          'INVALID_PROPERTY',
-          { edgeType, property, validProperties: ['id', ...validProps] },
-        )
-      }
+    const attrs = edgeDef.attributes
+    if (attrs && !attrs.includes(property) && property !== 'id') {
+      throw new QueryValidationError(
+        `Invalid property "${property}" on edge "${edgeType as string}". Valid properties are: id, ${attrs.join(', ')}`,
+        'INVALID_PROPERTY',
+        { edgeType, property, validProperties: ['id', ...attrs] },
+      )
     }
   }
 
@@ -134,20 +125,20 @@ export class SchemaValidator<S extends AnySchema> {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) return
 
-    // Normalize from/to to arrays for polymorphic edge support
-    const edgeFrom = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
-    const edgeTo = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
+    // Use helpers to get endpoint types from the new schema shape
+    const fromTypes = edgeFrom(this.schema, edgeType as string)
+    const toTypes = edgeTo(this.schema, edgeType as string)
 
     // Build expanded sets including nodes that satisfy edge endpoints
     const expandedFrom = new Set<string>()
-    for (const label of edgeFrom) {
+    for (const label of fromTypes) {
       for (const satisfying of getNodesSatisfying(this.schema, label)) {
         expandedFrom.add(satisfying)
       }
     }
 
     const expandedTo = new Set<string>()
-    for (const label of edgeTo) {
+    for (const label of toTypes) {
       for (const satisfying of getNodesSatisfying(this.schema, label)) {
         expandedTo.add(satisfying)
       }
@@ -159,14 +150,14 @@ export class SchemaValidator<S extends AnySchema> {
     if (!isValidOutbound && !isValidInbound) {
       throw new QueryValidationError(
         `Invalid traversal: cannot traverse "${edgeType as string}" ${direction === 'out' ? 'outbound' : direction === 'in' ? 'inbound' : 'in any direction'} from "${fromLabel as string}". ` +
-          `Edge "${edgeType as string}" connects ${edgeFrom.join('|')} -> ${edgeTo.join('|')}`,
+          `Edge "${edgeType as string}" connects ${fromTypes.join('|')} -> ${toTypes.join('|')}`,
         'INVALID_TRAVERSAL',
         {
           fromLabel,
           edgeType,
           direction,
-          edgeFrom,
-          edgeTo,
+          edgeFrom: fromTypes,
+          edgeTo: toTypes,
         },
       )
     }
@@ -208,12 +199,8 @@ export class SchemaValidator<S extends AnySchema> {
    */
   getNodeProperties<N extends NodeLabels<S>>(label: N): string[] {
     const nodeDef = this.schema.nodes[label as string]
-    if (!nodeDef?.properties) return ['id']
-    const zodSchema = nodeDef.properties
-    if (zodSchema && 'shape' in zodSchema) {
-      return ['id', ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
-    }
-    return ['id']
+    if (!nodeDef?.attributes) return ['id']
+    return ['id', ...nodeDef.attributes]
   }
 
   /**
@@ -221,12 +208,8 @@ export class SchemaValidator<S extends AnySchema> {
    */
   getEdgeProperties<E extends EdgeTypes<S>>(edgeType: E): string[] {
     const edgeDef = this.schema.edges[edgeType as string]
-    if (!edgeDef?.properties) return ['id']
-    const zodSchema = edgeDef.properties
-    if (zodSchema && 'shape' in zodSchema) {
-      return ['id', ...Object.keys((zodSchema as { shape: Record<string, unknown> }).shape)]
-    }
-    return ['id']
+    if (!edgeDef?.attributes) return ['id']
+    return ['id', ...edgeDef.attributes]
   }
 }
 
@@ -237,6 +220,6 @@ export class SchemaValidator<S extends AnySchema> {
 /**
  * Create a schema validator.
  */
-export function createValidator<S extends AnySchema>(schema: S): SchemaValidator<S> {
+export function createValidator<S extends SchemaShape>(schema: S): SchemaValidator<S> {
   return new SchemaValidator(schema)
 }

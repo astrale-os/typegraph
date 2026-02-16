@@ -117,6 +117,55 @@ export interface SchemaNodeTypeMap {
   Review: ReviewNode
 }
 
+// ─── TypeMap ────────────────────────────────────────────────
+
+// ─── Node Input Types ───────────────────────────────────────
+
+export type CustomerInput = Omit<Customer, 'created_at' | 'updated_at'>
+export type ProductInput = Omit<Product, 'created_at' | 'updated_at'>
+export type CategoryInput = Category
+export type OrderInput = Omit<Order, 'created_at' | 'updated_at'>
+export type ReviewInput = Omit<Review, 'created_at' | 'updated_at'>
+
+// ─── TypeMap ────────────────────────────────────────────────
+
+import type { TypeMap } from '@astrale/typegraph'
+
+export interface GeneratedTypeMap extends TypeMap {
+  nodes: {
+    Customer: CustomerNode
+    Product: ProductNode
+    Category: CategoryNode
+    Order: OrderNode
+    Review: ReviewNode
+  }
+  edges: {
+    placed_order: Record<string, never>
+    order_item: OrderItemPayload
+    in_category: Record<string, never>
+    parent_category: Record<string, never>
+    reviewed: ReviewedPayload
+    wishlisted: Record<string, never>
+  }
+  nodeInputs: {
+    Customer: CustomerInput
+    Product: ProductInput
+    Category: CategoryInput
+    Order: OrderInput
+    Review: ReviewInput
+  }
+}
+
+// ─── Typed Graph Factory ────────────────────────────────────
+
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+
+export type SchemaType = typeof schema
+
+export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
+  return _createGraph<SchemaType, GeneratedTypeMap>(schema, options)
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

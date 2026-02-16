@@ -5,19 +5,20 @@
  * Created by CollectionBuilder.groupBy().
  */
 
-import type { QueryAST, ComparisonOperator } from '@astrale/typegraph-core'
+import type { QueryAST, ComparisonOperator } from '../ast'
 import type { CompiledQuery } from '../compiler'
 import { getCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, NodeProps } from '../inference'
 import type { QueryExecutor } from './types'
-import { ExecutionError } from '@astrale/typegraph-core'
+import { ExecutionError } from '../errors'
 import { convertNeo4jValue } from '../utils'
 
 /**
  * Infer the result type of a grouped aggregation.
  */
 export type GroupedResult<
-  S extends AnySchema,
+  S extends SchemaShape,
   N extends NodeLabels<S>,
   GroupKeys extends keyof NodeProps<S, N>,
   Aggregations extends Record<string, unknown>,
@@ -31,7 +32,7 @@ export type GroupedResult<
  * @template K - Fields being grouped by
  */
 export class GroupedBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   N extends NodeLabels<S>,
   K extends keyof NodeProps<S, N> & string,
 > {

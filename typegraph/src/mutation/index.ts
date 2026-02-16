@@ -2,7 +2,7 @@
  * Mutation Module
  *
  * Type-safe mutation API for graph operations.
- * Supports pluggable template providers for different query languages.
+ * Uses a MutationOp AST with compilation pipeline for pass-based transformations.
  */
 
 // Types
@@ -29,22 +29,64 @@ export type {
 
 export { defaultIdGenerator } from './types'
 
-// Template Provider Interface
+// AST
 export type {
-  MutationTemplateProvider,
-  NodeTemplateProvider,
-  EdgeTemplateProvider,
-  HierarchyTemplateProvider,
-  BatchTemplateProvider,
-  TemplateUtils,
-} from './template-provider'
+  MutationOp,
+  InlineLink,
+  ReifiedAnnotation,
+  CreateNodeOp,
+  UpdateNodeOp,
+  DeleteNodeOp,
+  UpsertNodeOp,
+  CloneNodeOp,
+  CreateEdgeOp,
+  UpdateEdgeOp,
+  UpdateEdgeByIdOp,
+  DeleteEdgeOp,
+  DeleteEdgeByIdOp,
+  MoveNodeOp,
+  DeleteSubtreeOp,
+  BatchCreateOp,
+  BatchUpdateOp,
+  BatchDeleteOp,
+  BatchLinkOp,
+  BatchUnlinkOp,
+  UnlinkAllFromOp,
+  UnlinkAllToOp,
+} from './ast'
+
+export {
+  createNode,
+  updateNode,
+  deleteNode,
+  upsertNode,
+  cloneNode,
+  createEdge,
+  updateEdge,
+  updateEdgeById,
+  deleteEdge,
+  deleteEdgeById,
+  moveNode,
+  deleteSubtree,
+  batchCreate,
+  batchUpdate,
+  batchDelete,
+  batchLink,
+  batchUnlink,
+  unlinkAllFrom,
+  unlinkAllTo,
+  MutationCompilationPipeline,
+} from './ast'
+
+export type { MutationCompilationPass } from './ast'
+
+// Cypher Compiler
+export { MutationCypherCompiler } from './cypher'
+export type { CompiledMutation } from './cypher'
 
 // Implementation
 export { GraphMutationsImpl } from './impl'
 export type { MutationExecutor, TransactionRunner, MutationConfig } from './impl'
-
-// Cypher Templates (default)
-export { CypherTemplates } from './cypher'
 
 // Validation
 export { MutationValidator, defaultValidationOptions } from './validation'

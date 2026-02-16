@@ -9,10 +9,11 @@ import type { CompiledQuery } from '../compiler'
 import type { ReturnSpec } from './proxy'
 import { transformReturnResult } from './proxy'
 import type { ReturningBuilder, CollectSpec } from './returning'
-import type { AnySchema, AliasMap, EdgeAliasMap, TypedReturnQuery } from '@astrale/typegraph-core'
-import { ExecutionError } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { AliasMap, EdgeAliasMap, TypedReturnQuery } from '../inference'
+import { ExecutionError } from '../errors'
 import type { QueryExecutor } from './types'
-import { deserializeDateFields, isDateSchema } from '../utils'
+import { deserializeDateFields } from '../utils'
 
 /**
  * A query builder with a typed execute() method.
@@ -35,13 +36,23 @@ import { deserializeDateFields, isDateSchema } from '../utils'
  * ```
  */
 export class TypedReturningBuilder<T> implements TypedReturnQuery<T> {
-  private readonly _innerBuilder: ReturningBuilder<AnySchema, AliasMap<AnySchema>, EdgeAliasMap<AnySchema>, CollectSpec>
+  private readonly _innerBuilder: ReturningBuilder<
+    SchemaShape,
+    AliasMap<SchemaShape>,
+    EdgeAliasMap<SchemaShape>,
+    CollectSpec
+  >
   private readonly _returnSpec: ReturnSpec
   private readonly _returnResult: Record<string, unknown>
   private readonly _executor: QueryExecutor | null
 
   constructor(
-    innerBuilder: ReturningBuilder<AnySchema, AliasMap<AnySchema>, EdgeAliasMap<AnySchema>, CollectSpec>,
+    innerBuilder: ReturningBuilder<
+      SchemaShape,
+      AliasMap<SchemaShape>,
+      EdgeAliasMap<SchemaShape>,
+      CollectSpec
+    >,
     returnSpec: ReturnSpec,
     returnResult: Record<string, unknown>,
     executor: QueryExecutor | null,
@@ -81,28 +92,21 @@ export class TypedReturningBuilder<T> implements TypedReturnQuery<T> {
         const label = aliases[field.alias]
         if (label && typeof result[outputKey] === 'object' && result[outputKey] !== null) {
           result[outputKey] = deserializeDateFields(
-            schema, label as string, result[outputKey] as Record<string, unknown>,
+            schema,
+            label as string,
+            result[outputKey] as Record<string, unknown>,
           )
         }
       }
 
-      // Deserialize individual property accesses (e.g., q.u.createdAt)
-      for (const [outputKey, field] of this._returnSpec.propertyFields) {
-        const label = aliases[field.alias]
-        if (label && typeof result[outputKey] === 'string') {
-          const nodeDef = (schema as AnySchema).nodes[label as string]
-          if (nodeDef && isDateSchema(nodeDef.properties.shape[field.property])) {
-            result[outputKey] = new Date(result[outputKey] as string)
-          }
-        }
-      }
+      // Per-property date deserialization deferred to codegen validators
 
       // Deserialize collected arrays of nodes
       for (const [outputKey, field] of this._returnSpec.collectFields) {
         const label = aliases[field.alias]
         if (label && Array.isArray(result[outputKey])) {
-          result[outputKey] = (result[outputKey] as Record<string, unknown>[]).map(
-            (item) => deserializeDateFields(schema, label as string, item),
+          result[outputKey] = (result[outputKey] as Record<string, unknown>[]).map((item) =>
+            deserializeDateFields(schema, label as string, item),
           )
         }
       }

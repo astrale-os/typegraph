@@ -6,19 +6,20 @@
  * @internal
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
 import type { CompiledQuery } from '../compiler'
 import { getCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, NodeProps } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, NodeProps } from '../inference'
 import type {
   AliasMap,
   AliasMapToReturnType,
   EdgeAliasMap,
   EdgeAliasMapToReturnType,
-} from '@astrale/typegraph-core'
+} from '../inference'
 import type { QueryExecutor } from './types'
 import { transformMultiAliasResults } from '../utils'
-import { ExecutionError } from '@astrale/typegraph-core'
+import { ExecutionError } from '../errors'
 
 /**
  * Type for collect specifications.
@@ -31,7 +32,7 @@ export type CollectSpec = Record<string, { collect: string; distinct?: boolean }
  * Each collected alias becomes an array of the source node type.
  */
 export type CollectSpecToReturnType<
-  S extends AnySchema,
+  S extends SchemaShape,
   Aliases extends AliasMap<S>,
   C extends CollectSpec,
 > = {
@@ -68,7 +69,7 @@ export type CollectSpecToReturnType<
  * ```
  */
 export class ReturningBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   Aliases extends AliasMap<S>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
   CollectAliases extends CollectSpec = Record<string, never>,

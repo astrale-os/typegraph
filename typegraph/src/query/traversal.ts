@@ -5,8 +5,9 @@
  * Used by all node builders to avoid duplicating traversal logic.
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
-import type { AnySchema } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
+import type { SchemaShape } from '../schema'
+import { edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 import { buildEdgeWhere } from './traits'
 
 // =============================================================================
@@ -37,13 +38,12 @@ export interface TraversalBuildOptions {
  */
 export function buildOutTraversal(
   ast: QueryAST,
-  schema: AnySchema,
+  schema: SchemaShape,
   edge: string,
   options?: TraversalBuildOptions,
 ): TraversalResult {
-  const edgeDef = schema.edges[edge]
-  const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
-  const cardinality = options?.optional ? 'optional' : edgeDef.cardinality.outbound
+  const toLabels = edgeTo(schema, edge)
+  const cardinality = options?.optional ? 'optional' : edgeCardinality(schema, edge).outbound
 
   const newAst = ast.addTraversal({
     edges: [edge],
@@ -66,13 +66,12 @@ export function buildOutTraversal(
  */
 export function buildInTraversal(
   ast: QueryAST,
-  schema: AnySchema,
+  schema: SchemaShape,
   edge: string,
   options?: TraversalBuildOptions,
 ): TraversalResult {
-  const edgeDef = schema.edges[edge]
-  const fromLabels = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
-  const cardinality = options?.optional ? 'optional' : edgeDef.cardinality.inbound
+  const fromLabels = edgeFrom(schema, edge)
+  const cardinality = options?.optional ? 'optional' : edgeCardinality(schema, edge).inbound
 
   const newAst = ast.addTraversal({
     edges: [edge],
@@ -96,13 +95,12 @@ export function buildInTraversal(
  */
 export function buildBiTraversal(
   ast: QueryAST,
-  schema: AnySchema,
+  schema: SchemaShape,
   edge: string,
   options?: { where?: Record<string, unknown> },
 ): TraversalResult {
-  const edgeDef = schema.edges[edge]
-  const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
-  const fromLabels = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
+  const toLabels = edgeTo(schema, edge)
+  const fromLabels = edgeFrom(schema, edge)
   const allLabels = [...new Set([...toLabels, ...fromLabels])]
 
   const newAst = ast.addTraversal({
@@ -127,7 +125,7 @@ export function buildBiTraversal(
  */
 export function buildMultiEdgeTraversal(
   ast: QueryAST,
-  schema: AnySchema,
+  schema: SchemaShape,
   edges: string[],
   direction: 'out' | 'in' | 'both',
   options?: { where?: Record<string, unknown> },
@@ -135,14 +133,11 @@ export function buildMultiEdgeTraversal(
   const allLabels: string[] = []
 
   for (const edge of edges) {
-    const edgeDef = schema.edges[edge]
     if (direction === 'out' || direction === 'both') {
-      const toLabels = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
-      allLabels.push(...toLabels)
+      allLabels.push(...edgeTo(schema, edge))
     }
     if (direction === 'in' || direction === 'both') {
-      const fromLabels = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
-      allLabels.push(...fromLabels)
+      allLabels.push(...edgeFrom(schema, edge))
     }
   }
 

@@ -4,18 +4,9 @@
  * Type definitions and utilities shared across builder types.
  */
 
-import type {
-  ComparisonOperator,
-  WhereCondition,
-  EdgeWhereCondition,
-} from '@astrale/typegraph-core'
-import type {
-  AnySchema,
-  NodeLabels,
-  NodeProps,
-  EdgeTypes,
-  EdgeProps,
-} from '@astrale/typegraph-core'
+import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '../ast'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
 
 // =============================================================================
 // EDGE FILTER OPTIONS
@@ -24,7 +15,7 @@ import type {
 /**
  * Options for filtering on edge properties during traversal.
  */
-export interface EdgeFilterOptions<S extends AnySchema, E extends EdgeTypes<S>> {
+export interface EdgeFilterOptions<S extends SchemaShape, E extends EdgeTypes<S>> {
   where?: {
     [K in keyof EdgeProps<S, E>]?: EdgePropertyCondition<EdgeProps<S, E>[K]>
   }
@@ -53,7 +44,7 @@ export type EdgePropertyCondition<T> =
  * Options for edge traversal.
  */
 export interface TraversalOptions<
-  S extends AnySchema,
+  S extends SchemaShape,
   E extends EdgeTypes<S>,
 > extends EdgeFilterOptions<S, E> {
   /** Minimum number of hops (default: 1) */
@@ -113,7 +104,7 @@ export interface ReachableOptions {
 /**
  * Fluent where condition builder.
  */
-export interface WhereBuilder<S extends AnySchema, N extends NodeLabels<S>> {
+export interface WhereBuilder<S extends SchemaShape, N extends NodeLabels<S>> {
   eq<K extends keyof NodeProps<S, N> & string>(field: K, value: NodeProps<S, N>[K]): WhereCondition
   neq<K extends keyof NodeProps<S, N> & string>(field: K, value: NodeProps<S, N>[K]): WhereCondition
   gt<K extends keyof NodeProps<S, N> & string>(field: K, value: NodeProps<S, N>[K]): WhereCondition
@@ -142,11 +133,11 @@ export interface WhereBuilder<S extends AnySchema, N extends NodeLabels<S>> {
  * Create a WhereBuilder instance for building query conditions.
  * Shared implementation used by all node builders.
  */
-export function createWhereBuilder<S extends AnySchema, N extends NodeLabels<S>>(
+export function createWhereBuilder<S extends SchemaShape, N extends NodeLabels<S>>(
   target: string,
 ): WhereBuilder<S, N> {
-  type Condition = import('@astrale/typegraph-core').ComparisonCondition
-  type Logical = import('@astrale/typegraph-core').LogicalCondition
+  type Condition = import('../ast').ComparisonCondition
+  type Logical = import('../ast').LogicalCondition
 
   return {
     eq: (field: string, value: unknown) =>
@@ -188,9 +179,7 @@ export function createWhereBuilder<S extends AnySchema, N extends NodeLabels<S>>
  * Convert edge filter options to AST edge where conditions.
  * Handles multiple operators per field (e.g., { gt: 5, lt: 10 }).
  */
-export function buildEdgeWhere(
-  where?: Record<string, unknown>,
-): EdgeWhereCondition[] | undefined {
+export function buildEdgeWhere(where?: Record<string, unknown>): EdgeWhereCondition[] | undefined {
   if (!where) return undefined
 
   const conditions: EdgeWhereCondition[] = []

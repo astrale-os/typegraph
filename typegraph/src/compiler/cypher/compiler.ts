@@ -4,12 +4,9 @@
  * Transforms AST into Cypher query strings for Neo4j/Memgraph.
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
-import type { SchemaDefinition, AnySchema } from '@astrale/typegraph-core'
-import { resolveNodeLabels, formatLabels, toPascalCase } from '@astrale/typegraph-core'
-import type { CompiledQuery, CompilerOptions } from '../types'
-import type { QueryCompilerProvider } from '../provider'
+import type { SchemaShape } from '../../schema'
 import type {
+  QueryAST,
   ASTNode,
   MatchStep,
   MatchByIdStep,
@@ -32,7 +29,10 @@ import type {
   ReachableStep,
   Projection,
   ForkStep,
-} from '@astrale/typegraph-core'
+} from '../../ast'
+import { resolveNodeLabels, formatLabels, toPascalCase } from '../../helpers'
+import type { CompiledQuery, CompilerOptions } from '../types'
+import type { QueryCompilerProvider } from '../provider'
 
 /**
  * Cypher compiler implementation.
@@ -42,7 +42,7 @@ export class CypherCompiler implements QueryCompilerProvider {
   readonly name = 'cypher'
 
   private options: CompilerOptions
-  private schema: AnySchema | undefined
+  private schema: SchemaShape | undefined
 
   private params: Record<string, unknown> = {}
   private paramCounter: number = 0
@@ -54,7 +54,7 @@ export class CypherCompiler implements QueryCompilerProvider {
   private aggregateStep: AggregateStep | null = null
   private hasBranchStep: boolean = false
 
-  constructor(schema?: SchemaDefinition, options: CompilerOptions = {}) {
+  constructor(schema?: SchemaShape, options: CompilerOptions = {}) {
     this.schema = schema
     this.options = {
       paramPrefix: 'p',
@@ -63,7 +63,7 @@ export class CypherCompiler implements QueryCompilerProvider {
     }
   }
 
-  compile(ast: QueryAST, schema?: SchemaDefinition, options?: CompilerOptions): CompiledQuery {
+  compile(ast: QueryAST, schema?: SchemaShape, options?: CompilerOptions): CompiledQuery {
     // Allow options override per compile call
     if (options) this.options = { ...this.options, ...options }
     // Use provided schema or fall back to constructor schema
@@ -502,8 +502,10 @@ export class CypherCompiler implements QueryCompilerProvider {
         // For 'up' direction (child -[:hasParent]-> parent): go out then in
         // For 'down' direction (parent -[:contains]-> child): go in then out
         const parentAlias = `parent_${this.paramCounter++}`
-        const [toParentLeft, toParentRight] = hierarchyDirection === 'up' ? ['-', '->'] : ['<-', '-']
-        const [toSiblingLeft, toSiblingRight] = hierarchyDirection === 'up' ? ['<-', '-'] : ['-', '->']
+        const [toParentLeft, toParentRight] =
+          hierarchyDirection === 'up' ? ['-', '->'] : ['<-', '-']
+        const [toSiblingLeft, toSiblingRight] =
+          hierarchyDirection === 'up' ? ['<-', '-'] : ['-', '->']
         // Use same label for parent as for sibling target (in hierarchies, parent is same type)
         const parentNode = `(${parentAlias}${targetLabelStr})`
         const pattern = `(${fromAlias})${toParentLeft}[:${edge}]${toParentRight}${parentNode}${toSiblingLeft}[:${edge}]${toSiblingRight}${targetNode}`
@@ -995,7 +997,7 @@ export class CypherCompiler implements QueryCompilerProvider {
  * Create a Cypher compiler provider.
  */
 export function createCypherCompiler(
-  schema?: SchemaDefinition,
+  schema?: SchemaShape,
   options?: CompilerOptions,
 ): CypherCompiler {
   return new CypherCompiler(schema, options)

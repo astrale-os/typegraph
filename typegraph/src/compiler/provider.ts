@@ -5,8 +5,8 @@
  * Allows plugging different query languages (Cypher, Gremlin, SQL, etc.)
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
-import type { SchemaDefinition } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
+import type { SchemaShape } from '../schema'
 import type { CompiledQuery, CompilerOptions } from './types'
 
 // =============================================================================
@@ -29,13 +29,13 @@ export interface QueryCompilerProvider {
    * @param options - Compiler options
    * @returns Compiled query with query string and parameters
    */
-  compile(ast: QueryAST, schema: SchemaDefinition, options?: CompilerOptions): CompiledQuery
+  compile(ast: QueryAST, schema: SchemaShape, options?: CompilerOptions): CompiledQuery
 }
 
 /**
  * Factory function type for creating compiler instances.
  */
 export type QueryCompilerFactory = (
-  schema: SchemaDefinition,
+  schema: SchemaShape,
   options?: CompilerOptions,
 ) => QueryCompilerProvider

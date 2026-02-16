@@ -4,47 +4,39 @@
  * Types for the mutation API - create, update, delete, link, hierarchy operations.
  */
 
-import type {
-  AnySchema,
-  NodeLabels,
-  NodeIdFor,
-  NodeIdMap,
-  NodeProps,
-  NodeInputProps,
-  EdgeTypes,
-  EdgeProps,
-  EdgeInputProps,
-} from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
+import type { ResolveNode, ResolveEdge, ResolveNodeInput, ResolveEdgeInput } from '../resolve'
 
 // =============================================================================
 // INPUT TYPES (What user provides)
 // =============================================================================
 
 /**
- * Node input - excludes 'id' which is generated.
- * Uses z.input types so fields with .optional().default() are optional for input.
+ * Node input — resolved from TypeMap when available, otherwise Record<string, unknown>.
  */
-export type NodeInput<S extends AnySchema, N extends NodeLabels<S>> = Omit<
-  NodeInputProps<S, N>,
-  'id'
->
+export type NodeInput<
+  S extends SchemaShape,
+  N extends NodeLabels<S>,
+  T extends TypeMap = UntypedMap,
+> = ResolveNodeInput<T, N & string>
 
 /**
- * Edge input - excludes 'id' which is generated.
- * Uses z.input types so fields with .optional().default() are optional for input.
+ * Edge input — resolved from TypeMap when available, otherwise Record<string, unknown>.
  */
-export type EdgeInput<S extends AnySchema, E extends EdgeTypes<S>> = Omit<
-  EdgeInputProps<S, E>,
-  'id'
->
+export type EdgeInput<
+  S extends SchemaShape,
+  E extends EdgeTypes<S>,
+  T extends TypeMap = UntypedMap,
+> = ResolveEdgeInput<T, E & string>
 
 /**
  * Input for batch link operations.
  */
-export interface LinkInput<S extends AnySchema, E extends EdgeTypes<S>> {
+export interface LinkInput<S extends SchemaShape, E extends EdgeTypes<S>, T extends TypeMap = UntypedMap> {
   from: string
   to: string
-  data?: EdgeInput<S, E>
+  data?: EdgeInput<S, E, T>
 }
 
 // =============================================================================
@@ -54,23 +46,19 @@ export interface LinkInput<S extends AnySchema, E extends EdgeTypes<S>> {
 /**
  * Result of creating or updating a node.
  */
-export interface NodeResult<
-  S extends AnySchema,
-  N extends NodeLabels<S>,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
-  id: NodeIdFor<S, N, M>
-  data: NodeProps<S, N, NodeIdFor<S, N, M>>
+export interface NodeResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+  id: string
+  data: ResolveNode<T, N & string>
 }
 
 /**
  * Result of creating an edge.
  */
-export interface EdgeResult<S extends AnySchema, E extends EdgeTypes<S>> {
+export interface EdgeResult<S extends SchemaShape, E extends EdgeTypes<S>, T extends TypeMap = UntypedMap> {
   id: string
   from: string
   to: string
-  data: EdgeProps<S, E>
+  data: ResolveEdge<T, E & string>
 }
 
 /**
@@ -118,15 +106,11 @@ export interface DeleteSubtreeResult {
 /**
  * Result of cloning a subtree.
  */
-export interface CloneSubtreeResult<
-  S extends AnySchema,
-  N extends NodeLabels<S>,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
-  root: NodeResult<S, N, M>
+export interface CloneSubtreeResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+  root: NodeResult<S, N, T>
   clonedNodes: number
   /** Map from original ID to cloned ID */
-  idMapping: Record<string, NodeIdFor<S, NodeLabels<S>, M>>
+  idMapping: Record<string, string>
 }
 
 // =============================================================================
@@ -156,7 +140,7 @@ export interface DeleteOptions {
 /**
  * Options for hierarchy operations.
  */
-export interface HierarchyOptions<S extends AnySchema> {
+export interface HierarchyOptions<S extends SchemaShape> {
   /** Edge type for hierarchy (defaults to schema's hierarchy.defaultEdge) */
   edge?: EdgeTypes<S>
 }
@@ -164,7 +148,7 @@ export interface HierarchyOptions<S extends AnySchema> {
 /**
  * Options for cloning a node.
  */
-export interface CloneOptions<S extends AnySchema> {
+export interface CloneOptions<S extends SchemaShape> {
   /** Link clone to same parent as source */
   preserveParent?: boolean
   /** Link clone to specific parent */
@@ -176,26 +160,22 @@ export interface CloneOptions<S extends AnySchema> {
 /**
  * Options for cloning a subtree.
  */
-export interface CloneSubtreeOptions<S extends AnySchema> extends CloneOptions<S> {
+export interface CloneSubtreeOptions<S extends SchemaShape, T extends TypeMap = UntypedMap> extends CloneOptions<S> {
   /** Maximum depth to clone (undefined = all) */
   maxDepth?: number
   /** Transform node data during clone */
   transform?: <N extends NodeLabels<S>>(
-    node: NodeProps<S, N>,
+    node: ResolveNode<T, N & string>,
     depth: number,
-  ) => Partial<NodeInput<S, N>>
+  ) => Partial<NodeInput<S, N, T>>
 }
 
 /**
  * Result of an upsert operation.
  */
-export interface UpsertResult<
-  S extends AnySchema,
-  N extends NodeLabels<S>,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
-  id: NodeIdFor<S, N, M>
-  data: NodeProps<S, N, NodeIdFor<S, N, M>>
+export interface UpsertResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+  id: string
+  data: ResolveNode<T, N & string>
   /** True if a new node was created, false if existing was updated */
   created: boolean
 }
@@ -226,10 +206,7 @@ export const defaultIdGenerator: IdGenerator = {
 /**
  * Main mutation API interface.
  */
-export interface GraphMutations<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
+export interface GraphMutations<S extends SchemaShape, T extends TypeMap = UntypedMap> {
   // ---------------------------------------------------------------------------
   // NODE CRUD
   // ---------------------------------------------------------------------------
@@ -237,30 +214,30 @@ export interface GraphMutations<
   /** Create a new node */
   create<N extends NodeLabels<S>>(
     label: N,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>>
+  ): Promise<NodeResult<S, N, T>>
 
   /** Update node properties (partial update) */
   update<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N, M>>
+    id: string,
+    data: Partial<NodeInput<S, N, T>>,
+  ): Promise<NodeResult<S, N, T>>
 
   /** Delete a node */
   delete<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
+    id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult>
 
   /** Upsert (create or update) a node by ID */
   upsert<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N, M>>
+    id: string,
+    data: NodeInput<S, N, T>,
+  ): Promise<UpsertResult<S, N, T>>
 
   // ---------------------------------------------------------------------------
   // EDGE CRUD
@@ -271,16 +248,16 @@ export interface GraphMutations<
     edge: E,
     from: string,
     to: string,
-    data?: EdgeInput<S, E>,
-  ): Promise<EdgeResult<S, E>>
+    data?: EdgeInput<S, E, T>,
+  ): Promise<EdgeResult<S, E, T>>
 
   /** Update edge properties (partial update) */
   patchLink<E extends EdgeTypes<S>>(
     edge: E,
     from: string,
     to: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>>
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>>
 
   /** Delete an edge by endpoints */
   unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult>
@@ -292,8 +269,8 @@ export interface GraphMutations<
   patchLinkById<E extends EdgeTypes<S>>(
     edge: E,
     edgeId: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>>
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>>
 
   // ---------------------------------------------------------------------------
   // HIERARCHY OPERATIONS
@@ -303,9 +280,9 @@ export interface GraphMutations<
   createChild<N extends NodeLabels<S>>(
     label: N,
     parentId: string,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N, M>>
+  ): Promise<NodeResult<S, N, T>>
 
   /** Move node to new parent */
   move(nodeId: string, newParentId: string, options?: HierarchyOptions<S>): Promise<MoveResult>
@@ -320,21 +297,21 @@ export interface GraphMutations<
   /** Clone a node (without children) */
   clone<N extends NodeLabels<S>>(
     label: N,
-    sourceId: NodeIdFor<S, N, M>,
-    overrides?: Partial<NodeInput<S, N>>,
+    sourceId: string,
+    overrides?: Partial<NodeInput<S, N, T>>,
     options?: CloneOptions<S>,
-  ): Promise<NodeResult<S, N, M>>
+  ): Promise<NodeResult<S, N, T>>
 
   /** Clone node and all descendants, preserving original node labels */
   cloneSubtree(
     sourceRootId: string,
-    options?: CloneSubtreeOptions<S>,
-  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, M>>
+    options?: CloneSubtreeOptions<S, T>,
+  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, T>>
 
   /** Delete node and all descendants */
   deleteSubtree<N extends NodeLabels<S>>(
     label: N,
-    rootId: NodeIdFor<S, N, M>,
+    rootId: string,
     options?: HierarchyOptions<S>,
   ): Promise<DeleteSubtreeResult>
 
@@ -345,25 +322,25 @@ export interface GraphMutations<
   /** Create multiple nodes */
   createMany<N extends NodeLabels<S>>(
     label: N,
-    items: NodeInput<S, N>[],
+    items: NodeInput<S, N, T>[],
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>[]>
+  ): Promise<NodeResult<S, N, T>[]>
 
   /** Update multiple nodes by ID */
   updateMany<N extends NodeLabels<S>>(
     label: N,
-    updates: Array<{ id: NodeIdFor<S, N, M>; data: Partial<NodeInput<S, N>> }>,
-  ): Promise<NodeResult<S, N, M>[]>
+    updates: Array<{ id: string; data: Partial<NodeInput<S, N, T>> }>,
+  ): Promise<NodeResult<S, N, T>[]>
 
   /** Delete multiple nodes by ID */
   deleteMany<N extends NodeLabels<S>>(
     label: N,
-    ids: Array<NodeIdFor<S, N, M>>,
+    ids: Array<string>,
     options?: DeleteOptions,
   ): Promise<BatchDeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E>[]): Promise<EdgeResult<S, E>[]>
+  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E, T>[]): Promise<EdgeResult<S, E, T>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(
@@ -387,14 +364,14 @@ export interface GraphMutations<
    *
    * For read-only queries, use `graph.raw()` instead.
    */
-  raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
+  raw<R>(cypher: string, params?: Record<string, unknown>): Promise<R[]>
 
   // ---------------------------------------------------------------------------
   // TRANSACTIONS
   // ---------------------------------------------------------------------------
 
   /** Execute mutations in a transaction */
-  transaction<T>(fn: (tx: MutationTransaction<S, M>) => Promise<T>): Promise<T>
+  transaction<R>(fn: (tx: MutationTransaction<S, T>) => Promise<R>): Promise<R>
 }
 
 // =============================================================================
@@ -404,59 +381,56 @@ export interface GraphMutations<
 /**
  * Transaction context for executing multiple mutations atomically.
  */
-export interface MutationTransaction<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> {
+export interface MutationTransaction<S extends SchemaShape, T extends TypeMap = UntypedMap> {
   /** Create a new node */
   create<N extends NodeLabels<S>>(
     label: N,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>>
+  ): Promise<NodeResult<S, N, T>>
 
   /** Update node properties */
   update<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N, M>>
+    id: string,
+    data: Partial<NodeInput<S, N, T>>,
+  ): Promise<NodeResult<S, N, T>>
 
   /** Delete a node */
   delete<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
+    id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult>
 
   /** Upsert (create or update) a node by ID */
   upsert<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N, M>>
+    id: string,
+    data: NodeInput<S, N, T>,
+  ): Promise<UpsertResult<S, N, T>>
 
   /** Create an edge */
   link<E extends EdgeTypes<S>>(
     edge: E,
     from: string,
     to: string,
-    data?: EdgeInput<S, E>,
-  ): Promise<EdgeResult<S, E>>
+    data?: EdgeInput<S, E, T>,
+  ): Promise<EdgeResult<S, E, T>>
 
   /** Update edge properties */
   patchLink<E extends EdgeTypes<S>>(
     edge: E,
     from: string,
     to: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>>
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>>
 
   /** Delete an edge */
   unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E>[]): Promise<EdgeResult<S, E>[]>
+  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E, T>[]): Promise<EdgeResult<S, E, T>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(
@@ -468,9 +442,9 @@ export interface MutationTransaction<
   createChild<N extends NodeLabels<S>>(
     label: N,
     parentId: string,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N, M>>
+  ): Promise<NodeResult<S, N, T>>
 
   /** Move node to new parent */
   move(nodeId: string, newParentId: string, options?: HierarchyOptions<S>): Promise<MoveResult>
@@ -478,5 +452,5 @@ export interface MutationTransaction<
   /**
    * Execute a raw Cypher write query within the transaction.
    */
-  raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
+  raw<R>(cypher: string, params?: Record<string, unknown>): Promise<R[]>
 }

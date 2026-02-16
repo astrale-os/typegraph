@@ -1,51 +1,12 @@
 /**
  * Graph - Main Entry Point
  *
- * This is the primary API for creating and interacting with a typed graph database.
- * The Graph interface provides access to both query and mutation operations.
- *
- * @example
- * ```typescript
- * import { createGraph, defineSchema, string } from '@astrale/typegraph'
- * import { neo4j } from '@astrale/typegraph-adapter-neo4j'
- *
- * const schema = defineSchema({
- *   nodes: {
- *     user: { name: string(), email: string() },
- *     post: { title: string() },
- *   },
- *   edges: {
- *     authored: { from: 'user', to: 'post' },
- *   },
- * })
- *
- * const graph = await createGraph(schema, {
- *   adapter: neo4j({ uri: 'bolt://localhost:7687', auth: { ... } })
- * })
- *
- * // Query
- * const users = await graph.node('user').where({ ... }).execute()
- *
- * // Mutate
- * const user = await graph.mutate.create('user', { name: 'John', email: 'john@example.com' })
- *
- * // Transaction
- * await graph.transaction(async (tx) => {
- *   const post = await tx.mutate.create('post', { title: 'Hello' })
- *   await tx.mutate.link('authored', user.id, post.id)
- * })
- *
- * await graph.close()
- * ```
+ * Primary API for creating and interacting with a typed graph database.
+ * Schema comes from KRL codegen output.
  */
 
-import type {
-  AnySchema,
-  NodeIdFor,
-  NodeIdMap,
-  NodeLabels,
-  EdgeTypes,
-} from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from './schema'
+import type { NodeLabels, EdgeTypes } from './inference'
 import type { GraphAdapter, TransactionContext } from './adapter'
 import type { GraphQuery, QueryExecutor } from './query/types'
 import { GraphQueryImpl } from './query/impl'
@@ -53,7 +14,7 @@ import type {
   GraphMutations,
   MutationTransaction,
   IdGenerator,
-  MutationTemplateProvider,
+  MutationCompilationPass,
   MutationExecutor,
   MutationHooks,
   ValidationOptions,
@@ -64,31 +25,48 @@ import type { CollectionBuilder } from './query/collection'
 import type { SingleNodeBuilder } from './query/single-node'
 import type { EdgeBuilder } from './query/edge'
 import type { PathBuilder } from './query/path'
+import type { MethodsConfig, MethodSchemaInfo } from './methods'
+import { validateMethodImplementations, callNodeMethod, callEdgeMethod } from './methods'
+import { MethodNotImplementedError } from './errors'
+import type { ConstraintSchemaInfo } from './constraints'
+import { enforceConstraints, resolveEndpoints, ConstraintViolation } from './constraints'
 
 /**
  * Options for creating a graph instance.
  */
-export interface GraphOptions<S extends AnySchema = AnySchema> {
+export interface GraphOptions<S extends SchemaShape = SchemaShape> {
   /** Database adapter (neo4j, falkordb, memgraph, etc.) */
   adapter: GraphAdapter
   /** Custom ID generator for mutations */
   idGenerator?: IdGenerator
-  /** Custom mutation template provider (defaults to Cypher) */
-  mutationTemplates?: MutationTemplateProvider
+  /** Mutation compilation passes (InstanceModelPass, ReifyEdgesPass, etc.) */
+  mutationPasses?: MutationCompilationPass[]
   /** Mutation lifecycle hooks (beforeCreate, afterCreate, etc.) */
   hooks?: MutationHooks<S>
   /** Mutation validation options */
   validation?: ValidationOptions
   /** Dry-run mode - generates queries without executing */
   dryRun?: boolean | DryRunOptions
+  /**
+   * Method implementations.
+   * Maps type names to method handlers. Required if the schema declares methods.
+   * Validated at startup — missing handlers cause createGraph() to throw.
+   */
+  methods?: MethodsConfig
+  /**
+   * Schema metadata from codegen (the `schema` const).
+   * Required for method validation and constraint enforcement.
+   * Contains nodes, edges, methods, and constraint definitions.
+   */
+  schemaInfo?: MethodSchemaInfo & ConstraintSchemaInfo
 }
 
 /**
  * Transaction scope providing access to mutations and raw queries within a transaction.
  */
-export interface TransactionScope<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> {
+export interface TransactionScope<S extends SchemaShape, T extends TypeMap = UntypedMap> {
   /** Mutation API within the transaction */
-  readonly mutate: MutationTransaction<S, M>
+  readonly mutate: MutationTransaction<S, T>
   /** Execute a raw query within the transaction */
   raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]>
 }
@@ -101,16 +79,13 @@ export interface TransactionScope<S extends AnySchema, M extends NodeIdMap<S> = 
  * - Transaction support
  * - Connection lifecycle management
  */
-export interface Graph<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> extends GraphQuery<S, M> {
+export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> extends GraphQuery<S, T> {
   // ---------------------------------------------------------------------------
   // MUTATION API
   // ---------------------------------------------------------------------------
 
   /** Access the mutation API */
-  readonly mutate: GraphMutations<S, M>
+  readonly mutate: GraphMutations<S, T>
 
   // ---------------------------------------------------------------------------
   // TRANSACTION API
@@ -131,7 +106,36 @@ export interface Graph<
    * })
    * ```
    */
-  transaction<T>(fn: (tx: TransactionScope<S, M>) => Promise<T>): Promise<T>
+  transaction<R>(fn: (tx: TransactionScope<S, T>) => Promise<R>): Promise<R>
+
+  // ---------------------------------------------------------------------------
+  // METHOD INVOCATION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Call a method on a node instance.
+   *
+   * @param type   - Node type name (e.g., 'Customer')
+   * @param id     - Node ID
+   * @param method - Method name
+   * @param args   - Method arguments (optional)
+   */
+  call(type: string, id: string, method: string, args?: unknown): Promise<unknown>
+
+  /**
+   * Call a method on an edge instance.
+   *
+   * @param edgeType  - Edge type name (e.g., 'order_item')
+   * @param endpoints - Named endpoint IDs (e.g., { order: 'id1', product: 'id2' })
+   * @param method    - Method name
+   * @param args      - Method arguments (optional)
+   */
+  callEdge(
+    edgeType: string,
+    endpoints: Record<string, string>,
+    method: string,
+    args?: unknown,
+  ): Promise<unknown>
 
   // ---------------------------------------------------------------------------
   // LIFECYCLE
@@ -189,29 +193,33 @@ function createMutationExecutorBridge(adapter: GraphAdapter): MutationExecutor {
  *
  * Thin orchestrator that delegates to GraphQueryImpl and GraphMutationsImpl.
  */
-class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> implements Graph<S, M> {
+class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements Graph<S, T> {
   private readonly _schema: S
   private readonly _adapter: GraphAdapter
-  private readonly _query: GraphQuery<S, M>
-  private readonly _mutate: GraphMutations<S, M>
+  private readonly _query: GraphQuery<S, T>
+  private readonly _mutate: GraphMutations<S, T>
   private readonly _options: GraphOptions<S>
   private readonly _idGenerator: IdGenerator
+  private readonly _methods: MethodsConfig | undefined
+  private readonly _schemaInfo: (MethodSchemaInfo & ConstraintSchemaInfo) | undefined
 
   constructor(schema: S, options: GraphOptions<S>) {
     this._schema = schema
     this._adapter = options.adapter
     this._options = options
     this._idGenerator = options.idGenerator ?? defaultIdGenerator
+    this._methods = options.methods
+    this._schemaInfo = options.schemaInfo
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
-    this._query = new GraphQueryImpl<S, M>(schema, queryExecutor)
+    this._query = new GraphQueryImpl<S, T>(schema, queryExecutor)
 
     // Create mutation implementation with adapter bridge
     const mutationExecutor = createMutationExecutorBridge(this._adapter)
-    this._mutate = new GraphMutationsImpl(schema, mutationExecutor, {
+    this._mutate = new GraphMutationsImpl<S, T>(schema, mutationExecutor, {
       idGenerator: options.idGenerator,
-      templates: options.mutationTemplates,
+      mutationPasses: options.mutationPasses,
       hooks: options.hooks,
       validation: options.validation,
       dryRun: options.dryRun,
@@ -236,26 +244,26 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
 
   node<N extends NodeLabels<S>>(
     label: N,
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.node(label)
   }
 
   nodeById(
-    id: NodeIdFor<S, NodeLabels<S>, M>,
-  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, M> {
+    id: string,
+  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, T> {
     return this._query.nodeById(id)
   }
 
   nodeByIdWithLabel<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, M> {
+    id: string,
+  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.nodeByIdWithLabel(label, id)
   }
 
   edge<E extends EdgeTypes<S>>(
     edgeType: E,
-  ): EdgeBuilder<S, E, Record<string, never>, Record<string, never>> {
+  ): EdgeBuilder<S, E, Record<string, never>, Record<string, never>, T> {
     return this._query.edge(edgeType)
   }
 
@@ -264,8 +272,8 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -277,8 +285,8 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
@@ -286,8 +294,8 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
   }
 
   allPaths<NFrom extends NodeLabels<S>, NTo extends NodeLabels<S>, E extends EdgeTypes<S>>(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
     maxDepth?: number
@@ -296,20 +304,20 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
   }
 
   intersect<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.intersect(...queries)
   }
 
   union<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.union(...queries)
   }
 
   unionAll<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M> {
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.unionAll(...queries)
   }
 
@@ -317,7 +325,7 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
   // MUTATION API
   // ---------------------------------------------------------------------------
 
-  get mutate(): GraphMutations<S, M> {
+  get mutate(): GraphMutations<S, T> {
     return this._mutate
   }
 
@@ -325,8 +333,8 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
   // TRANSACTION API
   // ---------------------------------------------------------------------------
 
-  async transaction<T>(fn: (tx: TransactionScope<S, M>) => Promise<T>): Promise<T> {
-    return this._adapter.transaction<T>(async (txCtx: TransactionContext) => {
+  async transaction<R>(fn: (tx: TransactionScope<S, T>) => Promise<R>): Promise<R> {
+    return this._adapter.transaction<R>(async (txCtx: TransactionContext) => {
       // Create transaction-scoped mutation executor
       const txMutationExecutor: MutationExecutor = {
         run<R>(query: string, params: Record<string, unknown>): Promise<R[]> {
@@ -347,18 +355,18 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
       }
 
       // Create transaction-scoped mutations (inherits hooks/validation from graph)
-      const txMutate: MutationTransaction<S, M> = new GraphMutationsImpl(
+      const txMutate: MutationTransaction<S, T> = new GraphMutationsImpl<S, T>(
         this._schema,
         txMutationExecutor,
         {
           idGenerator: this._options.idGenerator,
-          templates: this._options.mutationTemplates,
+          mutationPasses: this._options.mutationPasses,
           hooks: this._options.hooks,
           validation: this._options.validation,
         },
       )
 
-      const scope: TransactionScope<S, M> = {
+      const scope: TransactionScope<S, T> = {
         mutate: txMutate,
         raw: <R>(cypher: string, params?: Record<string, unknown>): Promise<R[]> => {
           return txCtx.run<R>(cypher, params)
@@ -370,11 +378,61 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
   }
 
   // ---------------------------------------------------------------------------
+  // METHOD INVOCATION
+  // ---------------------------------------------------------------------------
+
+  async call(type: string, id: string, method: string, args?: unknown): Promise<unknown> {
+    if (!this._methods) throw new MethodNotImplementedError([`${type}.${method}()`])
+    return callNodeMethod(
+      async () => {
+        const [row] = await this._adapter.query<{ n: Record<string, unknown> }>(
+          `MATCH (n:${type} {id: $id}) RETURN n`,
+          { id },
+        )
+        if (!row) return null
+        const { id: nodeId, ...props } = row.n
+        return { id: (nodeId as string) ?? id, props }
+      },
+      type,
+      method,
+      args,
+      this._methods,
+      this,
+    )
+  }
+
+  async callEdge(
+    edgeType: string,
+    endpoints: Record<string, string>,
+    method: string,
+    args?: unknown,
+  ): Promise<unknown> {
+    if (!this._methods) throw new MethodNotImplementedError([`${edgeType}.${method}()`])
+    if (!this._schemaInfo) throw new Error('schemaInfo required for callEdge()')
+    const resolved = resolveEndpoints(edgeType, endpoints, this._schemaInfo)
+    return callEdgeMethod(
+      async () => {
+        const [row] = await this._adapter.query<{ r: Record<string, unknown> }>(
+          `MATCH (a {id: $from})-[r:${edgeType}]->(b {id: $to}) RETURN r`,
+          { from: resolved.from, to: resolved.to },
+        )
+        if (!row) return null
+        return { props: row.r, endpoints: resolved.mapping }
+      },
+      edgeType,
+      method,
+      args,
+      this._methods,
+      this,
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // RAW QUERY
   // ---------------------------------------------------------------------------
 
-  async raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
-    return this._query.raw<T>(cypher, params)
+  async raw<R>(cypher: string, params?: Record<string, unknown>): Promise<R[]> {
+    return this._query.raw<R>(cypher, params)
   }
 
   // ---------------------------------------------------------------------------
@@ -398,53 +456,18 @@ class GraphImpl<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> impl
 // FACTORY FUNCTION
 // =============================================================================
 
-/**
- * Create a graph instance connected to a database.
- *
- * This is the main entry point for using TypeGraph. It connects to the database
- * immediately (fail-fast) and returns a fully typed Graph instance.
- *
- * @param schema - The graph schema definition
- * @param options - Graph options including the database adapter
- * @returns A connected Graph instance
- *
- * @example
- * ```typescript
- * import { createGraph, defineSchema, string } from '@astrale/typegraph'
- * import { neo4j } from '@astrale/typegraph-adapter-neo4j'
- *
- * const schema = defineSchema({
- *   nodes: {
- *     user: { name: string(), email: string() },
- *   },
- *   edges: {},
- * })
- *
- * const graph = await createGraph(schema, {
- *   adapter: neo4j({ uri: 'bolt://localhost:7687' })
- * })
- *
- * // Query
- * const users = await graph.node('user').execute()
- *
- * // Mutate
- * const user = await graph.mutate.create('user', { name: 'John', email: 'john@example.com' })
- *
- * // Transaction
- * await graph.transaction(async (tx) => {
- *   const u = await tx.mutate.create('user', { name: 'Jane', email: 'jane@example.com' })
- *   // More operations...
- * })
- *
- * // Clean up
- * await graph.close()
- * ```
- */
-export async function createGraph<S extends AnySchema>(
+/** Create a graph instance. Connects eagerly (fail-fast). */
+export async function createGraph<S extends SchemaShape, T extends TypeMap = UntypedMap>(
   schema: S,
   options: GraphOptions<S>,
-): Promise<Graph<S>> {
+): Promise<Graph<S, T>> {
   // Connect eagerly (fail fast)
   await options.adapter.connect()
-  return new GraphImpl(schema, options)
+
+  // Validate method implementations if schema has methods
+  if (options.schemaInfo?.methods && Object.keys(options.schemaInfo.methods).length > 0) {
+    validateMethodImplementations(options.schemaInfo, options.methods)
+  }
+
+  return new GraphImpl<S, T>(schema, options)
 }

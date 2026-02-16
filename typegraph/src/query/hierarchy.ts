@@ -5,15 +5,20 @@
  * children, root, parent) and transitive closure (reachable) operations.
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
-import type { AnySchema, EdgeTypes } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
+import type { SchemaShape } from '../schema'
+import type { EdgeTypes } from '../inference'
 import type { HierarchyTraversalOptions, ReachableOptions } from './traits'
+import { edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 
 // =============================================================================
 // HIERARCHY HELPERS
 // =============================================================================
 
-export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: EdgeTypes<S>): string {
+export function resolveHierarchyEdge<S extends SchemaShape>(
+  schema: S,
+  edge?: EdgeTypes<S>,
+): string {
   if (edge) return edge as string
   const hierarchy = schema.hierarchy
   if (!hierarchy?.defaultEdge) {
@@ -22,12 +27,12 @@ export function resolveHierarchyEdge<S extends AnySchema>(schema: S, edge?: Edge
   return hierarchy.defaultEdge
 }
 
-export function getHierarchyDirection<S extends AnySchema>(schema: S): 'up' | 'down' {
+export function getHierarchyDirection<S extends SchemaShape>(schema: S): 'up' | 'down' {
   const hierarchy = schema.hierarchy
   return hierarchy?.direction ?? 'up'
 }
 
-export function parseHierarchyArgs<S extends AnySchema>(
+export function parseHierarchyArgs<S extends SchemaShape>(
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
   options?: HierarchyTraversalOptions,
 ): [EdgeTypes<S> | undefined, HierarchyTraversalOptions | undefined] {
@@ -49,14 +54,15 @@ export function parseHierarchyArgs<S extends AnySchema>(
  *   - ancestors/parent/root: follow incoming edges, target is edge.from
  *   - descendants/children: follow outgoing edges, target is edge.to
  */
-export function deriveHierarchyTargetLabel<S extends AnySchema>(
+export function deriveHierarchyTargetLabel<S extends SchemaShape>(
   schema: S,
   edgeName: string,
   operation: 'ancestors' | 'descendants' | 'siblings' | 'root' | 'parent' | 'children',
   direction: 'up' | 'down',
 ): string | undefined {
-  const edgeDef = (schema.edges as Record<string, { from?: string | string[]; to?: string | string[] }>)[edgeName]
-  if (!edgeDef) return undefined
+  const fromTypes = edgeFrom(schema, edgeName)
+  const toTypes = edgeTo(schema, edgeName)
+  if (fromTypes.length === 0 && toTypes.length === 0) return undefined
 
   // Determine if we're following outgoing or incoming edges
   const followsOutgoing =
@@ -64,18 +70,16 @@ export function deriveHierarchyTargetLabel<S extends AnySchema>(
       ? operation === 'ancestors' || operation === 'parent' || operation === 'root'
       : operation === 'descendants' || operation === 'children'
 
-  // Get the appropriate endpoint
-  const endpoint = followsOutgoing ? edgeDef.to : edgeDef.from
-
-  // Handle array endpoints (return first, which is the primary type)
-  return Array.isArray(endpoint) ? endpoint[0] : endpoint
+  // Get the appropriate endpoint types (return first, which is the primary type)
+  const types = followsOutgoing ? toTypes : fromTypes
+  return types[0]
 }
 
 // =============================================================================
 // HIERARCHY OPERATIONS
 // =============================================================================
 
-export function addAncestors<S extends AnySchema>(
+export function addAncestors<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
@@ -99,7 +103,7 @@ export function addAncestors<S extends AnySchema>(
   })
 }
 
-export function addSelfAndAncestors<S extends AnySchema>(
+export function addSelfAndAncestors<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
@@ -124,7 +128,7 @@ export function addSelfAndAncestors<S extends AnySchema>(
   })
 }
 
-export function addDescendants<S extends AnySchema>(
+export function addDescendants<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edgeOrOptions?: EdgeTypes<S> | HierarchyTraversalOptions,
@@ -148,7 +152,7 @@ export function addDescendants<S extends AnySchema>(
   })
 }
 
-export function addSiblings<S extends AnySchema>(
+export function addSiblings<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edge?: EdgeTypes<S>,
@@ -165,7 +169,7 @@ export function addSiblings<S extends AnySchema>(
   })
 }
 
-export function addChildren<S extends AnySchema>(
+export function addChildren<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edge?: EdgeTypes<S>,
@@ -183,7 +187,7 @@ export function addChildren<S extends AnySchema>(
   })
 }
 
-export function addRoot<S extends AnySchema>(
+export function addRoot<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edge?: EdgeTypes<S>,
@@ -200,7 +204,7 @@ export function addRoot<S extends AnySchema>(
   })
 }
 
-export function addParent<S extends AnySchema>(
+export function addParent<S extends SchemaShape>(
   ast: QueryAST,
   schema: S,
   edge?: EdgeTypes<S>,
@@ -216,11 +220,8 @@ export function addParent<S extends AnySchema>(
     targetLabel,
   })
 
-  const edgeDef = (
-    schema.edges as Record<string, { cardinality?: { outbound?: string; inbound?: string } }>
-  )[resolvedEdge]
-  const cardinality =
-    direction === 'up' ? edgeDef?.cardinality?.outbound : edgeDef?.cardinality?.inbound
+  const card = edgeCardinality(schema, resolvedEdge)
+  const cardinality = direction === 'up' ? card.outbound : card.inbound
 
   return { ast: newAst, cardinality: (cardinality ?? 'optional') as 'one' | 'many' | 'optional' }
 }
@@ -229,7 +230,7 @@ export function addParent<S extends AnySchema>(
 // REACHABLE OPERATION
 // =============================================================================
 
-export function addReachable<S extends AnySchema>(
+export function addReachable<S extends SchemaShape>(
   ast: QueryAST,
   edges: EdgeTypes<S> | readonly EdgeTypes<S>[],
   options?: ReachableOptions,
@@ -247,7 +248,7 @@ export function addReachable<S extends AnySchema>(
   })
 }
 
-export function addSelfAndReachable<S extends AnySchema>(
+export function addSelfAndReachable<S extends SchemaShape>(
   ast: QueryAST,
   edges: EdgeTypes<S> | readonly EdgeTypes<S>[],
   options?: ReachableOptions,

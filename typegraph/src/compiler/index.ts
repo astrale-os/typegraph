@@ -13,8 +13,9 @@ export { CypherCompiler, createCypherCompiler } from './cypher'
 // Compiler cache
 export { getCompiler } from './cache'
 
-// Optimizer
-export { QueryOptimizer } from './optimizer'
+// Compilation pipeline
+export { CompilationPipeline } from './optimizer'
+export type { CompilationPass } from './optimizer'
 
 // Types
 export type { CompiledQuery, CompilerOptions } from './types'

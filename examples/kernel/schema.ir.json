@@ -1,0 +1,318 @@
+{
+  "version": "1.0",
+  "meta": {
+    "generated_at": "",
+    "source_hash": ""
+  },
+  "extensions": [
+    {
+      "uri": "https://kernel.astrale.ai/v1",
+      "imported_types": [
+        "Identity",
+        "Class",
+        "Interface",
+        "has_parent",
+        "has_perm",
+        "excluded_from",
+        "constrained_by",
+        "extends_with",
+        "instance_of",
+        "implements"
+      ]
+    }
+  ],
+  "builtin_scalars": [
+    "String",
+    "Int",
+    "Float",
+    "Boolean",
+    "Timestamp",
+    "Bitmask",
+    "ByteString"
+  ],
+  "type_aliases": [],
+  "value_types": [],
+  "classes": [
+    {
+      "type": "node",
+      "name": "Timestamped",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "createdAt",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "Call",
+            "fn": "now",
+            "args": []
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "updatedAt",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "User",
+      "abstract": false,
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "email",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Team",
+      "abstract": false,
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "slug",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Space",
+      "abstract": false,
+      "implements": [
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "description",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Document",
+      "abstract": false,
+      "implements": [
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "title",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "content",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "edge",
+      "name": "memberOf",
+      "endpoints": [
+        {
+          "param_name": "user",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "User"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "team",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Team"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [
+        {
+          "name": "role",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "owns",
+      "endpoints": [
+        {
+          "param_name": "team",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Team"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "space",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Space"
+            }
+          ],
+          "cardinality": {
+            "min": 1,
+            "max": 1
+          }
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "contains",
+      "endpoints": [
+        {
+          "param_name": "space",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Space"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "document",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Document"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    }
+  ]
+}

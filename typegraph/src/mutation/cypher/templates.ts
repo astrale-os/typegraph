@@ -12,7 +12,7 @@ import type {
   BatchTemplateProvider,
   TemplateUtils,
 } from '../template-provider'
-import { formatLabels } from '@astrale/typegraph-core'
+import { formatLabels } from '../../helpers'
 
 // =============================================================================
 // NODE OPERATIONS
@@ -26,10 +26,7 @@ const nodeTemplates: NodeTemplateProvider = {
     RETURN n
   `.trim(),
 
-  createWithLinks: (
-    labels: string[],
-    links: Array<{ edgeType: string; targetAlias: string }>,
-  ) => {
+  createWithLinks: (labels: string[], links: Array<{ edgeType: string; targetAlias: string }>) => {
     const matches = links
       .filter((l) => l.targetAlias !== 'n')
       .map((l) => `MATCH (${l.targetAlias} {id: $${l.targetAlias}Id})`)

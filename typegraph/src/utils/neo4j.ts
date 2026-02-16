@@ -5,7 +5,7 @@
  * Used by all query builders to transform query results.
  */
 
-import type { AnySchema } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
 import { deserializeDateFields } from './dates'
 
 /**
@@ -171,7 +171,7 @@ export function extractValue(data: unknown): unknown {
  */
 export function extractNodeFromRecord(
   record: Record<string, unknown>,
-  schema?: AnySchema,
+  schema?: SchemaShape,
   label?: string,
 ): Record<string, unknown> {
   const keys = Object.keys(record)

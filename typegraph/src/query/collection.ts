@@ -9,30 +9,29 @@ import { NodeQueryBuilder, _registerCollectionBuilder } from './node-query-build
 import type { BaseBuilder } from './base'
 import { buildOutTraversal, buildInTraversal, buildMultiEdgeTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
-import type { QueryAST } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
 import { getCompiler } from '../compiler'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { ResolveNode } from '../resolve'
 import type {
-  AnySchema,
   NodeLabels,
-  NodeIdFor,
-  NodeIdMap,
   NodeProps,
   OutgoingEdges,
   IncomingEdges,
   EdgeTargetsFrom,
   EdgeSourcesTo,
-} from '@astrale/typegraph-core'
+} from '../inference'
 import type {
   AliasMap,
   EdgeAliasMap,
   MultiEdgeTargets,
   MultiEdgeSources,
   MultiEdgeBidirectional,
-} from '@astrale/typegraph-core'
+} from '../inference'
 
 import { GroupedBuilder } from './grouped'
 import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
-import { ExecutionError } from '@astrale/typegraph-core'
+import { ExecutionError } from '../errors'
 import { SingleNodeBuilder } from './single-node'
 import type { OptionalNodeBuilder } from './optional-node'
 
@@ -45,12 +44,12 @@ import type { OptionalNodeBuilder } from './optional-node'
  * @template EdgeAliases - Map of registered edge aliases
  */
 export class CollectionBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   N extends NodeLabels<S>,
   Aliases extends AliasMap<S> = Record<string, never>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases, M> {
+  T extends TypeMap = UntypedMap,
+> extends NodeQueryBuilder<S, N, Aliases, EdgeAliases, T> {
   protected _derive(ast: QueryAST): this {
     return new CollectionBuilder(
       ast,
@@ -65,9 +64,7 @@ export class CollectionBuilder<
   // ALIASING
   // ===========================================================================
 
-  as<A extends string>(
-    alias: A,
-  ): CollectionBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, M> {
+  as<A extends string>(alias: A): CollectionBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, T> {
     const { ast, aliases } = this._addAlias(alias)
     return new CollectionBuilder(ast, this._schema, aliases, this._edgeAliases, this._executor)
   }
@@ -87,40 +84,40 @@ export class CollectionBuilder<
     E4 extends EdgeAliasMap<S> = Record<string, never>,
   >(
     branch1: (
-      q: CollectionBuilder<S, N, Aliases, EdgeAliases, M>,
+      q: CollectionBuilder<S, N, Aliases, EdgeAliases, T>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B1, E1, M>
-      | CollectionBuilder<S, NodeLabels<S>, B1, E1, M>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B1, E1, M>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B1, E1, T>
+      | CollectionBuilder<S, NodeLabels<S>, B1, E1, T>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B1, E1, T>,
     branch2?: (
-      q: CollectionBuilder<S, N, Aliases, EdgeAliases, M>,
+      q: CollectionBuilder<S, N, Aliases, EdgeAliases, T>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B2, E2, M>
-      | CollectionBuilder<S, NodeLabels<S>, B2, E2, M>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B2, E2, M>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B2, E2, T>
+      | CollectionBuilder<S, NodeLabels<S>, B2, E2, T>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B2, E2, T>,
     branch3?: (
-      q: CollectionBuilder<S, N, Aliases, EdgeAliases, M>,
+      q: CollectionBuilder<S, N, Aliases, EdgeAliases, T>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B3, E3, M>
-      | CollectionBuilder<S, NodeLabels<S>, B3, E3, M>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B3, E3, M>,
+      | SingleNodeBuilder<S, NodeLabels<S>, B3, E3, T>
+      | CollectionBuilder<S, NodeLabels<S>, B3, E3, T>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B3, E3, T>,
     branch4?: (
-      q: CollectionBuilder<S, N, Aliases, EdgeAliases, M>,
+      q: CollectionBuilder<S, N, Aliases, EdgeAliases, T>,
     ) =>
-      | SingleNodeBuilder<S, NodeLabels<S>, B4, E4, M>
-      | CollectionBuilder<S, NodeLabels<S>, B4, E4, M>
-      | OptionalNodeBuilder<S, NodeLabels<S>, B4, E4, M>,
-  ): CollectionBuilder<S, N, Aliases & B1 & B2 & B3 & B4, EdgeAliases & E1 & E2 & E3 & E4, M> {
+      | SingleNodeBuilder<S, NodeLabels<S>, B4, E4, T>
+      | CollectionBuilder<S, NodeLabels<S>, B4, E4, T>
+      | OptionalNodeBuilder<S, NodeLabels<S>, B4, E4, T>,
+  ): CollectionBuilder<S, N, Aliases & B1 & B2 & B3 & B4, EdgeAliases & E1 & E2 & E3 & E4, T> {
     const ALIAS_OFFSET_PER_BRANCH = 10
 
     const createBranchBuilder = (branchIndex: number) =>
-      new CollectionBuilder<S, N, Aliases, EdgeAliases, M>(
+      new CollectionBuilder(
         this._ast.withAliasOffset(branchIndex * ALIAS_OFFSET_PER_BRANCH),
         this._schema,
         this._aliases,
         this._edgeAliases,
         this._executor,
-      )
+      ) as CollectionBuilder<S, N, Aliases, EdgeAliases, T>
 
     const branches: BaseBuilder<S, NodeLabels<S>>[] = [
       branch1(createBranchBuilder(0)) as BaseBuilder<S, NodeLabels<S>>,
@@ -153,7 +150,7 @@ export class CollectionBuilder<
   // COLLECTION OPERATIONS
   // ===========================================================================
 
-  byId(id: NodeIdFor<S, N, M>): SingleNodeBuilder<S, N, Aliases, EdgeAliases, M> {
+  byId(id: string): SingleNodeBuilder<S, N, Aliases, EdgeAliases, T> {
     const newAst = this._ast
       .addWhere([
         {
@@ -174,7 +171,7 @@ export class CollectionBuilder<
     )
   }
 
-  first(): SingleNodeBuilder<S, N, Aliases, EdgeAliases, M> {
+  first(): SingleNodeBuilder<S, N, Aliases, EdgeAliases, T> {
     const newAst = this._ast.addLimit(1).setProjectionType('node')
     return new SingleNodeBuilder(
       newAst,
@@ -185,7 +182,7 @@ export class CollectionBuilder<
     )
   }
 
-  take(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  take(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     return this._derive(this._ast.addLimit(count))
   }
 
@@ -200,7 +197,8 @@ export class CollectionBuilder<
     S,
     EdgeTargetsFrom<S, E, N>,
     Aliases,
-    EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+    EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+    T
   > {
     const { ast } = buildOutTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
@@ -218,7 +216,7 @@ export class CollectionBuilder<
   toOptional<E extends OutgoingEdges<S, N>>(
     edge: E,
     options?: TraversalOptions<S, E>,
-  ): CollectionBuilder<S, EdgeTargetsFrom<S, E, N>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, EdgeTargetsFrom<S, E, N>, Aliases, EdgeAliases, T> {
     const { ast } = buildOutTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
       optional: true,
@@ -239,7 +237,8 @@ export class CollectionBuilder<
     S,
     EdgeSourcesTo<S, E, N>,
     Aliases,
-    EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases
+    EA extends string ? EdgeAliases & { [K in EA]: E } : EdgeAliases,
+    T
   > {
     const { ast } = buildInTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
@@ -256,7 +255,7 @@ export class CollectionBuilder<
   fromOptional<E extends IncomingEdges<S, N>>(
     edge: E,
     options?: TraversalOptions<S, E>,
-  ): CollectionBuilder<S, EdgeSourcesTo<S, E, N>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, EdgeSourcesTo<S, E, N>, Aliases, EdgeAliases, T> {
     const { ast } = buildInTraversal(this._ast, this._schema, edge as string, {
       where: options?.where as Record<string, unknown>,
       optional: true,
@@ -277,7 +276,7 @@ export class CollectionBuilder<
   toAny<Edges extends readonly OutgoingEdges<S, N>[]>(
     edges: Edges,
     options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeTargets<S, N, Edges>, Aliases, EdgeAliases, T> {
     const { ast } = buildMultiEdgeTraversal(
       this._ast,
       this._schema,
@@ -297,7 +296,7 @@ export class CollectionBuilder<
   fromAny<Edges extends readonly IncomingEdges<S, N>[]>(
     edges: Edges,
     options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeSources<S, N, Edges>, Aliases, EdgeAliases, T> {
     const { ast } = buildMultiEdgeTraversal(
       this._ast,
       this._schema,
@@ -317,7 +316,7 @@ export class CollectionBuilder<
   viaAny<Edges extends readonly (OutgoingEdges<S, N> & IncomingEdges<S, N>)[]>(
     edges: Edges,
     options?: TraversalOptions<S, Edges[number]>,
-  ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases> {
+  ): CollectionBuilder<S, MultiEdgeBidirectional<S, N, Edges>, Aliases, EdgeAliases, T> {
     const { ast } = buildMultiEdgeTraversal(
       this._ast,
       this._schema,
@@ -341,7 +340,7 @@ export class CollectionBuilder<
   orderBy<K extends keyof NodeProps<S, N> & string>(
     field: K,
     direction: 'ASC' | 'DESC' = 'ASC',
-  ): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  ): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     return this._derive(
       this._ast.addOrderBy([{ field, direction, target: this._ast.currentAlias }]),
     )
@@ -349,7 +348,7 @@ export class CollectionBuilder<
 
   orderByMultiple(
     fields: Array<{ field: keyof NodeProps<S, N> & string; direction: 'ASC' | 'DESC' }>,
-  ): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  ): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     const orderFields = fields.map((f) => ({
       field: f.field,
       direction: f.direction,
@@ -358,31 +357,31 @@ export class CollectionBuilder<
     return this._derive(this._ast.addOrderBy(orderFields))
   }
 
-  limit(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  limit(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     return this._derive(this._ast.addLimit(count))
   }
 
-  skip(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  skip(count: number): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     return this._derive(this._ast.addSkip(count))
   }
 
   paginate(options: {
     page: number
     pageSize: number
-  }): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  }): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     const offset = (options.page - 1) * options.pageSize
     return this.skip(offset).limit(options.pageSize)
   }
 
-  after(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  after(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     throw new Error('Cursor pagination not yet implemented')
   }
 
-  before(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  before(_cursor: string): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     throw new Error('Cursor pagination not yet implemented')
   }
 
-  distinct(): CollectionBuilder<S, N, Aliases, EdgeAliases, M> {
+  distinct(): CollectionBuilder<S, N, Aliases, EdgeAliases, T> {
     return this._derive(this._ast.addDistinct())
   }
 
@@ -414,7 +413,7 @@ export class CollectionBuilder<
   // EXECUTION
   // ===========================================================================
 
-  async execute(): Promise<NodeProps<S, N, NodeIdFor<S, N, M>>[]> {
+  async execute(): Promise<ResolveNode<T, N & string>[]> {
     if (!this._executor) {
       throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
@@ -426,16 +425,15 @@ export class CollectionBuilder<
     )
     return results.map(
       (record) =>
-        extractNodeFromRecord(record, this._schema, this.currentLabel as string) as NodeProps<
-          S,
-          N,
-          NodeIdFor<S, N, M>
+        extractNodeFromRecord(record, this._schema, this.currentLabel as string) as ResolveNode<
+          T,
+          N & string
         >,
     )
   }
 
   async executeWithMeta(): Promise<{
-    data: NodeProps<S, N, NodeIdFor<S, N, M>>[]
+    data: ResolveNode<T, N & string>[]
     meta: { count: number; hasMore: boolean }
   }> {
     const data = await this.execute()
@@ -443,7 +441,7 @@ export class CollectionBuilder<
   }
 
   async executeWithCursor(): Promise<{
-    data: NodeProps<S, N, NodeIdFor<S, N, M>>[]
+    data: ResolveNode<T, N & string>[]
     pageInfo: {
       hasNextPage: boolean
       hasPreviousPage: boolean
@@ -454,7 +452,7 @@ export class CollectionBuilder<
     throw new Error('Cursor pagination not yet implemented')
   }
 
-  stream(): AsyncIterable<NodeProps<S, N, NodeIdFor<S, N, M>>> {
+  stream(): AsyncIterable<ResolveNode<T, N & string>> {
     throw new Error('Streaming not yet implemented')
   }
 }
@@ -467,7 +465,7 @@ _registerCollectionBuilder(CollectionBuilder)
 // ===========================================================================
 
 export interface CollectionSelector<
-  S extends AnySchema,
+  S extends SchemaShape,
   N extends NodeLabels<S>,
   K extends keyof NodeProps<S, N>,
 > {

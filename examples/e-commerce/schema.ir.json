@@ -1,0 +1,694 @@
+{
+  "version": "1.0",
+  "meta": {
+    "generated_at": "",
+    "source_hash": ""
+  },
+  "extensions": [
+    {
+      "uri": "https://kernel.astrale.ai/v1",
+      "imported_types": [
+        "Identity"
+      ]
+    }
+  ],
+  "builtin_scalars": [
+    "String",
+    "Int",
+    "Float",
+    "Boolean",
+    "Timestamp",
+    "Bitmask",
+    "ByteString"
+  ],
+  "type_aliases": [
+    {
+      "name": "Currency",
+      "underlying_type": "String",
+      "constraints": {
+        "enum_values": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY"
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "underlying_type": "String",
+      "constraints": {
+        "enum_values": [
+          "pending",
+          "confirmed",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ]
+      }
+    },
+    {
+      "name": "SKU",
+      "underlying_type": "String",
+      "constraints": {
+        "length_min": 3,
+        "length_max": 20
+      }
+    },
+    {
+      "name": "Email",
+      "underlying_type": "String",
+      "constraints": {
+        "format": "email"
+      }
+    },
+    {
+      "name": "Url",
+      "underlying_type": "String",
+      "constraints": {
+        "format": "url"
+      }
+    }
+  ],
+  "value_types": [],
+  "classes": [
+    {
+      "type": "node",
+      "name": "Timestamped",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "createdAt",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "Call",
+            "fn": "now",
+            "args": []
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "updatedAt",
+          "type": {
+            "kind": "Scalar",
+            "name": "Timestamp"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "HasSlug",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "slug",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Priceable",
+      "abstract": true,
+      "implements": [],
+      "attributes": [
+        {
+          "name": "priceCents",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "currency",
+          "type": {
+            "kind": "Alias",
+            "name": "Currency"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "StringLiteral",
+            "value": "USD"
+          },
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Customer",
+      "abstract": false,
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "email",
+          "type": {
+            "kind": "Alias",
+            "name": "Email"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "phone",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": [
+        {
+          "name": "displayName",
+          "params": [],
+          "return_type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "return_nullable": false
+        },
+        {
+          "name": "recentOrders",
+          "params": [
+            {
+              "name": "limit",
+              "type": {
+                "kind": "Scalar",
+                "name": "Int"
+              },
+              "default": {
+                "kind": "NumberLiteral",
+                "value": 10
+              }
+            }
+          ],
+          "return_type": {
+            "kind": "List",
+            "element": {
+              "kind": "Node",
+              "name": "Order"
+            }
+          },
+          "return_nullable": false
+        }
+      ]
+    },
+    {
+      "type": "node",
+      "name": "Product",
+      "abstract": false,
+      "implements": [
+        "Timestamped",
+        "HasSlug",
+        "Priceable"
+      ],
+      "attributes": [
+        {
+          "name": "title",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "description",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "sku",
+          "type": {
+            "kind": "Alias",
+            "name": "SKU"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        },
+        {
+          "name": "inStock",
+          "type": {
+            "kind": "Scalar",
+            "name": "Boolean"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "BooleanLiteral",
+            "value": true
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "imageUrl",
+          "type": {
+            "kind": "Alias",
+            "name": "Url"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Category",
+      "abstract": false,
+      "implements": [
+        "HasSlug"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {
+            "unique": true
+          }
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "node",
+      "name": "Order",
+      "abstract": false,
+      "implements": [
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "status",
+          "type": {
+            "kind": "Alias",
+            "name": "OrderStatus"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "StringLiteral",
+            "value": "pending"
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "totalCents",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "notes",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": [
+        {
+          "name": "cancel",
+          "params": [],
+          "return_type": {
+            "kind": "Scalar",
+            "name": "Boolean"
+          },
+          "return_nullable": false
+        }
+      ]
+    },
+    {
+      "type": "node",
+      "name": "Review",
+      "abstract": false,
+      "implements": [
+        "Timestamped"
+      ],
+      "attributes": [
+        {
+          "name": "rating",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "body",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": []
+    },
+    {
+      "type": "edge",
+      "name": "placedOrder",
+      "endpoints": [
+        {
+          "param_name": "customer",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Customer"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "order",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Order"
+            }
+          ],
+          "cardinality": {
+            "min": 1,
+            "max": 1
+          }
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "orderItem",
+      "endpoints": [
+        {
+          "param_name": "order",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Order"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "product",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Product"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [
+        {
+          "name": "quantity",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "NumberLiteral",
+            "value": 1
+          },
+          "modifiers": {}
+        },
+        {
+          "name": "unitPriceCents",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        }
+      ],
+      "methods": [
+        {
+          "name": "subtotal",
+          "params": [],
+          "return_type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "return_nullable": false
+        }
+      ],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "inCategory",
+      "endpoints": [
+        {
+          "param_name": "product",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Product"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "category",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Category"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "parentCategory",
+      "endpoints": [
+        {
+          "param_name": "child",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Category"
+            }
+          ],
+          "cardinality": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        {
+          "param_name": "parent",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Category"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": true,
+        "acyclic": true,
+        "unique": false,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "reviewed",
+      "endpoints": [
+        {
+          "param_name": "reviewer",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Customer"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "product",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Product"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [
+        {
+          "name": "rating",
+          "type": {
+            "kind": "Scalar",
+            "name": "Int"
+          },
+          "nullable": false,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "body",
+          "type": {
+            "kind": "Scalar",
+            "name": "String"
+          },
+          "nullable": true,
+          "default": null,
+          "modifiers": {}
+        },
+        {
+          "name": "verified",
+          "type": {
+            "kind": "Scalar",
+            "name": "Boolean"
+          },
+          "nullable": false,
+          "default": {
+            "kind": "BooleanLiteral",
+            "value": false
+          },
+          "modifiers": {}
+        }
+      ],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    },
+    {
+      "type": "edge",
+      "name": "wishlisted",
+      "endpoints": [
+        {
+          "param_name": "customer",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Customer"
+            }
+          ],
+          "cardinality": null
+        },
+        {
+          "param_name": "product",
+          "allowed_types": [
+            {
+              "kind": "Node",
+              "name": "Product"
+            }
+          ],
+          "cardinality": null
+        }
+      ],
+      "attributes": [],
+      "methods": [],
+      "constraints": {
+        "no_self": false,
+        "acyclic": false,
+        "unique": true,
+        "symmetric": false
+      }
+    }
+  ]
+}

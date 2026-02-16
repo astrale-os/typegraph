@@ -4,10 +4,11 @@
  * Shared foundation for all builder types.
  */
 
-import { type QueryAST } from '@astrale/typegraph-core'
+import { type QueryAST } from '../ast'
 import { getCompiler } from '../compiler'
 import type { CompiledQuery } from '../compiler'
-import type { AnySchema, NodeLabels } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels } from '../inference'
 
 // =============================================================================
 // QUERY FRAGMENT (For composition/reuse)
@@ -25,7 +26,7 @@ import type { AnySchema, NodeLabels } from '@astrale/typegraph-core'
  * ```
  */
 export type QueryFragment<
-  S extends AnySchema,
+  S extends SchemaShape,
   NIn extends NodeLabels<S>,
   NOut extends NodeLabels<S>,
   BIn extends BaseBuilder<S, NIn>,
@@ -40,7 +41,7 @@ export type QueryFragment<
  * Base class for all query builders.
  * Provides compilation and schema access.
  */
-export abstract class BaseBuilder<S extends AnySchema, N extends NodeLabels<S>> {
+export abstract class BaseBuilder<S extends SchemaShape, N extends NodeLabels<S>> {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
 

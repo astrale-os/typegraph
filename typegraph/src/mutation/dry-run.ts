@@ -5,15 +5,8 @@
  * Useful for validation, debugging, and testing.
  */
 
-import type {
-  AnySchema,
-  NodeIdFor,
-  NodeIdMap,
-  NodeLabels,
-  EdgeTypes,
-  NodeProps,
-  EdgeProps,
-} from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { NodeLabels, EdgeTypes } from '../inference'
 import type {
   NodeInput,
   EdgeInput,
@@ -94,7 +87,7 @@ export class DryRunCollector {
 /**
  * Builder for creating dry-run results.
  */
-export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> {
+export class DryRunBuilder<S extends SchemaShape, T extends TypeMap = UntypedMap> {
   private readonly idGenerator: IdGenerator
 
   constructor(_schema: S, idGenerator: IdGenerator) {
@@ -106,31 +99,31 @@ export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdM
     data: NodeInput<S, N>,
     query: string,
     options?: CreateOptions,
-  ): DryRunResult<NodeResult<S, N, M>> {
-    const id = (options?.id ?? this.idGenerator.generate(label as string)) as NodeIdFor<S, N, M>
+  ): DryRunResult<NodeResult<S, N, T>> {
+    const id = (options?.id ?? this.idGenerator.generate(label as string)) as string
 
     return {
       query,
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
+        data: { id, ...data } as any,
       },
     }
   }
 
   updateNode<N extends NodeLabels<S>>(
     _label: N,
-    id: NodeIdFor<S, N, M>,
+    id: string,
     data: Partial<NodeInput<S, N>>,
     query: string,
-  ): DryRunResult<NodeResult<S, N, M>> {
+  ): DryRunResult<NodeResult<S, N, T>> {
     return {
       query,
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
+        data: { id, ...data } as any,
       },
     }
   }
@@ -149,7 +142,7 @@ export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdM
     to: string,
     data: EdgeInput<S, E> | undefined,
     query: string,
-  ): DryRunResult<EdgeResult<S, E>> {
+  ): DryRunResult<EdgeResult<S, E, T>> {
     const edgeId = this.idGenerator.generate(_edge as string)
 
     return {
@@ -159,7 +152,7 @@ export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdM
         id: edgeId,
         from,
         to,
-        data: { id: edgeId, ...data } as EdgeProps<S, E>,
+        data: { id: edgeId, ...data } as any,
       },
     }
   }
@@ -178,15 +171,15 @@ export class DryRunBuilder<S extends AnySchema, M extends NodeIdMap<S> = NodeIdM
     data: NodeInput<S, N>,
     query: string,
     _options?: HierarchyOptions<S>,
-  ): DryRunResult<NodeResult<S, N, M>> {
-    const id = this.idGenerator.generate(label as string) as NodeIdFor<S, N, M>
+  ): DryRunResult<NodeResult<S, N, T>> {
+    const id = this.idGenerator.generate(label as string) as string
 
     return {
       query,
       params: { id, parentId, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as NodeProps<S, N, NodeIdFor<S, N, M>>,
+        data: { id, ...data } as any,
       },
     }
   }

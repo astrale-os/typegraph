@@ -1,20 +1,13 @@
 /**
  * Graph Mutations Implementation
  *
- * Main implementation of the mutation API.
- * Uses pluggable template providers for query generation.
+ * Each method follows: validate → hooks(before) → build op → pipeline → compile → execute → hooks(after)
+ * The mutation AST enables compilation passes (InstanceModelPass, ReifyEdgesPass) to transform mutations.
  */
 
-import type {
-  AnySchema,
-  NodeIdFor,
-  NodeIdMap,
-  NodeLabels,
-  NodeProps,
-  EdgeTypes,
-  EdgeProps,
-} from '@astrale/typegraph-core'
-import { resolveNodeLabels } from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
+import { resolveNodeLabels, edgeFrom, edgeTo } from '../helpers'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -38,8 +31,6 @@ import type {
   UpsertResult,
 } from './types'
 import { defaultIdGenerator } from './types'
-import type { MutationTemplateProvider } from './template-provider'
-import { CypherTemplates } from './cypher'
 import {
   NodeNotFoundError,
   ParentNotFoundError,
@@ -49,47 +40,32 @@ import {
   HasRelationshipsError,
 } from './errors'
 import { deserializeDateFields } from '../utils/dates'
+import * as ops from './ast/builder'
+import type { MutationOp } from './ast/types'
+import { MutationCompilationPipeline } from './ast/pipeline'
+import type { MutationCompilationPass } from './ast/pipeline'
+import { MutationCypherCompiler } from './cypher/compiler'
+import type { CompiledMutation } from './cypher/compiler'
 
 // =============================================================================
 // SHARED UTILITIES
 // =============================================================================
 
-/**
- * Resolve the labels for edge endpoints from the schema.
- * Enables efficient node lookup in MATCH clauses.
- *
- * For polymorphic edges (from/to can be arrays), uses the first type's labels.
- * This is a practical tradeoff - the MATCH with any valid label will find
- * the node if it exists with that label.
- */
-function resolveEdgeEndpointLabels<S extends AnySchema>(
+function resolveEdgeEndpointLabels<S extends SchemaShape>(
   schema: S,
   edge: EdgeTypes<S>,
 ): { fromLabels: string[]; toLabels: string[] } {
-  const edgeDef = schema.edges[edge as string]
-  if (!edgeDef) {
-    return { fromLabels: [], toLabels: [] }
-  }
-
-  // Handle polymorphic edges (from/to can be arrays)
-  const fromTypes = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
-  const toTypes = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
-
-  // Use first type for labeling
-  const fromLabels = fromTypes[0] ? resolveNodeLabels(schema, fromTypes[0] as string) : []
-  const toLabels = toTypes[0] ? resolveNodeLabels(schema, toTypes[0] as string) : []
-
+  const fromTypes = edgeFrom(schema, edge as string)
+  const toTypes = edgeTo(schema, edge as string)
+  const fromLabels = fromTypes[0] ? resolveNodeLabels(schema, fromTypes[0]) : []
+  const toLabels = toTypes[0] ? resolveNodeLabels(schema, toTypes[0]) : []
   return { fromLabels, toLabels }
 }
 
 // =============================================================================
-// EXECUTOR INTERFACE (to be implemented by adapter)
+// EXECUTOR INTERFACE
 // =============================================================================
 
-/**
- * Interface for executing queries.
- * Must be provided by the database adapter.
- */
 export interface MutationExecutor {
   run<T>(query: string, params: Record<string, unknown>): Promise<T[]>
   runInTransaction<T>(fn: (tx: TransactionRunner) => Promise<T>): Promise<T>
@@ -116,16 +92,11 @@ import { ValidationError } from './errors'
 import type { DryRunOptions } from './dry-run'
 import { DryRunBuilder } from './dry-run'
 
-export interface MutationConfig<S extends AnySchema = AnySchema> {
-  /** ID generator (defaults to UUID-based) */
+export interface MutationConfig<S extends SchemaShape = SchemaShape> {
   idGenerator?: IdGenerator
-  /** Template provider (defaults to Cypher) */
-  templates?: MutationTemplateProvider
-  /** Lifecycle hooks */
+  mutationPasses?: MutationCompilationPass[]
   hooks?: MutationHooks<S>
-  /** Validation options */
   validation?: ValidationOptions
-  /** Dry-run mode - returns query without executing */
   dryRun?: boolean | DryRunOptions
 }
 
@@ -133,33 +104,29 @@ export interface MutationConfig<S extends AnySchema = AnySchema> {
 // GRAPH MUTATIONS IMPLEMENTATION
 // =============================================================================
 
-/**
- * Implementation of GraphMutations interface.
- */
-export class GraphMutationsImpl<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> implements GraphMutations<S, M> {
+export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements GraphMutations<S, T> {
   private readonly schema: S
   private readonly executor: MutationExecutor
   private readonly idGenerator: IdGenerator
-  private readonly templates: MutationTemplateProvider
+  private readonly pipeline: MutationCompilationPipeline
+  private readonly compiler: MutationCypherCompiler
   private readonly hooksRunner: HooksRunner<S>
   private readonly validator: MutationValidator<S>
   private readonly validationOptions: Required<ValidationOptions>
   private readonly dryRunMode: boolean
-  private readonly dryRunBuilder: DryRunBuilder<S, M>
+  private readonly dryRunBuilder: DryRunBuilder<S, T>
 
   constructor(schema: S, executor: MutationExecutor, config: MutationConfig<S> = {}) {
     this.schema = schema
     this.executor = executor
     this.idGenerator = config.idGenerator ?? defaultIdGenerator
-    this.templates = config.templates ?? CypherTemplates
+    this.pipeline = new MutationCompilationPipeline(config.mutationPasses)
+    this.compiler = new MutationCypherCompiler()
     this.hooksRunner = new HooksRunner(schema, config.hooks)
     this.validator = new MutationValidator(schema)
     this.validationOptions = { ...defaultValidationOptions, ...config.validation }
     this.dryRunMode = typeof config.dryRun === 'boolean' ? config.dryRun : !!config.dryRun
-    this.dryRunBuilder = new DryRunBuilder<S, M>(schema, this.idGenerator)
+    this.dryRunBuilder = new DryRunBuilder<S, T>(schema, this.idGenerator)
   }
 
   // ---------------------------------------------------------------------------
@@ -168,21 +135,12 @@ export class GraphMutationsImpl<
 
   async create<N extends NodeLabels<S>>(
     label: N,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>> {
-    const safeLabel = this.sanitize(label as string)
-    const id = (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>
+  ): Promise<NodeResult<S, N, T>> {
+    const id = (options?.id ?? this.idGenerator.generate(label as string)) as string
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    // Merge additional labels from options (e.g., for creating :Module:Identity nodes)
-    if (options?.additionalLabels?.length) {
-      labels.push(...options.additionalLabels)
-    }
-    const safeLabels = labels.map((l) => this.sanitize(l))
-
-    // Validate input and apply defaults (but don't serialize dates yet)
+    // Validate
     let validatedData: Record<string, unknown>
     if (this.validationOptions.enabled && this.validationOptions.onCreate) {
       validatedData = this.validator.parseAndPrepareNode(label, data)
@@ -190,51 +148,36 @@ export class GraphMutationsImpl<
       validatedData = stripUndefined(data as Record<string, unknown>)
     }
 
-    // Run before hooks with validated data
+    // Hooks (before)
     const hookData = await this.hooksRunner.runBeforeCreate(label, validatedData as NodeInput<S, N>)
-
-    // Prepare final data for DB: strip undefined and serialize dates
     const dbReadyData = serializeDates(stripUndefined(hookData as Record<string, unknown>))
 
-    // Build query — with or without inline links
-    let query: string
-    let params: Record<string, unknown>
+    // Build op
+    const links = options?.link
+      ? Object.entries(options.link).map(([edgeType, targetId]) => {
+          if (targetId == null || targetId === '') {
+            throw new Error(
+              `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
+            )
+          }
+          return { edgeType, targetId: targetId === 'self' ? id : targetId }
+        })
+      : undefined
 
-    if (options?.link && Object.keys(options.link).length > 0) {
-      const links: Array<{ edgeType: string; targetAlias: string }> = []
-      const linkParams: Record<string, unknown> = {}
-      let targetIndex = 0
+    const op = ops.createNode(label as string, id, dbReadyData, {
+      additionalLabels: options?.additionalLabels,
+      links,
+    })
 
-      for (const [edgeType, targetId] of Object.entries(options.link)) {
-        if (targetId == null || targetId === '') {
-          throw new Error(
-            `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
-          )
-        }
-        const safeEdgeType = this.sanitize(edgeType)
-        if (targetId === 'self') {
-          links.push({ edgeType: safeEdgeType, targetAlias: 'n' })
-        } else {
-          const alias = `t${targetIndex++}`
-          links.push({ edgeType: safeEdgeType, targetAlias: alias })
-          linkParams[`${alias}Id`] = targetId
-        }
-      }
+    // Pipeline → compile → execute
+    const compiled = this.runPipeline(op)
 
-      query = this.templates.node.createWithLinks(safeLabels, links)
-      params = this.buildParams({ id, props: dbReadyData, ...linkParams })
-    } else {
-      query = this.templates.node.create(safeLabels)
-      params = this.buildParams({ id, props: dbReadyData })
-    }
-
-    // Dry-run mode
     if (this.dryRunMode) {
-      return this.dryRunBuilder.createNode(label, dbReadyData as NodeInput<S, N>, query, options)
-        .simulatedResult! as unknown as NodeResult<S, N, M>
+      return this.dryRunBuilder.createNode(label, dbReadyData as NodeInput<S, N>, compiled.query, options)
+        .simulatedResult! as unknown as NodeResult<S, N, T>
     }
 
-    const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, params)
+    const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
@@ -246,24 +189,20 @@ export class GraphMutationsImpl<
       throw new Error(`Failed to create node: ${label}`)
     }
 
-    // Deserialize dates from ISO strings back to Date objects
-    const nodeResult: NodeResult<S, N, M> = {
+    const nodeResult: NodeResult<S, N, T> = {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
+      data: this.deserializeDates(label, result.n) as any,
     }
 
-    // Run after hooks
-    await this.hooksRunner.runAfterCreate(nodeResult as unknown as NodeResult<S, N>)
-
+    await this.hooksRunner.runAfterCreate(nodeResult as any)
     return nodeResult
   }
 
   async update<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N, M>> {
-    // Validate input (partial mode - doesn't require all fields)
+    id: string,
+    data: Partial<NodeInput<S, N, T>>,
+  ): Promise<NodeResult<S, N, T>> {
     let validatedData: Record<string, unknown>
     if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
       validatedData = this.validator.parseAndPrepareNode(label, data, true)
@@ -271,81 +210,57 @@ export class GraphMutationsImpl<
       validatedData = stripUndefined(data as Record<string, unknown>)
     }
 
-    // Run before hooks with validated data
     const hookData = await this.hooksRunner.runBeforeUpdate(
-      label,
-      id,
-      validatedData as Partial<NodeInput<S, N>>,
+      label, id, validatedData as Partial<NodeInput<S, N>>,
     )
-
-    // Prepare final data for DB: strip undefined and serialize dates
     const dbReadyData = serializeDates(stripUndefined(hookData as Record<string, unknown>))
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.updateNode(label as string, id, dbReadyData)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.node.update(safeLabels)
-    const params = this.buildParams({ id, props: dbReadyData })
-
-    // Dry-run mode
     if (this.dryRunMode) {
-      return this.dryRunBuilder.updateNode(
-        label,
-        id,
-        dbReadyData as Partial<NodeInput<S, N>>,
-        query,
-      ).simulatedResult! as unknown as NodeResult<S, N, M>
+      return this.dryRunBuilder.updateNode(label, id, dbReadyData as Partial<NodeInput<S, N>>, compiled.query)
+        .simulatedResult! as unknown as NodeResult<S, N, T>
     }
 
-    const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, params)
+    const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
       throw new NodeNotFoundError(label as string, id)
     }
 
-    // Deserialize dates from ISO strings back to Date objects
-    const nodeResult: NodeResult<S, N, M> = {
+    const nodeResult: NodeResult<S, N, T> = {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
+      data: this.deserializeDates(label, result.n) as any,
     }
 
-    // Run after hooks
-    await this.hooksRunner.runAfterUpdate(nodeResult as unknown as NodeResult<S, N>)
-
+    await this.hooksRunner.runAfterUpdate(nodeResult as any)
     return nodeResult
   }
 
   async delete<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
+    id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
     const detach = options?.detach ?? true
 
-    // Run before hooks
     await this.hooksRunner.runBeforeDelete(label, id)
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.deleteNode(label as string, id, detach)
+    const compiled = this.runPipeline(op)
 
-    const query = detach
-      ? this.templates.node.delete(safeLabels)
-      : this.templates.node.deleteKeepEdges(safeLabels)
-    const params = this.buildParams({ id })
-
-    // Dry-run mode
     if (this.dryRunMode) {
-      return this.dryRunBuilder.deleteNode(label as string, id, query).simulatedResult!
+      return this.dryRunBuilder.deleteNode(label as string, id, compiled.query).simulatedResult!
     }
 
-    const results = await this.executor.run<{ deleted: boolean; relCount?: number }>(query, params)
+    const results = await this.executor.run<{ deleted: boolean; relCount?: number }>(
+      compiled.query, compiled.params,
+    )
 
-    // For deleteKeepEdges: empty result means either node has relationships or doesn't exist
     if (!detach && results.length === 0) {
-      // Check why it failed with a single diagnostic query
+      const safeLabels = resolveNodeLabels(this.schema, label as string)
       const labelStr = safeLabels.map((l) => `:${l}`).join('')
       const checkQuery = `
         OPTIONAL MATCH (n${labelStr} {id: $id})
@@ -353,34 +268,25 @@ export class GraphMutationsImpl<
         RETURN n IS NOT NULL as exists, count(r) as relCount
       `
       const checkResult = await this.executor.run<{ exists: boolean; relCount: number }>(
-        checkQuery,
-        { id },
+        checkQuery, { id },
       )
       const { exists, relCount } = checkResult[0] ?? { exists: false, relCount: 0 }
-
       if (exists && relCount > 0) {
         throw new HasRelationshipsError(label as string, id, relCount)
       }
-      // Node doesn't exist - return deleted: false
     }
 
-    const deleteResult: DeleteResult = {
-      deleted: results[0]?.deleted ?? false,
-      id,
-    }
+    const deleteResult: DeleteResult = { deleted: results[0]?.deleted ?? false, id }
 
-    // Run after hooks
     await this.hooksRunner.runAfterDelete(deleteResult)
-
     return deleteResult
   }
 
   async upsert<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N, M>> {
-    // Validate input and apply defaults
+    id: string,
+    data: NodeInput<S, N, T>,
+  ): Promise<UpsertResult<S, N, T>> {
     let validatedData: Record<string, unknown>
     if (this.validationOptions.enabled && this.validationOptions.onCreate) {
       validatedData = this.validator.parseAndPrepareNode(label, data)
@@ -388,21 +294,14 @@ export class GraphMutationsImpl<
       validatedData = stripUndefined(data as Record<string, unknown>)
     }
 
-    // Prepare final data for DB: serialize dates
     const dbReadyData = serializeDates(validatedData)
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.upsertNode(label as string, id, dbReadyData)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.node.upsert(safeLabels)
-    const params = this.buildParams({
-      id,
-      createProps: dbReadyData,
-      updateProps: dbReadyData,
-    })
-
-    const results = await this.executor.run<{ n: NodeProps<S, N>; created: boolean }>(query, params)
+    const results = await this.executor.run<{ n: NodeProps<S, N>; created: boolean }>(
+      compiled.query, compiled.params,
+    )
     const result = results[0]
 
     if (!result) {
@@ -411,7 +310,7 @@ export class GraphMutationsImpl<
 
     return {
       id,
-      data: this.deserializeDates(label, result.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
+      data: this.deserializeDates(label, result.n) as any,
       created: result.created,
     }
   }
@@ -424,12 +323,10 @@ export class GraphMutationsImpl<
     edge: E,
     from: string,
     to: string,
-    data?: EdgeInput<S, E>,
-  ): Promise<EdgeResult<S, E>> {
-    const safeEdge = this.sanitize(edge as string)
-    const edgeId = this.idGenerator.generate(safeEdge)
+    data?: EdgeInput<S, E, T>,
+  ): Promise<EdgeResult<S, E, T>> {
+    const edgeId = this.idGenerator.generate(edge as string)
 
-    // Validate edge data
     let validatedEdgeData: Record<string, unknown> | undefined
     if (this.validationOptions.enabled && this.validationOptions.onCreate && data) {
       validatedEdgeData = this.validator.parseAndPrepareEdge(edge, data)
@@ -437,46 +334,24 @@ export class GraphMutationsImpl<
       validatedEdgeData = stripUndefined(data as Record<string, unknown>)
     }
 
-    // Run before hooks
     const hookData = await this.hooksRunner.runBeforeLink(
-      edge,
-      from,
-      to,
-      validatedEdgeData as EdgeInput<S, E> | undefined,
+      edge, from, to, validatedEdgeData as EdgeInput<S, E> | undefined,
     )
-
-    // Prepare final data for DB: serialize dates
     const dbReadyEdgeData = hookData
       ? serializeDates(stripUndefined(hookData as Record<string, unknown>))
       : undefined
 
-    // Resolve endpoint labels for efficient MATCH
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+    const op = ops.createEdge(edge as string, from, to, edgeId, dbReadyEdgeData)
+    const compiled = this.runPipeline(op)
 
-    const query = dbReadyEdgeData
-      ? this.templates.edge.create(safeEdge, fromLabels, toLabels)
-      : this.templates.edge.createNoProps(safeEdge, fromLabels, toLabels)
-    const params = this.buildParams({
-      fromId: from,
-      toId: to,
-      edgeId,
-      props: dbReadyEdgeData ?? {},
-    })
-
-    // Dry-run mode
     if (this.dryRunMode) {
       return this.dryRunBuilder.createEdge(
-        edge,
-        from,
-        to,
-        dbReadyEdgeData as EdgeInput<S, E> | undefined,
-        query,
+        edge, from, to, dbReadyEdgeData as EdgeInput<S, E> | undefined, compiled.query,
       ).simulatedResult!
     }
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      params,
+      compiled.query, compiled.params,
     )
     const result = results[0]
 
@@ -484,16 +359,14 @@ export class GraphMutationsImpl<
       throw new Error(`Failed to create edge: ${edge} from ${from} to ${to}`)
     }
 
-    const edgeResult: EdgeResult<S, E> = {
+    const edgeResult: EdgeResult<S, E, T> = {
       id: edgeId,
       from: result.fromId,
       to: result.toId,
-      data: result.r,
+      data: result.r as any,
     }
 
-    // Run after hooks
-    await this.hooksRunner.runAfterLink(edgeResult)
-
+    await this.hooksRunner.runAfterLink(edgeResult as any)
     return edgeResult
   }
 
@@ -501,21 +374,13 @@ export class GraphMutationsImpl<
     edge: E,
     from: string,
     to: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>> {
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
-
-    const query = this.templates.edge.update(safeEdge, fromLabels, toLabels)
-    const params = this.buildParams({
-      fromId: from,
-      toId: to,
-      props: data,
-    })
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>> {
+    const op = ops.updateEdge(edge as string, from, to, data as Record<string, unknown>)
+    const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      params,
+      compiled.query, compiled.params,
     )
     const result = results[0]
 
@@ -523,72 +388,47 @@ export class GraphMutationsImpl<
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return {
-      id: result.r.id,
-      from: result.fromId,
-      to: result.toId,
-      data: result.r,
-    }
+    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
-  async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
-
-    // Run before hooks
+  async unlink<E extends EdgeTypes<S>>(
+    edge: E,
+    from: string,
+    to: string,
+  ): Promise<DeleteResult> {
     await this.hooksRunner.runBeforeUnlink(edge, from, to)
 
-    const query = this.templates.edge.deleteByEndpoints(safeEdge, fromLabels, toLabels)
-    const params = this.buildParams({ fromId: from, toId: to })
+    const op = ops.deleteEdge(edge as string, from, to)
+    const compiled = this.runPipeline(op)
 
-    // Dry-run mode
-    if (this.dryRunMode) {
-      return this.dryRunBuilder.deleteEdge(safeEdge, from, to, query).simulatedResult!
-    }
+    const results = await this.executor.run<{ deleted: boolean }>(compiled.query, compiled.params)
+    const deleteResult: DeleteResult = { deleted: results[0]?.deleted ?? false, id: `${from}->${to}` }
 
-    const results = await this.executor.run<{ deleted: boolean }>(query, params)
-
-    const deleteResult: DeleteResult = {
-      deleted: results[0]?.deleted ?? false,
-      id: `${from}->${to}`,
-    }
-
-    // Run after hooks
     await this.hooksRunner.runAfterUnlink(deleteResult)
-
     return deleteResult
   }
 
-  async unlinkById<E extends EdgeTypes<S>>(edge: E, edgeId: string): Promise<DeleteResult> {
-    const safeEdge = this.sanitize(edge as string)
+  async unlinkById<E extends EdgeTypes<S>>(
+    edge: E,
+    edgeId: string,
+  ): Promise<DeleteResult> {
+    const op = ops.deleteEdgeById(edge as string, edgeId)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.edge.deleteById(safeEdge)
-    const params = this.buildParams({ edgeId })
-
-    const results = await this.executor.run<{ deleted: boolean }>(query, params)
-
-    return {
-      deleted: results[0]?.deleted ?? false,
-      id: edgeId,
-    }
+    const results = await this.executor.run<{ deleted: boolean }>(compiled.query, compiled.params)
+    return { deleted: results[0]?.deleted ?? false, id: edgeId }
   }
 
   async patchLinkById<E extends EdgeTypes<S>>(
     edge: E,
     edgeId: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>> {
-    const safeEdge = this.sanitize(edge as string)
-
-    const query = this.templates.edge.updateById(safeEdge)
-    const params = this.buildParams({
-      edgeId,
-      props: data,
-    })
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>> {
+    const op = ops.updateEdgeById(edge as string, edgeId, data as Record<string, unknown>)
+    const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      params,
+      compiled.query, compiled.params,
     )
     const result = results[0]
 
@@ -596,12 +436,7 @@ export class GraphMutationsImpl<
       throw new Error(`Edge not found: ${edge} with id ${edgeId}`)
     }
 
-    return {
-      id: edgeId,
-      from: result.fromId,
-      to: result.toId,
-      data: result.r,
-    }
+    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
   // ---------------------------------------------------------------------------
@@ -611,28 +446,25 @@ export class GraphMutationsImpl<
   async createChild<N extends NodeLabels<S>>(
     label: N,
     parentId: string,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N, M>> {
-    const safeLabel = this.sanitize(label as string)
+  ): Promise<NodeResult<S, N, T>> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
-    const id = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
+    const id = this.idGenerator.generate(label as string) as string
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.createNode(label as string, id, data as Record<string, unknown>, {
+      links: [{ edgeType, targetId: parentId }],
+    })
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.hierarchy.createChild(safeLabels, edgeType)
-    const params = this.buildParams({ id, parentId, props: data })
-
-    const results = await this.executor.run<{ child: NodeProps<S, N> }>(query, params)
+    const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.child as NodeProps<S, N, NodeIdFor<S, N, M>> }
+    return { id, data: result.n as any }
   }
 
   async move(
@@ -642,33 +474,32 @@ export class GraphMutationsImpl<
   ): Promise<MoveResult> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
 
-    // Check for cycle
-    const cycleCheck = this.templates.hierarchy.wouldCreateCycle(edgeType)
-    const cycleResults = await this.executor.run<{ wouldCycle: boolean }>(cycleCheck, {
-      nodeId,
-      newParentId,
-    })
+    // Build op and run through pipeline (pass may rewrite edge type)
+    const op = ops.moveNode(nodeId, newParentId, edgeType)
+    const transformedOps = this.pipeline.run(op, this.schema)
+    const moveOp = transformedOps[0]! as import('./ast/types').MoveNodeOp
 
+    // Cycle check
+    const cycleCheck = this.compiler.compileCycleCheck(moveOp)
+    const cycleResults = await this.executor.run<{ wouldCycle: boolean }>(
+      cycleCheck.query, cycleCheck.params,
+    )
     if (cycleResults[0]?.wouldCycle) {
       throw new CycleDetectedError(nodeId, newParentId)
     }
 
-    // Try to move (handles case where node has existing parent)
-    const moveQuery = this.templates.hierarchy.move(edgeType)
+    // Try move (node has existing parent)
+    const moveCompiled = this.compiler.compileMove(moveOp)
     let results = await this.executor.run<{
-      nodeId: string
-      previousParentId: string | null
-      newParentId: string
-    }>(moveQuery, { nodeId, newParentId })
+      nodeId: string; previousParentId: string | null; newParentId: string
+    }>(moveCompiled.query, moveCompiled.params)
 
-    // If no results, node might be an orphan - try orphan move
+    // Orphan fallback
     if (results.length === 0) {
-      const orphanQuery = this.templates.hierarchy.moveOrphan(edgeType)
+      const orphanCompiled = this.compiler.compileMoveOrphan(moveOp)
       results = await this.executor.run<{
-        nodeId: string
-        previousParentId: string | null
-        newParentId: string
-      }>(orphanQuery, { nodeId, newParentId })
+        nodeId: string; previousParentId: string | null; newParentId: string
+      }>(orphanCompiled.query, orphanCompiled.params)
     }
 
     const result = results[0]
@@ -689,118 +520,76 @@ export class GraphMutationsImpl<
     newParentId: string,
     options?: HierarchyOptions<S>,
   ): Promise<SubtreeResult> {
-    // For moveSubtree, we only need to move the root - descendants follow automatically
     await this.move(rootId, newParentId, options)
 
-    // Count affected nodes (root + descendants)
     const edgeType = this.resolveHierarchyEdge(options?.edge)
-    const countQuery = this.templates.hierarchy.getSubtree(edgeType)
-    const countResults = await this.executor.run<{ node: unknown; depth: number }>(countQuery, {
-      rootId,
-    })
+    const subtreeCompiled = this.compiler.compileGetSubtree(rootId, edgeType)
+    const countResults = await this.executor.run<{ node: unknown; depth: number }>(
+      subtreeCompiled.query, subtreeCompiled.params,
+    )
 
-    return {
-      rootId,
-      affectedNodes: countResults.length,
-    }
+    return { rootId, affectedNodes: countResults.length }
   }
 
   async clone<N extends NodeLabels<S>>(
     label: N,
-    sourceId: NodeIdFor<S, N, M>,
-    overrides?: Partial<NodeInput<S, N>>,
+    sourceId: string,
+    overrides?: Partial<NodeInput<S, N, T>>,
     options?: CloneOptions<S>,
-  ): Promise<NodeResult<S, N, M>> {
-    const safeLabel = this.sanitize(label as string)
-    const newId = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
+  ): Promise<NodeResult<S, N, T>> {
+    const newId = this.idGenerator.generate(label as string) as string
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
-
-    let query: string
-    let params: Record<string, unknown>
-
+    let parent: import('./ast/types').CloneNodeOp['parent']
     if (options?.parentId) {
-      const edgeType = this.resolveHierarchyEdge(options.edge)
-      query = this.templates.hierarchy.cloneWithParent(safeLabels, edgeType)
-      params = this.buildParams({
-        sourceId,
-        newId,
-        parentId: options.parentId,
-        overrides: overrides ?? {},
-      })
+      parent = { parentId: options.parentId, edgeType: this.resolveHierarchyEdge(options.edge) }
     } else if (options?.preserveParent) {
-      const edgeType = this.resolveHierarchyEdge(options.edge)
-      query = this.templates.hierarchy.clonePreserveParent(safeLabels, edgeType)
-      params = this.buildParams({
-        sourceId,
-        newId,
-        overrides: overrides ?? {},
-      })
-    } else {
-      query = this.templates.node.clone(safeLabels)
-      params = this.buildParams({
-        sourceId,
-        newId,
-        overrides: overrides ?? {},
-      })
+      parent = { preserve: true, edgeType: this.resolveHierarchyEdge(options.edge) }
     }
 
-    const results = await this.executor.run<{ clone: NodeProps<S, N> }>(query, params)
+    const op = ops.cloneNode(
+      label as string, sourceId, newId, (overrides ?? {}) as Record<string, unknown>, parent,
+    )
+    const compiled = this.runPipeline(op)
+
+    const results = await this.executor.run<{ clone: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
       throw new SourceNotFoundError(label as string, sourceId)
     }
 
-    return { id: newId, data: result.clone as NodeProps<S, N, NodeIdFor<S, N, M>> }
+    return { id: newId, data: result.clone as any }
   }
 
-  /**
-   * Clone a subtree preserving original node labels.
-   * Queries each node's actual label from the database and creates clones with the correct labels.
-   * Supports heterogeneous subtrees (e.g., a tree containing both "module" and "group" nodes).
-   */
   async cloneSubtree(
     sourceRootId: string,
-    options?: CloneSubtreeOptions<S>,
-  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, M>> {
+    options?: CloneSubtreeOptions<S, T>,
+  ): Promise<CloneSubtreeResult<S, NodeLabels<S>, T>> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
 
-    // Get all nodes in subtree with depth and their labels
-    const getSubtreeQuery = this.templates.hierarchy.getSubtree(edgeType)
+    const subtreeCompiled = this.compiler.compileGetSubtree(sourceRootId, edgeType)
     const subtreeNodes = await this.executor.run<{
-      node: NodeProps<S, NodeLabels<S>>
-      depth: number
-      nodeLabels: string[]
-    }>(getSubtreeQuery, { rootId: sourceRootId })
+      node: NodeProps<S, NodeLabels<S>>; depth: number; nodeLabels: string[]
+    }>(subtreeCompiled.query, subtreeCompiled.params)
 
     if (subtreeNodes.length === 0) {
       throw new SourceNotFoundError('node', sourceRootId)
     }
 
-    // Filter by maxDepth if specified
-    const nodesToClone =
-      options?.maxDepth !== undefined
-        ? subtreeNodes.filter((n) => n.depth <= options.maxDepth!)
-        : subtreeNodes
+    const nodesToClone = options?.maxDepth !== undefined
+      ? subtreeNodes.filter((n) => n.depth <= options.maxDepth!)
+      : subtreeNodes
 
-    // Create ID mapping - use each node's actual label for ID generation
-    const idMapping: Record<string, NodeIdFor<S, NodeLabels<S>, M>> = {}
+    const idMapping: Record<string, string> = {}
     const labelsMapping: Record<string, string[]> = {}
     for (const { node, nodeLabels } of nodesToClone) {
-      const safeLabel = this.sanitize(nodeLabels[0]!)
-      idMapping[node.id] = this.idGenerator.generate(safeLabel) as NodeIdFor<S, NodeLabels<S>, M>
-      // Store all labels for each node (from database, already includes base labels)
-      labelsMapping[node.id] = nodeLabels.map((l) => this.sanitize(l))
+      idMapping[node.id] = this.idGenerator.generate(nodeLabels[0]!) as string
+      labelsMapping[node.id] = nodeLabels
     }
 
-    // Clone in transaction
     const rootResult = await this.executor.runInTransaction(async (tx) => {
-      let clonedRoot: NodeResult<S, NodeLabels<S>, M> | null = null
+      let clonedRoot: NodeResult<S, NodeLabels<S>, T> | null = null
 
-      // Clone nodes in order (root first, then by depth)
       for (const { node, depth } of nodesToClone) {
         const newId = idMapping[node.id]
         const nodeLabels = labelsMapping[node.id]
@@ -808,64 +597,48 @@ export class GraphMutationsImpl<
 
         const { id: _id, ...nodeData } = node
 
-        // Apply transform if provided
         let finalData = nodeData as NodeInput<S, NodeLabels<S>>
         if (options?.transform) {
-          const transformed = options.transform(node, depth)
+          const transformed = options.transform(node as any, depth)
           finalData = { ...finalData, ...transformed }
         }
 
-        // Create node with its original labels (includes base labels like :Node)
-        const createQuery = this.templates.node.create(nodeLabels)
-        const createResults = await tx.run<{ n: NodeProps<S, NodeLabels<S>> }>(createQuery, {
-          id: newId,
-          props: finalData,
+        // Build and compile through pipeline
+        const cloneOp = ops.createNode(nodeLabels[0]!, newId, finalData as Record<string, unknown>, {
+          additionalLabels: nodeLabels.slice(1),
         })
+        const compiled = this.runPipeline(cloneOp)
+        const results = await tx.run<{ n: NodeProps<S, NodeLabels<S>> }>(compiled.query, compiled.params)
+        const result = results[0]
 
-        const createResult = createResults[0]
-        if (depth === 0 && createResult) {
-          clonedRoot = {
-            id: newId as NodeIdFor<S, NodeLabels<S>, M>,
-            data: createResult.n as NodeProps<S, NodeLabels<S>, NodeIdFor<S, NodeLabels<S>, M>>,
+        if (result && depth === 0) {
+          clonedRoot = { id: newId, data: result.n as any }
+        }
+
+        // Re-create parent edge within the clone tree
+        if (depth > 0) {
+          const parentOfOriginal = nodesToClone.find(
+            (p) => p.depth === depth - 1 && subtreeNodes.indexOf(p) < subtreeNodes.indexOf({ node, depth, nodeLabels: nodeLabels! }),
+          )
+          if (parentOfOriginal) {
+            const parentNewId = idMapping[parentOfOriginal.node.id]
+            if (parentNewId) {
+              const linkOp = ops.createEdge(edgeType, newId, parentNewId, this.idGenerator.generate(edgeType))
+              const linkCompiled = this.runPipeline(linkOp)
+              await tx.run(linkCompiled.query, linkCompiled.params)
+            }
           }
         }
       }
 
-      // Recreate internal edges (parent relationships within subtree)
-      for (const { node } of nodesToClone) {
-        const clonedId = idMapping[node.id]
-        if (!clonedId) continue
-
-        // Get original parent
-        const getParentQuery = this.templates.hierarchy.getParent(edgeType)
-        const parentResults = await tx.run<{ parentId: string }>(getParentQuery, {
-          nodeId: node.id,
-        })
-
-        const parentResult = parentResults[0]
-        if (parentResult) {
-          const originalParentId = parentResult.parentId
-          const clonedParentId = idMapping[originalParentId]
-          // Only create edge if parent is also in the subtree
-          if (clonedParentId) {
-            const createEdgeQuery = this.templates.edge.createNoProps(edgeType)
-            await tx.run(createEdgeQuery, {
-              fromId: clonedId,
-              toId: clonedParentId,
-              edgeId: this.idGenerator.generate(edgeType),
-            })
-          }
-        }
-      }
-
-      // Link root to new parent if specified
-      if (options?.parentId && clonedRoot) {
-        const createEdgeQuery = this.templates.edge.createNoProps(edgeType)
-        await tx.run(createEdgeQuery, {
-          fromId: clonedRoot.id,
-          toId: options.parentId,
-          edgeId: this.idGenerator.generate(edgeType),
-        })
+      // Link root to parent if requested
+      if (clonedRoot && options?.parentId) {
+        const linkOp = ops.createEdge(
+          edgeType, clonedRoot.id, options.parentId,
+          this.idGenerator.generate(edgeType),
+        )
+        const linkCompiled = this.runPipeline(linkOp)
+        await tx.run(linkCompiled.query, linkCompiled.params)
       }
 
       return clonedRoot
@@ -875,28 +648,22 @@ export class GraphMutationsImpl<
       throw new Error('Failed to clone subtree: no root created')
     }
 
-    return {
-      root: rootResult,
-      clonedNodes: nodesToClone.length,
-      idMapping,
-    }
+    return { root: rootResult, clonedNodes: nodesToClone.length, idMapping }
   }
 
   async deleteSubtree<N extends NodeLabels<S>>(
     _label: N,
-    rootId: NodeIdFor<S, N, M>,
+    rootId: string,
     options?: HierarchyOptions<S>,
   ): Promise<DeleteSubtreeResult> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
 
-    const query = this.templates.hierarchy.deleteSubtree(edgeType)
-    const results = await this.executor.run<{ deletedNodes: number }>(query, { rootId })
+    const op = ops.deleteSubtree(rootId, edgeType)
+    const compiled = this.runPipeline(op)
 
-    return {
-      rootId,
-      deletedNodes: results[0]?.deletedNodes ?? 0,
-      deletedEdges: 0, // DETACH DELETE handles edges
-    }
+    const results = await this.executor.run<{ deletedNodes: number }>(compiled.query, compiled.params)
+
+    return { rootId, deletedNodes: results[0]?.deletedNodes ?? 0, deletedEdges: 0 }
   }
 
   // ---------------------------------------------------------------------------
@@ -905,18 +672,14 @@ export class GraphMutationsImpl<
 
   async createMany<N extends NodeLabels<S>>(
     label: N,
-    items: NodeInput<S, N>[],
+    items: NodeInput<S, N, T>[],
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>[]> {
-    const safeLabel = this.sanitize(label as string)
-
-    // Validate all items upfront (fail-fast)
-    const itemsWithIds: Array<{ id: NodeIdFor<S, N, M>; props: Record<string, unknown> }> = []
+  ): Promise<NodeResult<S, N, T>[]> {
+    const itemsWithIds: { id: string; data: Record<string, unknown> }[] = []
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
       let validatedData: Record<string, unknown>
-
       if (this.validationOptions.enabled && this.validationOptions.onCreate) {
         try {
           validatedData = this.validator.parseAndPrepareNode(label, item)
@@ -924,9 +687,7 @@ export class GraphMutationsImpl<
           if (error instanceof ValidationError) {
             throw new ValidationError(
               `Batch validation failed at index ${i}: ${error.message}`,
-              error.field,
-              error.expected,
-              error.received,
+              error.field, error.expected, error.received,
             )
           }
           throw error
@@ -935,96 +696,87 @@ export class GraphMutationsImpl<
         validatedData = stripUndefined(item as Record<string, unknown>)
       }
 
-      // Serialize dates for DB
       itemsWithIds.push({
-        id: (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>,
+        id: (options?.id ?? this.idGenerator.generate(label as string)) as string,
         props: serializeDates(validatedData),
-      })
+      } as unknown as { id: string; data: Record<string, unknown> })
     }
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    // Merge additional labels from options
-    if (options?.additionalLabels?.length) {
-      labels.push(...options.additionalLabels)
-    }
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.batchCreate(label as string, itemsWithIds, {
+      additionalLabels: options?.additionalLabels,
+    })
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.createMany(safeLabels)
-    const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { items: itemsWithIds })
+    const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
 
     return results.map((r, i) => ({
       id: itemsWithIds[i]!.id,
-      data: this.deserializeDates(label, r.n) as NodeProps<S, N, NodeIdFor<S, N, M>>,
+      data: this.deserializeDates(label, r.n) as any,
     }))
   }
 
   async updateMany<N extends NodeLabels<S>>(
     label: N,
-    updates: Array<{ id: NodeIdFor<S, N, M>; data: Partial<NodeInput<S, N>> }>,
-  ): Promise<NodeResult<S, N, M>[]> {
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    updates: Array<{ id: string; data: Partial<NodeInput<S, N, T>> }>,
+  ): Promise<NodeResult<S, N, T>[]> {
+    const updateItems = updates.map((u) => ({ id: u.id, data: u.data as Record<string, unknown> }))
 
-    const updateItems = updates.map((u) => ({
-      id: u.id,
-      props: u.data,
-    }))
+    const op = ops.batchUpdate(label as string, updateItems)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.updateMany(safeLabels)
-    const results = await this.executor.run<{ n: NodeProps<S, N> }>(query, { updates: updateItems })
+    const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
 
     return results.map((r) => ({
-      id: r.n.id as NodeIdFor<S, N, M>,
-      data: r.n as NodeProps<S, N, NodeIdFor<S, N, M>>,
+      id: r.n.id as string,
+      data: r.n as any,
     }))
   }
 
   async deleteMany<N extends NodeLabels<S>>(
     label: N,
-    ids: Array<NodeIdFor<S, N, M>>,
+    ids: Array<string>,
     _options?: DeleteOptions,
   ): Promise<BatchDeleteResult> {
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.batchDelete(label as string, ids)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.deleteMany(safeLabels)
-    const results = await this.executor.run<{ deletedCount: number }>(query, { ids })
-
-    return {
-      deleted: results[0]?.deletedCount ?? 0,
-    }
+    const results = await this.executor.run<{ deletedCount: number }>(compiled.query, compiled.params)
+    return { deleted: results[0]?.deletedCount ?? 0 }
   }
 
   async linkMany<E extends EdgeTypes<S>>(
     edge: E,
-    links: LinkInput<S, E>[],
-  ): Promise<EdgeResult<S, E>[]> {
+    links: LinkInput<S, E, T>[],
+  ): Promise<EdgeResult<S, E, T>[]> {
     if (links.length === 0) return []
 
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
-
     const linksWithIds = links.map((link) => ({
-      from: link.from,
-      to: link.to,
-      data: link.data ?? {},
-      id: this.idGenerator.generate(safeEdge),
+      fromId: link.from,
+      toId: link.to,
+      data: (link.data ?? {}) as Record<string, unknown>,
+      edgeId: this.idGenerator.generate(edge as string),
     }))
 
-    const query = this.templates.batch.linkMany(safeEdge, fromLabels, toLabels)
+    // BatchLinkOp expects from/to fields for the UNWIND template
+    const batchLinks = linksWithIds.map((l) => ({
+      fromId: l.fromId,
+      toId: l.toId,
+      edgeId: l.edgeId,
+      data: l.data,
+    }))
+
+    const op = ops.batchLink(edge as string, batchLinks)
+    const compiled = this.runPipeline(op)
+
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      { links: linksWithIds },
+      compiled.query, compiled.params,
     )
 
     return results.map((r, i) => ({
-      id: linksWithIds[i]?.id ?? '',
+      id: linksWithIds[i]?.edgeId ?? '',
       from: r.fromId,
       to: r.toId,
-      data: r.r,
+      data: r.r as any,
     }))
   }
 
@@ -1034,46 +786,48 @@ export class GraphMutationsImpl<
   ): Promise<BatchDeleteResult> {
     if (links.length === 0) return { deleted: 0 }
 
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+    const batchLinks = links.map((l) => ({ fromId: l.from, toId: l.to }))
+    const op = ops.batchUnlink(edge as string, batchLinks)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.unlinkMany(safeEdge, fromLabels, toLabels)
-    const results = await this.executor.run<{ deleted: number }>(query, { links })
-
+    const results = await this.executor.run<{ deleted: number }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? 0 }
   }
 
   async unlinkAllFrom<E extends EdgeTypes<S>>(edge: E, from: string): Promise<BatchDeleteResult> {
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels } = this.resolveEdgeEndpointLabels(edge)
+    const op = ops.unlinkAllFrom(edge as string, from)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.unlinkAllFrom(safeEdge, fromLabels)
-    const results = await this.executor.run<{ deleted: number }>(query, { from })
-
+    const results = await this.executor.run<{ deleted: number }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? 0 }
   }
 
   async unlinkAllTo<E extends EdgeTypes<S>>(edge: E, to: string): Promise<BatchDeleteResult> {
-    const safeEdge = this.sanitize(edge as string)
-    const { toLabels } = this.resolveEdgeEndpointLabels(edge)
+    const op = ops.unlinkAllTo(edge as string, to)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.unlinkAllTo(safeEdge, toLabels)
-    const results = await this.executor.run<{ deleted: number }>(query, { to })
-
+    const results = await this.executor.run<{ deleted: number }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? 0 }
+  }
+
+  // ---------------------------------------------------------------------------
+  // EXEC (user-composed multi-mutations)
+  // ---------------------------------------------------------------------------
+
+  async exec(userOps: MutationOp[]): Promise<Record<string, unknown>[]> {
+    const transformed = this.pipeline.run(userOps, this.schema)
+    const compiled = this.compiler.compile(transformed, this.schema)
+    return this.executor.run(compiled.query, compiled.params)
   }
 
   // ---------------------------------------------------------------------------
   // TRANSACTIONS
   // ---------------------------------------------------------------------------
 
-  async transaction<T>(fn: (tx: MutationTransaction<S, M>) => Promise<T>): Promise<T> {
+  async transaction<R>(fn: (tx: MutationTransaction<S, T>) => Promise<R>): Promise<R> {
     return this.executor.runInTransaction(async (runner) => {
-      const txContext = new MutationTransactionImpl<S, M>(
-        this.schema,
-        runner,
-        this.idGenerator,
-        this.templates,
+      const txContext = new MutationTransactionImpl<S, T>(
+        this.schema, runner, this.idGenerator, this.pipeline, this.compiler,
       )
       return fn(txContext)
     })
@@ -1091,35 +845,20 @@ export class GraphMutationsImpl<
   // HELPERS
   // ---------------------------------------------------------------------------
 
-  private sanitize(identifier: string): string {
-    return this.templates.utils.sanitizeIdentifier(identifier)
-  }
-
-  private buildParams(params: Record<string, unknown>): Record<string, unknown> {
-    return this.templates.utils.buildParams(params)
+  private runPipeline(op: MutationOp): CompiledMutation {
+    const transformed = this.pipeline.run(op, this.schema)
+    return this.compiler.compile(transformed, this.schema)
   }
 
   private resolveHierarchyEdge(edge?: EdgeTypes<S>): string {
-    if (edge) return this.sanitize(edge as string)
-
+    if (edge) return edge as string
     const hierarchy = this.schema.hierarchy
     if (!hierarchy?.defaultEdge) {
-      throw new Error(
-        'No hierarchy edge specified and schema has no default hierarchy configuration',
-      )
+      throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
     }
-    return this.sanitize(hierarchy.defaultEdge)
+    return hierarchy.defaultEdge
   }
 
-  /** Delegate to shared utility for resolving edge endpoint labels */
-  private resolveEdgeEndpointLabels(edge: EdgeTypes<S>) {
-    return resolveEdgeEndpointLabels(this.schema, edge)
-  }
-
-  /**
-   * Deserialize date fields from ISO strings back to Date objects.
-   * Delegates to shared utility.
-   */
   private deserializeDates<N extends NodeLabels<S>>(
     label: N,
     data: Record<string, unknown>,
@@ -1132,75 +871,57 @@ export class GraphMutationsImpl<
 // MUTATION TRANSACTION IMPLEMENTATION
 // =============================================================================
 
-class MutationTransactionImpl<
-  S extends AnySchema,
-  M extends NodeIdMap<S> = NodeIdMap<S>,
-> implements MutationTransaction<S, M> {
+class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements MutationTransaction<S, T> {
   private readonly schema: S
   private readonly runner: TransactionRunner
   private readonly idGenerator: IdGenerator
-  private readonly templates: MutationTemplateProvider
+  private readonly pipeline: MutationCompilationPipeline
+  private readonly compiler: MutationCypherCompiler
 
   constructor(
     schema: S,
     runner: TransactionRunner,
     idGenerator: IdGenerator,
-    templates: MutationTemplateProvider,
+    pipeline: MutationCompilationPipeline,
+    compiler: MutationCypherCompiler,
   ) {
     this.schema = schema
     this.runner = runner
     this.idGenerator = idGenerator
-    this.templates = templates
+    this.pipeline = pipeline
+    this.compiler = compiler
+  }
+
+  private runPipeline(op: MutationOp): CompiledMutation {
+    const transformed = this.pipeline.run(op, this.schema)
+    return this.compiler.compile(transformed, this.schema)
   }
 
   async create<N extends NodeLabels<S>>(
     label: N,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: CreateOptions,
-  ): Promise<NodeResult<S, N, M>> {
-    const safeLabel = this.sanitize(label as string)
-    const id = (options?.id ?? this.idGenerator.generate(safeLabel)) as NodeIdFor<S, N, M>
+  ): Promise<NodeResult<S, N, T>> {
+    const id = (options?.id ?? this.idGenerator.generate(label as string)) as string
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    if (options?.additionalLabels?.length) {
-      labels.push(...options.additionalLabels)
-    }
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const links = options?.link
+      ? Object.entries(options.link).map(([edgeType, targetId]) => {
+          if (targetId == null || targetId === '') {
+            throw new Error(
+              `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
+            )
+          }
+          return { edgeType, targetId: targetId === 'self' ? id : targetId }
+        })
+      : undefined
 
-    // Build query — with or without inline links
-    let query: string
-    let params: Record<string, unknown>
+    const op = ops.createNode(label as string, id, data as Record<string, unknown>, {
+      additionalLabels: options?.additionalLabels,
+      links,
+    })
+    const compiled = this.runPipeline(op)
 
-    if (options?.link && Object.keys(options.link).length > 0) {
-      const links: Array<{ edgeType: string; targetAlias: string }> = []
-      const linkParams: Record<string, unknown> = {}
-      let targetIndex = 0
-
-      for (const [edgeType, targetId] of Object.entries(options.link)) {
-        if (targetId == null || targetId === '') {
-          throw new Error(
-            `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
-          )
-        }
-        const safeEdgeType = this.sanitize(edgeType)
-        if (targetId === 'self') {
-          links.push({ edgeType: safeEdgeType, targetAlias: 'n' })
-        } else {
-          const alias = `t${targetIndex++}`
-          links.push({ edgeType: safeEdgeType, targetAlias: alias })
-          linkParams[`${alias}Id`] = targetId
-        }
-      }
-
-      query = this.templates.node.createWithLinks(safeLabels, links)
-      params = { id, props: data, ...linkParams }
-    } else {
-      query = this.templates.node.create(safeLabels)
-      params = { id, props: data }
-    }
-
-    const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, params)
+    const results = await this.runner.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
@@ -1212,181 +933,145 @@ class MutationTransactionImpl<
       throw new Error(`Failed to create node: ${label}`)
     }
 
-    return { id, data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>> }
+    return { id, data: result.n as any }
   }
 
   async update<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: Partial<NodeInput<S, N>>,
-  ): Promise<NodeResult<S, N, M>> {
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    id: string,
+    data: Partial<NodeInput<S, N, T>>,
+  ): Promise<NodeResult<S, N, T>> {
+    const op = ops.updateNode(label as string, id, data as Record<string, unknown>)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.node.update(safeLabels)
-    const results = await this.runner.run<{ n: NodeProps<S, N> }>(query, { id, props: data })
+    const results = await this.runner.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
       throw new NodeNotFoundError(label as string, id)
     }
 
-    return { id, data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>> }
+    return { id, data: result.n as any }
   }
 
   async delete<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
+    id: string,
     options?: DeleteOptions,
   ): Promise<DeleteResult> {
     const detach = options?.detach ?? true
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    const op = ops.deleteNode(label as string, id, detach)
+    const compiled = this.runPipeline(op)
 
-    const query = detach
-      ? this.templates.node.delete(safeLabels)
-      : this.templates.node.deleteKeepEdges(safeLabels)
-    const results = await this.runner.run<{ deleted: boolean }>(query, { id })
-
+    const results = await this.runner.run<{ deleted: boolean }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? false, id }
   }
 
   async upsert<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-    data: NodeInput<S, N>,
-  ): Promise<UpsertResult<S, N, M>> {
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
+    id: string,
+    data: NodeInput<S, N, T>,
+  ): Promise<UpsertResult<S, N, T>> {
+    const op = ops.upsertNode(label as string, id, data as Record<string, unknown>)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.node.upsert(safeLabels)
-    const results = await this.runner.run<{ n: NodeProps<S, N>; created: boolean }>(query, {
-      id,
-      createProps: data,
-      updateProps: data,
-    })
-
+    const results = await this.runner.run<{ n: NodeProps<S, N>; created: boolean }>(
+      compiled.query, compiled.params,
+    )
     const result = results[0]
+
     if (!result) {
       throw new Error(`Failed to upsert node: ${label}`)
     }
 
-    return {
-      id,
-      data: result.n as NodeProps<S, N, NodeIdFor<S, N, M>>,
-      created: result.created,
-    }
+    return { id, data: result.n as any, created: result.created }
   }
 
   async link<E extends EdgeTypes<S>>(
     edge: E,
     from: string,
     to: string,
-    data?: EdgeInput<S, E>,
-  ): Promise<EdgeResult<S, E>> {
-    const safeEdge = this.sanitize(edge as string)
-    const edgeId = this.idGenerator.generate(safeEdge)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+    data?: EdgeInput<S, E, T>,
+  ): Promise<EdgeResult<S, E, T>> {
+    const edgeId = this.idGenerator.generate(edge as string)
 
-    const query = data
-      ? this.templates.edge.create(safeEdge, fromLabels, toLabels)
-      : this.templates.edge.createNoProps(safeEdge, fromLabels, toLabels)
-    const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      {
-        fromId: from,
-        toId: to,
-        edgeId,
-        props: data ?? {},
-      },
+    const op = ops.createEdge(
+      edge as string, from, to, edgeId,
+      data ? (data as Record<string, unknown>) : undefined,
     )
+    const compiled = this.runPipeline(op)
 
+    const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
+      compiled.query, compiled.params,
+    )
     const result = results[0]
+
     if (!result) {
       throw new Error(`Failed to create edge: ${edge} from ${from} to ${to}`)
     }
 
-    return {
-      id: edgeId,
-      from: result.fromId,
-      to: result.toId,
-      data: result.r,
-    }
+    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
   async patchLink<E extends EdgeTypes<S>>(
     edge: E,
     from: string,
     to: string,
-    data: Partial<EdgeInput<S, E>>,
-  ): Promise<EdgeResult<S, E>> {
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+    data: Partial<EdgeInput<S, E, T>>,
+  ): Promise<EdgeResult<S, E, T>> {
+    const op = ops.updateEdge(edge as string, from, to, data as Record<string, unknown>)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.edge.update(safeEdge, fromLabels, toLabels)
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      {
-        fromId: from,
-        toId: to,
-        props: data,
-      },
+      compiled.query, compiled.params,
     )
-
     const result = results[0]
+
     if (!result) {
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return {
-      id: result.r.id,
-      from: result.fromId,
-      to: result.toId,
-      data: result.r,
-    }
+    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
-  async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+  async unlink<E extends EdgeTypes<S>>(
+    edge: E,
+    from: string,
+    to: string,
+  ): Promise<DeleteResult> {
+    const op = ops.deleteEdge(edge as string, from, to)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.edge.deleteByEndpoints(safeEdge, fromLabels, toLabels)
-    const results = await this.runner.run<{ deleted: boolean }>(query, { fromId: from, toId: to })
-
+    const results = await this.runner.run<{ deleted: boolean }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? false, id: `${from}->${to}` }
   }
 
   async linkMany<E extends EdgeTypes<S>>(
     edge: E,
-    links: LinkInput<S, E>[],
-  ): Promise<EdgeResult<S, E>[]> {
+    links: LinkInput<S, E, T>[],
+  ): Promise<EdgeResult<S, E, T>[]> {
     if (links.length === 0) return []
 
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
-
-    const linksWithIds = links.map((link) => ({
-      from: link.from,
-      to: link.to,
-      data: link.data ?? {},
-      id: this.idGenerator.generate(safeEdge),
+    const batchLinks = links.map((link) => ({
+      fromId: link.from,
+      toId: link.to,
+      edgeId: this.idGenerator.generate(edge as string),
+      data: (link.data ?? {}) as Record<string, unknown>,
     }))
 
-    const query = this.templates.batch.linkMany(safeEdge, fromLabels, toLabels)
+    const op = ops.batchLink(edge as string, batchLinks)
+    const compiled = this.runPipeline(op)
+
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      query,
-      { links: linksWithIds },
+      compiled.query, compiled.params,
     )
 
     return results.map((r, i) => ({
-      id: linksWithIds[i]?.id ?? '',
+      id: batchLinks[i]?.edgeId ?? '',
       from: r.fromId,
       to: r.toId,
-      data: r.r,
+      data: r.r as any,
     }))
   }
 
@@ -1396,42 +1081,36 @@ class MutationTransactionImpl<
   ): Promise<BatchDeleteResult> {
     if (links.length === 0) return { deleted: 0 }
 
-    const safeEdge = this.sanitize(edge as string)
-    const { fromLabels, toLabels } = this.resolveEdgeEndpointLabels(edge)
+    const batchLinks = links.map((l) => ({ fromId: l.from, toId: l.to }))
+    const op = ops.batchUnlink(edge as string, batchLinks)
+    const compiled = this.runPipeline(op)
 
-    const query = this.templates.batch.unlinkMany(safeEdge, fromLabels, toLabels)
-    const results = await this.runner.run<{ deleted: number }>(query, { links })
-
+    const results = await this.runner.run<{ deleted: number }>(compiled.query, compiled.params)
     return { deleted: results[0]?.deleted ?? 0 }
   }
 
   async createChild<N extends NodeLabels<S>>(
     label: N,
     parentId: string,
-    data: NodeInput<S, N>,
+    data: NodeInput<S, N, T>,
     options?: HierarchyOptions<S>,
-  ): Promise<NodeResult<S, N, M>> {
-    const safeLabel = this.sanitize(label as string)
+  ): Promise<NodeResult<S, N, T>> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
-    const id = this.idGenerator.generate(safeLabel) as NodeIdFor<S, N, M>
+    const id = this.idGenerator.generate(label as string) as string
 
-    // Resolve labels (includes base labels like :Node)
-    const labels = resolveNodeLabels(this.schema, label as string)
-    const safeLabels = labels.map((l) => this.sanitize(l))
-
-    const query = this.templates.hierarchy.createChild(safeLabels, edgeType)
-    const results = await this.runner.run<{ child: NodeProps<S, N> }>(query, {
-      id,
-      parentId,
-      props: data,
+    const op = ops.createNode(label as string, id, data as Record<string, unknown>, {
+      links: [{ edgeType, targetId: parentId }],
     })
+    const compiled = this.runPipeline(op)
+
+    const results = await this.runner.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
     const result = results[0]
 
     if (!result) {
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.child as NodeProps<S, N, NodeIdFor<S, N, M>> }
+    return { id, data: result.n as any }
   }
 
   async move(
@@ -1441,20 +1120,20 @@ class MutationTransactionImpl<
   ): Promise<MoveResult> {
     const edgeType = this.resolveHierarchyEdge(options?.edge)
 
-    const moveQuery = this.templates.hierarchy.move(edgeType)
+    const op = ops.moveNode(nodeId, newParentId, edgeType)
+    const transformedOps = this.pipeline.run(op, this.schema)
+    const moveOp = transformedOps[0]! as import('./ast/types').MoveNodeOp
+
+    const moveCompiled = this.compiler.compileMove(moveOp)
     let results = await this.runner.run<{
-      nodeId: string
-      previousParentId: string | null
-      newParentId: string
-    }>(moveQuery, { nodeId, newParentId })
+      nodeId: string; previousParentId: string | null; newParentId: string
+    }>(moveCompiled.query, moveCompiled.params)
 
     if (results.length === 0) {
-      const orphanQuery = this.templates.hierarchy.moveOrphan(edgeType)
+      const orphanCompiled = this.compiler.compileMoveOrphan(moveOp)
       results = await this.runner.run<{
-        nodeId: string
-        previousParentId: string | null
-        newParentId: string
-      }>(orphanQuery, { nodeId, newParentId })
+        nodeId: string; previousParentId: string | null; newParentId: string
+      }>(orphanCompiled.query, orphanCompiled.params)
     }
 
     const result = results[0]
@@ -1474,24 +1153,12 @@ class MutationTransactionImpl<
     return this.runner.run<T>(cypher, params ?? {})
   }
 
-  private sanitize(identifier: string): string {
-    return this.templates.utils.sanitizeIdentifier(identifier)
-  }
-
   private resolveHierarchyEdge(edge?: EdgeTypes<S>): string {
-    if (edge) return this.sanitize(edge as string)
-
+    if (edge) return edge as string
     const hierarchy = (this.schema as { hierarchy?: { defaultEdge?: string } }).hierarchy
     if (!hierarchy?.defaultEdge) {
-      throw new Error(
-        'No hierarchy edge specified and schema has no default hierarchy configuration',
-      )
+      throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
     }
-    return this.sanitize(hierarchy.defaultEdge)
-  }
-
-  /** Delegate to shared utility for resolving edge endpoint labels */
-  private resolveEdgeEndpointLabels(edge: EdgeTypes<S>) {
-    return resolveEdgeEndpointLabels(this.schema, edge)
+    return hierarchy.defaultEdge
   }
 }

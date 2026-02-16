@@ -5,9 +5,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { z } from 'zod'
 import { normalizeCypher } from './fixtures/test-schema'
-import { defineSchema, node, edge, type AnySchema, QueryAST } from '@astrale/typegraph-core'
+import { type SchemaShape, QueryAST } from '../../src'
 import { CypherCompiler } from '../../src/compiler'
 
 describe('Query Compilation: Hierarchy', () => {
@@ -332,60 +331,42 @@ describe('Query Compilation: Hierarchy', () => {
 
 describe('Hierarchy with Multi-Label Nodes (Actual Compilation)', () => {
   // Schema with simple hierarchy (no multi-label)
-  const simpleHierarchySchema = defineSchema({
+  const simpleHierarchySchema = {
     nodes: {
-      folder: node({
-        properties: {
-          name: z.string(),
-          path: z.string(),
-        },
-      }),
+      folder: { abstract: false, attributes: ['name', 'path'] },
     },
     edges: {
-      hasParent: edge({
-        from: 'folder',
-        to: 'folder',
-        cardinality: { outbound: 'optional', inbound: 'many' },
-      }),
+      hasParent: {
+        endpoints: {
+          child: { types: ['folder'], cardinality: { min: 0, max: 1 } },
+          parent: { types: ['folder'] },
+        },
+      },
     },
-    hierarchy: {
-      defaultEdge: 'hasParent',
-      direction: 'up',
-    },
-  })
+    hierarchy: { defaultEdge: 'hasParent', direction: 'up' as const },
+  } as const satisfies SchemaShape
 
   // Schema with inheritance hierarchy
-  const resourceNode = node({
-    properties: { name: z.string() },
-  })
-  const multiLabelSchema = defineSchema({
+  const multiLabelSchema = {
     nodes: {
-      resource: resourceNode,
-      folder: node({
-        properties: { name: z.string(), path: z.string() },
-        extends: [resourceNode], // folder IS-A resource
-      }),
-      document: node({
-        properties: { name: z.string(), content: z.string() },
-        extends: [resourceNode], // document IS-A resource
-      }),
+      resource: { abstract: false, attributes: ['name'] },
+      folder: { abstract: false, implements: ['resource'], attributes: ['name', 'path'] },
+      document: { abstract: false, implements: ['resource'], attributes: ['name', 'content'] },
     },
     edges: {
       // Hierarchy edge: resources can contain other resources
-      contains: edge({
-        from: 'resource',
-        to: 'resource',
-        cardinality: { outbound: 'many', inbound: 'optional' },
-      }),
+      contains: {
+        endpoints: {
+          parent: { types: ['resource'], cardinality: { min: 0, max: null } },
+          child: { types: ['resource'], cardinality: { min: 0, max: 1 } },
+        },
+      },
     },
-    hierarchy: {
-      defaultEdge: 'contains',
-      direction: 'down', // parent CONTAINS children
-    },
-  })
+    hierarchy: { defaultEdge: 'contains', direction: 'down' as const },
+  } as const satisfies SchemaShape
 
   describe('Simple Hierarchy - Target Labels', () => {
-    const compiler = new CypherCompiler(simpleHierarchySchema as AnySchema)
+    const compiler = new CypherCompiler(simpleHierarchySchema as SchemaShape)
 
     it('includes target label in ancestors query', () => {
       const ast = new QueryAST()
@@ -492,7 +473,7 @@ describe('Hierarchy with Multi-Label Nodes (Actual Compilation)', () => {
   })
 
   describe('Multi-Label Hierarchy - Inheritance', () => {
-    const compiler = new CypherCompiler(multiLabelSchema as AnySchema)
+    const compiler = new CypherCompiler(multiLabelSchema as SchemaShape)
 
     it('resolves inherited labels for source node', () => {
       const ast = new QueryAST()

@@ -1,27 +1,29 @@
 /**
- * Query Optimizer
+ * Compilation Pipeline
  *
- * Applies optimization passes to the AST before compilation.
+ * Applies transformation passes to the AST before compilation.
+ * Passes include lowering (e.g. edge reification), optimization, and rewrites.
  */
 
-import { type QueryAST } from '@astrale/typegraph-core'
-import type { SchemaDefinition } from '@astrale/typegraph-core'
+import { type QueryAST } from '../ast'
+import type { SchemaShape } from '../schema'
 
 /**
- * Optimization pass interface.
+ * A single AST transformation pass.
+ * Covers lowering, optimization, and rewriting.
  */
-export interface OptimizationPass {
+export interface CompilationPass {
   name: string
-  transform(ast: QueryAST, schema: SchemaDefinition): QueryAST
+  transform(ast: QueryAST, schema: SchemaShape): QueryAST
 }
 
 /**
- * Query optimizer that applies multiple passes.
+ * Runs a sequence of compilation passes on the AST.
  */
-export class QueryOptimizer {
-  private readonly passes: OptimizationPass[]
+export class CompilationPipeline {
+  private readonly passes: CompilationPass[]
 
-  constructor(passes?: OptimizationPass[]) {
+  constructor(passes?: CompilationPass[]) {
     this.passes = passes ?? [
       new MergeWhereClausesPass(),
       new PushDownFiltersPass(),
@@ -30,7 +32,7 @@ export class QueryOptimizer {
     ]
   }
 
-  optimize(ast: QueryAST, schema: SchemaDefinition): QueryAST {
+  run(ast: QueryAST, schema: SchemaShape): QueryAST {
     let result = ast
     for (const pass of this.passes) {
       result = pass.transform(result, schema)
@@ -38,7 +40,7 @@ export class QueryOptimizer {
     return result
   }
 
-  addPass(pass: OptimizationPass): void {
+  addPass(pass: CompilationPass): void {
     this.passes.push(pass)
   }
 }
@@ -49,10 +51,10 @@ export class QueryOptimizer {
  * Before: MATCH (n) WHERE n.a = 1 WHERE n.b = 2
  * After:  MATCH (n) WHERE n.a = 1 AND n.b = 2
  */
-class MergeWhereClausesPass implements OptimizationPass {
+class MergeWhereClausesPass implements CompilationPass {
   name = 'MergeWhereClauses'
 
-  transform(_ast: QueryAST, _schema: SchemaDefinition): QueryAST {
+  transform(_ast: QueryAST, _schema: SchemaShape): QueryAST {
     throw new Error('Not implemented')
   }
 }
@@ -62,10 +64,10 @@ class MergeWhereClausesPass implements OptimizationPass {
  *
  * This reduces the number of intermediate results.
  */
-class PushDownFiltersPass implements OptimizationPass {
+class PushDownFiltersPass implements CompilationPass {
   name = 'PushDownFilters'
 
-  transform(_ast: QueryAST, _schema: SchemaDefinition): QueryAST {
+  transform(_ast: QueryAST, _schema: SchemaShape): QueryAST {
     throw new Error('Not implemented')
   }
 }
@@ -75,10 +77,10 @@ class PushDownFiltersPass implements OptimizationPass {
  *
  * For example, when selecting by unique ID.
  */
-class EliminateRedundantDistinctPass implements OptimizationPass {
+class EliminateRedundantDistinctPass implements CompilationPass {
   name = 'EliminateRedundantDistinct'
 
-  transform(_ast: QueryAST, _schema: SchemaDefinition): QueryAST {
+  transform(_ast: QueryAST, _schema: SchemaShape): QueryAST {
     throw new Error('Not implemented')
   }
 }
@@ -88,10 +90,10 @@ class EliminateRedundantDistinctPass implements OptimizationPass {
  *
  * Put the most selective matches first.
  */
-class ReorderMatchesPass implements OptimizationPass {
+class ReorderMatchesPass implements CompilationPass {
   name = 'ReorderMatches'
 
-  transform(_ast: QueryAST, _schema: SchemaDefinition): QueryAST {
+  transform(_ast: QueryAST, _schema: SchemaShape): QueryAST {
     throw new Error('Not implemented')
   }
 }

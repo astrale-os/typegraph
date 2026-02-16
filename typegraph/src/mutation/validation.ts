@@ -1,13 +1,12 @@
 /**
  * Mutation Validation
  *
- * Runtime validation using schema's Zod definitions.
  * Validates node/edge data and schema constraints.
  */
 
-import { type z } from 'zod'
-import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
-import { getNodesSatisfying } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, EdgeTypes } from '../inference'
+import { getNodesSatisfying, edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 import { ValidationError } from './errors'
 
 // =============================================================================
@@ -68,14 +67,14 @@ export interface ValidationIssue {
 /**
  * Validates mutation inputs against schema definitions.
  */
-export class MutationValidator<S extends AnySchema> {
+export class MutationValidator<S extends SchemaShape> {
   constructor(private readonly schema: S) {}
 
   /**
    * Validate node data against schema.
    * @throws ValidationError if validation fails
    */
-  validateNode<N extends NodeLabels<S>>(label: N, data: unknown, partial = false): void {
+  validateNode<N extends NodeLabels<S>>(label: N, _data: unknown, _partial = false): void {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) {
       throw new ValidationError(
@@ -86,25 +85,14 @@ export class MutationValidator<S extends AnySchema> {
       )
     }
 
-    const zodSchema = partial ? nodeDef.properties.partial() : nodeDef.properties
-
-    const result = zodSchema.safeParse(data)
-    if (!result.success) {
-      const firstError = result.error.issues[0]
-      throw new ValidationError(
-        `Invalid ${label as string} data: ${firstError?.message ?? 'validation failed'}`,
-        firstError?.path.join('.'),
-        undefined,
-        firstError?.input,
-      )
-    }
+    // Validation deferred to codegen validators
   }
 
   /**
    * Validate edge data against schema.
    * @throws ValidationError if validation fails
    */
-  validateEdge<E extends EdgeTypes<S>>(edgeType: E, data: unknown, partial = false): void {
+  validateEdge<E extends EdgeTypes<S>>(edgeType: E, data: unknown, _partial = false): void {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) {
       throw new ValidationError(
@@ -120,18 +108,7 @@ export class MutationValidator<S extends AnySchema> {
       return
     }
 
-    const zodSchema = partial ? edgeDef.properties.partial() : edgeDef.properties
-
-    const result = zodSchema.safeParse(data)
-    if (!result.success) {
-      const firstError = result.error.issues[0]
-      throw new ValidationError(
-        `Invalid ${edgeType as string} data: ${firstError?.message ?? 'validation failed'}`,
-        firstError?.path.join('.'),
-        undefined,
-        firstError?.input,
-      )
-    }
+    // Validation deferred to codegen validators
   }
 
   /**
@@ -142,7 +119,7 @@ export class MutationValidator<S extends AnySchema> {
   parseAndPrepareNode<N extends NodeLabels<S>>(
     label: N,
     data: unknown,
-    partial = false,
+    _partial = false,
   ): Record<string, unknown> {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) {
@@ -154,22 +131,7 @@ export class MutationValidator<S extends AnySchema> {
       )
     }
 
-    const zodSchema = partial ? nodeDef.properties.partial() : nodeDef.properties
-    const result = zodSchema.safeParse(data)
-
-    if (!result.success) {
-      // Zod v4 uses .issues instead of .errors
-      const firstError = result.error.issues[0]
-      throw new ValidationError(
-        `Invalid ${label as string} data: ${firstError?.message ?? 'validation failed'}`,
-        firstError?.path.join('.'),
-        undefined,
-        firstError?.input,
-      )
-    }
-
-    // Apply transformations: strip undefined (dates serialized in impl.ts before DB write)
-    return stripUndefined(result.data as Record<string, unknown>)
+    return stripUndefined(data as Record<string, unknown>)
   }
 
   /**
@@ -180,7 +142,7 @@ export class MutationValidator<S extends AnySchema> {
   parseAndPrepareEdge<E extends EdgeTypes<S>>(
     edgeType: E,
     data: unknown,
-    partial = false,
+    _partial = false,
   ): Record<string, unknown> | undefined {
     // Edge properties are optional by default
     if (data === undefined || data === null) {
@@ -197,21 +159,7 @@ export class MutationValidator<S extends AnySchema> {
       )
     }
 
-    const zodSchema = partial ? edgeDef.properties.partial() : edgeDef.properties
-    const result = zodSchema.safeParse(data)
-
-    if (!result.success) {
-      const firstError = result.error.issues[0]
-      throw new ValidationError(
-        `Invalid ${edgeType as string} data: ${firstError?.message ?? 'validation failed'}`,
-        firstError?.path.join('.'),
-        undefined,
-        firstError?.input,
-      )
-    }
-
-    // Apply transformations: strip undefined (dates serialized in impl.ts before DB write)
-    return stripUndefined(result.data as Record<string, unknown>)
+    return stripUndefined(data as Record<string, unknown>)
   }
 
   /**
@@ -233,7 +181,7 @@ export class MutationValidator<S extends AnySchema> {
     }
 
     if (fromLabel) {
-      const allowedFrom = Array.isArray(edgeDef.from) ? edgeDef.from : [edgeDef.from]
+      const allowedFrom = edgeFrom(this.schema, edgeType as string)
       const expandedFrom = new Set<string>()
       for (const label of allowedFrom) {
         for (const satisfying of getNodesSatisfying(this.schema, label)) {
@@ -252,7 +200,7 @@ export class MutationValidator<S extends AnySchema> {
     }
 
     if (toLabel) {
-      const allowedTo = Array.isArray(edgeDef.to) ? edgeDef.to : [edgeDef.to]
+      const allowedTo = edgeTo(this.schema, edgeType as string)
       const expandedTo = new Set<string>()
       for (const label of allowedTo) {
         for (const satisfying of getNodesSatisfying(this.schema, label)) {
@@ -278,9 +226,9 @@ export class MutationValidator<S extends AnySchema> {
     label: N,
     data: unknown,
     partial = false,
-  ): z.infer<(typeof this.schema.nodes)[N]['properties']> {
+  ): Record<string, unknown> {
     this.validateNode(label, data, partial)
-    return data as z.infer<(typeof this.schema.nodes)[N]['properties']>
+    return data as Record<string, unknown>
   }
 
   /**
@@ -290,9 +238,9 @@ export class MutationValidator<S extends AnySchema> {
     edgeType: E,
     data: unknown,
     partial = false,
-  ): z.infer<(typeof this.schema.edges)[E]['properties']> {
+  ): Record<string, unknown> {
     this.validateEdge(edgeType, data, partial)
-    return data as z.infer<(typeof this.schema.edges)[E]['properties']>
+    return data as Record<string, unknown>
   }
 
   /**
@@ -313,8 +261,8 @@ export class MutationValidator<S extends AnySchema> {
    * Get cardinality for an edge.
    */
   getEdgeCardinality(edgeType: string): { outbound: string; inbound: string } | undefined {
-    const edgeDef = this.schema.edges[edgeType]
-    return edgeDef?.cardinality
+    if (!(edgeType in this.schema.edges)) return undefined
+    return edgeCardinality(this.schema, edgeType)
   }
 }
 

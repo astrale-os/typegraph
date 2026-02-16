@@ -5,7 +5,8 @@
  * Allows intercepting and modifying mutations at various stages.
  */
 
-import type { AnySchema, NodeLabels, EdgeTypes } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, EdgeTypes } from '../inference'
 import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from './types'
 
 // =============================================================================
@@ -15,7 +16,7 @@ import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from 
 /**
  * Context passed to mutation hooks.
  */
-export interface MutationContext<S extends AnySchema> {
+export interface MutationContext<S extends SchemaShape> {
   /** The schema definition */
   schema: S
   /** Operation being performed */
@@ -47,7 +48,7 @@ export type MutationOperation =
  * Hook called before creating a node.
  * Can modify data or throw to abort.
  */
-export type BeforeCreateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
+export type BeforeCreateHook<S extends SchemaShape> = <N extends NodeLabels<S>>(
   label: N,
   data: NodeInput<S, N>,
   ctx: MutationContext<S>,
@@ -56,7 +57,7 @@ export type BeforeCreateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
 /**
  * Hook called after creating a node.
  */
-export type AfterCreateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
+export type AfterCreateHook<S extends SchemaShape> = <N extends NodeLabels<S>>(
   result: NodeResult<S, N>,
   ctx: MutationContext<S>,
 ) => void | Promise<void>
@@ -64,7 +65,7 @@ export type AfterCreateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
 /**
  * Hook called before updating a node.
  */
-export type BeforeUpdateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
+export type BeforeUpdateHook<S extends SchemaShape> = <N extends NodeLabels<S>>(
   label: N,
   id: string,
   data: Partial<NodeInput<S, N>>,
@@ -74,7 +75,7 @@ export type BeforeUpdateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
 /**
  * Hook called after updating a node.
  */
-export type AfterUpdateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
+export type AfterUpdateHook<S extends SchemaShape> = <N extends NodeLabels<S>>(
   result: NodeResult<S, N>,
   ctx: MutationContext<S>,
 ) => void | Promise<void>
@@ -83,7 +84,7 @@ export type AfterUpdateHook<S extends AnySchema> = <N extends NodeLabels<S>>(
  * Hook called before deleting a node.
  * Can throw to abort.
  */
-export type BeforeDeleteHook<S extends AnySchema> = <N extends NodeLabels<S>>(
+export type BeforeDeleteHook<S extends SchemaShape> = <N extends NodeLabels<S>>(
   label: N,
   id: string,
   ctx: MutationContext<S>,
@@ -92,7 +93,7 @@ export type BeforeDeleteHook<S extends AnySchema> = <N extends NodeLabels<S>>(
 /**
  * Hook called after deleting a node.
  */
-export type AfterDeleteHook<S extends AnySchema> = (
+export type AfterDeleteHook<S extends SchemaShape> = (
   result: DeleteResult,
   ctx: MutationContext<S>,
 ) => void | Promise<void>
@@ -100,7 +101,7 @@ export type AfterDeleteHook<S extends AnySchema> = (
 /**
  * Hook called before creating an edge.
  */
-export type BeforeLinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
+export type BeforeLinkHook<S extends SchemaShape> = <E extends EdgeTypes<S>>(
   edge: E,
   from: string,
   to: string,
@@ -111,7 +112,7 @@ export type BeforeLinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
 /**
  * Hook called after creating an edge.
  */
-export type AfterLinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
+export type AfterLinkHook<S extends SchemaShape> = <E extends EdgeTypes<S>>(
   result: EdgeResult<S, E>,
   ctx: MutationContext<S>,
 ) => void | Promise<void>
@@ -119,7 +120,7 @@ export type AfterLinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
 /**
  * Hook called before deleting an edge.
  */
-export type BeforeUnlinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
+export type BeforeUnlinkHook<S extends SchemaShape> = <E extends EdgeTypes<S>>(
   edge: E,
   from: string,
   to: string,
@@ -129,7 +130,7 @@ export type BeforeUnlinkHook<S extends AnySchema> = <E extends EdgeTypes<S>>(
 /**
  * Hook called after deleting an edge.
  */
-export type AfterUnlinkHook<S extends AnySchema> = (
+export type AfterUnlinkHook<S extends SchemaShape> = (
   result: DeleteResult,
   ctx: MutationContext<S>,
 ) => void | Promise<void>
@@ -141,7 +142,7 @@ export type AfterUnlinkHook<S extends AnySchema> = (
 /**
  * All available mutation hooks.
  */
-export interface MutationHooks<S extends AnySchema> {
+export interface MutationHooks<S extends SchemaShape> {
   // Node lifecycle
   beforeCreate?: BeforeCreateHook<S> | BeforeCreateHook<S>[]
   afterCreate?: AfterCreateHook<S> | AfterCreateHook<S>[]
@@ -164,7 +165,7 @@ export interface MutationHooks<S extends AnySchema> {
 /**
  * Runs mutation hooks in sequence.
  */
-export class HooksRunner<S extends AnySchema> {
+export class HooksRunner<S extends SchemaShape> {
   private readonly hooks: MutationHooks<S>
   private readonly schema: S
 

@@ -6,13 +6,8 @@
  * operation for Cypher generation.
  */
 
-import type {
-  AnySchema,
-  NodeLabels,
-  NodeProps,
-  NodeProxy,
-  OptionalNodeProxy,
-} from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { NodeLabels, NodeProps, NodeProxy, OptionalNodeProxy } from '../inference'
 
 // =============================================================================
 // COLLECT MARKER TYPES
@@ -53,7 +48,7 @@ export interface CollectMarker<T> {
  * @param proxy - A NodeProxy from the query context
  * @returns Array of node properties (type-level), CollectMarker (runtime)
  */
-export function collect<S extends AnySchema, N extends NodeLabels<S>>(
+export function collect<S extends SchemaShape, N extends NodeLabels<S>>(
   proxy: NodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
@@ -61,7 +56,7 @@ export function collect<S extends AnySchema, N extends NodeLabels<S>>(
  * Collect optional nodes into an array.
  * Optional proxies that are null/undefined result in empty arrays.
  */
-export function collect<S extends AnySchema, N extends NodeLabels<S>>(
+export function collect<S extends SchemaShape, N extends NodeLabels<S>>(
   proxy: OptionalNodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
@@ -92,11 +87,11 @@ export function collect(proxy: unknown): unknown {
  * }))
  * ```
  */
-export function collectDistinct<S extends AnySchema, N extends NodeLabels<S>>(
+export function collectDistinct<S extends SchemaShape, N extends NodeLabels<S>>(
   proxy: NodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 
-export function collectDistinct<S extends AnySchema, N extends NodeLabels<S>>(
+export function collectDistinct<S extends SchemaShape, N extends NodeLabels<S>>(
   proxy: OptionalNodeProxy<S, N>,
 ): Array<NodeProps<S, N>>
 

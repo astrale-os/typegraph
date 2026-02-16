@@ -5,23 +5,19 @@
  */
 
 import { type CollectionBuilder } from './collection'
-import { type QueryAST } from '@astrale/typegraph-core'
+import { type QueryAST } from '../ast'
 import { getCompiler } from '../compiler'
-import type { ComparisonOperator, WhereCondition } from '@astrale/typegraph-core'
-import type {
-  AnySchema,
-  EdgeTypes,
-  EdgeProps,
-  EdgeSource,
-  EdgeTarget,
-} from '@astrale/typegraph-core'
-import type { AliasMap, EdgeAliasMap } from '@astrale/typegraph-core'
+import type { ComparisonOperator, WhereCondition } from '../ast'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { ResolveEdge } from '../resolve'
+import type { EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '../inference'
+import type { AliasMap, EdgeAliasMap } from '../inference'
 import type { QueryExecutor } from './types'
 
 /**
  * Where builder for edge properties.
  */
-export interface EdgeWhereBuilder<S extends AnySchema, E extends EdgeTypes<S>> {
+export interface EdgeWhereBuilder<S extends SchemaShape, E extends EdgeTypes<S>> {
   eq<K extends keyof EdgeProps<S, E> & string>(field: K, value: EdgeProps<S, E>[K]): WhereCondition
   neq<K extends keyof EdgeProps<S, E> & string>(field: K, value: EdgeProps<S, E>[K]): WhereCondition
   gt<K extends keyof EdgeProps<S, E> & string>(field: K, value: EdgeProps<S, E>[K]): WhereCondition
@@ -61,10 +57,11 @@ export interface EdgeWhereBuilder<S extends AnySchema, E extends EdgeTypes<S>> {
  * ```
  */
 export class EdgeBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   E extends EdgeTypes<S>,
   Aliases extends AliasMap<S> = Record<string, never>,
   EdgeAliases extends EdgeAliasMap<S> = Record<string, never>,
+  T extends TypeMap = UntypedMap,
 > {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
@@ -100,7 +97,7 @@ export class EdgeBuilder<
   /**
    * Assign a user-friendly alias to the current edge.
    */
-  as<A extends string>(alias: A): EdgeBuilder<S, E, Aliases, EdgeAliases & { [K in A]: E }> {
+  as<A extends string>(alias: A): EdgeBuilder<S, E, Aliases, EdgeAliases & { [K in A]: E }, T> {
     const newAst = this._ast.addEdgeUserAlias(alias, this._ast.currentAlias)
     return new EdgeBuilder(
       newAst,
@@ -124,7 +121,7 @@ export class EdgeBuilder<
    * Returns a collection of nodes that are the source of this edge type.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  withSource(): CollectionBuilder<S, any, Aliases, EdgeAliases> {
+  withSource(): CollectionBuilder<S, any, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -133,14 +130,14 @@ export class EdgeBuilder<
    * Returns a collection of nodes that are the target of this edge type.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  withTarget(): CollectionBuilder<S, any, Aliases, EdgeAliases> {
+  withTarget(): CollectionBuilder<S, any, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
   /**
    * Navigate to both source and target nodes.
    */
-  withEndpoints(): EdgeWithEndpointsBuilder<S, E, Aliases, EdgeAliases> {
+  withEndpoints(): EdgeWithEndpointsBuilder<S, E, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -155,7 +152,7 @@ export class EdgeBuilder<
     _field: K,
     _operator: ComparisonOperator,
     _value?: EdgeProps<S, E>[K] | EdgeProps<S, E>[K][],
-  ): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  ): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -164,7 +161,7 @@ export class EdgeBuilder<
    */
   whereComplex(
     _builder: (w: EdgeWhereBuilder<S, E>) => WhereCondition,
-  ): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  ): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -178,14 +175,14 @@ export class EdgeBuilder<
   orderBy<K extends keyof EdgeProps<S, E> & string>(
     _field: K,
     _direction: 'ASC' | 'DESC' = 'ASC',
-  ): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  ): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
   /**
    * Limit the number of edges returned.
    */
-  limit(count: number): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  limit(count: number): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     const newAst = this._ast.addLimit(count)
     return new EdgeBuilder(
       newAst,
@@ -200,7 +197,7 @@ export class EdgeBuilder<
   /**
    * Skip a number of edges.
    */
-  skip(count: number): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  skip(count: number): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     const newAst = this._ast.addSkip(count)
     return new EdgeBuilder(
       newAst,
@@ -215,7 +212,7 @@ export class EdgeBuilder<
   /**
    * Return distinct edges.
    */
-  distinct(): EdgeBuilder<S, E, Aliases, EdgeAliases> {
+  distinct(): EdgeBuilder<S, E, Aliases, EdgeAliases, T> {
     const newAst = this._ast.addDistinct()
     return new EdgeBuilder(
       newAst,
@@ -255,18 +252,18 @@ export class EdgeBuilder<
     throw new Error('Not implemented')
   }
 
-  async execute(): Promise<EdgeProps<S, E>[]> {
+  async execute(): Promise<ResolveEdge<T, E & string>[]> {
     throw new Error('Not implemented')
   }
 
   async executeWithMeta(): Promise<{
-    data: EdgeProps<S, E>[]
+    data: ResolveEdge<T, E & string>[]
     meta: { count: number; hasMore: boolean }
   }> {
     throw new Error('Not implemented')
   }
 
-  stream(): AsyncIterable<EdgeProps<S, E>> {
+  stream(): AsyncIterable<ResolveEdge<T, E & string>> {
     throw new Error('Not implemented')
   }
 }
@@ -275,10 +272,11 @@ export class EdgeBuilder<
  * Builder for edges with both endpoints accessible.
  */
 export class EdgeWithEndpointsBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   E extends EdgeTypes<S>,
   Aliases extends AliasMap<S>,
   EdgeAliases extends EdgeAliasMap<S>,
+  T extends TypeMap = UntypedMap,
 > {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
@@ -299,7 +297,7 @@ export class EdgeWithEndpointsBuilder<
    */
   sourceAs<A extends string>(
     _alias: A,
-  ): EdgeWithEndpointsBuilder<S, E, Aliases & { [K in A]: EdgeSource<S, E> }, EdgeAliases> {
+  ): EdgeWithEndpointsBuilder<S, E, Aliases & { [K in A]: EdgeSource<S, E> }, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -308,7 +306,7 @@ export class EdgeWithEndpointsBuilder<
    */
   targetAs<A extends string>(
     _alias: A,
-  ): EdgeWithEndpointsBuilder<S, E, Aliases & { [K in A]: EdgeTarget<S, E> }, EdgeAliases> {
+  ): EdgeWithEndpointsBuilder<S, E, Aliases & { [K in A]: EdgeTarget<S, E> }, EdgeAliases, T> {
     throw new Error('Not implemented')
   }
 
@@ -317,7 +315,7 @@ export class EdgeWithEndpointsBuilder<
    */
   edgeAs<A extends string>(
     _alias: A,
-  ): EdgeWithEndpointsBuilder<S, E, Aliases, EdgeAliases & { [K in A]: E }> {
+  ): EdgeWithEndpointsBuilder<S, E, Aliases, EdgeAliases & { [K in A]: E }, T> {
     throw new Error('Not implemented')
   }
 
@@ -327,9 +325,9 @@ export class EdgeWithEndpointsBuilder<
   async execute(): Promise<
     Array<{
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      source: import('@astrale/typegraph-core').NodeProps<S, any>
+      source: import('../inference').NodeProps<S, any>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      target: import('@astrale/typegraph-core').NodeProps<S, any>
+      target: import('../inference').NodeProps<S, any>
       edge: EdgeProps<S, E>
     }>
   > {

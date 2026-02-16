@@ -1,7 +1,6 @@
 /**
- * Cypher Template Provider
- *
- * Neo4j/Memgraph Cypher implementation for mutations.
+ * Mutation Cypher Compiler
  */
 
-export { CypherTemplates } from './templates'
+export { MutationCypherCompiler } from './compiler'
+export type { CompiledMutation } from './compiler'

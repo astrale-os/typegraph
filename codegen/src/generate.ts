@@ -7,6 +7,7 @@ import { emitValidators } from './emit/validators'
 import { emitSchemaValue } from './emit/schema-value'
 import { emitSchemaTypes } from './emit/schema-types'
 import { emitCore } from './emit/core'
+import { emitTypemap } from './emit/typemap'
 import { banner, section } from './emit/utils'
 
 export interface GenerateOptions {
@@ -56,6 +57,14 @@ export function generate(inputs: SchemaIR[], options?: GenerateOptions): Generat
     parts.push(section('Methods'))
     parts.push('')
     parts.push(methods)
+  }
+
+  // TypeMap (node input types, TypeMap interface, typed createGraph wrapper)
+  const typemap = emitTypemap(model)
+  if (typemap.trim()) {
+    parts.push(section('TypeMap'))
+    parts.push('')
+    parts.push(typemap)
   }
 
   // Validators (single object with Zod schemas)

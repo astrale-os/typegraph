@@ -4,14 +4,9 @@
  * Interfaces for the query layer: GraphQuery, QueryExecutor.
  */
 
-import type {
-  AnySchema,
-  NodeLabels,
-  EdgeTypes,
-  QueryAST,
-  NodeIdFor,
-  NodeIdMap,
-} from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { NodeLabels, EdgeTypes } from '../inference'
+import type { QueryAST } from '../ast'
 import type { CollectionBuilder } from './collection'
 import type { SingleNodeBuilder } from './single-node'
 import type { EdgeBuilder } from './edge'
@@ -38,7 +33,7 @@ export interface QueryExecutor {
  * Defines the entry points for building graph queries.
  * Implemented by GraphQueryImpl.
  */
-export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeIdMap<S>> {
+export interface GraphQuery<S extends SchemaShape, T extends TypeMap = UntypedMap> {
   /** The schema definition */
   readonly schema: S
 
@@ -60,7 +55,7 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
   node<N extends NodeLabels<S>>(
     label: N,
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M>
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
   /**
    * Get a single node by ID with a known label.
@@ -72,8 +67,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
   nodeByIdWithLabel<N extends NodeLabels<S>>(
     label: N,
-    id: NodeIdFor<S, N, M>,
-  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, M>
+    id: string,
+  ): SingleNodeBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
   /**
    * Get a single node by ID without specifying its label.
@@ -84,8 +79,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    * ```
    */
   nodeById(
-    id: NodeIdFor<S, NodeLabels<S>, M>,
-  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, M>
+    id: string,
+  ): SingleNodeBuilder<S, NodeLabels<S>, Record<string, never>, Record<string, never>, T>
 
   // ---------------------------------------------------------------------------
   // EDGE QUERIES
@@ -101,7 +96,7 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
   edge<E extends EdgeTypes<S>>(
     edgeType: E,
-  ): EdgeBuilder<S, E, Record<string, never>, Record<string, never>>
+  ): EdgeBuilder<S, E, Record<string, never>, Record<string, never>, T>
 
   // ---------------------------------------------------------------------------
   // SET OPERATIONS
@@ -120,8 +115,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
 
   intersect<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M>
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
   /**
    * Union multiple queries (nodes that appear in ANY query).
@@ -136,8 +131,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
 
   union<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M>
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
   /**
    * Union multiple queries without removing duplicates (UNION ALL).
@@ -149,8 +144,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    */
 
   unionAll<N extends NodeLabels<S>>(
-    ...queries: CollectionBuilder<S, N, any, any, M>[]
-  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, M>
+    ...queries: CollectionBuilder<S, N, any, any, T>[]
+  ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
   // ---------------------------------------------------------------------------
   // PATH QUERIES
@@ -174,8 +169,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo>
@@ -197,8 +192,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
     NTo extends NodeLabels<S>,
     E extends EdgeTypes<S>,
   >(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
   }): PathBuilder<S, NFrom, NTo>
@@ -217,8 +212,8 @@ export interface GraphQuery<S extends AnySchema, M extends NodeIdMap<S> = NodeId
    * ```
    */
   allPaths<NFrom extends NodeLabels<S>, NTo extends NodeLabels<S>, E extends EdgeTypes<S>>(config: {
-    from: { label: NFrom; id: NodeIdFor<S, NFrom, M> }
-    to: { label: NTo; id: NodeIdFor<S, NTo, M> }
+    from: { label: NFrom; id: string }
+    to: { label: NTo; id: string }
     via: E
     direction?: 'out' | 'in' | 'both'
     maxDepth?: number

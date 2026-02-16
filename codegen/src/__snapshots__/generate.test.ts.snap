@@ -118,6 +118,55 @@ export interface SchemaNodeTypeMap {
   Tag: TagNode
 }
 
+// ─── TypeMap ────────────────────────────────────────────────
+
+// ─── Node Input Types ───────────────────────────────────────
+
+export type UserInput = Omit<User, 'created_at' | 'updated_at'>
+export type OrganizationInput = Omit<Organization, 'created_at' | 'updated_at'>
+export type PostInput = Omit<Post, 'created_at' | 'updated_at'>
+export type CommentInput = Omit<Comment, 'created_at' | 'updated_at'>
+export type TagInput = Tag
+
+// ─── TypeMap ────────────────────────────────────────────────
+
+import type { TypeMap } from '@astrale/typegraph'
+
+export interface GeneratedTypeMap extends TypeMap {
+  nodes: {
+    User: UserNode
+    Organization: OrganizationNode
+    Post: PostNode
+    Comment: CommentNode
+    Tag: TagNode
+  }
+  edges: {
+    follows: Record<string, never>
+    authored: Record<string, never>
+    comment_on: Record<string, never>
+    tagged_with: Record<string, never>
+    member_of: MemberOfPayload
+    flagged: FlaggedPayload
+  }
+  nodeInputs: {
+    User: UserInput
+    Organization: OrganizationInput
+    Post: PostInput
+    Comment: CommentInput
+    Tag: TagInput
+  }
+}
+
+// ─── Typed Graph Factory ────────────────────────────────────
+
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+
+export type SchemaType = typeof schema
+
+export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
+  return _createGraph<SchemaType, GeneratedTypeMap>(schema, options)
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

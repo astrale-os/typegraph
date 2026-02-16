@@ -108,6 +108,45 @@ export interface SchemaNodeTypeMap {
   Order: OrderNode
 }
 
+// ─── TypeMap ────────────────────────────────────────────────
+
+// ─── Node Input Types ───────────────────────────────────────
+
+export type CustomerInput = Omit<Customer, 'created_at'>
+export type ProductInput = Omit<Product, 'created_at'>
+export type OrderInput = Omit<Order, 'created_at'>
+
+// ─── TypeMap ────────────────────────────────────────────────
+
+import type { TypeMap } from '@astrale/typegraph'
+
+export interface GeneratedTypeMap extends TypeMap {
+  nodes: {
+    Customer: CustomerNode
+    Product: ProductNode
+    Order: OrderNode
+  }
+  edges: {
+    order_item: OrderItemPayload
+    placed_order: Record<string, never>
+  }
+  nodeInputs: {
+    Customer: CustomerInput
+    Product: ProductInput
+    Order: OrderInput
+  }
+}
+
+// ─── Typed Graph Factory ────────────────────────────────────
+
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+
+export type SchemaType = typeof schema
+
+export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
+  return _createGraph<SchemaType, GeneratedTypeMap>(schema, options)
+}
+
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {

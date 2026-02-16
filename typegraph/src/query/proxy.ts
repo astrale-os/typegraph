@@ -5,7 +5,8 @@
  * These proxies track alias accesses and property accesses for AST building.
  */
 
-import type { AnySchema, AliasMap, EdgeAliasMap, QueryContext } from '@astrale/typegraph-core'
+import type { SchemaShape } from '../schema'
+import type { AliasMap, EdgeAliasMap, QueryContext } from '../inference'
 
 // =============================================================================
 // INTERNAL TYPES
@@ -212,7 +213,7 @@ function createEdgeProxy(aliasInfo: EdgeAliasInfo): unknown {
  * @internal
  */
 export function createQueryContext<
-  S extends AnySchema,
+  S extends SchemaShape,
   Aliases extends AliasMap<S>,
   OptionalAliases extends AliasMap<S>,
   EdgeAliases extends EdgeAliasMap<S>,

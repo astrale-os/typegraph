@@ -5,15 +5,16 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST } from '@astrale/typegraph-core'
+import type { QueryAST } from '../ast'
 import type { CompiledQuery } from '../compiler'
 import { getCompiler } from '../compiler'
-import type { AnySchema, NodeLabels, EdgeTypes, NodeProps } from '@astrale/typegraph-core'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { NodeLabels, EdgeTypes, NodeProps } from '../inference'
 
 /**
  * A single node in a path.
  */
-export interface PathNode<S extends AnySchema> {
+export interface PathNode<S extends SchemaShape> {
   label: NodeLabels<S>
   properties: Record<string, unknown>
 }
@@ -21,7 +22,7 @@ export interface PathNode<S extends AnySchema> {
 /**
  * A single edge in a path.
  */
-export interface PathEdge<S extends AnySchema> {
+export interface PathEdge<S extends SchemaShape> {
   type: EdgeTypes<S>
   properties: Record<string, unknown>
   startNodeIndex: number
@@ -31,7 +32,7 @@ export interface PathEdge<S extends AnySchema> {
 /**
  * A complete path from start to end.
  */
-export interface PathResult<S extends AnySchema> {
+export interface PathResult<S extends SchemaShape> {
   nodes: PathNode<S>[]
   edges: PathEdge<S>[]
   length: number
@@ -45,9 +46,10 @@ export interface PathResult<S extends AnySchema> {
  * @template NEnd - Ending node label
  */
 export class PathBuilder<
-  S extends AnySchema,
+  S extends SchemaShape,
   NStart extends NodeLabels<S>,
   NEnd extends NodeLabels<S>,
+  T extends TypeMap = UntypedMap,
 > {
   protected readonly _ast: QueryAST
   protected readonly _schema: S
@@ -57,23 +59,23 @@ export class PathBuilder<
     this._schema = schema
   }
 
-  maxHops(_count: number): PathBuilder<S, NStart, NEnd> {
+  maxHops(_count: number): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
   }
 
   whereEdge<K extends string>(
     _field: K,
-    _operator: import('@astrale/typegraph-core').ComparisonOperator,
+    _operator: import('../ast').ComparisonOperator,
     _value: unknown,
-  ): PathBuilder<S, NStart, NEnd> {
+  ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
   }
 
   whereIntermediateNode<K extends string>(
     _field: K,
-    _operator: import('@astrale/typegraph-core').ComparisonOperator,
+    _operator: import('../ast').ComparisonOperator,
     _value: unknown,
-  ): PathBuilder<S, NStart, NEnd> {
+  ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
   }
 
@@ -89,7 +91,7 @@ export class PathBuilder<
     throw new Error('Not implemented')
   }
 
-  async endNodes(): Promise<NodeProps<S, NEnd>[]> {
+  async endNodes(): Promise<import('../resolve').ResolveNode<T, NEnd & string>[]> {
     throw new Error('Not implemented')
   }
 

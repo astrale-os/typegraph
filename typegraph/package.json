@@ -60,10 +60,7 @@
     "url": "git+https://github.com/astrale-os/typegraph.git",
     "directory": "typegraph"
   },
-  "dependencies": {
-    "@astrale/typegraph-core": "workspace:*",
-    "zod": "^4.3.6"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@astrale/typegraph-adapter-falkordb": "workspace:*",
     "@types/node": "^22.10.2",
