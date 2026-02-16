@@ -1,13 +1,42 @@
 /**
  * Mutation Validation
  *
- * Validates node/edge data and schema constraints.
+ * Validates node/edge data against codegen Zod schemas when available,
+ * falls back to structural checks otherwise.
  */
 
 import type { SchemaShape } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
 import { getNodesSatisfying, edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 import { ValidationError } from './errors'
+import type { MutationOp } from './ast/types'
+
+// =============================================================================
+// VALIDATOR MAP TYPE
+// =============================================================================
+
+/**
+ * Map of type names to Zod schemas.
+ * The codegen `validators` object satisfies this type.
+ *
+ * Keys: node labels (e.g. 'Customer'), PascalCase edge names (e.g. 'OrderItem'),
+ *       type aliases (e.g. 'Email', 'Currency').
+ */
+export type ValidatorMap = Record<string, ZodLike>
+
+/**
+ * Minimal Zod schema interface — avoids a hard dependency on the `zod` package.
+ * Any object with `.parse()`, `.partial()`, and `.safeParse()` satisfies this.
+ */
+export interface ZodLike {
+  parse(data: unknown): unknown
+  safeParse(data: unknown): { success: boolean; data?: unknown; error?: ZodErrorLike }
+  partial(): ZodLike
+}
+
+interface ZodErrorLike {
+  issues: Array<{ path: (string | number)[]; message: string; code: string }>
+}
 
 // =============================================================================
 // DATA TRANSFORMATION UTILITIES
@@ -65,16 +94,23 @@ export interface ValidationIssue {
 // =============================================================================
 
 /**
- * Validates mutation inputs against schema definitions.
+ * Validates mutation inputs against codegen Zod schemas when available.
  */
 export class MutationValidator<S extends SchemaShape> {
-  constructor(private readonly schema: S) {}
+  private readonly validators: ValidatorMap | undefined
+
+  constructor(
+    private readonly schema: S,
+    validators?: ValidatorMap,
+  ) {
+    this.validators = validators
+  }
 
   /**
    * Validate node data against schema.
    * @throws ValidationError if validation fails
    */
-  validateNode<N extends NodeLabels<S>>(label: N, _data: unknown, _partial = false): void {
+  validateNode<N extends NodeLabels<S>>(label: N, data: unknown, partial = false): void {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) {
       throw new ValidationError(
@@ -85,14 +121,16 @@ export class MutationValidator<S extends SchemaShape> {
       )
     }
 
-    // Validation deferred to codegen validators
+    if (this.validators) {
+      this.runZodValidation(label as string, data, partial)
+    }
   }
 
   /**
    * Validate edge data against schema.
    * @throws ValidationError if validation fails
    */
-  validateEdge<E extends EdgeTypes<S>>(edgeType: E, data: unknown, _partial = false): void {
+  validateEdge<E extends EdgeTypes<S>>(edgeType: E, data: unknown, partial = false): void {
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) {
       throw new ValidationError(
@@ -103,12 +141,12 @@ export class MutationValidator<S extends SchemaShape> {
       )
     }
 
-    // Edge properties are optional by default
-    if (data === undefined || data === null) {
-      return
-    }
+    if (data === undefined || data === null) return
 
-    // Validation deferred to codegen validators
+    if (this.validators) {
+      const key = pascalCase(edgeType as string)
+      this.runZodValidation(key, data, partial)
+    }
   }
 
   /**
@@ -119,7 +157,7 @@ export class MutationValidator<S extends SchemaShape> {
   parseAndPrepareNode<N extends NodeLabels<S>>(
     label: N,
     data: unknown,
-    _partial = false,
+    partial = false,
   ): Record<string, unknown> {
     const nodeDef = this.schema.nodes[label as string]
     if (!nodeDef) {
@@ -131,7 +169,8 @@ export class MutationValidator<S extends SchemaShape> {
       )
     }
 
-    return stripUndefined(data as Record<string, unknown>)
+    const parsed = this.parseWithZod(label as string, data, partial)
+    return serializeDates(stripUndefined(parsed))
   }
 
   /**
@@ -142,12 +181,9 @@ export class MutationValidator<S extends SchemaShape> {
   parseAndPrepareEdge<E extends EdgeTypes<S>>(
     edgeType: E,
     data: unknown,
-    _partial = false,
+    partial = false,
   ): Record<string, unknown> | undefined {
-    // Edge properties are optional by default
-    if (data === undefined || data === null) {
-      return undefined
-    }
+    if (data === undefined || data === null) return undefined
 
     const edgeDef = this.schema.edges[edgeType as string]
     if (!edgeDef) {
@@ -159,7 +195,31 @@ export class MutationValidator<S extends SchemaShape> {
       )
     }
 
-    return stripUndefined(data as Record<string, unknown>)
+    const key = pascalCase(edgeType as string)
+    const parsed = this.parseWithZod(key, data, partial)
+    return serializeDates(stripUndefined(parsed))
+  }
+
+  /**
+   * Validate an array of MutationOps, returning new ops with validated/defaulted data.
+   * @throws ValidationError on first invalid op
+   */
+  validateAndPrepareOps(ops: MutationOp[]): MutationOp[] {
+    return ops.map((op, index) => {
+      try {
+        return this.validateOp(op)
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          throw new ValidationError(
+            `Validation failed on op[${index}] (${op.type}): ${err.message}`,
+            err.field,
+            err.expected,
+            err.received,
+          )
+        }
+        throw err
+      }
+    })
   }
 
   /**
@@ -219,9 +279,6 @@ export class MutationValidator<S extends SchemaShape> {
     }
   }
 
-  /**
-   * Parse and validate node data, returning typed result.
-   */
   parseNode<N extends NodeLabels<S>>(
     label: N,
     data: unknown,
@@ -231,9 +288,6 @@ export class MutationValidator<S extends SchemaShape> {
     return data as Record<string, unknown>
   }
 
-  /**
-   * Parse and validate edge data, returning typed result.
-   */
   parseEdge<E extends EdgeTypes<S>>(
     edgeType: E,
     data: unknown,
@@ -243,27 +297,165 @@ export class MutationValidator<S extends SchemaShape> {
     return data as Record<string, unknown>
   }
 
-  /**
-   * Check if a node label exists in schema.
-   */
   hasNode(label: string): boolean {
     return label in this.schema.nodes
   }
 
-  /**
-   * Check if an edge type exists in schema.
-   */
   hasEdge(edgeType: string): boolean {
     return edgeType in this.schema.edges
   }
 
-  /**
-   * Get cardinality for an edge.
-   */
   getEdgeCardinality(edgeType: string): { outbound: string; inbound: string } | undefined {
     if (!(edgeType in this.schema.edges)) return undefined
     return edgeCardinality(this.schema, edgeType)
   }
+
+  // ---------------------------------------------------------------------------
+  // PRIVATE
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Parse data through a Zod validator if available, otherwise strip undefined.
+   */
+  private parseWithZod(
+    key: string,
+    data: unknown,
+    partial: boolean,
+  ): Record<string, unknown> {
+    if (!this.validators || !(key in this.validators)) {
+      return stripUndefined(data as Record<string, unknown>)
+    }
+
+    let zodSchema = this.validators[key]!
+    if (partial) {
+      zodSchema = zodSchema.partial()
+    }
+
+    const result = zodSchema.safeParse(data)
+    if (!result.success) {
+      throw zodErrorToValidation(key, result.error!)
+    }
+
+    return result.data as Record<string, unknown>
+  }
+
+  /**
+   * Validate data through Zod without transforming it.
+   */
+  private runZodValidation(key: string, data: unknown, partial: boolean): void {
+    if (!this.validators || !(key in this.validators)) return
+
+    let zodSchema = this.validators[key]!
+    if (partial) {
+      zodSchema = zodSchema.partial()
+    }
+
+    const result = zodSchema.safeParse(data)
+    if (!result.success) {
+      throw zodErrorToValidation(key, result.error!)
+    }
+  }
+
+  /**
+   * Validate a single MutationOp, returning a new op with validated data.
+   */
+  private validateOp(op: MutationOp): MutationOp {
+    switch (op.type) {
+      case 'createNode':
+        return { ...op, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.data) }
+      case 'updateNode':
+        return { ...op, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.data, true) }
+      case 'upsertNode':
+        return { ...op, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.data) }
+      case 'cloneNode':
+        if (Object.keys(op.overrides).length > 0) {
+          return { ...op, overrides: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.overrides, true) }
+        }
+        return op
+      case 'createEdge':
+        if (op.data) {
+          return { ...op, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data) }
+        }
+        return op
+      case 'updateEdge':
+        return { ...op, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {} }
+      case 'updateEdgeById':
+        return { ...op, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {} }
+      case 'batchCreate':
+        return {
+          ...op,
+          items: op.items.map((item, i) => {
+            try {
+              return { ...item, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data) }
+            } catch (err) {
+              if (err instanceof ValidationError) {
+                throw new ValidationError(`Item[${i}]: ${err.message}`, err.field, err.expected, err.received)
+              }
+              throw err
+            }
+          }),
+        }
+      case 'batchUpdate':
+        return {
+          ...op,
+          updates: op.updates.map((item, i) => {
+            try {
+              return { ...item, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data, true) }
+            } catch (err) {
+              if (err instanceof ValidationError) {
+                throw new ValidationError(`Item[${i}]: ${err.message}`, err.field, err.expected, err.received)
+              }
+              throw err
+            }
+          }),
+        }
+      case 'batchLink':
+        return {
+          ...op,
+          links: op.links.map((link, i) => {
+            if (!link.data) return link
+            try {
+              return { ...link, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, link.data) }
+            } catch (err) {
+              if (err instanceof ValidationError) {
+                throw new ValidationError(`Link[${i}]: ${err.message}`, err.field, err.expected, err.received)
+              }
+              throw err
+            }
+          }),
+        }
+      default:
+        return op
+    }
+  }
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function zodErrorToValidation(typeName: string, error: ZodErrorLike): ValidationError {
+  const first = error.issues[0]
+  if (!first) {
+    return new ValidationError(`Validation failed for ${typeName}`)
+  }
+
+  const path = first.path.map(String).join('.')
+  const fieldDesc = path ? `${typeName}.${path}` : typeName
+
+  return new ValidationError(
+    `Validation failed for ${fieldDesc}: ${first.message}`,
+    path || undefined,
+    undefined,
+    undefined,
+  )
+}
+
+function pascalCase(s: string): string {
+  return s
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
 }
 
 // =============================================================================
@@ -279,9 +471,11 @@ export interface ValidationOptions {
   onUpdate?: boolean
   /** Validate edge endpoints (default: false - requires querying DB) */
   validateEndpoints?: boolean
+  /** Codegen Zod validators for runtime mutation validation */
+  validators?: ValidatorMap
 }
 
-export const defaultValidationOptions: Required<ValidationOptions> = {
+export const defaultValidationOptions: Required<Omit<ValidationOptions, 'validators'>> = {
   enabled: true,
   onCreate: true,
   onUpdate: true,

@@ -112,7 +112,7 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
   private readonly compiler: MutationCypherCompiler
   private readonly hooksRunner: HooksRunner<S>
   private readonly validator: MutationValidator<S>
-  private readonly validationOptions: Required<ValidationOptions>
+  private readonly validationOptions: Required<Omit<ValidationOptions, 'validators'>>
   private readonly dryRunMode: boolean
   private readonly dryRunBuilder: DryRunBuilder<S, T>
 
@@ -123,7 +123,7 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     this.pipeline = new MutationCompilationPipeline(config.mutationPasses)
     this.compiler = new MutationCypherCompiler()
     this.hooksRunner = new HooksRunner(schema, config.hooks)
-    this.validator = new MutationValidator(schema)
+    this.validator = new MutationValidator(schema, config.validation?.validators)
     this.validationOptions = { ...defaultValidationOptions, ...config.validation }
     this.dryRunMode = typeof config.dryRun === 'boolean' ? config.dryRun : !!config.dryRun
     this.dryRunBuilder = new DryRunBuilder<S, T>(schema, this.idGenerator)
@@ -376,7 +376,15 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     to: string,
     data: Partial<EdgeInput<S, E, T>>,
   ): Promise<EdgeResult<S, E, T>> {
-    const op = ops.updateEdge(edge as string, from, to, data as Record<string, unknown>)
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
+      validatedData = this.validator.parseAndPrepareEdge(edge, data, true) ?? {}
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+
+    const dbReadyData = serializeDates(validatedData)
+    const op = ops.updateEdge(edge as string, from, to, dbReadyData)
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
@@ -424,7 +432,15 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     edgeId: string,
     data: Partial<EdgeInput<S, E, T>>,
   ): Promise<EdgeResult<S, E, T>> {
-    const op = ops.updateEdgeById(edge as string, edgeId, data as Record<string, unknown>)
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
+      validatedData = this.validator.parseAndPrepareEdge(edge, data, true) ?? {}
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+
+    const dbReadyData = serializeDates(validatedData)
+    const op = ops.updateEdgeById(edge as string, edgeId, dbReadyData)
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
@@ -719,7 +735,25 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     label: N,
     updates: Array<{ id: string; data: Partial<NodeInput<S, N, T>> }>,
   ): Promise<NodeResult<S, N, T>[]> {
-    const updateItems = updates.map((u) => ({ id: u.id, data: u.data as Record<string, unknown> }))
+    const updateItems = updates.map((u, i) => {
+      let validatedData: Record<string, unknown>
+      if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
+        try {
+          validatedData = this.validator.parseAndPrepareNode(label, u.data, true)
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            throw new ValidationError(
+              `Batch update validation failed at index ${i}: ${error.message}`,
+              error.field, error.expected, error.received,
+            )
+          }
+          throw error
+        }
+      } else {
+        validatedData = stripUndefined(u.data as Record<string, unknown>)
+      }
+      return { id: u.id, data: serializeDates(validatedData) }
+    })
 
     const op = ops.batchUpdate(label as string, updateItems)
     const compiled = this.runPipeline(op)
@@ -815,7 +849,11 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
   // ---------------------------------------------------------------------------
 
   async exec(userOps: MutationOp[]): Promise<Record<string, unknown>[]> {
-    const transformed = this.pipeline.run(userOps, this.schema)
+    const validatedOps = this.validationOptions.enabled
+      ? this.validator.validateAndPrepareOps(userOps)
+      : userOps
+
+    const transformed = this.pipeline.run(validatedOps, this.schema)
     const compiled = this.compiler.compile(transformed, this.schema)
     return this.executor.run(compiled.query, compiled.params)
   }
@@ -828,6 +866,7 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     return this.executor.runInTransaction(async (runner) => {
       const txContext = new MutationTransactionImpl<S, T>(
         this.schema, runner, this.idGenerator, this.pipeline, this.compiler,
+        this.validator, this.validationOptions,
       )
       return fn(txContext)
     })
@@ -877,6 +916,8 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
   private readonly idGenerator: IdGenerator
   private readonly pipeline: MutationCompilationPipeline
   private readonly compiler: MutationCypherCompiler
+  private readonly validator: MutationValidator<S>
+  private readonly validationOptions: Required<Omit<ValidationOptions, 'validators'>>
 
   constructor(
     schema: S,
@@ -884,12 +925,16 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     idGenerator: IdGenerator,
     pipeline: MutationCompilationPipeline,
     compiler: MutationCypherCompiler,
+    validator: MutationValidator<S>,
+    validationOptions: Required<Omit<ValidationOptions, 'validators'>>,
   ) {
     this.schema = schema
     this.runner = runner
     this.idGenerator = idGenerator
     this.pipeline = pipeline
     this.compiler = compiler
+    this.validator = validator
+    this.validationOptions = validationOptions
   }
 
   private runPipeline(op: MutationOp): CompiledMutation {
@@ -904,6 +949,14 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
   ): Promise<NodeResult<S, N, T>> {
     const id = (options?.id ?? this.idGenerator.generate(label as string)) as string
 
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onCreate) {
+      validatedData = this.validator.parseAndPrepareNode(label, data)
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+    const dbReadyData = serializeDates(validatedData)
+
     const links = options?.link
       ? Object.entries(options.link).map(([edgeType, targetId]) => {
           if (targetId == null || targetId === '') {
@@ -915,7 +968,7 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
         })
       : undefined
 
-    const op = ops.createNode(label as string, id, data as Record<string, unknown>, {
+    const op = ops.createNode(label as string, id, dbReadyData, {
       additionalLabels: options?.additionalLabels,
       links,
     })
@@ -941,7 +994,15 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     id: string,
     data: Partial<NodeInput<S, N, T>>,
   ): Promise<NodeResult<S, N, T>> {
-    const op = ops.updateNode(label as string, id, data as Record<string, unknown>)
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
+      validatedData = this.validator.parseAndPrepareNode(label, data, true)
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+    const dbReadyData = serializeDates(validatedData)
+
+    const op = ops.updateNode(label as string, id, dbReadyData)
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
@@ -973,7 +1034,15 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     id: string,
     data: NodeInput<S, N, T>,
   ): Promise<UpsertResult<S, N, T>> {
-    const op = ops.upsertNode(label as string, id, data as Record<string, unknown>)
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onCreate) {
+      validatedData = this.validator.parseAndPrepareNode(label, data)
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+    const dbReadyData = serializeDates(validatedData)
+
+    const op = ops.upsertNode(label as string, id, dbReadyData)
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ n: NodeProps<S, N>; created: boolean }>(
@@ -996,9 +1065,19 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
   ): Promise<EdgeResult<S, E, T>> {
     const edgeId = this.idGenerator.generate(edge as string)
 
+    let validatedEdgeData: Record<string, unknown> | undefined
+    if (this.validationOptions.enabled && this.validationOptions.onCreate && data) {
+      validatedEdgeData = this.validator.parseAndPrepareEdge(edge, data)
+    } else if (data) {
+      validatedEdgeData = stripUndefined(data as Record<string, unknown>)
+    }
+
+    const dbReadyEdgeData = validatedEdgeData
+      ? serializeDates(validatedEdgeData)
+      : undefined
+
     const op = ops.createEdge(
-      edge as string, from, to, edgeId,
-      data ? (data as Record<string, unknown>) : undefined,
+      edge as string, from, to, edgeId, dbReadyEdgeData,
     )
     const compiled = this.runPipeline(op)
 
@@ -1020,7 +1099,15 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     to: string,
     data: Partial<EdgeInput<S, E, T>>,
   ): Promise<EdgeResult<S, E, T>> {
-    const op = ops.updateEdge(edge as string, from, to, data as Record<string, unknown>)
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onUpdate) {
+      validatedData = this.validator.parseAndPrepareEdge(edge, data, true) ?? {}
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+
+    const dbReadyData = serializeDates(validatedData)
+    const op = ops.updateEdge(edge as string, from, to, dbReadyData)
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
@@ -1053,12 +1140,31 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
   ): Promise<EdgeResult<S, E, T>[]> {
     if (links.length === 0) return []
 
-    const batchLinks = links.map((link) => ({
-      fromId: link.from,
-      toId: link.to,
-      edgeId: this.idGenerator.generate(edge as string),
-      data: (link.data ?? {}) as Record<string, unknown>,
-    }))
+    const batchLinks = links.map((link, i) => {
+      let validatedData: Record<string, unknown> | undefined
+      if (this.validationOptions.enabled && this.validationOptions.onCreate && link.data) {
+        try {
+          validatedData = this.validator.parseAndPrepareEdge(edge, link.data)
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            throw new ValidationError(
+              `Batch link validation failed at index ${i}: ${error.message}`,
+              error.field, error.expected, error.received,
+            )
+          }
+          throw error
+        }
+      } else if (link.data) {
+        validatedData = stripUndefined(link.data as Record<string, unknown>)
+      }
+
+      return {
+        fromId: link.from,
+        toId: link.to,
+        edgeId: this.idGenerator.generate(edge as string),
+        data: validatedData ? serializeDates(validatedData) : {},
+      }
+    })
 
     const op = ops.batchLink(edge as string, batchLinks)
     const compiled = this.runPipeline(op)
@@ -1098,7 +1204,15 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     const edgeType = this.resolveHierarchyEdge(options?.edge)
     const id = this.idGenerator.generate(label as string) as string
 
-    const op = ops.createNode(label as string, id, data as Record<string, unknown>, {
+    let validatedData: Record<string, unknown>
+    if (this.validationOptions.enabled && this.validationOptions.onCreate) {
+      validatedData = this.validator.parseAndPrepareNode(label, data)
+    } else {
+      validatedData = stripUndefined(data as Record<string, unknown>)
+    }
+    const dbReadyData = serializeDates(validatedData)
+
+    const op = ops.createNode(label as string, id, dbReadyData, {
       links: [{ edgeType, targetId: parentId }],
     })
     const compiled = this.runPipeline(op)

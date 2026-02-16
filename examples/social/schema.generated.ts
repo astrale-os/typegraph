@@ -38,22 +38,6 @@ export interface PostMethods {
   likeCount(): number | Promise<number>
 }
 
-export interface MethodContext<Self, Args = void> {
-  self: Self & { readonly id: string; readonly __type: string }
-  args: Args extends void ? undefined : Args
-  graph: unknown
-}
-
-export type MethodsConfig = {
-  User: {
-    followerCount: (ctx: MethodContext<User>) => number | Promise<number>
-    isFollowing: (ctx: MethodContext<User, { other: User }>) => boolean | Promise<boolean>
-  }
-  Post: {
-    likeCount: (ctx: MethodContext<Post>) => number | Promise<number>
-  }
-}
-
 export type UserNode = User & {
   readonly id: string
   readonly __type: 'User'
@@ -72,7 +56,6 @@ export interface SchemaNodeTypeMap {
 // ─── Validators ─────────────────────────────────────────────
 
 export const validators = {
-
   User: z.object({
     createdAt: z.string(),
     username: z.string(),
@@ -188,10 +171,7 @@ export interface CoreDefinition {
   edges?: CoreEdgeDef[]
 }
 
-export function node<T extends SchemaNodeType>(
-  type: T,
-  props: CoreNodeProps[T],
-): CoreNodeDef<T>
+export function node<T extends SchemaNodeType>(type: T, props: CoreNodeProps[T]): CoreNodeDef<T>
 export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(
   type: T,
   props: CoreNodeProps[T],
@@ -202,7 +182,11 @@ export function node(
   props: Record<string, unknown>,
   options?: { children?: Record<string, CoreNodeDef> },
 ): CoreNodeDef {
-  return { __type: type as SchemaNodeType, props, ...(options?.children ? { children: options.children } : {}) }
+  return {
+    __type: type as SchemaNodeType,
+    props,
+    ...(options?.children ? { children: options.children } : {}),
+  }
 }
 
 export function edge<T extends SchemaEdgeType>(
@@ -217,10 +201,17 @@ export function defineCore<const T extends CoreDefinition>(def: T): T {
   return def
 }
 
-type FlattenCoreKeys<T extends Record<string, any>> =
-  { [K in keyof T & string]: K | (T[K] extends { readonly children: infer C extends Record<string, any> } ? FlattenCoreKeys<C> : never) }[keyof T & string]
+type FlattenCoreKeys<T extends Record<string, any>> = {
+  [K in keyof T & string]:
+    | K
+    | (T[K] extends { readonly children: infer C extends Record<string, any> }
+        ? FlattenCoreKeys<C>
+        : never)
+}[keyof T & string]
 
 export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>
 
-export type Refs<T extends CoreDefinition = CoreDefinition> =
-  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, string>
+export type Refs<T extends CoreDefinition = CoreDefinition> = Record<
+  SchemaType | Extract<ExtractCoreKeys<T>, string>,
+  string
+>

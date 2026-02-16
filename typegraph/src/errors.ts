@@ -51,9 +51,15 @@ export class ExecutionError extends GraphQueryError {
 
 // ─── Method System Errors ────────────────────────────────────
 
-export class MethodNotImplementedError extends Error {
-  constructor(public readonly missing: string[]) {
-    super(`Missing method implementations:\n${missing.map((m) => `  - ${m}`).join('\n')}`)
-    this.name = 'MethodNotImplementedError'
+export class MethodNotDispatchedError extends Error {
+  constructor(
+    public readonly type: string,
+    public readonly method: string,
+  ) {
+    super(
+      `Cannot dispatch method '${type}.${method}': no dispatcher configured. ` +
+        `Use graph.as(auth) to create an auth-scoped graph before calling methods.`,
+    )
+    this.name = 'MethodNotDispatchedError'
   }
 }

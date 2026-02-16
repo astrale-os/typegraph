@@ -1,31 +1,36 @@
-// Method implementations for the social domain.
+// Method implementations for the social domain — defined as kernel operations.
 
-import type { MethodsConfig } from './schema.generated'
+import { defineOperation } from '@astrale-os/kernel'
+import { UserOps, PostOps } from './schema.generated'
 
-export const methods: MethodsConfig = {
-  User: {
-    async followerCount(ctx) {
-      // Count incoming 'follows' edges where this user is the followed endpoint.
-      const followers = await ctx.graph.node('User').byId(ctx.self.id).from('follows').count()
-      return followers
+export const UserMethods = [
+  defineOperation.internal(UserOps.followerCount, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self, kernel, auth }) => {
+      return kernel.graph.as(auth).node('User').byId(self!.id).from('follows').count()
     },
+  }),
 
-    async isFollowing(ctx) {
-      // Check if an edge exists: self --follows--> other
-      const edges = await ctx.graph
+  defineOperation.internal(UserOps.isFollowing, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self, params, kernel, auth }) => {
+      const edges = await kernel.graph
+        .as(auth)
         .node('User')
-        .byId(ctx.self.id)
+        .byId(self!.id)
         .to('follows')
-        .where('id', 'eq', ctx.args.other.id)
+        .where('id', 'eq', params.other.id)
         .count()
       return edges > 0
     },
-  },
+  }),
+]
 
-  Post: {
-    async likeCount(ctx) {
-      const likes = await ctx.graph.node('Post').byId(ctx.self.id).from('liked').count()
-      return likes
+export const PostMethods = [
+  defineOperation.internal(PostOps.likeCount, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self, kernel, auth }) => {
+      return kernel.graph.as(auth).node('Post').byId(self!.id).from('liked').count()
     },
-  },
-}
+  }),
+]

@@ -12,6 +12,7 @@ type SKU = String [length: 3..20]
 type Email = String [format: email]
 type Url = String [format: url]
 
+
 -- ─── Interfaces ──────────────────────────────────────────────
 
 interface Timestamped {

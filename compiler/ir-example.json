@@ -8,7 +8,6 @@
   "required": ["version", "meta", "builtin_scalars", "classes"],
   "additionalProperties": false,
   "properties": {
-
     "version": {
       "const": "1.0"
     },
@@ -52,12 +51,8 @@
   },
 
   "$defs": {
-
     "ClassDef": {
-      "oneOf": [
-        { "$ref": "#/$defs/NodeDef" },
-        { "$ref": "#/$defs/EdgeDef" }
-      ]
+      "oneOf": [{ "$ref": "#/$defs/NodeDef" }, { "$ref": "#/$defs/EdgeDef" }]
     },
 
     "NodeDef": {
@@ -109,10 +104,7 @@
         "param_name": { "type": "string" },
         "allowed_types": { "type": "array", "items": { "$ref": "#/$defs/TypeRef" } },
         "cardinality": {
-          "oneOf": [
-            { "type": "null" },
-            { "$ref": "#/$defs/Cardinality" }
-          ]
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Cardinality" }]
         }
       }
     },
@@ -123,10 +115,7 @@
       "properties": {
         "min": { "type": "integer", "minimum": 0 },
         "max": {
-          "oneOf": [
-            { "type": "integer", "minimum": 0 },
-            { "type": "null" }
-          ]
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
         }
       }
     },
@@ -156,10 +145,7 @@
         "type": { "$ref": "#/$defs/TypeRef" },
         "nullable": { "type": "boolean", "default": false },
         "default": {
-          "oneOf": [
-            { "type": "null" },
-            { "$ref": "#/$defs/ValueNode" }
-          ]
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ValueNode" }]
         },
         "value_constraints": { "$ref": "#/$defs/ValueConstraints" },
         "modifiers": { "$ref": "#/$defs/AttributeModifiers" }
@@ -168,22 +154,69 @@
 
     "TypeRef": {
       "oneOf": [
-        { "type": "object", "required": ["kind", "name"], "properties": { "kind": { "const": "Scalar" }, "name": { "type": "string" } } },
-        { "type": "object", "required": ["kind", "name"], "properties": { "kind": { "const": "Node" }, "name": { "type": "string" } } },
-        { "type": "object", "required": ["kind", "name"], "properties": { "kind": { "const": "Alias" }, "name": { "type": "string" } } },
-        { "type": "object", "required": ["kind", "name"], "properties": { "kind": { "const": "Edge" }, "name": { "type": "string" } } },
-        { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "AnyEdge" } } },
-        { "type": "object", "required": ["kind", "types"], "properties": { "kind": { "const": "Union" }, "types": { "type": "array", "items": { "$ref": "#/$defs/TypeRef" }, "minItems": 2 } } }
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": { "kind": { "const": "Scalar" }, "name": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": { "kind": { "const": "Node" }, "name": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": { "kind": { "const": "Alias" }, "name": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": { "kind": { "const": "Edge" }, "name": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "const": "AnyEdge" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "types"],
+          "properties": {
+            "kind": { "const": "Union" },
+            "types": { "type": "array", "items": { "$ref": "#/$defs/TypeRef" }, "minItems": 2 }
+          }
+        }
       ]
     },
 
     "ValueNode": {
       "oneOf": [
-        { "type": "object", "required": ["kind", "value"], "properties": { "kind": { "const": "StringLiteral" }, "value": { "type": "string" } } },
-        { "type": "object", "required": ["kind", "value"], "properties": { "kind": { "const": "NumberLiteral" }, "value": { "type": "number" } } },
-        { "type": "object", "required": ["kind", "value"], "properties": { "kind": { "const": "BooleanLiteral" }, "value": { "type": "boolean" } } },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "StringLiteral" }, "value": { "type": "string" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "NumberLiteral" }, "value": { "type": "number" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "BooleanLiteral" }, "value": { "type": "boolean" } }
+        },
         { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "Null" } } },
-        { "type": "object", "required": ["kind", "fn"], "properties": { "kind": { "const": "Call" }, "fn": { "type": "string" }, "args": { "type": "array", "items": { "$ref": "#/$defs/ValueNode" }, "default": [] } } }
+        {
+          "type": "object",
+          "required": ["kind", "fn"],
+          "properties": {
+            "kind": { "const": "Call" },
+            "fn": { "type": "string" },
+            "args": { "type": "array", "items": { "$ref": "#/$defs/ValueNode" }, "default": [] }
+          }
+        }
       ]
     },
 
@@ -206,10 +239,7 @@
         "unique": { "type": "boolean", "default": false },
         "readonly": { "type": "boolean", "default": false },
         "indexed": {
-          "oneOf": [
-            { "type": "boolean" },
-            { "type": "string", "enum": ["asc", "desc"] }
-          ],
+          "oneOf": [{ "type": "boolean" }, { "type": "string", "enum": ["asc", "desc"] }],
           "default": false
         }
       }

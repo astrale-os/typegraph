@@ -90,7 +90,7 @@ export type { MutationExecutor, TransactionRunner, MutationConfig } from './impl
 
 // Validation
 export { MutationValidator, defaultValidationOptions } from './validation'
-export type { ValidationResult, ValidationIssue, ValidationOptions } from './validation'
+export type { ValidatorMap, ZodLike, ValidationResult, ValidationIssue, ValidationOptions } from './validation'
 
 // Hooks / Middleware
 export { HooksRunner } from './hooks'

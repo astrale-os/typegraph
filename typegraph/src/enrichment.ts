@@ -1,39 +1,38 @@
 /**
  * Node & Edge Enrichment
  *
- * Enriches raw query results with bound method proxies.
- * The proxy intercepts property access to transparently bind method handlers.
+ * Enriches raw query results with method dispatch proxies.
+ * When a method name is accessed, the proxy dispatches through the kernel's
+ * operation pipeline via the stored dispatch function.
  */
 
-import type { MethodsConfig, MethodCallContext } from './methods'
+import type { MethodDispatchFn, OperationSelf } from './methods'
+import { MethodNotDispatchedError } from './errors'
 
 /**
- * Enrich a raw node result with bound method proxies.
- * Returns an object where method names resolve to callable functions.
+ * Enrich a raw node result with method dispatch proxies.
  *
  * @param type - Node type name (e.g., 'Customer')
  * @param raw  - Raw result object (already has id, data props, etc.)
- * @param methods - Methods config from createGraph
- * @param graph - The Graph instance (passed as method context)
+ * @param methodNames - Method names available on this type (from schema metadata)
+ * @param dispatch - Operation dispatcher (kernel.call)
+ * @param auth - Auth context captured from graph.as(auth)
  */
 export function enrichNode<T extends Record<string, unknown>>(
   type: string,
   raw: T,
-  methods: MethodsConfig | undefined,
-  graph: unknown,
+  methodNames: string[],
+  dispatch: MethodDispatchFn | undefined,
+  auth: unknown,
 ): T {
-  const handlers = methods?.[type]
-  if (!handlers || Object.keys(handlers).length === 0) return raw
+  if (!methodNames.length) return raw
 
   return new Proxy(raw, {
     get(target, prop, receiver) {
-      if (typeof prop === 'string' && handlers[prop]) {
+      if (typeof prop === 'string' && methodNames.includes(prop)) {
+        if (!dispatch) throw new MethodNotDispatchedError(type, prop)
         return (args?: unknown) =>
-          handlers[prop]({
-            self: target as unknown as MethodCallContext['self'],
-            args: args ?? undefined,
-            graph,
-          })
+          dispatch(`${type}.${prop}`, auth, args ?? undefined, target as unknown as OperationSelf)
       }
       return Reflect.get(target, prop, receiver)
     },
@@ -41,27 +40,29 @@ export function enrichNode<T extends Record<string, unknown>>(
 }
 
 /**
- * Enrich a raw edge result with bound method proxies.
+ * Enrich a raw edge result with method dispatch proxies.
  * Same mechanism as enrichNode but for edge payloads.
  */
 export function enrichEdge<T extends Record<string, unknown>>(
   edgeType: string,
   raw: T,
-  methods: MethodsConfig | undefined,
-  graph: unknown,
+  methodNames: string[],
+  dispatch: MethodDispatchFn | undefined,
+  auth: unknown,
 ): T {
-  const handlers = methods?.[edgeType]
-  if (!handlers || Object.keys(handlers).length === 0) return raw
+  if (!methodNames.length) return raw
 
   return new Proxy(raw, {
     get(target, prop, receiver) {
-      if (typeof prop === 'string' && handlers[prop]) {
+      if (typeof prop === 'string' && methodNames.includes(prop)) {
+        if (!dispatch) throw new MethodNotDispatchedError(edgeType, prop)
         return (args?: unknown) =>
-          handlers[prop]({
-            self: target as unknown as MethodCallContext['self'],
-            args: args ?? undefined,
-            graph,
-          })
+          dispatch(
+            `${edgeType}.${prop}`,
+            auth,
+            args ?? undefined,
+            target as unknown as OperationSelf,
+          )
       }
       return Reflect.get(target, prop, receiver)
     },

@@ -1,41 +1,46 @@
-// Method implementations — runtime logic for KRL method contracts.
-// Each method receives a typed context (self, args, graph).
+// Method implementations — defined as kernel operations.
+// Each method receives { self, params, kernel, auth } in the execute hook.
 
-import type { MethodsConfig } from './schema.generated'
+import { defineOperation } from '@astrale-os/kernel'
+import { CustomerOps, OrderOps, OrderItemOps } from './schema.generated'
 
-export const methods: MethodsConfig = {
-  Customer: {
-    displayName(ctx) {
-      return `${ctx.self.name} <${ctx.self.email}>`
-    },
+export const CustomerMethods = [
+  defineOperation.internal(CustomerOps.displayName, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self }) => `${self!.name} <${self!.email}>`,
+  }),
 
-    async recentOrders(ctx) {
-      // Use the graph client to traverse from this customer to their orders.
-      // The return type is Order[] — typed by the generated MethodsConfig.
-      const orders = await ctx.graph
+  defineOperation.internal(CustomerOps.recentOrders, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self, params, kernel, auth }) => {
+      return kernel.graph
+        .as(auth)
         .node('Customer')
-        .byId(ctx.self.id)
+        .byId(self!.id)
         .to('placedOrder')
         .orderBy('createdAt', 'DESC')
-        .limit(ctx.args?.limit ?? 10)
+        .limit(params?.limit ?? 10)
         .execute()
-      return orders
     },
-  },
+  }),
+]
 
-  Order: {
-    async cancel(ctx) {
-      if (ctx.self.status === 'cancelled') return false
-      if (ctx.self.status === 'shipped' || ctx.self.status === 'delivered') return false
+export const OrderMethods = [
+  defineOperation.internal(OrderOps.cancel, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'write' }),
+    execute: async ({ self, kernel, auth }) => {
+      if (self!.status === 'cancelled') return false
+      if (self!.status === 'shipped' || self!.status === 'delivered') return false
 
-      await ctx.graph.mutate.update('Order', ctx.self.id, { status: 'cancelled' })
+      await kernel.graph.as(auth).mutate.update('Order', self!.id, { status: 'cancelled' })
       return true
     },
-  },
+  }),
+]
 
-  orderItem: {
-    subtotal(ctx) {
-      return ctx.self.quantity * ctx.self.unitPriceCents
-    },
-  },
-}
+export const OrderItemMethods = [
+  defineOperation.internal(OrderItemOps.subtotal, {
+    authorize: ({ self }) => ({ nodeIds: [self!.id], perm: 'read' }),
+    execute: async ({ self }) => self!.quantity * self!.unitPriceCents,
+  }),
+]

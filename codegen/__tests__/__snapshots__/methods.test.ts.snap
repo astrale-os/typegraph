@@ -56,37 +56,6 @@ export interface OrderItemMethods {
   subtotal(): number | Promise<number>
 }
 
-export interface MethodContext<Self, Args = void> {
-  self: Self & { readonly id: string; readonly __type: string }
-  args: Args extends void ? undefined : Args
-  graph: unknown
-}
-
-export interface EdgeMethodContext<Payload, Args = void> {
-  self: Payload & { readonly endpoints: Record<string, string> }
-  args: Args extends void ? undefined : Args
-  graph: unknown
-}
-
-export type MethodsConfig = {
-  Customer: {
-    age: (ctx: MethodContext<Customer>) => number | Promise<number>
-    displayName: (ctx: MethodContext<Customer>) => string | Promise<string>
-    canPurchase: (ctx: MethodContext<Customer, { product: Product }>) => boolean | Promise<boolean>
-    recentOrders: (ctx: MethodContext<Customer, { limit?: number }>) => Order[] | Promise<Order[]>
-  }
-  Product: {
-    age: (ctx: MethodContext<Product>) => number | Promise<number>
-  }
-  Order: {
-    age: (ctx: MethodContext<Order>) => number | Promise<number>
-    cancel: (ctx: MethodContext<Order>) => boolean | Promise<boolean>
-  }
-  order_item: {
-    subtotal: (ctx: EdgeMethodContext<OrderItemPayload>) => number | Promise<number>
-  }
-}
-
 export type CustomerNode = Customer & {
   readonly id: string
   readonly __type: 'Customer'
@@ -144,7 +113,10 @@ import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegra
 export type SchemaType = typeof schema
 
 export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
-  return _createGraph<SchemaType, GeneratedTypeMap>(schema, options)
+  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {
+    ...options,
+    validation: { validators, ...options.validation },
+  })
 }
 
 // ─── Validators ─────────────────────────────────────────────

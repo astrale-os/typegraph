@@ -121,7 +121,10 @@ function emitCreateGraphWrapper(): string {
   lines.push('export type SchemaType = typeof schema')
   lines.push('')
   lines.push('export function createTypedGraph(options: Omit<GraphOptions, \'schema\'>) {')
-  lines.push('  return _createGraph<SchemaType, GeneratedTypeMap>(schema, options)')
+  lines.push('  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {')
+  lines.push('    ...options,')
+  lines.push('    validation: { validators, ...options.validation },')
+  lines.push('  })')
   lines.push('}')
   lines.push('')
 

@@ -25,11 +25,10 @@ import type { CollectionBuilder } from './query/collection'
 import type { SingleNodeBuilder } from './query/single-node'
 import type { EdgeBuilder } from './query/edge'
 import type { PathBuilder } from './query/path'
-import type { MethodsConfig, MethodSchemaInfo } from './methods'
-import { validateMethodImplementations, callNodeMethod, callEdgeMethod } from './methods'
-import { MethodNotImplementedError } from './errors'
+import type { MethodDispatchFn, MethodSchemaInfo } from './methods'
+import { MethodNotDispatchedError } from './errors'
 import type { ConstraintSchemaInfo } from './constraints'
-import { enforceConstraints, resolveEndpoints, ConstraintViolation } from './constraints'
+import { resolveEndpoints } from './constraints'
 
 /**
  * Options for creating a graph instance.
@@ -43,20 +42,18 @@ export interface GraphOptions<S extends SchemaShape = SchemaShape> {
   mutationPasses?: MutationCompilationPass[]
   /** Mutation lifecycle hooks (beforeCreate, afterCreate, etc.) */
   hooks?: MutationHooks<S>
-  /** Mutation validation options */
+  /** Mutation validation configuration (options + Zod validators) */
   validation?: ValidationOptions
   /** Dry-run mode - generates queries without executing */
   dryRun?: boolean | DryRunOptions
   /**
-   * Method implementations.
-   * Maps type names to method handlers. Required if the schema declares methods.
-   * Validated at startup — missing handlers cause createGraph() to throw.
+   * Operation dispatcher for method calls. Signature matches kernel.call.
+   * When provided, methods on returned nodes dispatch through this function.
    */
-  methods?: MethodsConfig
+  dispatch?: MethodDispatchFn
   /**
    * Schema metadata from codegen (the `schema` const).
-   * Required for method validation and constraint enforcement.
-   * Contains nodes, edges, methods, and constraint definitions.
+   * Required for method name resolution and constraint enforcement.
    */
   schemaInfo?: MethodSchemaInfo & ConstraintSchemaInfo
 }
@@ -77,9 +74,25 @@ export interface TransactionScope<S extends SchemaShape, T extends TypeMap = Unt
  * Extends GraphQuery with:
  * - Mutation operations (via .mutate)
  * - Transaction support
+ * - Auth-scoped graph for method dispatch
  * - Connection lifecycle management
  */
-export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> extends GraphQuery<S, T> {
+export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> extends GraphQuery<
+  S,
+  T
+> {
+  // ---------------------------------------------------------------------------
+  // AUTH SCOPING
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Create an auth-scoped graph. Methods on returned nodes dispatch with this auth.
+   * Lightweight — shares adapter and schema, just captures auth.
+   *
+   * @param auth - Auth context (opaque to the SDK, passed through to dispatch)
+   */
+  as(auth: unknown): Graph<S, T>
+
   // ---------------------------------------------------------------------------
   // MUTATION API
   // ---------------------------------------------------------------------------
@@ -96,15 +109,6 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
    *
    * - On success: auto-commits
    * - On error: auto-rollbacks and rethrows
-   *
-   * @example
-   * ```typescript
-   * await graph.transaction(async (tx) => {
-   *   const user = await tx.mutate.create('user', { name: 'John' })
-   *   const post = await tx.mutate.create('post', { title: 'Hello' })
-   *   await tx.mutate.link('authored', user.id, post.id)
-   * })
-   * ```
    */
   transaction<R>(fn: (tx: TransactionScope<S, T>) => Promise<R>): Promise<R>
 
@@ -114,6 +118,7 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
 
   /**
    * Call a method on a node instance.
+   * Dispatches through the kernel operation pipeline.
    *
    * @param type   - Node type name (e.g., 'Customer')
    * @param id     - Node ID
@@ -124,6 +129,7 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
 
   /**
    * Call a method on an edge instance.
+   * Dispatches through the kernel operation pipeline.
    *
    * @param edgeType  - Edge type name (e.g., 'order_item')
    * @param endpoints - Named endpoint IDs (e.g., { order: 'id1', product: 'id2' })
@@ -200,16 +206,18 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   private readonly _mutate: GraphMutations<S, T>
   private readonly _options: GraphOptions<S>
   private readonly _idGenerator: IdGenerator
-  private readonly _methods: MethodsConfig | undefined
+  private readonly _dispatch: MethodDispatchFn | undefined
   private readonly _schemaInfo: (MethodSchemaInfo & ConstraintSchemaInfo) | undefined
+  private _auth: unknown
 
   constructor(schema: S, options: GraphOptions<S>) {
     this._schema = schema
     this._adapter = options.adapter
     this._options = options
     this._idGenerator = options.idGenerator ?? defaultIdGenerator
-    this._methods = options.methods
+    this._dispatch = options.dispatch
     this._schemaInfo = options.schemaInfo
+    this._auth = undefined
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
@@ -224,6 +232,22 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
       validation: options.validation,
       dryRun: options.dryRun,
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUTH SCOPING
+  // ---------------------------------------------------------------------------
+
+  as(auth: unknown): Graph<S, T> {
+    const scoped = Object.create(this) as GraphImpl<S, T>
+    scoped._auth = auth
+    return scoped
+  }
+
+  /** Internal: dispatch + auth for enrichment and method calls */
+  get _methodDispatch(): { dispatch: MethodDispatchFn; auth: unknown } | undefined {
+    if (!this._dispatch || this._auth === undefined) return undefined
+    return { dispatch: this._dispatch, auth: this._auth }
   }
 
   // ---------------------------------------------------------------------------
@@ -275,7 +299,7 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
     from: { label: NFrom; id: string }
     to: { label: NTo; id: string }
     via: E
-    direction?: 'out' | 'in' | 'both'
+    direction?: 'out' | 'out' | 'both'
   }): PathBuilder<S, NFrom, NTo> {
     return this._query.shortestPath(config)
   }
@@ -345,7 +369,6 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
             run<X>(q: string, p: Record<string, unknown>): Promise<X[]>
           }) => Promise<R>,
         ): Promise<R> {
-          // Nested transaction uses same context
           return innerFn({
             run<X>(q: string, p: Record<string, unknown>): Promise<X[]> {
               return txCtx.run<X>(q, p)
@@ -354,7 +377,6 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
         },
       }
 
-      // Create transaction-scoped mutations (inherits hooks/validation from graph)
       const txMutate: MutationTransaction<S, T> = new GraphMutationsImpl<S, T>(
         this._schema,
         txMutationExecutor,
@@ -382,23 +404,21 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   // ---------------------------------------------------------------------------
 
   async call(type: string, id: string, method: string, args?: unknown): Promise<unknown> {
-    if (!this._methods) throw new MethodNotImplementedError([`${type}.${method}()`])
-    return callNodeMethod(
-      async () => {
-        const [row] = await this._adapter.query<{ n: Record<string, unknown> }>(
-          `MATCH (n:${type} {id: $id}) RETURN n`,
-          { id },
-        )
-        if (!row) return null
-        const { id: nodeId, ...props } = row.n
-        return { id: (nodeId as string) ?? id, props }
-      },
-      type,
-      method,
-      args,
-      this._methods,
-      this,
+    if (!this._dispatch || this._auth === undefined) {
+      throw new MethodNotDispatchedError(type, method)
+    }
+
+    const [row] = await this._adapter.query<{ n: Record<string, unknown> }>(
+      `MATCH (n:${type} {id: $id}) RETURN n`,
+      { id },
     )
+    if (!row) throw new Error(`${type} not found`)
+
+    const { id: nodeId, ...props } = row.n
+    return this._dispatch(`${type}.${method}`, this._auth, args ?? undefined, {
+      id: (nodeId as string) ?? id,
+      ...props,
+    })
   }
 
   async callEdge(
@@ -407,24 +427,23 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
     method: string,
     args?: unknown,
   ): Promise<unknown> {
-    if (!this._methods) throw new MethodNotImplementedError([`${edgeType}.${method}()`])
+    if (!this._dispatch || this._auth === undefined) {
+      throw new MethodNotDispatchedError(edgeType, method)
+    }
     if (!this._schemaInfo) throw new Error('schemaInfo required for callEdge()')
+
     const resolved = resolveEndpoints(edgeType, endpoints, this._schemaInfo)
-    return callEdgeMethod(
-      async () => {
-        const [row] = await this._adapter.query<{ r: Record<string, unknown> }>(
-          `MATCH (a {id: $from})-[r:${edgeType}]->(b {id: $to}) RETURN r`,
-          { from: resolved.from, to: resolved.to },
-        )
-        if (!row) return null
-        return { props: row.r, endpoints: resolved.mapping }
-      },
-      edgeType,
-      method,
-      args,
-      this._methods,
-      this,
+    const [row] = await this._adapter.query<{ r: Record<string, unknown> }>(
+      `MATCH (a {id: $from})-[r:${edgeType}]->(b {id: $to}) RETURN r`,
+      { from: resolved.from, to: resolved.to },
     )
+    if (!row) throw new Error(`${edgeType} edge not found`)
+
+    return this._dispatch(`${edgeType}.${method}`, this._auth, args ?? undefined, {
+      id: Object.values(resolved.mapping).join(':'),
+      ...row.r,
+      ...resolved.mapping,
+    })
   }
 
   // ---------------------------------------------------------------------------
@@ -461,13 +480,6 @@ export async function createGraph<S extends SchemaShape, T extends TypeMap = Unt
   schema: S,
   options: GraphOptions<S>,
 ): Promise<Graph<S, T>> {
-  // Connect eagerly (fail fast)
   await options.adapter.connect()
-
-  // Validate method implementations if schema has methods
-  if (options.schemaInfo?.methods && Object.keys(options.schemaInfo.methods).length > 0) {
-    validateMethodImplementations(options.schemaInfo, options.methods)
-  }
-
   return new GraphImpl<S, T>(schema, options)
 }

@@ -23,9 +23,9 @@ The SDK (`typegraph/typegraph/`) was fully decoupled from two dependencies:
 | `src/schema.ts` | `SchemaShape` interface — the universal schema type matching codegen output |
 | `src/inference.ts` | Simplified type-level inference (was 980+ lines, now ~114 lines) |
 | `src/helpers.ts` | Runtime helpers: `resolveNodeLabels`, `edgeFrom`, `edgeTo`, `edgeCardinality`, `isReified` |
-| `src/errors.ts` | Inlined base errors: `GraphQueryError`, `CardinalityError`, `ExecutionError`, `MethodNotImplementedError` |
+| `src/errors.ts` | Inlined base errors: `GraphQueryError`, `CardinalityError`, `ExecutionError`, `MethodNotDispatchedError` |
 | `src/ast/` | AST types + immutable builder + visitor, copied from core (schema-agnostic) |
-| `src/methods.ts` | Method validation and invocation for KRL `fn` declarations |
+| `src/methods.ts` | Method dispatch types and method name resolution for KRL `fn` declarations |
 | `src/enrichment.ts` | Proxy-based method binding on returned nodes/edges |
 | `src/constraints.ts` | Runtime constraint enforcement (unique, no_self, acyclic, cardinality) |
 

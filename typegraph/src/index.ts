@@ -39,12 +39,7 @@ export type {
   Cardinality,
 } from './schema'
 
-export type {
-  ResolveNode,
-  ResolveEdge,
-  ResolveNodeInput,
-  ResolveEdgeInput,
-} from './resolve'
+export type { ResolveNode, ResolveEdge, ResolveNodeInput, ResolveEdgeInput } from './resolve'
 
 export type {
   NodeLabels,
@@ -125,7 +120,7 @@ export {
   GraphQueryError,
   CardinalityError,
   ExecutionError,
-  MethodNotImplementedError,
+  MethodNotDispatchedError,
 } from './errors'
 
 // =============================================================================
@@ -249,6 +244,9 @@ export type {
   CloneOptions,
   CloneSubtreeOptions,
   IdGenerator,
+  ValidatorMap,
+  ZodLike,
+  ValidationOptions,
   MutationOp,
   InlineLink,
   ReifiedAnnotation,
@@ -304,8 +302,8 @@ export type {
 // METHOD SYSTEM
 // =============================================================================
 
-export type { MethodsConfig, MethodHandler, MethodCallContext, MethodSchemaInfo } from './methods'
-export { validateMethodImplementations, collectRequiredMethods } from './methods'
+export type { MethodDispatchFn, OperationSelf, MethodSchemaInfo } from './methods'
+export { collectMethodNames } from './methods'
 
 // =============================================================================
 // ENRICHMENT

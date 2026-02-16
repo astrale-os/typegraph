@@ -267,22 +267,11 @@ describe('method codegen', () => {
     expect(source).toContain('recentOrders(args?: { limit?: number }): Order[] | Promise<Order[]>')
   })
 
-  it('generates MethodContext types', () => {
+  it('does not emit legacy MethodContext/MethodsConfig types', () => {
     const { source } = generate([ir])
-    expect(source).toContain('export interface MethodContext<Self, Args = void>')
-    expect(source).toContain('graph: unknown')
-    expect(source).toContain('export interface EdgeMethodContext<Payload, Args = void>')
-  })
-
-  it('generates MethodsConfig', () => {
-    const { source } = generate([ir])
-    expect(source).toContain('export type MethodsConfig = {')
-    // Customer config includes inherited 'age'
-    expect(source).toContain('age: (ctx: MethodContext<Customer>) => number | Promise<number>')
-    // Edge method config
-    expect(source).toContain(
-      'subtotal: (ctx: EdgeMethodContext<OrderItemPayload>) => number | Promise<number>',
-    )
+    expect(source).not.toContain('MethodContext')
+    expect(source).not.toContain('EdgeMethodContext')
+    expect(source).not.toContain('MethodsConfig')
   })
 
   it('generates enriched node types', () => {
@@ -337,7 +326,7 @@ describe('method codegen', () => {
 })
 
 describe('method codegen — edge cases', () => {
-  it('IR with no methods produces no method interfaces or config', () => {
+  it('IR with no methods produces no method interfaces', () => {
     const ir = makeIR({
       classes: [
         {
@@ -359,8 +348,6 @@ describe('method codegen — edge cases', () => {
     })
     const { source } = generate([ir])
     expect(source).not.toContain('SimpleMethods')
-    expect(source).not.toContain('MethodContext')
-    expect(source).not.toContain('MethodsConfig')
   })
 
   it('nullable return type', () => {
@@ -537,7 +524,7 @@ describe('method codegen — KRL integration', () => {
     `)
     expect(source).toContain('export interface MembershipMethods {')
     expect(source).toContain('  promote(): boolean | Promise<boolean>')
-    expect(source).toContain('EdgeMethodContext<MembershipPayload>')
+    expect(source).not.toContain('EdgeMethodContext')
   })
 
   it('types without methods produce no method interface', () => {
@@ -550,7 +537,7 @@ describe('method codegen — KRL integration', () => {
     expect(source).not.toContain('SimpleMethods')
   })
 
-  it('generates MethodsConfig with inherited methods from KRL', () => {
+  it('does not emit legacy MethodsConfig from KRL', () => {
     const { source } = compileAndGenerate(`
       extend "https://kernel.astrale.ai/v1" { Identity }
       interface Greetable {
@@ -560,9 +547,10 @@ describe('method codegen — KRL integration', () => {
         fn status(): String
       }
     `)
-    expect(source).toContain('export type MethodsConfig = {')
-    // User config should include both greet (inherited) and status (own)
-    expect(source).toContain('greet: (ctx: MethodContext<User>) => string | Promise<string>')
-    expect(source).toContain('status: (ctx: MethodContext<User>) => string | Promise<string>')
+    expect(source).not.toContain('MethodsConfig')
+    expect(source).not.toContain('MethodContext')
+    // But method interfaces should still be there
+    expect(source).toContain('export interface GreetableMethods {')
+    expect(source).toContain('export interface UserMethods {')
   })
 })

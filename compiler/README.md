@@ -28,7 +28,7 @@ npm install
 
 # 2. Run tests
 npm test
-
+xx
 # 3. Install extension dependencies
 cd ../kernel-vscode
 npm install
