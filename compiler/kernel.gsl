@@ -9,7 +9,38 @@
 -- Root Abstractions
 -- ────────────────────────────────────────────────────────────
 
-interface Node {}
+type JsonString = String
+type ModuleId = String
+type TypeId = String
+type LinkAction = String [in: ["link", "unlink"]]
+type LinkConflict = String [in: ["patch", "replace"]]
+type LinkedDirection = String [in: ["out", "in"]]
+type MetadataInput = { name: String?, contentType: String? }
+type DatastoreObject = { uri: String, contentType: String? }
+type DatastoreGrant = { token: String, objects: DatastoreObject[] }
+type NodeRef = { id: ModuleId, typeId: TypeId }
+type NodeOpenResult = { module: JsonString, grant: DatastoreGrant? }
+type NodeCreateInput = { name: String, typeId: TypeId }
+type NodeCreateResult = { moduleId: ModuleId }
+type NodeEditInput = { metadata: MetadataInput?, storage: Boolean?, typeId: TypeId? }
+type NodeEditResult = { moduleId: ModuleId, dataVersion: Int?, storageUri: String?, grant: DatastoreGrant? }
+type NodeDeleteResult = { deleted: Boolean }
+type NodeExploreInput = { ast: JsonString }
+type NodeExploreResult = { data: JsonString, edges: JsonString?, grant: DatastoreGrant?, hasMore: Boolean?, cursor: String?, total: Int? }
+type NodeLinkInput = { targetId: ModuleId, typeId: TypeId, action: LinkAction, metadata: JsonString?, onConflict: LinkConflict? }
+type NodeLinkResult = { linked: Boolean, edgeId: String? }
+type NodeLinkedInput = { typeId: TypeId?, direction: LinkedDirection = "out" }
+type NodeLinkedResult = { modules: NodeRef[] }
+
+interface Node {
+  fn open(): NodeOpenResult
+  fn create(input: NodeCreateInput): NodeCreateResult
+  fn edit(input: NodeEditInput): NodeEditResult
+  fn delete(): NodeDeleteResult
+  fn explore(input: NodeExploreInput): NodeExploreResult
+  fn link(input: NodeLinkInput): NodeLinkResult
+  fn linked(input: NodeLinkedInput): NodeLinkedResult
+}
 
 interface Link {}
 

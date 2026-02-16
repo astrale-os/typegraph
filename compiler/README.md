@@ -23,7 +23,7 @@ code --install-extension kernel-lang-0.1.0.vsix
 
 ```bash
 # 1. Install compiler dependencies
-cd kernel-compiler
+cd compiler
 npm install
 
 # 2. Run tests

@@ -10,7 +10,7 @@
 //   0: type        — type names (classes, interfaces, scalars)
 //   1: class       — node class names
 //   2: interface   — interface names
-//   3: enum        — type alias names
+//   3: enum        — reserved (legacy mapping)
 //   4: property    — attribute names, param names
 //   5: variable    — edge names
 //   6: keyword     — class, interface, type, extend, edge
@@ -22,9 +22,9 @@
 // ============================================================
 
 import { type DocumentState } from './workspace'
-import { type Token, TokenKind, type Span } from '../tokens'
+import { type Token, type Span } from '../tokens'
 import { type SymbolKind as ResolverSymbolKind } from '../resolver/index'
-import { type CstNode, isToken, isNode, spanOf } from '../cst/index'
+import { type CstNode, isNode, spanOf } from '../cst/index'
 
 export const SEMANTIC_TOKEN_TYPES = [
   'type',
@@ -223,7 +223,8 @@ function classifyIdent(
         case 'Scalar':
           return [TYPE_INDEX.type, 0]
         case 'TypeAlias':
-          return [TYPE_INDEX.enum, 0]
+        case 'ValueType':
+          return [TYPE_INDEX.type, 0]
         case 'Interface':
           return [TYPE_INDEX.interface, MOD_INDEX.abstract]
         case 'Class':

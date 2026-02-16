@@ -49,7 +49,9 @@ function emitNodeInputTypes(
       .map((a) => `'${a.name}'`)
 
     if (readonlyFields.length > 0) {
-      lines.push(`export type ${node.name}Input = Omit<${node.name}, ${readonlyFields.join(' | ')}>`)
+      lines.push(
+        `export type ${node.name}Input = Omit<${node.name}, ${readonlyFields.join(' | ')}>`,
+      )
     } else {
       lines.push(`export type ${node.name}Input = ${node.name}`)
     }
@@ -91,9 +93,7 @@ function emitTypeMapInterface(
   lines.push('  edges: {')
   for (const edge of allEdges) {
     const payloadType =
-      edge.ownAttributes.length > 0
-        ? `${pascalCase(edge.name)}Payload`
-        : 'Record<string, never>'
+      edge.ownAttributes.length > 0 ? `${pascalCase(edge.name)}Payload` : 'Record<string, never>'
     lines.push(`    ${edge.name}: ${payloadType}`)
   }
   lines.push('  }')
@@ -118,10 +118,8 @@ function emitCreateGraphWrapper(): string {
 
   lines.push("import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'")
   lines.push('')
-  lines.push('export type SchemaType = typeof schema')
-  lines.push('')
-  lines.push('export function createTypedGraph(options: Omit<GraphOptions, \'schema\'>) {')
-  lines.push('  return _createGraph<SchemaType, GeneratedTypeMap>(schema, {')
+  lines.push("export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {")
+  lines.push('  return _createGraph<typeof schema, GeneratedTypeMap>(schema, {')
   lines.push('    ...options,')
   lines.push('    validation: { validators, ...options.validation },')
   lines.push('  })')
