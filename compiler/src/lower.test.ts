@@ -3,8 +3,15 @@ import { describe, it, expect } from 'vitest'
 import { lex } from './lexer'
 import { parse } from './parser/index'
 import { lower } from './lower/index'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { readFileSync } from 'fs'
+import { resolve as pathResolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { DiagnosticBag } from './diagnostics'
+
+const KERNEL_SCHEMA_SOURCE = readFileSync(
+  pathResolve(dirname(fileURLToPath(import.meta.url)), '..', 'kernel.gsl'),
+  'utf-8',
+)
 import {
   type Declaration,
   type TypeAliasDecl,
@@ -285,27 +292,28 @@ describe('Lowering', () => {
 
   describe('Kernel prelude', () => {
     it('lowers the kernel prelude without errors', () => {
-      const decls = ast(KERNEL_PRELUDE.source)
+      const decls = ast(KERNEL_SCHEMA_SOURCE)
       expect(decls.length).toBeGreaterThan(0)
 
       const kinds = decls.map((d) => d.kind)
       expect(kinds.filter((k) => k === 'InterfaceDecl')).toHaveLength(3)
-      expect(kinds.filter((k) => k === 'NodeDecl')).toHaveLength(2)
-      expect(kinds.filter((k) => k === 'EdgeDecl')).toHaveLength(10)
+      expect(kinds.filter((k) => k === 'NodeDecl')).toHaveLength(3)
+      expect(kinds.filter((k) => k === 'EdgeDecl')).toHaveLength(11)
     })
 
     it('correctly splits nodes and edges in kernel', () => {
-      const decls = ast(KERNEL_PRELUDE.source)
+      const decls = ast(KERNEL_SCHEMA_SOURCE)
       const nodes = decls.filter((d) => d.kind === 'NodeDecl') as NodeDecl[]
       const edges = decls.filter((d) => d.kind === 'EdgeDecl') as EdgeDecl[]
 
-      expect(nodes.map((n) => n.name.value).sort()).toEqual(['Class', 'Interface'])
+      expect(nodes.map((n) => n.name.value).sort()).toEqual(['Class', 'Interface', 'Operation'])
 
       const edgeNames = edges.map((e) => e.name.value).sort()
       expect(edgeNames).toContain('has_parent')
       expect(edgeNames).toContain('instance_of')
       expect(edgeNames).toContain('implements')
       expect(edgeNames).toContain('extends')
+      expect(edgeNames).toContain('method_of')
       expect(edgeNames).toContain('has_perm')
     })
   })

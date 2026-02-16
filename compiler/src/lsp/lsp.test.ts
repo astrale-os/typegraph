@@ -7,8 +7,11 @@ import { provideDefinition } from './definition'
 import { provideCompletion } from './completion'
 import { provideDocumentSymbols } from './symbols'
 import { provideSemanticTokens, SEMANTIC_TOKEN_TYPES } from './semantic-tokens'
-import { KERNEL_PRELUDE } from '../kernel-prelude'
+import { KERNEL_PRELUDE } from '../prelude'
+import { buildKernelRegistry } from '../kernel-prelude'
 import { SymbolKind } from 'vscode-languageserver-types'
+
+const kernelRegistry = buildKernelRegistry()
 
 // ─── LineMap ─────────────────────────────────────────────────
 
@@ -74,8 +77,8 @@ class follows(follower: User, followee: User) [no_self, unique]
 `
 
 describe('Workspace', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/schema.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/schema.gsl'
 
   it('compiles on update and returns diagnostics', () => {
     const diags = ws.update(uri, SAMPLE, 1)
@@ -108,21 +111,21 @@ describe('Workspace', () => {
   })
 
   it('reports errors on bad source', () => {
-    const diags = ws.update('file:///bad.krl', 'class Foo: Unknown {}', 1)
+    const diags = ws.update('file:///bad.gsl', 'class Foo: Unknown {}', 1)
     expect(diags.some((d) => d.severity === 1)).toBe(true) // has errors
   })
 
   it('cleans up on remove', () => {
-    ws.remove('file:///bad.krl')
-    expect(ws.get('file:///bad.krl')).toBeUndefined()
+    ws.remove('file:///bad.gsl')
+    expect(ws.get('file:///bad.gsl')).toBeUndefined()
   })
 })
 
 // ─── Hover ───────────────────────────────────────────────────
 
 describe('Hover', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/hover.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/hover.gsl'
   ws.update(uri, SAMPLE, 1)
 
   it('provides hover for class name', () => {
@@ -161,8 +164,8 @@ describe('Hover', () => {
 // ─── Go-to-Definition ────────────────────────────────────────
 
 describe('Definition', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/def.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/def.gsl'
   ws.update(uri, SAMPLE, 1)
 
   it('navigates to class declaration', () => {
@@ -187,8 +190,8 @@ describe('Definition', () => {
 // ─── Completion ──────────────────────────────────────────────
 
 describe('Completion', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/comp.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/comp.gsl'
   ws.update(uri, SAMPLE, 1)
 
   it('offers type completions after colon', () => {
@@ -223,8 +226,8 @@ describe('Completion', () => {
 // ─── Document Symbols ────────────────────────────────────────
 
 describe('Document Symbols', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/sym.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/sym.gsl'
   ws.update(uri, SAMPLE, 1)
 
   it('returns symbols for all declarations', () => {
@@ -260,8 +263,8 @@ describe('Document Symbols', () => {
 // ─── Semantic Tokens ─────────────────────────────────────────
 
 describe('Semantic Tokens', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/sem.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/sem.gsl'
   ws.update(uri, SAMPLE, 1)
 
   it('produces non-empty token data', () => {
@@ -301,8 +304,8 @@ class follows(source: User, target: User) {
 `
 
 describe('Methods — Hover', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/methods-hover.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/methods-hover.gsl'
   ws.update(uri, METHODS_SAMPLE, 1)
 
   it('shows method signatures in class hover', () => {
@@ -337,8 +340,8 @@ describe('Methods — Hover', () => {
 })
 
 describe('Methods — Document Symbols', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/methods-symbols.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/methods-symbols.gsl'
   ws.update(uri, METHODS_SAMPLE, 1)
 
   it('includes methods as children of class', () => {
@@ -396,8 +399,8 @@ describe('Methods — Document Symbols', () => {
 })
 
 describe('Methods — Completion', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/methods-comp.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/methods-comp.gsl'
   ws.update(uri, METHODS_SAMPLE, 1)
 
   it('offers fn keyword inside body', () => {
@@ -427,8 +430,8 @@ describe('Methods — Completion', () => {
 })
 
 describe('Methods — Semantic Tokens', () => {
-  const ws = new Workspace(KERNEL_PRELUDE)
-  const uri = 'file:///test/methods-sem.krl'
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/methods-sem.gsl'
   ws.update(uri, METHODS_SAMPLE, 1)
 
   it('classifies fn as keyword', () => {

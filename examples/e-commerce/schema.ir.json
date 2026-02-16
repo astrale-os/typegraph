@@ -1,29 +1,50 @@
 {
   "version": "1.0",
   "meta": {
-    "generated_at": "",
-    "source_hash": ""
+    "generated_at": "2026-02-16T13:47:18.379Z",
+    "source_hash": "a31f06c6695b2492"
   },
   "extensions": [
     {
       "uri": "https://kernel.astrale.ai/v1",
-      "imported_types": ["Identity"]
+      "imported_types": [
+        "Identity"
+      ]
     }
   ],
-  "builtin_scalars": ["String", "Int", "Float", "Boolean", "Timestamp", "Bitmask", "ByteString"],
+  "builtin_scalars": [
+    "String",
+    "Int",
+    "Float",
+    "Boolean",
+    "Timestamp",
+    "Bitmask",
+    "ByteString"
+  ],
   "type_aliases": [
     {
       "name": "Currency",
       "underlying_type": "String",
       "constraints": {
-        "enum_values": ["USD", "EUR", "GBP", "JPY"]
+        "enum_values": [
+          "USD",
+          "EUR",
+          "GBP",
+          "JPY"
+        ]
       }
     },
     {
       "name": "OrderStatus",
       "underlying_type": "String",
       "constraints": {
-        "enum_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+        "enum_values": [
+          "pending",
+          "confirmed",
+          "shipped",
+          "delivered",
+          "cancelled"
+        ]
       }
     },
     {
@@ -141,7 +162,10 @@
       "type": "node",
       "name": "Customer",
       "abstract": false,
-      "implements": ["Identity", "Timestamped"],
+      "implements": [
+        "Identity",
+        "Timestamped"
+      ],
       "attributes": [
         {
           "name": "email",
@@ -216,7 +240,11 @@
       "type": "node",
       "name": "Product",
       "abstract": false,
-      "implements": ["Timestamped", "HasSlug", "Priceable"],
+      "implements": [
+        "Timestamped",
+        "HasSlug",
+        "Priceable"
+      ],
       "attributes": [
         {
           "name": "title",
@@ -280,7 +308,9 @@
       "type": "node",
       "name": "Category",
       "abstract": false,
-      "implements": ["HasSlug"],
+      "implements": [
+        "HasSlug"
+      ],
       "attributes": [
         {
           "name": "name",
@@ -301,7 +331,9 @@
       "type": "node",
       "name": "Order",
       "abstract": false,
-      "implements": ["Timestamped"],
+      "implements": [
+        "Timestamped"
+      ],
       "attributes": [
         {
           "name": "status",
@@ -353,7 +385,9 @@
       "type": "node",
       "name": "Review",
       "abstract": false,
-      "implements": ["Timestamped"],
+      "implements": [
+        "Timestamped"
+      ],
       "attributes": [
         {
           "name": "rating",

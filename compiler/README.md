@@ -1,6 +1,6 @@
 # Kernel
 
-Graph schema compiler, CLI, and VS Code extension for `.krl` files.
+Graph schema compiler, CLI, and VS Code extension for `.gsl` files.
 
 ## Structure
 
@@ -28,7 +28,7 @@ npm install
 
 # 2. Run tests
 npm test
-xx
+
 # 3. Install extension dependencies
 cd ../kernel-vscode
 npm install
@@ -46,10 +46,10 @@ code --install-extension kernel-lang-0.1.0.vsix
 ### CLI
 
 ```bash
-cd kernel-compiler
+cd compiler
 npm install
-npx tsx src/cli.ts compile path/to/schema.krl
-npx tsx src/cli.ts check path/to/schema.krl
+npx tsx src/cli.ts compile path/to/schema.gsl
+npx tsx src/cli.ts check path/to/schema.gsl
 npx tsx src/cli.ts init my-project
 ```
 
@@ -66,7 +66,7 @@ npx tsx src/cli.ts init my-project
 ## Tests
 
 ```bash
-cd kernel-compiler
+cd compiler
 npm install
 npm test          # 186 tests across 6 suites
 ```

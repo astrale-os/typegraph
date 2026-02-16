@@ -1,6 +1,6 @@
 # Examples
 
-End-to-end walkthroughs of the typegraph pipeline: **KRL → IR → Generated TypeScript → Core → Methods → SDK**.
+End-to-end walkthroughs of the typegraph pipeline: **GSL → IR → Generated TypeScript → Core → Methods → SDK**.
 
 ## Structure
 
@@ -8,7 +8,7 @@ Each directory follows the same layout:
 
 | File | Source | Description |
 |------|--------|-------------|
-| `schema.krl` | hand-written | KRL schema definition |
+| `schema.gsl` | hand-written | GSL schema definition |
 | `schema.ir.json` | generated | Compiler output (SchemaIR) |
 | `schema.generated.ts` | generated | Codegen output (types, validators, schema, core DSL, methods) |
 | `core.ts` | hand-written | `defineCore()` — genesis data |

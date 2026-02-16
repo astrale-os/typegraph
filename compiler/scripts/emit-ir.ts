@@ -3,6 +3,8 @@
 // Run with: npx tsx scripts/emit-ir.ts
 
 import { compile } from "../src/compile.js";
+import { KERNEL_PRELUDE } from "../src/prelude.js";
+import { buildKernelRegistry } from "../src/kernel-prelude.js";
 
 const BLOG_SCHEMA = `
 extend "https://kernel.astrale.ai/v1" { Identity }
@@ -84,6 +86,8 @@ class flagged(about: edge<any>) {
 `;
 
 const { ir, diagnostics } = compile(BLOG_SCHEMA, {
+  prelude: KERNEL_PRELUDE,
+  registry: buildKernelRegistry(),
   sourceHash: "blog-schema-v1",
 });
 

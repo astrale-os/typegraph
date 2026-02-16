@@ -1,6 +1,6 @@
 # Kernel Schema Language
 
-Language support for `.krl` schema files — the Kernel graph DDL.
+Language support for `.gsl` schema files — the Kernel graph DDL.
 
 ## Features
 
@@ -14,10 +14,10 @@ Language support for `.krl` schema files — the Kernel graph DDL.
 
 ## Quick Start
 
-1. Create a `.krl` file
+1. Create a `.gsl` file
 2. Start typing — you'll get instant feedback
 
-```krl
+```gsl
 extend "https://kernel.astrale.ai/v1" { Identity }
 
 type Email = String [format: email]
@@ -41,7 +41,7 @@ Install the compiler for command-line usage:
 
 ```bash
 npm install -g @astrale/kernel-compiler
-krl compile schema.krl       # Compile to IR JSON
-krl check schema.krl         # Type-check only
-krl init                     # Scaffold a new project
+gsl compile schema.gsl       # Compile to IR JSON
+gsl check schema.gsl         # Type-check only
+gsl init                     # Scaffold a new project
 ```

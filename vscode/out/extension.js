@@ -18030,14 +18030,14 @@ function activate(context) {
     }
   };
   const clientOptions = {
-    documentSelector: [{ scheme: "file", language: "krl" }],
+    documentSelector: [{ scheme: "file", language: "gsl" }],
     synchronize: {
-      fileEvents: import_vscode.workspace.createFileSystemWatcher("**/*.krl")
+      fileEvents: import_vscode.workspace.createFileSystemWatcher("**/*.gsl")
     },
     outputChannelName: "Kernel Language Server"
   };
   client = new import_node.LanguageClient(
-    "krl",
+    "gsl",
     "Kernel Language Server",
     serverOptions,
     clientOptions

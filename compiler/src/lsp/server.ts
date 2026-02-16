@@ -2,7 +2,7 @@
 // ============================================================
 // Language Server — stdio Transport
 //
-// Full LSP implementation for .krl files:
+// Full LSP implementation for .gsl files:
 //   ✓ Diagnostics (on open / change / save)
 //   ✓ Hover (type signatures + constraints)
 //   ✓ Go-to-Definition
@@ -19,6 +19,7 @@ import {
 } from 'vscode-languageserver/node.js'
 import { Workspace } from './workspace'
 import { type Prelude } from '../prelude'
+import { type SchemaRegistry } from '../registry'
 import { provideHover } from './hover'
 import { provideDefinition } from './definition'
 import { provideCompletion } from './completion'
@@ -29,9 +30,9 @@ import {
   SEMANTIC_TOKEN_MODIFIERS,
 } from './semantic-tokens'
 
-export function startServer(prelude?: Prelude): void {
+export function startServer(prelude?: Prelude, registry?: SchemaRegistry): void {
   const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout)
-  const workspace = new Workspace(prelude)
+  const workspace = new Workspace(prelude, registry)
 
   // Debounce timers per-document — avoids recompiling on every keystroke
   const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()

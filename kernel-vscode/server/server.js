@@ -8875,8 +8875,8 @@ var require_node3 = __commonJS({
   }
 });
 
-// kernel.gsl
-var kernel_default = "-- ============================================================\n-- kernel.gsl \u2014 The Kernel Schema\n-- ============================================================\n-- Defines the kernel's type system: root abstractions,\n-- meta-model, structural edges, and permission model.\n-- ============================================================\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Root Abstractions\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\ninterface Node {}\n\ninterface Link {}\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Meta-Model\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass Class: Node {}\n\nclass Interface: Node {}\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Structural Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass has_parent(child: Node, parent: Node) [\n  no_self,\n  acyclic,\n  child -> 0..1\n]\n\nclass instance_of(instance: Node | Link, type: Class) [\n  instance -> 1\n]\n\nclass has_link(source: Node, link: Link) [\n  link -> 1\n]\n\nclass links_to(link: Link, target: Node) [\n  link -> 1\n]\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Type System Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass implements(class: Class, interface: Interface) [\n  no_self\n]\n\nclass extends(child: Interface, parent: Interface) [\n  no_self,\n  acyclic\n]\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Operations\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass Operation: Node {}\n\nclass method_of(operation: Operation, owner: Class | Interface) [\n  operation -> 0..1\n]\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Permission Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\ninterface Identity: Node {}\n\nclass has_perm(identity: Identity, target: Node) {\n  perm: Bitmask\n}\n\nclass excluded_from(subject: Identity, excluded: Identity) [\n  no_self,\n  acyclic\n]\n\nclass constrained_by(subject: Identity, constraint: Identity) [\n  no_self,\n  acyclic\n]\n\nclass extends_with(subject: Identity, extension: Identity) [\n  no_self,\n  acyclic\n]\n";
+// kernel-schema.krl
+var kernel_schema_default = "-- ============================================================\n-- kernel.krl \u2014 The Kernel Prelude (v3)\n-- ============================================================\n-- Parsed by the compiler before any user schema.\n-- Every declaration here bootstraps the type system itself.\n--\n-- Primitive types (String, Int, Float, Boolean, Timestamp,\n-- Bitmask, ByteString) are compiler builtins \u2014 they exist\n-- in the primal scope before this file is parsed.\n-- ============================================================\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Root Abstractions\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\ninterface Node {}\n\ninterface Link {}\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Meta-Model\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass Class: Node {}\n\nclass Interface: Node {}\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Structural Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass has_parent(child: Node, parent: Node) [\n  no_self,\n  acyclic,\n  child -> 0..1\n]\n\nclass instance_of(instance: Node | Link, type: Class) [\n  instance -> 1\n]\n\nclass has_link(source: Node, link: Link) [\n  link -> 1\n]\n\nclass links_to(link: Link, target: Node) [\n  link -> 1\n]\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Type System Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass implements(class: Class, interface: Interface) [\n  no_self\n]\n\nclass extends(child: Interface, parent: Interface) [\n  no_self,\n  acyclic\n]\n\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n-- Permission Edges\n-- \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\ninterface Identity: Node {}\n\nclass has_perm(identity: Identity, target: Node) {\n  perm: Bitmask\n}\n\nclass excluded_from(subject: Identity, excluded: Identity) [\n  no_self,\n  acyclic\n]\n\nclass constrained_by(subject: Identity, constraint: Identity) [\n  no_self,\n  acyclic\n]\n\nclass extends_with(subject: Identity, extension: Identity) [\n  no_self,\n  acyclic\n]\n";
 
 // src/lsp/server.ts
 var import_node = __toESM(require_node3(), 1);
@@ -12993,7 +12993,7 @@ var Workspace = class {
   }
   /** Update or create document state. Returns LSP diagnostics. */
   update(uri, text, version) {
-    const document = TextDocument.create(uri, "gsl", version, text);
+    const document = TextDocument.create(uri, "krl", version, text);
     const lineMap = new LineMap(text);
     const sourceUri = uri.startsWith("file://") ? (0, import_url2.fileURLToPath)(uri) : void 0;
     const result = this.compileDocument(text, sourceUri);
@@ -13086,7 +13086,7 @@ function toLspDiagnostics(bag, lineMap) {
       },
       severity: diag.severity === "error" ? DiagnosticSeverity.Error : diag.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information,
       code: diag.code,
-      source: "gsl",
+      source: "krl",
       message: diag.message
     });
   }
@@ -13116,7 +13116,7 @@ function provideHover(workspace, state, offset) {
 }
 function renderSymbol(sym) {
   if (sym.symbolKind === "Scalar") {
-    return `\`\`\`gsl
+    return `\`\`\`krl
 scalar ${sym.name}
 \`\`\`
 
@@ -13124,7 +13124,7 @@ Builtin scalar type.`;
   }
   const decl = sym.declaration;
   if (!decl) {
-    return `\`\`\`gsl
+    return `\`\`\`krl
 ${sym.symbolKind.toLowerCase()} ${sym.name}
 \`\`\`
 
@@ -13148,13 +13148,13 @@ ${sym.symbolKind.toLowerCase()} ${sym.name}
 function renderTypeAlias(decl) {
   const mods = decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(", ")}]` : "";
   const sig = `type ${decl.name.value} = ${renderTypeExpr2(decl.type)}${mods}`;
-  return `\`\`\`gsl
+  return `\`\`\`krl
 ${sig}
 \`\`\``;
 }
 function renderValueType(decl) {
   if (decl.fields.length === 0) {
-    return "```gsl\ntype " + decl.name.value + " = {}\n```";
+    return "```krl\ntype " + decl.name.value + " = {}\n```";
   }
   const fields = decl.fields.map((f) => {
     const type = renderTypeExpr2(f.type);
@@ -13163,7 +13163,7 @@ function renderValueType(decl) {
     const def = f.defaultValue ? " = ..." : "";
     return `  ${f.name.value}: ${type}${list}${nullable}${def}`;
   });
-  return `\`\`\`gsl
+  return `\`\`\`krl
 type ${decl.name.value} = {
 ${fields.join("\n")}
 }
@@ -13172,14 +13172,14 @@ ${fields.join("\n")}
 function renderInterface(decl) {
   const ext = decl.extends.length > 0 ? `: ${decl.extends.map((e) => e.value).join(", ")}` : "";
   const body = renderBody(decl.attributes, decl.methods);
-  return `\`\`\`gsl
+  return `\`\`\`krl
 interface ${decl.name.value}${ext}${body}
 \`\`\``;
 }
 function renderClass(decl) {
   const impl = decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(", ")}` : "";
   const body = renderBody(decl.attributes, decl.methods);
-  return `\`\`\`gsl
+  return `\`\`\`krl
 class ${decl.name.value}${impl}${body}
 \`\`\``;
 }
@@ -13188,7 +13188,7 @@ function renderEdge(decl) {
   const impl = decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(", ")}` : "";
   const mods = decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(", ")}]` : "";
   const body = renderBody(decl.attributes, decl.methods);
-  return `\`\`\`gsl
+  return `\`\`\`krl
 class ${decl.name.value}(${params})${impl}${mods}${body}
 \`\`\``;
 }
@@ -13916,17 +13916,17 @@ var KERNEL_SCHEMA_URI = "https://kernel.astrale.ai/v1";
 var cachedRegistry = null;
 function buildKernelRegistry(source) {
   if (cachedRegistry) return cachedRegistry;
-  const gslSource = source ?? readKernelSchemaFromDisk();
+  const krlSource = source ?? readKernelSchemaFromDisk();
   const diagnostics = new DiagnosticBag();
   const baseScope = createBuiltinScope(KERNEL_PRELUDE.scalars);
-  const { tokens } = lex(gslSource, diagnostics);
+  const { tokens } = lex(krlSource, diagnostics);
   const { cst } = parse(tokens, diagnostics);
   const { ast } = lower(cst, diagnostics);
   const { schema } = resolve(ast, baseScope, diagnostics);
   if (diagnostics.hasErrors()) {
     const errors = diagnostics.getErrors();
     throw new Error(
-      `kernel.gsl compilation failed:
+      `kernel-schema.krl compilation failed:
 ${errors.map((e) => `[${e.code}] ${e.message}`).join("\n")}`
     );
   }
@@ -13937,8 +13937,8 @@ ${errors.map((e) => `[${e.code}] ${e.message}`).join("\n")}`
 }
 function readKernelSchemaFromDisk() {
   const __dirname = (0, import_path2.dirname)((0, import_url3.fileURLToPath)(import_meta.url));
-  const gslPath = (0, import_path2.resolve)(__dirname, "..", "kernel.gsl");
-  return (0, import_fs.readFileSync)(gslPath, "utf-8");
+  const krlPath = (0, import_path2.resolve)(__dirname, "..", "kernel-schema.krl");
+  return (0, import_fs.readFileSync)(krlPath, "utf-8");
 }
 
 // src/file-resolver.ts
@@ -13964,6 +13964,6 @@ function createLazyFileRegistry(base, prelude) {
 }
 
 // src/lsp/main.ts
-var registry = createLazyFileRegistry(buildKernelRegistry(kernel_default), KERNEL_PRELUDE);
+var registry = createLazyFileRegistry(buildKernelRegistry(kernel_schema_default), KERNEL_PRELUDE);
 startServer(KERNEL_PRELUDE, registry);
 //# sourceMappingURL=server.js.map

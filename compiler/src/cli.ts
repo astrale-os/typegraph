@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // src/cli.ts
 // ============================================================
-// CLI — krl compile | check | init
+// CLI — gsl compile | check | init
 //
 // Rich diagnostic output with source snippets, colors, and
 // precise underlines.
@@ -13,8 +13,10 @@ import { compile } from './compile'
 import { type DiagnosticBag, Diagnostic } from './diagnostics'
 import { LineMap } from './linemap'
 import { createHash } from 'crypto'
-import { KERNEL_PRELUDE } from './kernel-prelude'
-import { DEFAULT_PRELUDE, type Prelude } from './prelude'
+import { DEFAULT_PRELUDE, KERNEL_PRELUDE, type Prelude } from './prelude'
+import { buildKernelRegistry } from './kernel-prelude'
+import { EMPTY_REGISTRY, type SchemaRegistry } from './registry'
+import { createLazyFileRegistry } from './file-resolver'
 
 // ─── Colors (ANSI, no deps) ─────────────────────────────────
 
@@ -98,7 +100,7 @@ function renderSummary(diagnostics: DiagnosticBag): string {
 
 // ─── Commands ────────────────────────────────────────────────
 
-function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude): number {
+function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude, registry?: SchemaRegistry): number {
   const absInput = resolve(inputPath)
   if (!existsSync(absInput)) {
     process.stderr.write(`${c.red}${c.bold}error${c.reset}: file not found: ${absInput}\n`)
@@ -108,7 +110,7 @@ function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude): 
   const source = readFileSync(absInput, 'utf-8')
   const hash = createHash('sha256').update(source).digest('hex').slice(0, 16)
 
-  const { ir, diagnostics } = compile(source, { sourceHash: hash, prelude })
+  const { ir, diagnostics } = compile(source, { sourceHash: hash, prelude, registry, sourceUri: absInput })
 
   if (diagnostics.getErrors().length > 0 || diagnostics.getWarnings().length > 0) {
     process.stderr.write(renderDiagnostics(source, diagnostics, inputPath) + '\n')
@@ -121,14 +123,14 @@ function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude): 
   }
 
   const json = JSON.stringify(ir, null, 2)
-  const out = outputPath ?? inputPath.replace(/\.krl$/, '.ir.json')
+  const out = outputPath ?? inputPath.replace(/\.gsl$/, '.ir.json')
 
   writeFileSync(out, json + '\n', 'utf-8')
   process.stderr.write(`${c.dim}→ ${out}${c.reset}\n`)
   return 0
 }
 
-function cmdCheck(inputPath: string, prelude?: Prelude): number {
+function cmdCheck(inputPath: string, prelude?: Prelude, registry?: SchemaRegistry): number {
   const absInput = resolve(inputPath)
   if (!existsSync(absInput)) {
     process.stderr.write(`${c.red}${c.bold}error${c.reset}: file not found: ${absInput}\n`)
@@ -136,7 +138,7 @@ function cmdCheck(inputPath: string, prelude?: Prelude): number {
   }
 
   const source = readFileSync(absInput, 'utf-8')
-  const { diagnostics } = compile(source, { prelude })
+  const { diagnostics } = compile(source, { prelude, registry, sourceUri: absInput })
 
   if (diagnostics.getErrors().length > 0 || diagnostics.getWarnings().length > 0) {
     process.stderr.write(renderDiagnostics(source, diagnostics, inputPath) + '\n')
@@ -148,11 +150,11 @@ function cmdCheck(inputPath: string, prelude?: Prelude): number {
 
 function cmdInit(dir?: string): number {
   const target = resolve(dir ?? '.')
-  const schemaPath = resolve(target, 'schema.krl')
-  const configPath = resolve(target, 'krl.json')
+  const schemaPath = resolve(target, 'schema.gsl')
+  const configPath = resolve(target, 'gsl.json')
 
   if (existsSync(schemaPath)) {
-    process.stderr.write(`${c.yellow}schema.krl already exists, skipping${c.reset}\n`)
+    process.stderr.write(`${c.yellow}schema.gsl already exists, skipping${c.reset}\n`)
     return 0
   }
 
@@ -182,7 +184,7 @@ class User: Identity, Timestamped {
     configPath,
     JSON.stringify(
       {
-        schema: 'schema.krl',
+        schema: 'schema.gsl',
         output: 'schema.ir.json',
       },
       null,
@@ -199,13 +201,13 @@ class User: Identity, Timestamped {
 // ─── Argument Parsing (minimal, no deps) ─────────────────────
 
 function printUsage(): void {
-  const prog = 'krl'
+  const prog = 'gsl'
   process.stderr.write(`
-${c.bold}${prog}${c.reset} — KRL schema compiler
+${c.bold}${prog}${c.reset} — GSL schema compiler
 
 ${c.bold}USAGE${c.reset}
-  ${prog} compile <file.krl> [-o output.json]    Compile schema to IR
-  ${prog} check <file.krl>                       Type-check without emitting
+  ${prog} compile <file.gsl> [-o output.json]    Compile schema to IR
+  ${prog} check <file.gsl>                       Type-check without emitting
   ${prog} init [dir]                             Scaffold a new schema project
   ${prog} lsp                                    Start language server (stdio)
 
@@ -216,9 +218,9 @@ ${c.bold}OPTIONS${c.reset}
   --no-color             Disable colors
 
 ${c.bold}EXAMPLES${c.reset}
-  ${prog} compile schema.krl
-  ${prog} compile schema.krl --no-prelude
-  ${prog} check schema.krl
+  ${prog} compile schema.gsl
+  ${prog} compile schema.gsl --no-prelude
+  ${prog} check schema.gsl
   ${prog} init my-project
 `)
 }
@@ -233,6 +235,9 @@ function main(): number {
   const command = args[0]
   const noPrelude = args.includes('--no-prelude')
   const prelude = noPrelude ? DEFAULT_PRELUDE : KERNEL_PRELUDE
+  const registry: SchemaRegistry = noPrelude
+    ? EMPTY_REGISTRY
+    : createLazyFileRegistry(buildKernelRegistry(), prelude)
 
   switch (command) {
     case 'compile': {
@@ -245,7 +250,7 @@ function main(): number {
       const outIdx2 = args.indexOf('--output')
       const outFlagIdx = outIdx >= 0 ? outIdx : outIdx2
       const output = outFlagIdx >= 0 ? args[outFlagIdx + 1] : undefined
-      return cmdCompile(file, output, prelude)
+      return cmdCompile(file, output, prelude, registry)
     }
 
     case 'check': {
@@ -254,7 +259,7 @@ function main(): number {
         process.stderr.write(`${c.red}error${c.reset}: missing input file\n`)
         return 1
       }
-      return cmdCheck(file, prelude)
+      return cmdCheck(file, prelude, registry)
     }
 
     case 'init': {
@@ -262,7 +267,7 @@ function main(): number {
     }
 
     case 'lsp': {
-      import('./lsp/server.js').then((mod) => mod.startServer(prelude))
+      import('./lsp/server.js').then((mod) => mod.startServer(prelude, registry))
       return 0
     }
 

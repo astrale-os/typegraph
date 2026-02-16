@@ -2,7 +2,10 @@
 import { describe, it, expect } from 'vitest'
 import { compile } from './compile'
 import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir/index'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
+import { buildKernelRegistry } from './kernel-prelude'
+
+const kernelRegistry = buildKernelRegistry()
 
 /** Helpers to filter classes array by discriminator. */
 function nodes(ir: SchemaIR): NodeDef[] {
@@ -99,7 +102,7 @@ class flagged(about: edge<any>) {
 
 /** Helper: compile with kernel prelude. */
 function compileWithKernel(source: string) {
-  return compile(source, { prelude: KERNEL_PRELUDE })
+  return compile(source, { prelude: KERNEL_PRELUDE, registry: kernelRegistry })
 }
 
 describe('Validator', () => {
@@ -404,7 +407,7 @@ describe('Full pipeline', () => {
   })
 
   it('compiles minimal schema', () => {
-    const { ir, diagnostics } = compileWithKernel('class Foo: Node {}')
+    const { ir, diagnostics } = compileWithKernel('extend "https://kernel.astrale.ai/v1" { Node }\nclass Foo: Node {}')
     expect(diagnostics.hasErrors()).toBe(false)
     expect(ir!.classes).toHaveLength(1)
     expect(ir!.classes[0].name).toBe('Foo')

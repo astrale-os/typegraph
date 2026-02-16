@@ -2,7 +2,7 @@
 /**
  * E2E Playground — Full pipeline: codegen schema → FalkorDB → SDK
  *
- * Uses the e-commerce example (schema.krl → schema.generated.ts).
+ * Uses the e-commerce example (schema.gsl → schema.generated.ts).
  *
  * Run:
  *   pnpm playground            (from examples/)

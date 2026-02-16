@@ -2,7 +2,9 @@
 import { describe, it, expect } from 'vitest'
 import { lex } from './lexer'
 import { parse } from './parser/index'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { readFileSync } from 'fs'
+import { resolve as pathResolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import {
   SchemaNode,
   type ClassDeclNode,
@@ -14,6 +16,11 @@ import {
   spanOf,
 } from './cst/index'
 import { DiagnosticBag } from './diagnostics'
+
+const KERNEL_SCHEMA_SOURCE = readFileSync(
+  pathResolve(dirname(fileURLToPath(import.meta.url)), '..', 'kernel.gsl'),
+  'utf-8',
+)
 
 /** Helper: lex + parse, return CST root and diagnostics. */
 function parseSource(source: string) {
@@ -343,7 +350,7 @@ describe('Parser', () => {
 
   describe('Kernel prelude', () => {
     it('parses the entire kernel prelude without errors', () => {
-      const { cst, diagnostics } = parseSource(KERNEL_PRELUDE.source)
+      const { cst, diagnostics } = parseSource(KERNEL_SCHEMA_SOURCE)
       expect(diagnostics.hasErrors()).toBe(false)
 
       // Count by kind
@@ -354,29 +361,29 @@ describe('Parser', () => {
       // 3 interfaces: Node, Link, Identity
       expect(interfaces).toHaveLength(3)
 
-      // 10 classes: Class, Interface, has_parent, instance_of,
-      //   has_link, links_to, implements, extends,
+      // 14 classes: Class, Interface, Operation, has_parent, instance_of,
+      //   has_link, links_to, implements, extends, method_of,
       //   has_perm, excluded_from, constrained_by, extends_with
-      expect(classes).toHaveLength(12)
+      expect(classes).toHaveLength(14)
     })
 
     it('correctly identifies edges in kernel', () => {
-      const { cst } = parseSource(KERNEL_PRELUDE.source)
+      const { cst } = parseSource(KERNEL_SCHEMA_SOURCE)
       const edges = cst.declarations.filter(
         (d) => d.kind === 'ClassDecl' && (d as ClassDeclNode).signature !== null,
       )
       // has_parent, instance_of, has_link, links_to, implements,
-      // extends, has_perm, excluded_from, constrained_by, extends_with
-      expect(edges).toHaveLength(10)
+      // extends, method_of, has_perm, excluded_from, constrained_by, extends_with
+      expect(edges).toHaveLength(11)
     })
 
     it('correctly identifies nodes in kernel', () => {
-      const { cst } = parseSource(KERNEL_PRELUDE.source)
+      const { cst } = parseSource(KERNEL_SCHEMA_SOURCE)
       const nodes = cst.declarations.filter(
         (d) => d.kind === 'ClassDecl' && (d as ClassDeclNode).signature === null,
       )
-      // Class, Interface
-      expect(nodes).toHaveLength(2)
+      // Class, Interface, Operation
+      expect(nodes).toHaveLength(3)
     })
   })
 

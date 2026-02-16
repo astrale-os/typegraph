@@ -8,7 +8,10 @@ import { lex } from './lexer'
 import { parse } from './parser/index'
 import { lower } from './lower/index'
 import { compile } from './compile'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
+import { buildKernelRegistry } from './kernel-prelude'
+
+const kernelRegistry = buildKernelRegistry()
 import { type ClassDeclNode, type InterfaceDeclNode, type MethodNode } from './cst/index'
 import { type InterfaceDecl, type NodeDecl, type EdgeDecl } from './ast/index'
 import { type SchemaIR, type NodeDef, type EdgeDef, type MethodDef } from './ir/index'
@@ -30,7 +33,7 @@ function decls(source: string) {
 }
 
 function compileWithKernel(source: string) {
-  return compile(source, { prelude: KERNEL_PRELUDE })
+  return compile(source, { prelude: KERNEL_PRELUDE, registry: kernelRegistry })
 }
 
 function nodes(ir: SchemaIR): NodeDef[] {
@@ -450,6 +453,7 @@ describe('Full pipeline — Methods', () => {
 
   it('serializes edge with methods', () => {
     const { ir, diagnostics } = compileWithKernel(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class User: Node {}
       class Org: Node {}
       class membership(user: User, org: Org) {

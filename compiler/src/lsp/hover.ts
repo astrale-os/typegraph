@@ -66,13 +66,13 @@ export function provideHover(
 function renderSymbol(sym: Symbol): string | null {
   // Builtin scalar
   if (sym.symbolKind === 'Scalar') {
-    return `\`\`\`krl\nscalar ${sym.name}\n\`\`\`\n\nBuiltin scalar type.`
+    return `\`\`\`gsl\nscalar ${sym.name}\n\`\`\`\n\nBuiltin scalar type.`
   }
 
   const decl = sym.declaration
   if (!decl) {
     // Extension import stub
-    return `\`\`\`krl\n${sym.symbolKind.toLowerCase()} ${sym.name}\n\`\`\`\n\n*Imported via extension*`
+    return `\`\`\`gsl\n${sym.symbolKind.toLowerCase()} ${sym.name}\n\`\`\`\n\n*Imported via extension*`
   }
 
   switch (decl.kind) {
@@ -95,12 +95,12 @@ function renderTypeAlias(decl: TypeAliasDecl): string {
   const mods =
     decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(', ')}]` : ''
   const sig = `type ${decl.name.value} = ${renderTypeExpr(decl.type)}${mods}`
-  return `\`\`\`krl\n${sig}\n\`\`\``
+  return `\`\`\`gsl\n${sig}\n\`\`\``
 }
 
 function renderValueType(decl: ValueTypeDecl): string {
   if (decl.fields.length === 0) {
-    return '```krl\ntype ' + decl.name.value + ' = {}\n```'
+    return '```gsl\ntype ' + decl.name.value + ' = {}\n```'
   }
   const fields = decl.fields.map((f) => {
     const type = renderTypeExpr(f.type)
@@ -109,20 +109,20 @@ function renderValueType(decl: ValueTypeDecl): string {
     const def = f.defaultValue ? ' = ...' : ''
     return `  ${f.name.value}: ${type}${list}${nullable}${def}`
   })
-  return `\`\`\`krl\ntype ${decl.name.value} = {\n${fields.join('\n')}\n}\n\`\`\``
+  return `\`\`\`gsl\ntype ${decl.name.value} = {\n${fields.join('\n')}\n}\n\`\`\``
 }
 
 function renderInterface(decl: InterfaceDecl): string {
   const ext = decl.extends.length > 0 ? `: ${decl.extends.map((e) => e.value).join(', ')}` : ''
   const body = renderBody(decl.attributes, decl.methods)
-  return `\`\`\`krl\ninterface ${decl.name.value}${ext}${body}\n\`\`\``
+  return `\`\`\`gsl\ninterface ${decl.name.value}${ext}${body}\n\`\`\``
 }
 
 function renderClass(decl: NodeDecl): string {
   const impl =
     decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(', ')}` : ''
   const body = renderBody(decl.attributes, decl.methods)
-  return `\`\`\`krl\nclass ${decl.name.value}${impl}${body}\n\`\`\``
+  return `\`\`\`gsl\nclass ${decl.name.value}${impl}${body}\n\`\`\``
 }
 
 function renderEdge(decl: EdgeDecl): string {
@@ -132,7 +132,7 @@ function renderEdge(decl: EdgeDecl): string {
   const mods =
     decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(', ')}]` : ''
   const body = renderBody(decl.attributes, decl.methods)
-  return `\`\`\`krl\nclass ${decl.name.value}(${params})${impl}${mods}${body}\n\`\`\``
+  return `\`\`\`gsl\nclass ${decl.name.value}(${params})${impl}${mods}${body}\n\`\`\``
 }
 
 function renderAttribute(attr: Attribute): string {

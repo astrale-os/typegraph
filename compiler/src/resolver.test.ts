@@ -4,35 +4,29 @@ import { lex } from './lexer'
 import { parse } from './parser/index'
 import { lower } from './lower/index'
 import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
+import { buildKernelRegistry, KERNEL_SCHEMA_URI } from './kernel-prelude'
+import { type SchemaRegistry } from './registry'
 import { DiagnosticBag } from './diagnostics'
+
+const kernelRegistry = buildKernelRegistry()
 
 /** Helper: full pipeline source → resolved schema. */
 function resolveSource(
   source: string,
   baseScope?: Map<string, any>,
+  registry?: SchemaRegistry,
 ): { schema: ResolvedSchema; diagnostics: DiagnosticBag } {
   const bag = new DiagnosticBag()
   const { tokens } = lex(source, bag)
   const { cst } = parse(tokens, bag)
   const { ast } = lower(cst, bag)
-  return resolve(ast, baseScope ?? createBuiltinScope(KERNEL_PRELUDE.scalars), bag)
+  return resolve(ast, baseScope ?? createBuiltinScope(KERNEL_PRELUDE.scalars), bag, registry)
 }
 
-/** Resolve the kernel prelude, return the primal scope. */
-function resolveKernel(): Map<string, any> {
-  const { schema, diagnostics } = resolveSource(
-    KERNEL_PRELUDE.source,
-    createBuiltinScope(KERNEL_PRELUDE.scalars),
-  )
-  expect(diagnostics.hasErrors()).toBe(false)
-  return schema.symbols
-}
-
-/** Resolve user source against kernel scope. */
+/** Resolve user source against kernel registry. */
 function resolveWithKernel(source: string) {
-  const primalScope = resolveKernel()
-  return resolveSource(source, primalScope)
+  return resolveSource(source, createBuiltinScope(KERNEL_PRELUDE.scalars), kernelRegistry)
 }
 
 describe('Resolver', () => {
@@ -201,54 +195,51 @@ describe('Resolver', () => {
 
   // ─── Kernel Bootstrapping ─────────────────────────────────
 
-  describe('Kernel bootstrapping', () => {
-    it('resolves the kernel prelude against builtins without errors', () => {
-      const { diagnostics } = resolveSource(
-        KERNEL_PRELUDE.source,
-        createBuiltinScope(KERNEL_PRELUDE.scalars),
-      )
-      expect(diagnostics.hasErrors()).toBe(false)
+  describe('Kernel registry', () => {
+    it('builds kernel registry without errors', () => {
+      const registry = buildKernelRegistry()
+      expect(registry.get(KERNEL_SCHEMA_URI)).not.toBeNull()
     })
 
-    it('kernel scope contains all expected symbols', () => {
-      const scope = resolveKernel()
-
-      // Builtins
-      expect(scope.has('String')).toBe(true)
-      expect(scope.has('Bitmask')).toBe(true)
+    it('kernel registry contains all expected symbols', () => {
+      // Builtins (included in schema scope)
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'String')).not.toBeNull()
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Bitmask')).not.toBeNull()
 
       // Interfaces
-      expect(scope.get('Node')!.symbolKind).toBe('Interface')
-      expect(scope.get('Link')!.symbolKind).toBe('Interface')
-      expect(scope.get('Identity')!.symbolKind).toBe('Interface')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Node')!.symbolKind).toBe('Interface')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Link')!.symbolKind).toBe('Interface')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Identity')!.symbolKind).toBe('Interface')
 
       // Classes
-      expect(scope.get('Class')!.symbolKind).toBe('Class')
-      expect(scope.get('Interface')!.symbolKind).toBe('Class')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Class')!.symbolKind).toBe('Class')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Interface')!.symbolKind).toBe('Class')
 
       // Edges
-      expect(scope.get('has_parent')!.symbolKind).toBe('Edge')
-      expect(scope.get('instance_of')!.symbolKind).toBe('Edge')
-      expect(scope.get('implements')!.symbolKind).toBe('Edge')
-      expect(scope.get('extends')!.symbolKind).toBe('Edge')
-      expect(scope.get('has_perm')!.symbolKind).toBe('Edge')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'has_parent')!.symbolKind).toBe('Edge')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'instance_of')!.symbolKind).toBe('Edge')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'implements')!.symbolKind).toBe('Edge')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'extends')!.symbolKind).toBe('Edge')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'has_perm')!.symbolKind).toBe('Edge')
     })
 
-    it('user code resolves against kernel scope', () => {
+    it('user code resolves kernel types via extend', () => {
       const { diagnostics } = resolveWithKernel(`
+        extend "https://kernel.astrale.ai/v1" { Identity }
         class User: Identity {}
       `)
-      // Identity is defined in kernel
+      // Identity is imported from kernel registry
       expect(diagnostics.hasErrors()).toBe(false)
     })
 
-    it('user code can reference kernel edges', () => {
+    it('user code cannot redeclare kernel imports', () => {
       const { diagnostics } = resolveWithKernel(`
+        extend "https://kernel.astrale.ai/v1" { Node, has_parent }
         class User: Node {}
         class Admin: Node {}
         class has_parent(child: Node, parent: Node) [child -> 0..1]
       `)
-      // has_parent is defined in kernel — duplicate declaration
+      // has_parent is imported from kernel — duplicate declaration
       expect(diagnostics.hasErrors()).toBe(true)
       expect(diagnostics.getErrors()[0].code).toBe('R002')
     })
@@ -337,14 +328,12 @@ class flagged(about: edge<any>) {
 `
 
     it('resolves the full blog schema without errors', () => {
-      const primalScope = resolveKernel()
-      const { diagnostics } = resolveSource(BLOG_SCHEMA, primalScope)
+      const { diagnostics } = resolveWithKernel(BLOG_SCHEMA)
       expect(diagnostics.hasErrors()).toBe(false)
     })
 
     it('blog schema symbols include all declarations', () => {
-      const primalScope = resolveKernel()
-      const { schema } = resolveSource(BLOG_SCHEMA, primalScope)
+      const { schema } = resolveWithKernel(BLOG_SCHEMA)
 
       // User types
       expect(schema.symbols.get('User')!.symbolKind).toBe('Class')
@@ -355,8 +344,7 @@ class flagged(about: edge<any>) {
     })
 
     it('all type references are resolved', () => {
-      const primalScope = resolveKernel()
-      const { schema } = resolveSource(BLOG_SCHEMA, primalScope)
+      const { schema } = resolveWithKernel(BLOG_SCHEMA)
       // Should have a substantial number of resolved references
       expect(schema.references.size).toBeGreaterThan(20)
     })

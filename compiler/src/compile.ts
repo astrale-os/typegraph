@@ -4,9 +4,10 @@
 //
 // Source → Lex → Parse → Lower → Resolve → Validate → Serialize
 //
-// This is the main entry point for the compiler. It handles
-// the bootstrapping sequence (prelude scalars → prelude source
-// → user code) and produces the IR JSON.
+// This is the main entry point for the compiler. It creates
+// a builtin scope from scalars, then compiles user source
+// against it. External types are resolved via the SchemaRegistry
+// when `extend` declarations are encountered.
 // ============================================================
 
 import { lex } from './lexer'
@@ -16,6 +17,7 @@ import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/ind
 import { validate } from './validator/index'
 import { serialize, type SerializeOptions } from './serializer/index'
 import { type Prelude, DEFAULT_PRELUDE } from './prelude'
+import { type SchemaRegistry, EMPTY_REGISTRY } from './registry'
 import type { SchemaIR } from './ir/index'
 import { DiagnosticBag } from './diagnostics'
 import type { SchemaNode } from './cst/index'
@@ -36,10 +38,14 @@ export interface CompileResult {
 export interface CompileOptions extends SerializeOptions {
   /** Prelude to bootstrap against. Defaults to DEFAULT_PRELUDE. */
   prelude?: Prelude
-  /** Pre-built base scope (skips prelude parsing). For LSP caching. */
+  /** Schema registry for resolving extend declarations. */
+  registry?: SchemaRegistry
+  /** Pre-built base scope (scalar symbols). For LSP caching. */
   baseScope?: Map<string, any>
   /** Skip IR serialization (used by LSP — only needs artifacts). */
   skipSerialization?: boolean
+  /** Absolute path of the source file. Used to resolve relative extend URIs. */
+  sourceUri?: string
 }
 
 /**
@@ -47,35 +53,18 @@ export interface CompileOptions extends SerializeOptions {
  *
  * Bootstrapping sequence:
  *   1. Inject prelude scalars into empty scope
- *   2. Parse and resolve prelude source (if any)
- *   3. Parse and resolve user source against that scope
- *   4. Validate
- *   5. Serialize to IR
+ *   2. Parse and resolve user source (extend declarations query the registry)
+ *   3. Validate
+ *   4. Serialize to IR
  */
 export function compile(source: string, options?: CompileOptions): CompileResult {
   const diagnostics = new DiagnosticBag()
   const prelude = options?.prelude ?? DEFAULT_PRELUDE
+  const registry = options?.registry ?? EMPTY_REGISTRY
+  const scope = options?.baseScope ?? createBuiltinScope(prelude.scalars)
 
-  // Step 0: Resolve base scope
-  let scope: Map<string, any>
-
-  if (options?.baseScope) {
-    scope = options.baseScope
-  } else {
-    scope = createBuiltinScope(prelude.scalars)
-
-    // Step 1-2: Bootstrap prelude source (if any)
-    if (prelude.source) {
-      const preludeResult = compilePhases(prelude.source, scope, diagnostics)
-      if (!preludeResult || diagnostics.hasErrors()) {
-        return { ir: null, diagnostics, artifacts: null }
-      }
-      scope = preludeResult.resolved.symbols
-    }
-  }
-
-  // Step 3-5: Compile user source
-  const result = compilePhases(source, scope, diagnostics)
+  // Compile user source
+  const result = compilePhases(source, scope, diagnostics, registry, options?.sourceUri)
   if (!result) {
     return { ir: null, diagnostics, artifacts: null }
   }
@@ -103,12 +92,18 @@ export function compile(source: string, options?: CompileOptions): CompileResult
   }
 }
 
-/** Run lex → parse → lower → resolve. Returns null on fatal parse errors. */
-function compilePhases(source: string, baseScope: Map<string, any>, diagnostics: DiagnosticBag) {
+/** Run lex → parse → lower → resolve. */
+function compilePhases(
+  source: string,
+  baseScope: Map<string, any>,
+  diagnostics: DiagnosticBag,
+  registry: SchemaRegistry,
+  sourceUri?: string,
+) {
   const { tokens } = lex(source, diagnostics)
   const { cst } = parse(tokens, diagnostics)
   const { ast } = lower(cst, diagnostics)
-  const { schema: resolved } = resolve(ast, baseScope, diagnostics)
+  const { schema: resolved } = resolve(ast, baseScope, diagnostics, registry, sourceUri)
 
   return { cst, ast, resolved }
 }

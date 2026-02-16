@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 // examples/generate.ts
 // ============================================================
-// Compiles .krl schemas and runs codegen for each example.
+// Compiles .gsl schemas and runs codegen for each example.
 //
 // Usage:
 //   npx tsx examples/generate.ts examples/e-commerce
@@ -20,12 +20,12 @@ const EXAMPLES_DIR = dirname(new URL(import.meta.url).pathname)
 
 // ─── Core ────────────────────────────────────────────────────
 
-function compileAndGenerate(krlSource: string): { ir: unknown; source: string } {
-  const { ir, diagnostics } = compile(krlSource, { prelude: KERNEL_PRELUDE })
+function compileAndGenerate(gslSource: string): { ir: unknown; source: string } {
+  const { ir, diagnostics } = compile(gslSource, { prelude: KERNEL_PRELUDE })
   const errors = diagnostics.getErrors()
   if (errors.length > 0) {
     const msg = errors.map((e) => `[${e.code}] ${e.message}`).join('\n')
-    throw new Error(`KRL compilation failed:\n${msg}`)
+    throw new Error(`GSL compilation failed:\n${msg}`)
   }
   if (!ir) throw new Error('Compilation produced no IR')
 
@@ -35,14 +35,14 @@ function compileAndGenerate(krlSource: string): { ir: unknown; source: string } 
 }
 
 function processExample(dir: string, check: boolean): boolean {
-  const krlPath = join(dir, 'schema.krl')
-  if (!existsSync(krlPath)) {
-    console.error(`  skip: no schema.krl in ${dir}`)
+  const gslPath = join(dir, 'schema.gsl')
+  if (!existsSync(gslPath)) {
+    console.error(`  skip: no schema.gsl in ${dir}`)
     return true
   }
 
-  const krl = readFileSync(krlPath, 'utf-8')
-  const { ir, source } = compileAndGenerate(krl)
+  const gsl = readFileSync(gslPath, 'utf-8')
+  const { ir, source } = compileAndGenerate(gsl)
 
   const irPath = join(dir, 'schema.ir.json')
   const tsPath = join(dir, 'schema.generated.ts')

@@ -12,14 +12,16 @@ import {
   type TextDocumentContentChangeEvent,
 } from 'vscode-languageserver-textdocument'
 import { type Diagnostic as LspDiagnostic, DiagnosticSeverity } from 'vscode-languageserver-types'
+import { fileURLToPath } from 'url'
 import { compile, type CompileResult } from '../compile'
 import { type DiagnosticBag } from '../diagnostics'
 import { LineMap } from '../linemap'
 import { type Declaration } from '../ast/index'
-import { type Symbol } from '../resolver/index'
+import { type Symbol, createBuiltinScope } from '../resolver/index'
 import { type Token } from '../tokens'
 import { isToken, isNode, type CstNode } from '../cst/index'
 import { type Prelude, DEFAULT_PRELUDE } from '../prelude'
+import { type SchemaRegistry, EMPTY_REGISTRY } from '../registry'
 
 export interface DocumentState {
   document: TextDocument
@@ -32,37 +34,38 @@ export interface DocumentState {
 export class Workspace {
   private documents = new Map<string, DocumentState>()
   private prelude: Prelude
-  private scopeCache: Map<string, Symbol> | null = null
+  private registry: SchemaRegistry
+  private builtinScope: Map<string, Symbol> | null = null
 
-  constructor(prelude?: Prelude) {
+  constructor(prelude?: Prelude, registry?: SchemaRegistry) {
     this.prelude = prelude ?? DEFAULT_PRELUDE
+    this.registry = registry ?? EMPTY_REGISTRY
   }
 
-  /** Build the base scope once and cache it. */
-  private getBaseScope(): Map<string, Symbol> {
-    if (this.scopeCache) return this.scopeCache
-    const result = compile('', {
-      prelude: this.prelude,
-      skipSerialization: true,
-    })
-    this.scopeCache = result.artifacts?.resolved.symbols ?? new Map()
-    return this.scopeCache
+  /** Build the scalar-only scope once and cache it. */
+  private getBuiltinScope(): Map<string, Symbol> {
+    if (this.builtinScope) return this.builtinScope
+    this.builtinScope = createBuiltinScope(this.prelude.scalars)
+    return this.builtinScope
   }
 
-  /** Compile user source against cached base scope. */
-  private compileDocument(text: string): CompileResult {
+  /** Compile user source against cached builtin scope + registry. */
+  private compileDocument(text: string, sourceUri?: string): CompileResult {
     return compile(text, {
       prelude: this.prelude,
-      baseScope: this.getBaseScope(),
+      registry: this.registry,
+      baseScope: this.getBuiltinScope(),
       skipSerialization: true,
+      sourceUri,
     })
   }
 
   /** Update or create document state. Returns LSP diagnostics. */
   update(uri: string, text: string, version: number): LspDiagnostic[] {
-    const document = TextDocument.create(uri, 'krl', version, text)
+    const document = TextDocument.create(uri, 'gsl', version, text)
     const lineMap = new LineMap(text)
-    const result = this.compileDocument(text)
+    const sourceUri = uri.startsWith('file://') ? fileURLToPath(uri) : undefined
+    const result = this.compileDocument(text, sourceUri)
 
     // Build token index from CST
     const tokenIndex: Token[] = []
@@ -185,7 +188,7 @@ function toLspDiagnostics(bag: DiagnosticBag, lineMap: LineMap): LspDiagnostic[]
             ? DiagnosticSeverity.Warning
             : DiagnosticSeverity.Information,
       code: diag.code,
-      source: 'krl',
+      source: 'gsl',
       message: diag.message,
     })
   }

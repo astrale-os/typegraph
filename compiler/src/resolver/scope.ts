@@ -15,6 +15,7 @@ import {
 } from '../ast/index'
 import { type Span } from '../tokens'
 import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
+import { type SchemaRegistry, EMPTY_REGISTRY, resolveExtendUri } from '../registry'
 
 // ─── Resolved Schema Types ──────────────────────────────────
 
@@ -50,9 +51,11 @@ export function resolve(
   ast: Schema,
   baseScope?: Map<string, Symbol>,
   diagnostics?: DiagnosticBag,
+  registry?: SchemaRegistry,
+  sourceUri?: string,
 ): ResolveResult {
   const bag = diagnostics ?? new DiagnosticBag()
-  const resolver = new Resolver(bag, baseScope)
+  const resolver = new Resolver(bag, baseScope, registry, sourceUri)
   const schema = resolver.resolve(ast)
   return { schema, diagnostics: bag }
 }
@@ -80,11 +83,15 @@ class Resolver {
   private diagnostics: DiagnosticBag
   private symbols: Map<string, Symbol>
   private references: Map<number, Symbol> = new Map()
+  private registry: SchemaRegistry
+  private sourceUri: string | undefined
 
-  constructor(diagnostics: DiagnosticBag, baseScope?: Map<string, Symbol>) {
+  constructor(diagnostics: DiagnosticBag, baseScope?: Map<string, Symbol>, registry?: SchemaRegistry, sourceUri?: string) {
     this.diagnostics = diagnostics
     // Clone base scope so we don't mutate it
     this.symbols = new Map(baseScope ?? [])
+    this.registry = registry ?? EMPTY_REGISTRY
+    this.sourceUri = sourceUri
   }
 
   resolve(ast: Schema): ResolvedSchema {
@@ -127,12 +134,29 @@ class Resolver {
       case 'EdgeDecl':
         this.registerSymbol(decl.name, 'Edge', decl)
         break
-      case 'ExtendDecl':
-        // Extension imports: register as stubs
+      case 'ExtendDecl': {
+        const resolvedUri = resolveExtendUri(decl.uri, this.sourceUri)
         for (const imp of decl.imports) {
-          if (!this.symbols.has(imp.value)) {
-            // Register as an interface placeholder (the actual kind
-            // would come from fetching the remote schema; for now stub it)
+          if (this.symbols.has(imp.value)) continue
+
+          const registrySymbol = this.registry.lookupSymbol(resolvedUri, imp.value)
+          if (registrySymbol) {
+            // Import real symbol from the registry
+            this.symbols.set(imp.value, {
+              name: registrySymbol.name,
+              symbolKind: registrySymbol.symbolKind,
+              declaration: registrySymbol.declaration,
+              span: imp.span,
+            })
+          } else if (this.registry.get(resolvedUri)) {
+            // Schema registered but symbol not found in it
+            this.diagnostics.error(
+              imp.span,
+              DiagnosticCodes.R_UNRESOLVED_EXTENSION,
+              `Symbol '${imp.value}' not found in schema '${decl.uri}'`,
+            )
+          } else {
+            // Schema URI not registered — fall back to stub
             this.symbols.set(imp.value, {
               name: imp.value,
               symbolKind: 'Interface',
@@ -142,6 +166,7 @@ class Resolver {
           }
         }
         break
+      }
     }
   }
 

@@ -8,7 +8,10 @@ import { lex } from './lexer'
 import { parse } from './parser/index'
 import { lower } from './lower/index'
 import { compile } from './compile'
-import { KERNEL_PRELUDE } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
+import { buildKernelRegistry } from './kernel-prelude'
+
+const kernelRegistry = buildKernelRegistry()
 import { type TypeAliasDeclNode, type ValueTypeDeclNode } from './cst/index'
 import { type TypeAliasDecl, type ValueTypeDecl, type NodeDecl } from './ast/index'
 import { type SchemaIR, type NodeDef, type ValueTypeDef } from './ir/index'
@@ -30,7 +33,7 @@ function decls(source: string) {
 }
 
 function compileWithKernel(source: string) {
-  return compile(source, { prelude: KERNEL_PRELUDE })
+  return compile(source, { prelude: KERNEL_PRELUDE, registry: kernelRegistry })
 }
 
 function nodes(ir: SchemaIR): NodeDef[] {

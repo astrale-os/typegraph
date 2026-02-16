@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Kernel Schema Language",
-  "scopeName": "source.krl",
+  "scopeName": "source.gsl",
   "patterns": [
     { "include": "#comment" },
     { "include": "#extend" },
@@ -15,42 +15,42 @@
   "repository": {
     "comment": {
       "match": "--.*$",
-      "name": "comment.line.double-dash.krl"
+      "name": "comment.line.double-dash.gsl"
     },
 
     "string": {
       "begin": "\"",
       "end": "\"",
-      "name": "string.quoted.double.krl",
+      "name": "string.quoted.double.gsl",
       "patterns": [
         {
           "match": "\\\\.",
-          "name": "constant.character.escape.krl"
+          "name": "constant.character.escape.gsl"
         }
       ]
     },
 
     "number": {
       "match": "\\b\\d+(\\.\\d+)?\\b",
-      "name": "constant.numeric.krl"
+      "name": "constant.numeric.gsl"
     },
 
     "keywords": {
       "patterns": [
         {
           "match": "\\b(true|false|null)\\b",
-          "name": "constant.language.krl"
+          "name": "constant.language.gsl"
         },
         {
           "match": "\\b(any)\\b",
-          "name": "constant.language.krl"
+          "name": "constant.language.gsl"
         }
       ]
     },
 
     "extend": {
       "begin": "\\b(extend)\\b",
-      "beginCaptures": { "1": { "name": "keyword.control.extend.krl" } },
+      "beginCaptures": { "1": { "name": "keyword.control.extend.gsl" } },
       "end": "(?<=})",
       "patterns": [{ "include": "#string" }, { "include": "#brace-block" }]
     },
@@ -58,8 +58,8 @@
     "type-alias": {
       "begin": "\\b(type)\\s+([A-Z]\\w*)",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.type.krl" },
-        "2": { "name": "entity.name.type.alias.krl" }
+        "1": { "name": "keyword.declaration.type.gsl" },
+        "2": { "name": "entity.name.type.alias.gsl" }
       },
       "end": "(?=\\b(?:class|interface|type|extend)\\b|$(?!\\s))",
       "patterns": [
@@ -75,8 +75,8 @@
     "interface": {
       "begin": "\\b(interface)\\s+([A-Z]\\w*)",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.interface.krl" },
-        "2": { "name": "entity.name.type.interface.krl" }
+        "1": { "name": "keyword.declaration.interface.gsl" },
+        "2": { "name": "entity.name.type.interface.gsl" }
       },
       "end": "(?<=})",
       "patterns": [
@@ -89,8 +89,8 @@
     "class": {
       "begin": "\\b(class)\\s+(\\w+)",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.class.krl" },
-        "2": { "name": "entity.name.type.class.krl" }
+        "1": { "name": "keyword.declaration.class.gsl" },
+        "2": { "name": "entity.name.type.class.gsl" }
       },
       "end": "(?<=}|\\])|(?=\\b(?:class|interface|type|extend)\\b)",
       "patterns": [
@@ -105,32 +105,35 @@
     "signature": {
       "begin": "\\(",
       "end": "\\)",
-      "beginCaptures": { "0": { "name": "punctuation.paren.open.krl" } },
-      "endCaptures": { "0": { "name": "punctuation.paren.close.krl" } },
-      "patterns": [{ "include": "#param" }, { "include": "#comment" }]
+      "beginCaptures": { "0": { "name": "punctuation.paren.open.gsl" } },
+      "endCaptures": { "0": { "name": "punctuation.paren.close.gsl" } },
+      "patterns": [
+        { "include": "#param" },
+        { "include": "#type-expression" },
+        { "include": "#comment" }
+      ]
     },
 
     "param": {
       "match": "(\\w+)\\s*(:)",
       "captures": {
-        "1": { "name": "variable.parameter.krl" },
-        "2": { "name": "punctuation.separator.krl" }
-      },
-      "patterns": [{ "include": "#type-expression" }]
+        "1": { "name": "variable.parameter.gsl" },
+        "2": { "name": "punctuation.separator.gsl" }
+      }
     },
 
     "extends-clause": {
       "begin": "(:)\\s*",
-      "beginCaptures": { "1": { "name": "punctuation.separator.extends.krl" } },
+      "beginCaptures": { "1": { "name": "punctuation.separator.extends.gsl" } },
       "end": "(?=[{\\[\\(]|$)",
       "patterns": [
         {
           "match": "\\b([A-Z]\\w*)\\b",
-          "name": "entity.other.inherited-class.krl"
+          "name": "entity.other.inherited-class.gsl"
         },
         {
           "match": ",",
-          "name": "punctuation.separator.comma.krl"
+          "name": "punctuation.separator.comma.gsl"
         }
       ]
     },
@@ -138,16 +141,16 @@
     "body": {
       "begin": "\\{",
       "end": "\\}",
-      "beginCaptures": { "0": { "name": "punctuation.brace.open.krl" } },
-      "endCaptures": { "0": { "name": "punctuation.brace.close.krl" } },
+      "beginCaptures": { "0": { "name": "punctuation.brace.open.gsl" } },
+      "endCaptures": { "0": { "name": "punctuation.brace.close.gsl" } },
       "patterns": [{ "include": "#attribute" }, { "include": "#comment" }]
     },
 
     "attribute": {
       "begin": "(\\w+)\\s*(:)",
       "beginCaptures": {
-        "1": { "name": "variable.other.property.krl" },
-        "2": { "name": "punctuation.separator.krl" }
+        "1": { "name": "variable.other.property.gsl" },
+        "2": { "name": "punctuation.separator.gsl" }
       },
       "end": "(?=[,}])",
       "patterns": [
@@ -164,11 +167,11 @@
         { "include": "#type-reference" },
         {
           "match": "\\?",
-          "name": "keyword.operator.optional.krl"
+          "name": "keyword.operator.optional.gsl"
         },
         {
           "match": "\\|",
-          "name": "keyword.operator.union.krl"
+          "name": "keyword.operator.union.gsl"
         }
       ]
     },
@@ -176,23 +179,23 @@
     "edge-ref-type": {
       "match": "\\b(edge)\\s*(<)\\s*(\\w+)\\s*(>)",
       "captures": {
-        "1": { "name": "keyword.other.edge.krl" },
-        "2": { "name": "punctuation.angle.open.krl" },
-        "3": { "name": "entity.name.type.krl" },
-        "4": { "name": "punctuation.angle.close.krl" }
+        "1": { "name": "keyword.other.edge.gsl" },
+        "2": { "name": "punctuation.angle.open.gsl" },
+        "3": { "name": "entity.name.type.gsl" },
+        "4": { "name": "punctuation.angle.close.gsl" }
       }
     },
 
     "type-reference": {
       "match": "\\b([A-Z]\\w*)\\b",
-      "name": "entity.name.type.krl"
+      "name": "entity.name.type.gsl"
     },
 
     "modifier-block": {
       "begin": "\\[",
       "end": "\\]",
-      "beginCaptures": { "0": { "name": "punctuation.bracket.open.krl" } },
-      "endCaptures": { "0": { "name": "punctuation.bracket.close.krl" } },
+      "beginCaptures": { "0": { "name": "punctuation.bracket.open.gsl" } },
+      "endCaptures": { "0": { "name": "punctuation.bracket.close.gsl" } },
       "patterns": [
         { "include": "#modifier-keywords" },
         { "include": "#modifier-arrow" },
@@ -206,7 +209,7 @@
           "end": "\\]",
           "patterns": [
             { "include": "#string" },
-            { "match": ",", "name": "punctuation.separator.comma.krl" }
+            { "match": ",", "name": "punctuation.separator.comma.gsl" }
           ]
         }
       ]
@@ -214,36 +217,36 @@
 
     "modifier-keywords": {
       "match": "\\b(unique|readonly|indexed|no_self|acyclic|symmetric|format|match|in|length|on_kill_source|on_kill_target|cascade|unlink|prevent|asc|desc)\\b",
-      "name": "entity.other.attribute-name.modifier.krl"
+      "name": "entity.other.attribute-name.modifier.gsl"
     },
 
     "modifier-arrow": {
       "match": "->",
-      "name": "keyword.operator.arrow.krl"
+      "name": "keyword.operator.arrow.gsl"
     },
 
     "modifier-range-op": {
       "match": ">=|<=|\\.\\.",
-      "name": "keyword.operator.range.krl"
+      "name": "keyword.operator.range.gsl"
     },
 
     "default-value": {
       "begin": "(=)\\s*",
-      "beginCaptures": { "1": { "name": "keyword.operator.assignment.krl" } },
+      "beginCaptures": { "1": { "name": "keyword.operator.assignment.gsl" } },
       "end": "(?=[,}\\]])",
       "patterns": [
         { "include": "#string" },
         { "include": "#number" },
         {
           "match": "\\b(true|false|null)\\b",
-          "name": "constant.language.krl"
+          "name": "constant.language.gsl"
         },
         {
           "match": "(\\w+)(\\()(\\))",
           "captures": {
-            "1": { "name": "entity.name.function.krl" },
-            "2": { "name": "punctuation.paren.open.krl" },
-            "3": { "name": "punctuation.paren.close.krl" }
+            "1": { "name": "entity.name.function.gsl" },
+            "2": { "name": "punctuation.paren.open.gsl" },
+            "3": { "name": "punctuation.paren.close.gsl" }
           }
         }
       ]
@@ -251,20 +254,20 @@
 
     "operators": {
       "match": "->|\\.\\.|\\.\\.|>=|<=|=|\\||\\*|\\?",
-      "name": "keyword.operator.krl"
+      "name": "keyword.operator.gsl"
     },
 
     "brace-block": {
       "begin": "\\{",
       "end": "\\}",
-      "beginCaptures": { "0": { "name": "punctuation.brace.open.krl" } },
-      "endCaptures": { "0": { "name": "punctuation.brace.close.krl" } },
+      "beginCaptures": { "0": { "name": "punctuation.brace.open.gsl" } },
+      "endCaptures": { "0": { "name": "punctuation.brace.close.gsl" } },
       "patterns": [
         {
           "match": "\\b(\\w+)\\b",
-          "name": "entity.name.type.krl"
+          "name": "entity.name.type.gsl"
         },
-        { "match": ",", "name": "punctuation.separator.comma.krl" }
+        { "match": ",", "name": "punctuation.separator.comma.gsl" }
       ]
     }
   }

@@ -33,15 +33,15 @@ export function activate(context: ExtensionContext): void {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "krl" }],
+    documentSelector: [{ scheme: "file", language: "gsl" }],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.krl"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.gsl"),
     },
     outputChannelName: "Kernel Language Server",
   };
 
   client = new LanguageClient(
-    "krl",
+    "gsl",
     "Kernel Language Server",
     serverOptions,
     clientOptions,

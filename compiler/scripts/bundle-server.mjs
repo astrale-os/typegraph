@@ -19,4 +19,5 @@ await esbuild.build({
   sourcemap: true,
   minify: false,
   logLevel: "info",
+  loader: { ".gsl": "text" },
 });

@@ -1,82 +1,65 @@
 // src/kernel-prelude.ts
 // ============================================================
-// The Kernel Prelude — Astrale's graph meta-model
+// Kernel Registry Builder
 //
-// This module defines the Kernel prelude: the types and edges
-// that make up Astrale's type system. It is NOT part of the
-// compiler core — just one instance of the Prelude interface.
+// Compiles kernel.gsl (the single source of truth for
+// Astrale's graph meta-model) and registers the result in a
+// SchemaRegistry under the kernel URI.
 //
-// Import this when you need to compile schemas that extend the
-// kernel (the default for Astrale users).
+// Accepts an optional source string for bundled environments
+// (VS Code extension) where filesystem access isn't available.
 // ============================================================
 
-import type { Prelude } from './prelude'
+import { readFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { lex } from './lexer'
+import { parse } from './parser/index'
+import { lower } from './lower/index'
+import { resolve as resolveSchema, createBuiltinScope } from './resolver/index'
+import { DiagnosticBag } from './diagnostics'
+import { KERNEL_PRELUDE } from './prelude'
+import { MapSchemaRegistry } from './registry'
 
-export const KERNEL_PRELUDE: Prelude = {
-  scalars: ['String', 'Int', 'Float', 'Boolean', 'Timestamp', 'Bitmask', 'ByteString'],
-  source: `\
--- kernel.krl — The Kernel Prelude
+export const KERNEL_SCHEMA_URI = 'https://kernel.astrale.ai/v1'
 
--- Root Abstractions
-interface Node {}
+let cachedRegistry: MapSchemaRegistry | null = null
 
-interface Link {}
+/**
+ * Build a MapSchemaRegistry containing the kernel schema.
+ *
+ * @param source - Optional GSL source string. If omitted, reads
+ *                 kernel.gsl from disk (for CLI / dev).
+ *                 Pass the source explicitly in bundled environments.
+ */
+export function buildKernelRegistry(source?: string): MapSchemaRegistry {
+  if (cachedRegistry) return cachedRegistry
 
--- Meta-Model
-class Class: Node {}
+  const gslSource = source ?? readKernelSchemaFromDisk()
 
-class Interface: Node {}
+  const diagnostics = new DiagnosticBag()
+  const baseScope = createBuiltinScope(KERNEL_PRELUDE.scalars)
 
--- Structural Edges
-class has_parent(child: Node, parent: Node) [
-  no_self,
-  acyclic,
-  child -> 0..1
-]
+  const { tokens } = lex(gslSource, diagnostics)
+  const { cst } = parse(tokens, diagnostics)
+  const { ast } = lower(cst, diagnostics)
+  const { schema } = resolveSchema(ast, baseScope, diagnostics)
 
-class instance_of(instance: Node | Link, type: Class) [
-  instance -> 1
-]
+  if (diagnostics.hasErrors()) {
+    const errors = diagnostics.getErrors()
+    throw new Error(
+      `kernel.gsl compilation failed:\n${errors.map((e) => `[${e.code}] ${e.message}`).join('\n')}`,
+    )
+  }
 
-class has_link(source: Node, link: Link) [
-  link -> 1
-]
-
-class links_to(link: Link, target: Node) [
-  link -> 1
-]
-
--- Type System Edges
-class implements(class: Class, interface: Interface) [
-  no_self
-]
-
-class extends(child: Interface, parent: Interface) [
-  no_self,
-  acyclic
-]
-
--- Permission Edges
-interface Identity: Node {}
-
-class has_perm(identity: Identity, target: Node) {
-  perm: Bitmask
+  const registry = new MapSchemaRegistry()
+  registry.register(KERNEL_SCHEMA_URI, schema)
+  cachedRegistry = registry
+  return registry
 }
 
-class excluded_from(subject: Identity, excluded: Identity) [
-  no_self,
-  acyclic
-]
-
-class constrained_by(subject: Identity, constraint: Identity) [
-  no_self,
-  acyclic
-]
-
-class extends_with(subject: Identity, extension: Identity) [
-  no_self,
-  acyclic
-]
-`,
-  defaultFunctions: ['now'],
+function readKernelSchemaFromDisk(): string {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const gslPath = resolve(__dirname, '..', 'kernel.gsl')
+  return readFileSync(gslPath, 'utf-8')
 }
