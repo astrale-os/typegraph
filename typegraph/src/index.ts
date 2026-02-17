@@ -299,7 +299,12 @@ export {
 // COMPILER
 // =============================================================================
 
-export { CypherCompiler, createCypherCompiler, InstanceModelPass, ReifyEdgesPass } from './query/compiler'
+export {
+  CypherCompiler,
+  createCypherCompiler,
+  InstanceModelPass,
+  ReifyEdgesPass,
+} from './query/compiler'
 export type {
   CompiledQuery,
   CompilerOptions,
@@ -328,11 +333,10 @@ export type {
 } from './core'
 
 // =============================================================================
-// SCHEMA BOOTSTRAP
+// SCHEMA ENRICHMENT (bootstrap)
 // =============================================================================
 
-export { bootstrapSchema } from './bootstrap'
-export type { BootstrapResult, BootstrapOptions } from './bootstrap'
+export { withInstanceModel } from './bootstrap'
 
 // =============================================================================
 // ENRICHMENT

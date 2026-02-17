@@ -51,7 +51,7 @@ export interface HierarchyConfig {
  * When enabled, the compilation passes rewrite label-based matching
  * into structural instance_of joins to class/interface nodes.
  *
- * Produced by `bootstrapSchema()` — see `bootstrap.ts`.
+ * Produced by `materializeSchema()` — see kernel/boot/bootstrap.ts.
  * Attached to SchemaShape at runtime, not by codegen.
  */
 export interface InstanceModelConfig {

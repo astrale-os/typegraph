@@ -24,4 +24,5 @@ export const META_LABELS = {
   LINK: 'Link',
   CLASS: 'Class',
   INTERFACE: 'Interface',
+  ROOT: 'Root',
 } as const

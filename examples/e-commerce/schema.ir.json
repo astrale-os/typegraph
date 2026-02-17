@@ -1,12 +1,12 @@
 {
   "version": "1.0",
   "meta": {
-    "generated_at": "2026-02-16T13:47:18.379Z",
-    "source_hash": "a31f06c6695b2492"
+    "generated_at": "",
+    "source_hash": ""
   },
   "extensions": [
     {
-      "uri": "https://kernel.astrale.ai/v1",
+      "uri": "../../compiler/kernel.gsl",
       "imported_types": [
         "Identity"
       ]

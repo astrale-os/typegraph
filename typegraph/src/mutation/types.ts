@@ -5,7 +5,7 @@
  */
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
+import type { NodeLabels, EdgeTypes } from '../inference'
 import type { ResolveNode, ResolveEdge, ResolveNodeInput, ResolveEdgeInput } from '../resolve'
 
 // =============================================================================
@@ -33,7 +33,11 @@ export type EdgeInput<
 /**
  * Input for batch link operations.
  */
-export interface LinkInput<S extends SchemaShape, E extends EdgeTypes<S>, T extends TypeMap = UntypedMap> {
+export interface LinkInput<
+  S extends SchemaShape,
+  E extends EdgeTypes<S>,
+  T extends TypeMap = UntypedMap,
+> {
   from: string
   to: string
   data?: EdgeInput<S, E, T>
@@ -46,7 +50,11 @@ export interface LinkInput<S extends SchemaShape, E extends EdgeTypes<S>, T exte
 /**
  * Result of creating or updating a node.
  */
-export interface NodeResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+export interface NodeResult<
+  S extends SchemaShape,
+  N extends NodeLabels<S>,
+  T extends TypeMap = UntypedMap,
+> {
   id: string
   data: ResolveNode<T, N & string>
 }
@@ -54,7 +62,11 @@ export interface NodeResult<S extends SchemaShape, N extends NodeLabels<S>, T ex
 /**
  * Result of creating an edge.
  */
-export interface EdgeResult<S extends SchemaShape, E extends EdgeTypes<S>, T extends TypeMap = UntypedMap> {
+export interface EdgeResult<
+  S extends SchemaShape,
+  E extends EdgeTypes<S>,
+  T extends TypeMap = UntypedMap,
+> {
   id: string
   from: string
   to: string
@@ -106,7 +118,11 @@ export interface DeleteSubtreeResult {
 /**
  * Result of cloning a subtree.
  */
-export interface CloneSubtreeResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+export interface CloneSubtreeResult<
+  S extends SchemaShape,
+  N extends NodeLabels<S>,
+  T extends TypeMap = UntypedMap,
+> {
   root: NodeResult<S, N, T>
   clonedNodes: number
   /** Map from original ID to cloned ID */
@@ -160,7 +176,10 @@ export interface CloneOptions<S extends SchemaShape> {
 /**
  * Options for cloning a subtree.
  */
-export interface CloneSubtreeOptions<S extends SchemaShape, T extends TypeMap = UntypedMap> extends CloneOptions<S> {
+export interface CloneSubtreeOptions<
+  S extends SchemaShape,
+  T extends TypeMap = UntypedMap,
+> extends CloneOptions<S> {
   /** Maximum depth to clone (undefined = all) */
   maxDepth?: number
   /** Transform node data during clone */
@@ -173,7 +192,11 @@ export interface CloneSubtreeOptions<S extends SchemaShape, T extends TypeMap = 
 /**
  * Result of an upsert operation.
  */
-export interface UpsertResult<S extends SchemaShape, N extends NodeLabels<S>, T extends TypeMap = UntypedMap> {
+export interface UpsertResult<
+  S extends SchemaShape,
+  N extends NodeLabels<S>,
+  T extends TypeMap = UntypedMap,
+> {
   id: string
   data: ResolveNode<T, N & string>
   /** True if a new node was created, false if existing was updated */
@@ -340,7 +363,10 @@ export interface GraphMutations<S extends SchemaShape, T extends TypeMap = Untyp
   ): Promise<BatchDeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E, T>[]): Promise<EdgeResult<S, E, T>[]>
+  linkMany<E extends EdgeTypes<S>>(
+    edge: E,
+    links: LinkInput<S, E, T>[],
+  ): Promise<EdgeResult<S, E, T>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(
@@ -430,7 +456,10 @@ export interface MutationTransaction<S extends SchemaShape, T extends TypeMap = 
   unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult>
 
   /** Create multiple edges of the same type */
-  linkMany<E extends EdgeTypes<S>>(edge: E, links: LinkInput<S, E, T>[]): Promise<EdgeResult<S, E, T>[]>
+  linkMany<E extends EdgeTypes<S>>(
+    edge: E,
+    links: LinkInput<S, E, T>[],
+  ): Promise<EdgeResult<S, E, T>[]>
 
   /** Delete multiple edges by endpoints */
   unlinkMany<E extends EdgeTypes<S>>(
