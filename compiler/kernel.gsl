@@ -20,7 +20,7 @@ type DatastoreObject = { uri: String, contentType: String? }
 type DatastoreGrant = { token: String, objects: DatastoreObject[] }
 type NodeRef = { id: ModuleId, typeId: TypeId }
 type NodeOpenResult = { module: JsonString, grant: DatastoreGrant? }
-type NodeCreateInput = { name: String, typeId: TypeId }
+type NodeCreateInput = { parentId: ModuleId, name: String, typeId: TypeId }
 type NodeCreateResult = { moduleId: ModuleId }
 type NodeEditInput = { metadata: MetadataInput?, storage: Boolean?, typeId: TypeId? }
 type NodeEditResult = { moduleId: ModuleId, dataVersion: Int?, storageUri: String?, grant: DatastoreGrant? }
@@ -33,11 +33,10 @@ type NodeLinkedInput = { typeId: TypeId?, direction: LinkedDirection = "out" }
 type NodeLinkedResult = { modules: NodeRef[] }
 
 interface Node {
-  fn open(): NodeOpenResult
   fn create(input: NodeCreateInput): NodeCreateResult
+  fn open(): NodeOpenResult
   fn edit(input: NodeEditInput): NodeEditResult
   fn delete(): NodeDeleteResult
-  fn explore(input: NodeExploreInput): NodeExploreResult
   fn link(input: NodeLinkInput): NodeLinkResult
   fn linked(input: NodeLinkedInput): NodeLinkedResult
 }
