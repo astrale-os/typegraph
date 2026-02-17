@@ -35,6 +35,8 @@ export type {
   EdgeWhereCondition,
   ComparisonOperator,
   VariableLengthConfig,
+  AliasInfo,
+  AliasRegistry,
 } from './types'
 export { createDefaultProjection, createEdgeProjection } from './types'
 export { ASTVisitor } from './visitor'

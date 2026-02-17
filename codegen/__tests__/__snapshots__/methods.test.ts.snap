@@ -241,6 +241,28 @@ export const schema = {
   },
 } as const
 
+// ─── Bootstrap ──────────────────────────────────────────────
+
+/** Bootstrap manifest — what class/interface nodes to create. */
+export const schemaBootstrap = {
+  classes: [
+    { key: 'Customer', type: 'node' as const },
+    { key: 'Product', type: 'node' as const },
+    { key: 'Order', type: 'node' as const },
+    { key: 'order_item', type: 'link' as const },
+  ],
+  interfaces: [
+    { key: 'Timestamped' },
+  ],
+  implements: [
+    { classKey: 'Customer', interfaceKey: 'Timestamped' },
+    { classKey: 'Product', interfaceKey: 'Timestamped' },
+    { classKey: 'Order', interfaceKey: 'Timestamped' },
+  ],
+  extends: [
+  ],
+} as const
+
 // ─── Method Factory ─────────────────────────────────────────
 
 export const defineMethods = createMethodFactory<typeof schema, GeneratedTypeMap>()

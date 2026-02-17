@@ -47,6 +47,30 @@ export interface HierarchyConfig {
 }
 
 /**
+ * Instance model configuration.
+ * When enabled, the compilation passes rewrite label-based matching
+ * into structural instance_of joins to class/interface nodes.
+ *
+ * Produced by `bootstrapSchema()` — see `bootstrap.ts`.
+ * Attached to SchemaShape at runtime, not by codegen.
+ */
+export interface InstanceModelConfig {
+  /** Whether to use the instance model. */
+  readonly enabled: boolean
+  /**
+   * Refs mapping: type name → node ID for class and interface nodes.
+   * Populated at bootstrap or from codegen. All lookups are by ID, never by name.
+   */
+  readonly refs: Readonly<Record<string, string>>
+  /**
+   * Pre-resolved implementor map: interface name → class node IDs
+   * that implement it (transitively through extends).
+   * Avoids runtime joins through implements/extends.
+   */
+  readonly implementors: Readonly<Record<string, readonly string[]>>
+}
+
+/**
  * Shape of the generated `schema` const.
  * Every codegen output's `schema` satisfies this interface.
  */
@@ -58,6 +82,8 @@ export interface SchemaShape {
   readonly hierarchy?: HierarchyConfig
   /** Global default for edge reification. Per-edge `reified` overrides this. */
   readonly reifyEdges?: boolean
+  /** Instance model configuration. When set and enabled, compilation passes use structural type membership. */
+  readonly instanceModel?: InstanceModelConfig
 }
 
 // ─── Type Map (generated types) ──────────────────────────────

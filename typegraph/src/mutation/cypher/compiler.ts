@@ -330,51 +330,55 @@ export class MutationCypherCompiler {
 
   private compileCloneNode(op: CloneNodeOp, schema: SchemaShape): CompiledMutation {
     const labels = this.resolveLabels(op.label, schema)
+    const lines: string[] = []
     const params: Record<string, unknown> = {
       sourceId: op.sourceId,
       newId: op.newId,
       overrides: op.overrides,
     }
 
+    // MATCH link targets first (e.g., instance_of class node)
+    if (op.links?.length) {
+      let targetIdx = 0
+      for (const link of op.links) {
+        const alias = `t${targetIdx++}`
+        lines.push(`MATCH (${alias} {id: $${alias}Id})`)
+        params[`${alias}Id`] = link.targetId
+      }
+    }
+
     if (op.parent && 'parentId' in op.parent) {
       const edgeType = sanitize(op.parent.edgeType)
       params.parentId = op.parent.parentId
-      return {
-        query: [
-          `MATCH (source${formatLabels(labels)} {id: $sourceId})`,
-          `MATCH (parent {id: $parentId})`,
-          `CREATE (clone${formatLabels(labels)})`,
-          `SET clone = properties(source), clone.id = $newId, clone += $overrides`,
-          `CREATE (clone)-[:${edgeType}]->(parent)`,
-          `RETURN clone`,
-        ].join('\n'),
-        params: buildParams(params),
-      }
-    }
-
-    if (op.parent && 'preserve' in op.parent) {
+      lines.push(`MATCH (source${formatLabels(labels)} {id: $sourceId})`)
+      lines.push(`MATCH (parent {id: $parentId})`)
+      lines.push(`CREATE (clone${formatLabels(labels)})`)
+      lines.push(`SET clone = properties(source), clone.id = $newId, clone += $overrides`)
+      lines.push(`CREATE (clone)-[:${edgeType}]->(parent)`)
+    } else if (op.parent && 'preserve' in op.parent) {
       const edgeType = sanitize(op.parent.edgeType)
-      return {
-        query: [
-          `MATCH (source${formatLabels(labels)} {id: $sourceId})-[:${edgeType}]->(parent)`,
-          `CREATE (clone${formatLabels(labels)})`,
-          `SET clone = properties(source), clone.id = $newId, clone += $overrides`,
-          `CREATE (clone)-[:${edgeType}]->(parent)`,
-          `RETURN clone`,
-        ].join('\n'),
-        params: buildParams(params),
+      lines.push(`MATCH (source${formatLabels(labels)} {id: $sourceId})-[:${edgeType}]->(parent)`)
+      lines.push(`CREATE (clone${formatLabels(labels)})`)
+      lines.push(`SET clone = properties(source), clone.id = $newId, clone += $overrides`)
+      lines.push(`CREATE (clone)-[:${edgeType}]->(parent)`)
+    } else {
+      lines.push(`MATCH (source${formatLabels(labels)} {id: $sourceId})`)
+      lines.push(`CREATE (clone${formatLabels(labels)})`)
+      lines.push(`SET clone = properties(source), clone.id = $newId, clone += $overrides`)
+    }
+
+    // CREATE link edges (e.g., instance_of)
+    if (op.links?.length) {
+      let targetIdx = 0
+      for (const link of op.links) {
+        const alias = `t${targetIdx++}`
+        const edgeType = sanitize(link.edgeType)
+        lines.push(`CREATE (clone)-[:${edgeType}]->(${alias})`)
       }
     }
 
-    return {
-      query: [
-        `MATCH (source${formatLabels(labels)} {id: $sourceId})`,
-        `CREATE (clone${formatLabels(labels)})`,
-        `SET clone = properties(source), clone.id = $newId, clone += $overrides`,
-        `RETURN clone`,
-      ].join('\n'),
-      params: buildParams(params),
-    }
+    lines.push(`RETURN clone`)
+    return { query: lines.join('\n'), params: buildParams(params) }
   }
 
   // ---------------------------------------------------------------------------
@@ -416,7 +420,7 @@ export class MutationCypherCompiler {
       const linkLabel = sanitize(op.reified.linkLabel)
       return {
         query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:hasLink]->(link:${linkLabel})-[:linksTo]->(b${formatLabels(toLabels)} {id: $toId})`,
+          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:has_link]->(link:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $toId})`,
           `SET link += $props`,
           `RETURN link as r, a.id as fromId, b.id as toId`,
         ].join('\n'),
@@ -454,7 +458,7 @@ export class MutationCypherCompiler {
       const linkLabel = sanitize(op.reified.linkLabel)
       return {
         query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:hasLink]->(link:${linkLabel})-[:linksTo]->(b${formatLabels(toLabels)} {id: $toId})`,
+          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:has_link]->(link:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $toId})`,
           `DETACH DELETE link`,
           `RETURN true as deleted`,
         ].join('\n'),
@@ -574,18 +578,29 @@ export class MutationCypherCompiler {
 
     if (op.reified) {
       const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `UNWIND $links as link`,
-          `MATCH (a${formatLabels(fromLabels)} {id: link.from}), (b${formatLabels(toLabels)} {id: link.to})`,
-          `CREATE (linkNode:${linkLabel})`,
-          `SET linkNode = coalesce(link.data, {}), linkNode.id = link.id`,
-          `CREATE (a)-[:hasLink]->(linkNode)`,
-          `CREATE (linkNode)-[:linksTo]->(b)`,
-          `RETURN linkNode as r, a.id as fromId, b.id as toId`,
-        ].join('\n'),
-        params: { links: op.links },
+      const lines: string[] = []
+      const params: Record<string, unknown> = { links: op.links }
+
+      // When instance model is enabled, MATCH the class node for instance_of
+      if (op.reified.instanceOfTargetId) {
+        lines.push(`MATCH (linkCls {id: $linkClsId})`)
+        params.linkClsId = op.reified.instanceOfTargetId
       }
+
+      lines.push(`UNWIND $links as link`)
+      lines.push(`MATCH (a${formatLabels(fromLabels)} {id: link.from}), (b${formatLabels(toLabels)} {id: link.to})`)
+      lines.push(`CREATE (linkNode:${linkLabel})`)
+      lines.push(`SET linkNode = coalesce(link.data, {}), linkNode.id = link.id`)
+      lines.push(`CREATE (a)-[:has_link]->(linkNode)`)
+      lines.push(`CREATE (linkNode)-[:links_to]->(b)`)
+
+      // instance_of on the link node
+      if (op.reified.instanceOfTargetId) {
+        lines.push(`CREATE (linkNode)-[:instance_of]->(linkCls)`)
+      }
+
+      lines.push(`RETURN linkNode as r, a.id as fromId, b.id as toId`)
+      return { query: lines.join('\n'), params }
     }
 
     return {
@@ -609,7 +624,7 @@ export class MutationCypherCompiler {
       return {
         query: [
           `UNWIND $links as link`,
-          `MATCH (a${formatLabels(fromLabels)} {id: link.from})-[:hasLink]->(linkNode:${linkLabel})-[:linksTo]->(b${formatLabels(toLabels)} {id: link.to})`,
+          `MATCH (a${formatLabels(fromLabels)} {id: link.from})-[:has_link]->(linkNode:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: link.to})`,
           `DETACH DELETE linkNode`,
           `RETURN count(linkNode) as deleted`,
         ].join('\n'),
@@ -636,7 +651,7 @@ export class MutationCypherCompiler {
       const linkLabel = sanitize(op.reified.linkLabel)
       return {
         query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $from})-[:hasLink]->(linkNode:${linkLabel})`,
+          `MATCH (a${formatLabels(fromLabels)} {id: $from})-[:has_link]->(linkNode:${linkLabel})`,
           `DETACH DELETE linkNode`,
           `RETURN count(linkNode) as deleted`,
         ].join('\n'),
@@ -662,7 +677,7 @@ export class MutationCypherCompiler {
       const linkLabel = sanitize(op.reified.linkLabel)
       return {
         query: [
-          `MATCH (linkNode:${linkLabel})-[:linksTo]->(b${formatLabels(toLabels)} {id: $to})`,
+          `MATCH (linkNode:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $to})`,
           `DETACH DELETE linkNode`,
           `RETURN count(linkNode) as deleted`,
         ].join('\n'),
@@ -700,6 +715,10 @@ export class MutationCypherCompiler {
     edgeType: string,
     schema: SchemaShape,
   ): { fromLabels: string[]; toLabels: string[] } {
+    // When instance model is enabled, all instances are :Node
+    if (schema.instanceModel?.enabled) {
+      return { fromLabels: ['Node'], toLabels: ['Node'] }
+    }
     const fromTypes = edgeFrom(schema, edgeType)
     const toTypes = edgeTo(schema, edgeType)
     const fromLabels = fromTypes[0] ? resolveNodeLabels(schema, fromTypes[0]).map((l) => sanitize(l)) : []

@@ -260,9 +260,14 @@ export class CypherCompiler implements QueryCompilerProvider {
     // Build target label(s) - resolve node type keys to full labels
     let targetLabel = ''
     if (step.toLabels.length > 0 && this.schema) {
-      // toLabels contains node type keys, resolve each to full labels
-      const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
-      targetLabel = formatLabels(resolvedLabels)
+      // If the first label is a known schema type, resolve inheritance labels.
+      // Otherwise (meta-labels like Node, Class, Link), format all toLabels directly.
+      if (this.schema.nodes[step.toLabels[0]!]) {
+        const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
+        targetLabel = formatLabels(resolvedLabels)
+      } else {
+        targetLabel = formatLabels(step.toLabels)
+      }
     } else if (step.toLabels.length > 0) {
       targetLabel = formatLabels(step.toLabels)
     }
@@ -673,8 +678,12 @@ export class CypherCompiler implements QueryCompilerProvider {
           const edgePattern = `[${edgeAlias}:${edgeTypes}]`
           let targetLabel = ''
           if (step.toLabels.length > 0 && this.schema) {
-            const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
-            targetLabel = formatLabels(resolvedLabels)
+            if (this.schema.nodes[step.toLabels[0]!]) {
+              const resolvedLabels = resolveNodeLabels(this.schema, step.toLabels[0]!)
+              targetLabel = formatLabels(resolvedLabels)
+            } else {
+              targetLabel = formatLabels(step.toLabels)
+            }
           } else if (step.toLabels.length > 0) {
             targetLabel = formatLabels(step.toLabels)
           }

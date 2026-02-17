@@ -5,7 +5,7 @@
  */
 
 import { type QueryAST } from '../ast'
-import { getCompiler } from '../compiler'
+import { getCompiler, getQueryPipeline } from '../compiler'
 import type { CompiledQuery } from '../compiler'
 import type { SchemaShape } from '../schema'
 import type { NodeLabels } from '../inference'
@@ -67,7 +67,9 @@ export abstract class BaseBuilder<S extends SchemaShape, N extends NodeLabels<S>
 
   /** Compile the query to Cypher */
   compile(): CompiledQuery {
-    return getCompiler(this._schema).compile(this._ast)
+    const pipeline = getQueryPipeline(this._schema)
+    const transformedAst = pipeline.run(this._ast, this._schema)
+    return getCompiler(this._schema).compile(transformedAst)
   }
 
   /** Get the compiled Cypher string */

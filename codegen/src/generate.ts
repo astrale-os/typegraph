@@ -12,6 +12,7 @@ import { emitSchemaTypes } from './emit/schema-types'
 import { emitCore } from './emit/core'
 import { emitTypemap } from './emit/typemap'
 import { emitBrandedIds } from './emit/branded-ids'
+import { emitBootstrap } from './emit/bootstrap'
 import { banner, section } from './emit/utils'
 
 export interface GenerateOptions {
@@ -123,6 +124,15 @@ export function generate(inputs: SchemaIR[], options?: GenerateOptions): Generat
     parts.push(section('Schema'))
     parts.push('')
     parts.push(schemaValue)
+    parts.push('')
+  }
+
+  // Bootstrap manifest (class/interface nodes to create at install time)
+  const bootstrapManifest = emitBootstrap(model)
+  if (bootstrapManifest.trim()) {
+    parts.push(section('Bootstrap'))
+    parts.push('')
+    parts.push(bootstrapManifest)
     parts.push('')
   }
 

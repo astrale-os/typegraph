@@ -329,6 +329,40 @@ export const schema = {
   },
 } as const
 
+// ─── Bootstrap ──────────────────────────────────────────────
+
+/** Bootstrap manifest — what class/interface nodes to create. */
+export const schemaBootstrap = {
+  classes: [
+    { key: 'User', type: 'node' as const },
+    { key: 'Organization', type: 'node' as const },
+    { key: 'Post', type: 'node' as const },
+    { key: 'Comment', type: 'node' as const },
+    { key: 'Tag', type: 'node' as const },
+    { key: 'member_of', type: 'link' as const },
+    { key: 'flagged', type: 'link' as const },
+  ],
+  interfaces: [
+    { key: 'Timestamped' },
+    { key: 'Publishable' },
+    { key: 'Reactable' },
+    { key: 'Identity' },
+  ],
+  implements: [
+    { classKey: 'User', interfaceKey: 'Identity' },
+    { classKey: 'User', interfaceKey: 'Timestamped' },
+    { classKey: 'Organization', interfaceKey: 'Identity' },
+    { classKey: 'Organization', interfaceKey: 'Timestamped' },
+    { classKey: 'Post', interfaceKey: 'Publishable' },
+    { classKey: 'Post', interfaceKey: 'Reactable' },
+    { classKey: 'Comment', interfaceKey: 'Reactable' },
+    { classKey: 'Comment', interfaceKey: 'Timestamped' },
+  ],
+  extends: [
+    { childKey: 'Publishable', parentKey: 'Timestamped' },
+  ],
+} as const
+
 // ─── Schema Types ───────────────────────────────────────────
 
 export type SchemaNodeType = 'User' | 'Organization' | 'Post' | 'Comment' | 'Tag'

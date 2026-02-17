@@ -356,9 +356,9 @@ describe('Mutation Specification', () => {
           }
           const { query } = compiler.compileOne(op, schema)
 
-          expect(query).toContain(':hasLink')
+          expect(query).toContain(':has_link')
           expect(query).toContain(':OrderItem')
-          expect(query).toContain(':linksTo')
+          expect(query).toContain(':links_to')
         })
       })
 
@@ -388,7 +388,7 @@ describe('Mutation Specification', () => {
           }
           const { query } = compiler.compileOne(op, schema)
 
-          expect(query).toContain(':hasLink')
+          expect(query).toContain(':has_link')
           expect(query).toContain(':OrderItem')
           expect(query).toContain('DETACH DELETE link')
         })
@@ -525,8 +525,8 @@ describe('Mutation Specification', () => {
           const { query } = compiler.compileOne(op, schema)
 
           expect(query).toContain('CREATE (linkNode:FollowLink)')
-          expect(query).toContain('CREATE (a)-[:hasLink]->(linkNode)')
-          expect(query).toContain('CREATE (linkNode)-[:linksTo]->(b)')
+          expect(query).toContain('CREATE (a)-[:has_link]->(linkNode)')
+          expect(query).toContain('CREATE (linkNode)-[:links_to]->(b)')
         })
       })
 
@@ -559,7 +559,7 @@ describe('Mutation Specification', () => {
           }
           const { query } = compiler.compileOne(op, schema)
 
-          expect(query).toContain(':hasLink')
+          expect(query).toContain(':has_link')
           expect(query).toContain(':FollowLink')
           expect(query).toContain('DETACH DELETE linkNode')
         })

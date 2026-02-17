@@ -1,4 +1,4 @@
-import type { GraphAdapter, TransactionHandle } from '../src/adapter'
+import type { GraphAdapter, TransactionContext } from '../src/adapter'
 
 /**
  * In-memory mock adapter for testing.
@@ -22,8 +22,8 @@ export class MockAdapter implements GraphAdapter {
     return this.connected
   }
 
-  async transaction<T>(work: (tx: TransactionHandle) => Promise<T>): Promise<T> {
-    return work({ run: (cypher, params) => this.query(cypher, params) })
+  async transaction<T>(work: (tx: TransactionContext) => Promise<T>): Promise<T> {
+    return work({ run: (cypher: string, params?: Record<string, unknown>) => this.query(cypher, params) })
   }
 
   async query<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
@@ -162,7 +162,7 @@ export class MockAdapter implements GraphAdapter {
             const fieldMatch = cypher.match(new RegExp(`n\\.(\\w+)\\s*=\\s*\\$${key}`))
             if (fieldMatch) {
               const field = fieldMatch[1]
-              results = results.filter((r) => r.n[field] === val)
+              results = results.filter((r) => (r.n as Record<string, unknown>)[field!] === val)
             }
           }
         }

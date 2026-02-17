@@ -1,12 +1,15 @@
 /**
  * Compiler Cache
  *
- * Module-level caching for CypherCompiler instances.
+ * Module-level caching for CypherCompiler and CompilationPipeline instances.
  * Uses WeakMap for automatic garbage collection when schemas are no longer referenced.
  */
 
 import type { SchemaShape } from '../schema'
 import { CypherCompiler } from './cypher'
+import { CompilationPipeline, type CompilationPass } from './optimizer'
+import { InstanceModelPass } from './passes/instance-model-pass'
+import { ReifyEdgesPass } from './passes/reify-edges-pass'
 import type { CompilerOptions } from './types'
 
 /**
@@ -14,6 +17,11 @@ import type { CompilerOptions } from './types'
  * WeakMap ensures compilers are GC'd when their schema is no longer used.
  */
 const compilerCache = new WeakMap<SchemaShape, CypherCompiler>()
+
+/**
+ * Cache for pipeline instances, keyed by schema reference.
+ */
+const pipelineCache = new WeakMap<SchemaShape, CompilationPipeline>()
 
 /**
  * Get or create a cached CypherCompiler for the given schema.
@@ -32,4 +40,31 @@ export function getCompiler(schema: SchemaShape, options?: CompilerOptions): Cyp
     compilerCache.set(schema, compiler)
   }
   return compiler
+}
+
+/**
+ * Get or create a cached CompilationPipeline for the given schema.
+ *
+ * Includes lowering passes (InstanceModel, ReifyEdges) based on schema config,
+ * followed by optimization passes.
+ */
+export function getQueryPipeline(schema: SchemaShape): CompilationPipeline {
+  let pipeline = pipelineCache.get(schema)
+  if (!pipeline) {
+    const passes: CompilationPass[] = []
+
+    // Lowering passes (order matters: InstanceModel before ReifyEdges)
+    if (schema.instanceModel?.enabled) {
+      passes.push(new InstanceModelPass(schema.instanceModel))
+    }
+    if (schema.reifyEdges || Object.values(schema.edges).some((e) => e.reified)) {
+      passes.push(new ReifyEdgesPass())
+    }
+
+    // Optimization passes would go here (when implemented)
+
+    pipeline = new CompilationPipeline(passes)
+    pipelineCache.set(schema, pipeline)
+  }
+  return pipeline
 }

@@ -59,6 +59,7 @@ export interface CloneNodeOp {
   readonly parent?:
     | { readonly parentId: string; readonly edgeType: string }
     | { readonly preserve: true; readonly edgeType: string }
+  readonly links?: readonly InlineLink[]
 }
 
 // =============================================================================
@@ -68,6 +69,8 @@ export interface CloneNodeOp {
 /** Annotation injected by ReifyEdgesPass for reified edge compilation. */
 export interface ReifiedAnnotation {
   readonly linkLabel: string
+  /** Class node ID for instance_of link on the link node (when instance model is enabled). */
+  readonly instanceOfTargetId?: string
 }
 
 export interface CreateEdgeOp {

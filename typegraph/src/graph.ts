@@ -82,6 +82,13 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
   T
 > {
   // ---------------------------------------------------------------------------
+  // ADAPTER
+  // ---------------------------------------------------------------------------
+
+  /** The underlying database adapter */
+  readonly adapter: GraphAdapter
+
+  // ---------------------------------------------------------------------------
   // AUTH SCOPING
   // ---------------------------------------------------------------------------
 
@@ -253,6 +260,10 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   // ---------------------------------------------------------------------------
   // SCHEMA & EXECUTOR ACCESS
   // ---------------------------------------------------------------------------
+
+  get adapter(): GraphAdapter {
+    return this._adapter
+  }
 
   get schema(): S {
     return this._schema
