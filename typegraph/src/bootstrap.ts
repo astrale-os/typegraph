@@ -12,7 +12,7 @@
 
 import type { SchemaShape } from './schema'
 import type { GraphAdapter } from './adapter'
-import { STRUCTURAL_EDGES, META_LABELS } from './compiler/passes/structural-edges'
+import { STRUCTURAL_EDGES, META_LABELS } from './schema'
 import { isReified } from './helpers'
 import { defaultIdGenerator } from './mutation/types'
 

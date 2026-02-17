@@ -22,10 +22,10 @@ import type {
   AliasRegistry,
   Projection,
 } from '../../ast'
-import type { SchemaShape, InstanceModelConfig } from '../../schema'
+import type { SchemaShape, InstanceModelConfig } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
-import { isReified } from '../../helpers'
-import { STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from './structural-edges'
+import { isReified } from '../../../helpers'
+import { STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from '../../../schema'
 
 export class ReifyEdgesPass implements CompilationPass {
   readonly name = 'ReifyEdges'

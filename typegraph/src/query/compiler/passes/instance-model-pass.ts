@@ -23,9 +23,9 @@ import type {
   AliasRegistry,
   Projection,
 } from '../../ast'
-import type { SchemaShape, InstanceModelConfig } from '../../schema'
+import type { SchemaShape, InstanceModelConfig } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
-import { STRUCTURAL_EDGES, META_LABELS } from './structural-edges'
+import { STRUCTURAL_EDGES, META_LABELS } from '../../../schema'
 
 export class InstanceModelPass implements CompilationPass {
   readonly name = 'InstanceModel'

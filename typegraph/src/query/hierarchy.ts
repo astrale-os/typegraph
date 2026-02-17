@@ -5,7 +5,7 @@
  * children, root, parent) and transitive closure (reachable) operations.
  */
 
-import type { QueryAST } from '../ast'
+import type { QueryAST } from './ast'
 import type { SchemaShape } from '../schema'
 import type { EdgeTypes } from '../inference'
 import type { HierarchyTraversalOptions, ReachableOptions } from './traits'

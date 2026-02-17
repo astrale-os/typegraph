@@ -5,9 +5,9 @@
  */
 
 import { type CollectionBuilder } from './collection'
-import { type QueryAST } from '../ast'
-import { getCompiler } from '../compiler'
-import type { ComparisonOperator, WhereCondition } from '../ast'
+import { type QueryAST } from './ast'
+import { getCompiler } from './compiler'
+import type { ComparisonOperator, WhereCondition } from './ast'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveEdge } from '../resolve'
 import type { EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '../inference'
@@ -228,7 +228,7 @@ export class EdgeBuilder<
   // COMPILATION
   // ===========================================================================
 
-  compile(): import('../compiler').CompiledQuery {
+  compile(): import('./compiler').CompiledQuery {
     return getCompiler(this._schema).compile(this._ast)
   }
 

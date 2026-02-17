@@ -66,13 +66,6 @@ export interface CloneNodeOp {
 // EDGE OPERATIONS
 // =============================================================================
 
-/** Annotation injected by ReifyEdgesPass for reified edge compilation. */
-export interface ReifiedAnnotation {
-  readonly linkLabel: string
-  /** Class node ID for instance_of link on the link node (when instance model is enabled). */
-  readonly instanceOfTargetId?: string
-}
-
 export interface CreateEdgeOp {
   readonly type: 'createEdge'
   readonly edgeType: string
@@ -88,7 +81,6 @@ export interface UpdateEdgeOp {
   readonly fromId: string
   readonly toId: string
   readonly data: Record<string, unknown>
-  readonly reified?: ReifiedAnnotation
 }
 
 export interface UpdateEdgeByIdOp {
@@ -103,7 +95,6 @@ export interface DeleteEdgeOp {
   readonly edgeType: string
   readonly fromId: string
   readonly toId: string
-  readonly reified?: ReifiedAnnotation
 }
 
 export interface DeleteEdgeByIdOp {
@@ -162,28 +153,95 @@ export interface BatchLinkOp {
     readonly edgeId: string
     readonly data?: Record<string, unknown>
   }[]
-  readonly reified?: ReifiedAnnotation
 }
 
 export interface BatchUnlinkOp {
   readonly type: 'batchUnlink'
   readonly edgeType: string
   readonly links: readonly { readonly fromId: string; readonly toId: string }[]
-  readonly reified?: ReifiedAnnotation
 }
 
 export interface UnlinkAllFromOp {
   readonly type: 'unlinkAllFrom'
   readonly edgeType: string
   readonly fromId: string
-  readonly reified?: ReifiedAnnotation
 }
 
 export interface UnlinkAllToOp {
   readonly type: 'unlinkAllTo'
   readonly edgeType: string
   readonly toId: string
-  readonly reified?: ReifiedAnnotation
+}
+
+// =============================================================================
+// LINK-NODE OPERATIONS (emitted by ReifyEdgesMutationPass)
+// =============================================================================
+
+/** Create link nodes in batch (UNWIND). Reified edge → link-node pattern. */
+export interface BatchCreateLinkNodeOp {
+  readonly type: 'batchCreateLinkNode'
+  /** Original edge type name (context for IM pass class lookup). */
+  readonly edgeType: string
+  /** Label for the link node (e.g., 'OrderItem'; IM pass may overwrite to 'Link'). */
+  readonly linkLabel: string
+  /** Source node labels, pre-resolved by pass (IM pass may overwrite to ['Node']). */
+  readonly fromLabels: readonly string[]
+  /** Target node labels, pre-resolved by pass (IM pass may overwrite to ['Node']). */
+  readonly toLabels: readonly string[]
+  readonly items: readonly {
+    readonly id: string
+    readonly fromId: string
+    readonly toId: string
+    readonly data?: Record<string, unknown>
+  }[]
+  /** General-purpose inline links (IM pass adds instance_of here, same as CreateNodeOp). */
+  readonly links?: readonly InlineLink[]
+}
+
+/** Delete link nodes matched by source→link→target (UNWIND batch). */
+export interface BatchDeleteLinkNodeOp {
+  readonly type: 'batchDeleteLinkNode'
+  readonly linkLabel: string
+  readonly fromLabels: readonly string[]
+  readonly toLabels: readonly string[]
+  readonly links: readonly { readonly fromId: string; readonly toId: string }[]
+}
+
+/** Update a link node matched by source→link→target. */
+export interface UpdateLinkNodeOp {
+  readonly type: 'updateLinkNode'
+  readonly linkLabel: string
+  readonly fromLabels: readonly string[]
+  readonly toLabels: readonly string[]
+  readonly fromId: string
+  readonly toId: string
+  readonly data: Record<string, unknown>
+}
+
+/** Delete a single link node matched by source→link→target. */
+export interface DeleteLinkNodeOp {
+  readonly type: 'deleteLinkNode'
+  readonly linkLabel: string
+  readonly fromLabels: readonly string[]
+  readonly toLabels: readonly string[]
+  readonly fromId: string
+  readonly toId: string
+}
+
+/** Delete all link nodes from a source. */
+export interface DeleteLinkNodesFromOp {
+  readonly type: 'deleteLinkNodesFrom'
+  readonly linkLabel: string
+  readonly fromLabels: readonly string[]
+  readonly fromId: string
+}
+
+/** Delete all link nodes to a target. */
+export interface DeleteLinkNodesToOp {
+  readonly type: 'deleteLinkNodesTo'
+  readonly linkLabel: string
+  readonly toLabels: readonly string[]
+  readonly toId: string
 }
 
 // =============================================================================
@@ -214,3 +272,10 @@ export type MutationOp =
   | BatchUnlinkOp
   | UnlinkAllFromOp
   | UnlinkAllToOp
+  // Link-Node (emitted by ReifyEdgesMutationPass)
+  | BatchCreateLinkNodeOp
+  | BatchDeleteLinkNodeOp
+  | UpdateLinkNodeOp
+  | DeleteLinkNodeOp
+  | DeleteLinkNodesFromOp
+  | DeleteLinkNodesToOp

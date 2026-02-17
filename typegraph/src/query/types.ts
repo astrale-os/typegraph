@@ -6,7 +6,7 @@
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
-import type { QueryAST } from '../ast'
+import type { QueryAST } from './ast'
 import type { CollectionBuilder } from './collection'
 import type { SingleNodeBuilder } from './single-node'
 import type { EdgeBuilder } from './edge'

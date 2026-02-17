@@ -3,7 +3,8 @@
  *
  * Compiles MutationOp[] into a single Cypher query + params.
  * Handles multi-op chaining via WITH, parameter namespacing,
- * label resolution, identifier sanitization, and reified annotations.
+ * label resolution, and identifier sanitization.
+ * Each op type has exactly one compilation code path — no branching.
  */
 
 import type { SchemaShape } from '../../schema'
@@ -29,6 +30,12 @@ import type {
   BatchUnlinkOp,
   UnlinkAllFromOp,
   UnlinkAllToOp,
+  BatchCreateLinkNodeOp,
+  BatchDeleteLinkNodeOp,
+  UpdateLinkNodeOp,
+  DeleteLinkNodeOp,
+  DeleteLinkNodesFromOp,
+  DeleteLinkNodesToOp,
 } from '../ast/types'
 
 // =============================================================================
@@ -101,6 +108,18 @@ export class MutationCypherCompiler {
         return this.compileUnlinkAllFrom(op, schema)
       case 'unlinkAllTo':
         return this.compileUnlinkAllTo(op, schema)
+      case 'batchCreateLinkNode':
+        return this.compileBatchCreateLinkNode(op)
+      case 'batchDeleteLinkNode':
+        return this.compileBatchDeleteLinkNode(op)
+      case 'updateLinkNode':
+        return this.compileUpdateLinkNode(op)
+      case 'deleteLinkNode':
+        return this.compileDeleteLinkNode(op)
+      case 'deleteLinkNodesFrom':
+        return this.compileDeleteLinkNodesFrom(op)
+      case 'deleteLinkNodesTo':
+        return this.compileDeleteLinkNodesTo(op)
     }
   }
 
@@ -211,10 +230,7 @@ export class MutationCypherCompiler {
       const prefix = `op${ops.length - 1}_`
       let returnClause = lastReturn
       for (const key of Object.keys(lastCompiled.params)) {
-        returnClause = returnClause.replace(
-          new RegExp(`\\$${key}\\b`, 'g'),
-          `$${prefix}${key}`,
-        )
+        returnClause = returnClause.replace(new RegExp(`\\$${key}\\b`, 'g'), `$${prefix}${key}`)
       }
       clauses.push(returnClause)
     }
@@ -261,11 +277,9 @@ export class MutationCypherCompiler {
   private compileUpdateNode(op: UpdateNodeOp, schema: SchemaShape): CompiledMutation {
     const labels = this.resolveLabels(op.label, schema)
     return {
-      query: [
-        `MATCH (n${formatLabels(labels)} {id: $id})`,
-        `SET n += $props`,
-        `RETURN n`,
-      ].join('\n'),
+      query: [`MATCH (n${formatLabels(labels)} {id: $id})`, `SET n += $props`, `RETURN n`].join(
+        '\n',
+      ),
       params: { id: op.id, props: op.data },
     }
   }
@@ -321,10 +335,7 @@ export class MutationCypherCompiler {
       }
     }
 
-    lines.push(
-      `RETURN n,`,
-      `  CASE WHEN n.createdAt IS NULL THEN true ELSE false END as created`,
-    )
+    lines.push(`RETURN n,`, `  CASE WHEN n.createdAt IS NULL THEN true ELSE false END as created`)
     return { query: lines.join('\n'), params: buildParams(params) }
   }
 
@@ -398,7 +409,12 @@ export class MutationCypherCompiler {
           `SET r = $props, r.id = $edgeId`,
           `RETURN r, a.id as fromId, b.id as toId`,
         ].join('\n'),
-        params: buildParams({ fromId: op.fromId, toId: op.toId, edgeId: op.edgeId, props: op.data }),
+        params: buildParams({
+          fromId: op.fromId,
+          toId: op.toId,
+          edgeId: op.edgeId,
+          props: op.data,
+        }),
       }
     }
 
@@ -415,18 +431,6 @@ export class MutationCypherCompiler {
   private compileUpdateEdge(op: UpdateEdgeOp, schema: SchemaShape): CompiledMutation {
     const edge = sanitize(op.edgeType)
     const { fromLabels, toLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
-
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:has_link]->(link:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $toId})`,
-          `SET link += $props`,
-          `RETURN link as r, a.id as fromId, b.id as toId`,
-        ].join('\n'),
-        params: { fromId: op.fromId, toId: op.toId, props: op.data },
-      }
-    }
 
     return {
       query: [
@@ -453,18 +457,6 @@ export class MutationCypherCompiler {
   private compileDeleteEdge(op: DeleteEdgeOp, schema: SchemaShape): CompiledMutation {
     const edge = sanitize(op.edgeType)
     const { fromLabels, toLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
-
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $fromId})-[:has_link]->(link:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $toId})`,
-          `DETACH DELETE link`,
-          `RETURN true as deleted`,
-        ].join('\n'),
-        params: { fromId: op.fromId, toId: op.toId },
-      }
-    }
 
     return {
       query: [
@@ -576,33 +568,6 @@ export class MutationCypherCompiler {
     const edge = sanitize(op.edgeType)
     const { fromLabels, toLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
 
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      const lines: string[] = []
-      const params: Record<string, unknown> = { links: op.links }
-
-      // When instance model is enabled, MATCH the class node for instance_of
-      if (op.reified.instanceOfTargetId) {
-        lines.push(`MATCH (linkCls {id: $linkClsId})`)
-        params.linkClsId = op.reified.instanceOfTargetId
-      }
-
-      lines.push(`UNWIND $links as link`)
-      lines.push(`MATCH (a${formatLabels(fromLabels)} {id: link.from}), (b${formatLabels(toLabels)} {id: link.to})`)
-      lines.push(`CREATE (linkNode:${linkLabel})`)
-      lines.push(`SET linkNode = coalesce(link.data, {}), linkNode.id = link.id`)
-      lines.push(`CREATE (a)-[:has_link]->(linkNode)`)
-      lines.push(`CREATE (linkNode)-[:links_to]->(b)`)
-
-      // instance_of on the link node
-      if (op.reified.instanceOfTargetId) {
-        lines.push(`CREATE (linkNode)-[:instance_of]->(linkCls)`)
-      }
-
-      lines.push(`RETURN linkNode as r, a.id as fromId, b.id as toId`)
-      return { query: lines.join('\n'), params }
-    }
-
     return {
       query: [
         `UNWIND $links as link`,
@@ -619,19 +584,6 @@ export class MutationCypherCompiler {
     const edge = sanitize(op.edgeType)
     const { fromLabels, toLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
 
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `UNWIND $links as link`,
-          `MATCH (a${formatLabels(fromLabels)} {id: link.from})-[:has_link]->(linkNode:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: link.to})`,
-          `DETACH DELETE linkNode`,
-          `RETURN count(linkNode) as deleted`,
-        ].join('\n'),
-        params: { links: op.links },
-      }
-    }
-
     return {
       query: [
         `UNWIND $links as link`,
@@ -647,18 +599,6 @@ export class MutationCypherCompiler {
     const edge = sanitize(op.edgeType)
     const { fromLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
 
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `MATCH (a${formatLabels(fromLabels)} {id: $from})-[:has_link]->(linkNode:${linkLabel})`,
-          `DETACH DELETE linkNode`,
-          `RETURN count(linkNode) as deleted`,
-        ].join('\n'),
-        params: { from: op.fromId },
-      }
-    }
-
     return {
       query: [
         `MATCH (a${formatLabels(fromLabels)} {id: $from})-[r:${edge}]->()`,
@@ -673,18 +613,6 @@ export class MutationCypherCompiler {
     const edge = sanitize(op.edgeType)
     const { toLabels } = this.resolveEdgeEndpoints(op.edgeType, schema)
 
-    if (op.reified) {
-      const linkLabel = sanitize(op.reified.linkLabel)
-      return {
-        query: [
-          `MATCH (linkNode:${linkLabel})-[:links_to]->(b${formatLabels(toLabels)} {id: $to})`,
-          `DETACH DELETE linkNode`,
-          `RETURN count(linkNode) as deleted`,
-        ].join('\n'),
-        params: { to: op.toId },
-      }
-    }
-
     return {
       query: [
         `MATCH ()-[r:${edge}]->(b${formatLabels(toLabels)} {id: $to})`,
@@ -696,14 +624,116 @@ export class MutationCypherCompiler {
   }
 
   // ---------------------------------------------------------------------------
+  // Link-Node Operations (emitted by ReifyEdgesMutationPass)
+  // ---------------------------------------------------------------------------
+
+  private compileBatchCreateLinkNode(op: BatchCreateLinkNodeOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    const lines: string[] = []
+    const params: Record<string, unknown> = {
+      items: op.items.map((item) => ({
+        id: item.id,
+        from: item.fromId,
+        to: item.toId,
+        data: item.data ?? {},
+      })),
+    }
+
+    // If IM pass added instance_of links, MATCH the class node
+    if (op.links?.length) {
+      for (let i = 0; i < op.links.length; i++) {
+        lines.push(`MATCH (linkCls${i} {id: $linkClsId${i}})`)
+        params[`linkClsId${i}`] = op.links[i]!.targetId
+      }
+    }
+
+    lines.push(`UNWIND $items as item`)
+    lines.push(
+      `MATCH (a${formatLabels(op.fromLabels)} {id: item.from}), (b${formatLabels(op.toLabels)} {id: item.to})`,
+    )
+    lines.push(`CREATE (linkNode:${linkLabel})`)
+    lines.push(`SET linkNode = item.data, linkNode.id = item.id`)
+    lines.push(`CREATE (a)-[:has_link]->(linkNode)`)
+    lines.push(`CREATE (linkNode)-[:links_to]->(b)`)
+
+    // Emit instance_of (or any other inline links)
+    if (op.links?.length) {
+      for (let i = 0; i < op.links.length; i++) {
+        const edgeType = sanitize(op.links[i]!.edgeType)
+        lines.push(`CREATE (linkNode)-[:${edgeType}]->(linkCls${i})`)
+      }
+    }
+
+    lines.push(`RETURN linkNode as r, a.id as fromId, b.id as toId`)
+    return { query: lines.join('\n'), params: buildParams(params) }
+  }
+
+  private compileBatchDeleteLinkNode(op: BatchDeleteLinkNodeOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    return {
+      query: [
+        `UNWIND $links as link`,
+        `MATCH (a${formatLabels(op.fromLabels)} {id: link.from})-[:has_link]->(linkNode:${linkLabel})-[:links_to]->(b${formatLabels(op.toLabels)} {id: link.to})`,
+        `DETACH DELETE linkNode`,
+        `RETURN count(linkNode) as deleted`,
+      ].join('\n'),
+      params: { links: op.links },
+    }
+  }
+
+  private compileUpdateLinkNode(op: UpdateLinkNodeOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    return {
+      query: [
+        `MATCH (a${formatLabels(op.fromLabels)} {id: $from})-[:has_link]->(linkNode:${linkLabel})-[:links_to]->(b${formatLabels(op.toLabels)} {id: $to})`,
+        `SET linkNode += $data`,
+        `RETURN linkNode`,
+      ].join('\n'),
+      params: buildParams({ from: op.fromId, to: op.toId, data: op.data }),
+    }
+  }
+
+  private compileDeleteLinkNode(op: DeleteLinkNodeOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    return {
+      query: [
+        `MATCH (a${formatLabels(op.fromLabels)} {id: $from})-[:has_link]->(linkNode:${linkLabel})-[:links_to]->(b${formatLabels(op.toLabels)} {id: $to})`,
+        `DETACH DELETE linkNode`,
+        `RETURN count(linkNode) as deleted`,
+      ].join('\n'),
+      params: { from: op.fromId, to: op.toId },
+    }
+  }
+
+  private compileDeleteLinkNodesFrom(op: DeleteLinkNodesFromOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    return {
+      query: [
+        `MATCH (a${formatLabels(op.fromLabels)} {id: $from})-[:has_link]->(linkNode:${linkLabel})`,
+        `DETACH DELETE linkNode`,
+        `RETURN count(linkNode) as deleted`,
+      ].join('\n'),
+      params: { from: op.fromId },
+    }
+  }
+
+  private compileDeleteLinkNodesTo(op: DeleteLinkNodesToOp): CompiledMutation {
+    const linkLabel = sanitize(op.linkLabel)
+    return {
+      query: [
+        `MATCH (linkNode:${linkLabel})-[:links_to]->(b${formatLabels(op.toLabels)} {id: $to})`,
+        `DETACH DELETE linkNode`,
+        `RETURN count(linkNode) as deleted`,
+      ].join('\n'),
+      params: { to: op.toId },
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private resolveLabels(
-    label: string,
-    schema: SchemaShape,
-    additionalLabels?: string[],
-  ): string[] {
+  private resolveLabels(label: string, schema: SchemaShape, additionalLabels?: string[]): string[] {
     const labels = resolveNodeLabels(schema, label).map((l) => sanitize(l))
     if (additionalLabels?.length) {
       labels.push(...additionalLabels.map((l) => sanitize(l)))
@@ -721,7 +751,9 @@ export class MutationCypherCompiler {
     }
     const fromTypes = edgeFrom(schema, edgeType)
     const toTypes = edgeTo(schema, edgeType)
-    const fromLabels = fromTypes[0] ? resolveNodeLabels(schema, fromTypes[0]).map((l) => sanitize(l)) : []
+    const fromLabels = fromTypes[0]
+      ? resolveNodeLabels(schema, fromTypes[0]).map((l) => sanitize(l))
+      : []
     const toLabels = toTypes[0] ? resolveNodeLabels(schema, toTypes[0]).map((l) => sanitize(l)) : []
     return { fromLabels, toLabels }
   }

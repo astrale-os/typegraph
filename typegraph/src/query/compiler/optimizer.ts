@@ -6,7 +6,7 @@
  */
 
 import { type QueryAST } from '../ast'
-import type { SchemaShape } from '../schema'
+import type { SchemaShape } from '../../schema'
 
 /**
  * A single AST transformation pass.

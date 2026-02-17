@@ -79,7 +79,7 @@ export type {
 // AST
 // =============================================================================
 
-export { QueryAST, createDefaultProjection, createEdgeProjection, ASTVisitor } from './ast'
+export { QueryAST, createDefaultProjection, createEdgeProjection, ASTVisitor } from './query/ast'
 export type {
   ASTNode,
   MatchStep,
@@ -110,7 +110,7 @@ export type {
   EdgeWhereCondition,
   ComparisonOperator,
   VariableLengthConfig,
-} from './ast'
+} from './query/ast'
 
 // =============================================================================
 // ERRORS
@@ -249,7 +249,6 @@ export type {
   ValidationOptions,
   MutationOp,
   InlineLink,
-  ReifiedAnnotation,
   CompiledMutation,
   MutationCompilationPass,
   CreateNodeOp,
@@ -271,7 +270,17 @@ export type {
   BatchUnlinkOp,
   UnlinkAllFromOp,
   UnlinkAllToOp,
+  BatchCreateLinkNodeOp,
+  BatchDeleteLinkNodeOp,
+  UpdateLinkNodeOp,
+  DeleteLinkNodeOp,
+  DeleteLinkNodesFromOp,
+  DeleteLinkNodesToOp,
 } from './mutation'
+
+// Mutation Passes
+export { InstanceModelMutationPass } from './mutation/passes'
+export { ReifyEdgesMutationPass } from './mutation/passes'
 
 // Mutation errors
 export {
@@ -290,13 +299,13 @@ export {
 // COMPILER
 // =============================================================================
 
-export { CypherCompiler, createCypherCompiler } from './compiler'
+export { CypherCompiler, createCypherCompiler, InstanceModelPass, ReifyEdgesPass } from './query/compiler'
 export type {
   CompiledQuery,
   CompilerOptions,
   QueryCompilerProvider,
   QueryCompilerFactory,
-} from './compiler'
+} from './query/compiler'
 
 // =============================================================================
 // METHOD SYSTEM

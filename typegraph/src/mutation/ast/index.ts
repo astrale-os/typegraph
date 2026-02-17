@@ -6,7 +6,6 @@
 export type {
   MutationOp,
   InlineLink,
-  ReifiedAnnotation,
   CreateNodeOp,
   UpdateNodeOp,
   DeleteNodeOp,
@@ -26,6 +25,12 @@ export type {
   BatchUnlinkOp,
   UnlinkAllFromOp,
   UnlinkAllToOp,
+  BatchCreateLinkNodeOp,
+  BatchDeleteLinkNodeOp,
+  UpdateLinkNodeOp,
+  DeleteLinkNodeOp,
+  DeleteLinkNodesFromOp,
+  DeleteLinkNodesToOp,
 } from './types'
 
 // Factory functions

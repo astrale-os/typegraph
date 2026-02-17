@@ -5,7 +5,7 @@
  * Uses composition instead of mutation - wraps a ReturningBuilder and transforms results.
  */
 
-import type { CompiledQuery } from '../compiler'
+import type { CompiledQuery } from './compiler'
 import type { ReturnSpec } from './proxy'
 import { transformReturnResult } from './proxy'
 import type { ReturningBuilder, CollectSpec } from './returning'

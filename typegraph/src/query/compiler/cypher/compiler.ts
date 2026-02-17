@@ -4,7 +4,7 @@
  * Transforms AST into Cypher query strings for Neo4j/Memgraph.
  */
 
-import type { SchemaShape } from '../../schema'
+import type { SchemaShape } from '../../../schema'
 import type {
   QueryAST,
   ASTNode,
@@ -30,7 +30,7 @@ import type {
   Projection,
   ForkStep,
 } from '../../ast'
-import { resolveNodeLabels, formatLabels, toPascalCase } from '../../helpers'
+import { resolveNodeLabels, formatLabels, toPascalCase } from '../../../helpers'
 import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
 

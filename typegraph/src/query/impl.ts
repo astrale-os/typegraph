@@ -6,8 +6,8 @@
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
-import { createEdgeProjection } from '../ast'
-import { QueryAST } from '../ast'
+import { createEdgeProjection } from './ast'
+import { QueryAST } from './ast'
 import type { GraphQuery, QueryExecutor } from './types'
 import { CollectionBuilder } from './collection'
 import { SingleNodeBuilder } from './single-node'

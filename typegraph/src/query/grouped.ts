@@ -5,9 +5,9 @@
  * Created by CollectionBuilder.groupBy().
  */
 
-import type { QueryAST, ComparisonOperator } from '../ast'
-import type { CompiledQuery } from '../compiler'
-import { getCompiler } from '../compiler'
+import type { QueryAST, ComparisonOperator } from './ast'
+import type { CompiledQuery } from './compiler'
+import { getCompiler } from './compiler'
 import type { SchemaShape } from '../schema'
 import type { NodeLabels, NodeProps } from '../inference'
 import type { QueryExecutor } from './types'

@@ -21,14 +21,14 @@ import {
 } from './traits'
 import { buildBiTraversal } from './traversal'
 import * as hierarchy from './hierarchy'
-import type { QueryAST } from '../ast'
+import type { QueryAST } from './ast'
 import type {
   ComparisonOperator,
   WhereCondition,
   ComparisonCondition,
   ExistsCondition,
   ConnectedToCondition,
-} from '../ast'
+} from './ast'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type {
   NodeLabels,

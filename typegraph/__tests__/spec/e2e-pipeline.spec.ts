@@ -7,12 +7,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { QueryAST } from '../../src/ast'
-import { CypherCompiler } from '../../src/compiler/cypher/compiler'
-import { InstanceModelPass } from '../../src/compiler/passes/instance-model-pass'
-import { ReifyEdgesPass } from '../../src/compiler/passes/reify-edges-pass'
-import { InstanceModelMutationPass } from '../../src/compiler/passes/instance-model-mutation-pass'
-import { ReifyEdgesMutationPass } from '../../src/compiler/passes/reify-edges-mutation-pass'
+import { QueryAST } from '../../src/query/ast'
+import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
+import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
+import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
+import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
+import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
 import type { InstanceModelConfig } from '../../src/schema'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
@@ -127,8 +127,8 @@ function compileQuery(ast: QueryAST): { cypher: string; params: Record<string, u
 
 const mutationCompiler = new MutationCypherCompiler()
 const mutationPipeline = new MutationCompilationPipeline([
-  new InstanceModelMutationPass(instanceModel),
   new ReifyEdgesMutationPass(),
+  new InstanceModelMutationPass(instanceModel),
 ])
 
 function compileMutation(op: MutationOp): { query: string; params: Record<string, unknown> } {
@@ -381,7 +381,7 @@ describe('E2E: Mutation pipeline (InstanceModel + ReifyEdges)', () => {
     expect(c).toContain(':Node')
   })
 
-  it('updateEdge on reified edge → has_link/links_to match + SET on link', () => {
+  it('updateEdge on reified edge → has_link/links_to match + SET on linkNode', () => {
     const { query } = compileMutation({
       type: 'updateEdge',
       edgeType: 'orderItem',
@@ -394,7 +394,7 @@ describe('E2E: Mutation pipeline (InstanceModel + ReifyEdges)', () => {
     expect(c).toContain('has_link')
     expect(c).toContain(':Link')
     expect(c).toContain('links_to')
-    expect(c).toContain('SET link')
+    expect(c).toContain('SET linkNode')
   })
 
   it('deleteEdge on reified edge → DETACH DELETE link node', () => {
@@ -411,7 +411,7 @@ describe('E2E: Mutation pipeline (InstanceModel + ReifyEdges)', () => {
     expect(c).toContain('DETACH DELETE')
   })
 
-  it('updateEdgeById on reified → becomes UpdateNodeOp on link', () => {
+  it('updateEdgeById on reified → becomes UpdateNodeOp on :Node', () => {
     const { query } = compileMutation({
       type: 'updateEdgeById',
       edgeType: 'orderItem',
@@ -420,13 +420,13 @@ describe('E2E: Mutation pipeline (InstanceModel + ReifyEdges)', () => {
     })
     const c = normalizeCypher(query)
 
-    // Converted to UpdateNodeOp — matches :Link by id
-    expect(c).toContain(':Link')
+    // Converted to UpdateNodeOp by Reify, then relabeled to :Node by IM
+    expect(c).toContain(':Node')
     expect(c).toContain('SET n')
     expect(c).not.toContain('has_link')
   })
 
-  it('deleteEdgeById on reified → becomes DeleteNodeOp on link', () => {
+  it('deleteEdgeById on reified → becomes DeleteNodeOp on :Node', () => {
     const { query } = compileMutation({
       type: 'deleteEdgeById',
       edgeType: 'reviewOf',
@@ -434,8 +434,8 @@ describe('E2E: Mutation pipeline (InstanceModel + ReifyEdges)', () => {
     })
     const c = normalizeCypher(query)
 
-    // Converted to DeleteNodeOp — DETACH DELETE :Link by id
-    expect(c).toContain(':Link')
+    // Converted to DeleteNodeOp by Reify, then relabeled to :Node by IM
+    expect(c).toContain(':Node')
     expect(c).toContain('DETACH DELETE')
   })
 

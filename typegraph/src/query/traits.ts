@@ -4,7 +4,7 @@
  * Type definitions and utilities shared across builder types.
  */
 
-import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from '../ast'
+import type { ComparisonOperator, WhereCondition, EdgeWhereCondition } from './ast'
 import type { SchemaShape } from '../schema'
 import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
 
@@ -136,8 +136,8 @@ export interface WhereBuilder<S extends SchemaShape, N extends NodeLabels<S>> {
 export function createWhereBuilder<S extends SchemaShape, N extends NodeLabels<S>>(
   target: string,
 ): WhereBuilder<S, N> {
-  type Condition = import('../ast').ComparisonCondition
-  type Logical = import('../ast').LogicalCondition
+  type Condition = import('./ast').ComparisonCondition
+  type Logical = import('./ast').LogicalCondition
 
   return {
     eq: (field: string, value: unknown) =>

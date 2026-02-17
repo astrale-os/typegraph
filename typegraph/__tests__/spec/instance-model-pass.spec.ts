@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { QueryAST } from '../../src/ast'
-import { CypherCompiler } from '../../src/compiler/cypher/compiler'
-import { InstanceModelPass } from '../../src/compiler/passes/instance-model-pass'
+import { QueryAST } from '../../src/query/ast'
+import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
+import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
 import type { SchemaShape, InstanceModelConfig } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 

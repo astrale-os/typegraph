@@ -102,9 +102,14 @@ describe('Mutation Specification', () => {
     })
 
     it('creates CreateNodeOp with links', () => {
-      const op = createNode('user', 'u1', { name: 'John' }, {
-        links: [{ edgeType: 'hasParent', targetId: 'parent_1' }],
-      })
+      const op = createNode(
+        'user',
+        'u1',
+        { name: 'John' },
+        {
+          links: [{ edgeType: 'hasParent', targetId: 'parent_1' }],
+        },
+      )
       expect(op.links).toHaveLength(1)
       expect(op.links![0]).toEqual({ edgeType: 'hasParent', targetId: 'parent_1' })
     })
@@ -178,9 +183,14 @@ describe('Mutation Specification', () => {
         })
 
         it('generates atomic create+link query for single link', () => {
-          const op = createNode('user', 'u1', { name: 'John' }, {
-            links: [{ edgeType: 'ofType', targetId: 't1' }],
-          })
+          const op = createNode(
+            'user',
+            'u1',
+            { name: 'John' },
+            {
+              links: [{ edgeType: 'ofType', targetId: 't1' }],
+            },
+          )
           const { query, params } = compiler.compileOne(op, schema)
 
           expect(query).toContain('MATCH (t0 {id: $t0Id})')
@@ -192,12 +202,17 @@ describe('Mutation Specification', () => {
         })
 
         it('generates atomic create+link query for multiple links', () => {
-          const op = createNode('user', 'u1', { name: 'John' }, {
-            links: [
-              { edgeType: 'ofType', targetId: 't1' },
-              { edgeType: 'hasParent', targetId: 'p1' },
-            ],
-          })
+          const op = createNode(
+            'user',
+            'u1',
+            { name: 'John' },
+            {
+              links: [
+                { edgeType: 'ofType', targetId: 't1' },
+                { edgeType: 'hasParent', targetId: 'p1' },
+              ],
+            },
+          )
           const { query } = compiler.compileOne(op, schema)
 
           expect(query).toContain('MATCH (t0 {id: $t0Id})')
@@ -207,9 +222,14 @@ describe('Mutation Specification', () => {
         })
 
         it('generates clauses in correct order: MATCH, CREATE node, SET, CREATE edges, RETURN', () => {
-          const op = createNode('user', 'u1', {}, {
-            links: [{ edgeType: 'ofType', targetId: 't1' }],
-          })
+          const op = createNode(
+            'user',
+            'u1',
+            {},
+            {
+              links: [{ edgeType: 'ofType', targetId: 't1' }],
+            },
+          )
           const { query } = compiler.compileOne(op, schema)
 
           const matchIdx = query.indexOf('MATCH')
@@ -279,9 +299,14 @@ describe('Mutation Specification', () => {
         })
 
         it('generates MERGE links for instanceOf', () => {
-          const op = upsertNode('user', 'u1', { name: 'John' }, {
-            links: [{ edgeType: 'instanceOf', targetId: 'class_user' }],
-          })
+          const op = upsertNode(
+            'user',
+            'u1',
+            { name: 'John' },
+            {
+              links: [{ edgeType: 'instanceOf', targetId: 'class_user' }],
+            },
+          )
           const { query, params } = compiler.compileOne(op, schema)
 
           expect(query).toContain('MERGE (n)-[:instanceOf]->(t0)')
@@ -349,10 +374,15 @@ describe('Mutation Specification', () => {
           expect(query).toContain('SET r += $props')
         })
 
-        it('handles reified annotation', () => {
-          const op: ReturnType<typeof updateEdge> = {
-            ...updateEdge('authored', 'u1', 'p1', { qty: 3 }),
-            reified: { linkLabel: 'OrderItem' },
+        it('compiles updateLinkNode op (emitted by reify pass)', () => {
+          const op = {
+            type: 'updateLinkNode' as const,
+            linkLabel: 'OrderItem',
+            fromLabels: ['Order'],
+            toLabels: ['Product'],
+            fromId: 'u1',
+            toId: 'p1',
+            data: { qty: 3 },
           }
           const { query } = compiler.compileOne(op, schema)
 
@@ -381,16 +411,20 @@ describe('Mutation Specification', () => {
           expect(query).toContain('count(r) > 0 as deleted')
         })
 
-        it('handles reified annotation (DETACH DELETE link node)', () => {
-          const op: ReturnType<typeof deleteEdge> = {
-            ...deleteEdge('authored', 'u1', 'p1'),
-            reified: { linkLabel: 'OrderItem' },
+        it('compiles deleteLinkNode op (emitted by reify pass)', () => {
+          const op = {
+            type: 'deleteLinkNode' as const,
+            linkLabel: 'OrderItem',
+            fromLabels: ['Order'],
+            toLabels: ['Product'],
+            fromId: 'u1',
+            toId: 'p1',
           }
           const { query } = compiler.compileOne(op, schema)
 
           expect(query).toContain(':has_link')
           expect(query).toContain(':OrderItem')
-          expect(query).toContain('DETACH DELETE link')
+          expect(query).toContain('DETACH DELETE linkNode')
         })
       })
 
@@ -517,10 +551,14 @@ describe('Mutation Specification', () => {
           expect(query).toContain('SET r = coalesce(link.data, {}), r.id = link.id')
         })
 
-        it('handles reified annotation', () => {
-          const op: ReturnType<typeof batchLink> = {
-            ...batchLink('follows', [{ fromId: 'u1', toId: 'u2', edgeId: 'e1' }]),
-            reified: { linkLabel: 'FollowLink' },
+        it('compiles batchCreateLinkNode op (emitted by reify pass)', () => {
+          const op = {
+            type: 'batchCreateLinkNode' as const,
+            edgeType: 'follows',
+            linkLabel: 'FollowLink',
+            fromLabels: ['User'],
+            toLabels: ['User'],
+            items: [{ id: 'e1', fromId: 'u1', toId: 'u2' }],
           }
           const { query } = compiler.compileOne(op, schema)
 
@@ -532,9 +570,7 @@ describe('Mutation Specification', () => {
 
       describe('batchUnlink', () => {
         it('generates UNWIND-based batch unlink', () => {
-          const op = batchUnlink('follows', [
-            { fromId: 'u1', toId: 'u2' },
-          ])
+          const op = batchUnlink('follows', [{ fromId: 'u1', toId: 'u2' }])
           const { query } = compiler.compileOne(op, schema)
 
           expect(query).toContain('UNWIND $links as link')
@@ -552,10 +588,12 @@ describe('Mutation Specification', () => {
           expect(params.from).toBe('u1')
         })
 
-        it('handles reified annotation', () => {
-          const op: ReturnType<typeof unlinkAllFrom> = {
-            ...unlinkAllFrom('follows', 'u1'),
-            reified: { linkLabel: 'FollowLink' },
+        it('compiles deleteLinkNodesFrom op (emitted by reify pass)', () => {
+          const op = {
+            type: 'deleteLinkNodesFrom' as const,
+            linkLabel: 'FollowLink',
+            fromLabels: ['User'],
+            fromId: 'u1',
           }
           const { query } = compiler.compileOne(op, schema)
 
@@ -696,7 +734,11 @@ describe('Mutation Specification', () => {
         name: 'relabel',
         transform(op) {
           if (op.type === 'createNode') {
-            return { ...op, label: 'node', links: [{ edgeType: 'instanceOf', targetId: `class_${op.label}` }] }
+            return {
+              ...op,
+              label: 'node',
+              links: [{ edgeType: 'instanceOf', targetId: `class_${op.label}` }],
+            }
           }
           return op
         },
@@ -715,10 +757,7 @@ describe('Mutation Specification', () => {
 
     it('handles array input', () => {
       const pipeline = new MutationCompilationPipeline()
-      const ops = [
-        createNode('user', 'u1', {}),
-        createEdge('authored', 'u1', 'p1', 'e1'),
-      ]
+      const ops = [createNode('user', 'u1', {}), createEdge('authored', 'u1', 'p1', 'e1')]
 
       const result = pipeline.run(ops, schema)
       expect(result).toHaveLength(2)

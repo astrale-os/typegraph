@@ -9,8 +9,8 @@ import { NodeQueryBuilder, _registerCollectionBuilder } from './node-query-build
 import type { BaseBuilder } from './base'
 import { buildOutTraversal, buildInTraversal, buildMultiEdgeTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
-import type { QueryAST } from '../ast'
-import { getCompiler } from '../compiler'
+import type { QueryAST } from './ast'
+import { getCompiler } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveNode } from '../resolve'
 import type {
@@ -474,6 +474,6 @@ export interface CollectionSelector<
   skip(count: number): CollectionSelector<S, N, K>
   execute(): Promise<Pick<NodeProps<S, N>, K>[]>
   stream(): AsyncIterable<Pick<NodeProps<S, N>, K>>
-  compile(): import('../compiler').CompiledQuery
+  compile(): import('./compiler').CompiledQuery
   toCypher(): string
 }

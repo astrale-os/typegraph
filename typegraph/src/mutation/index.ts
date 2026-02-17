@@ -33,7 +33,6 @@ export { defaultIdGenerator } from './types'
 export type {
   MutationOp,
   InlineLink,
-  ReifiedAnnotation,
   CreateNodeOp,
   UpdateNodeOp,
   DeleteNodeOp,
@@ -53,6 +52,12 @@ export type {
   BatchUnlinkOp,
   UnlinkAllFromOp,
   UnlinkAllToOp,
+  BatchCreateLinkNodeOp,
+  BatchDeleteLinkNodeOp,
+  UpdateLinkNodeOp,
+  DeleteLinkNodeOp,
+  DeleteLinkNodesFromOp,
+  DeleteLinkNodesToOp,
 } from './ast'
 
 export {
@@ -90,7 +95,13 @@ export type { MutationExecutor, TransactionRunner, MutationConfig } from './impl
 
 // Validation
 export { MutationValidator, defaultValidationOptions } from './validation'
-export type { ValidatorMap, ZodLike, ValidationResult, ValidationIssue, ValidationOptions } from './validation'
+export type {
+  ValidatorMap,
+  ZodLike,
+  ValidationResult,
+  ValidationIssue,
+  ValidationOptions,
+} from './validation'
 
 // Hooks / Middleware
 export { HooksRunner } from './hooks'

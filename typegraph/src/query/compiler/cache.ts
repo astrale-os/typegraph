@@ -5,7 +5,7 @@
  * Uses WeakMap for automatic garbage collection when schemas are no longer referenced.
  */
 
-import type { SchemaShape } from '../schema'
+import type { SchemaShape } from '../../schema'
 import { CypherCompiler } from './cypher'
 import { CompilationPipeline, type CompilationPass } from './optimizer'
 import { InstanceModelPass } from './passes/instance-model-pass'

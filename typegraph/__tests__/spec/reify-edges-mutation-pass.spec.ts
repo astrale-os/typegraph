@@ -1,13 +1,13 @@
 /**
  * ReifyEdgesMutationPass Specification Tests
  *
- * Tests for the mutation pass that annotates edge ops with reified metadata
- * and converts certain edge ops to node ops for reified edges.
+ * Tests for the mutation pass that converts edge ops to link-node op types
+ * for reified edges. The pass is purely structural — no instance model knowledge.
  */
 
 import { describe, it, expect } from 'vitest'
-import { ReifyEdgesMutationPass } from '../../src/compiler/passes/reify-edges-mutation-pass'
-import { InstanceModelMutationPass } from '../../src/compiler/passes/instance-model-mutation-pass'
+import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
+import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import type { SchemaShape, InstanceModelConfig } from '../../src/schema'
 import type {
@@ -23,6 +23,12 @@ import type {
   UnlinkAllToOp,
   UpdateNodeOp,
   DeleteNodeOp,
+  BatchCreateLinkNodeOp,
+  BatchDeleteLinkNodeOp,
+  UpdateLinkNodeOp,
+  DeleteLinkNodeOp,
+  DeleteLinkNodesFromOp,
+  DeleteLinkNodesToOp,
 } from '../../src/mutation/ast/types'
 import { normalizeCypher } from './fixtures/test-schema'
 
@@ -90,8 +96,8 @@ function compileNoIM(op: MutationOp): string {
 describe('ReifyEdgesMutationPass', () => {
   const pass = new ReifyEdgesMutationPass()
 
-  describe('CreateEdgeOp → BatchLinkOp conversion', () => {
-    it('converts reified CreateEdgeOp to BatchLinkOp', () => {
+  describe('CreateEdgeOp → BatchCreateLinkNodeOp', () => {
+    it('converts reified CreateEdgeOp to BatchCreateLinkNodeOp', () => {
       const op: CreateEdgeOp = {
         type: 'createEdge',
         edgeType: 'orderItem',
@@ -100,18 +106,20 @@ describe('ReifyEdgesMutationPass', () => {
         edgeId: 'oi-1',
         data: { quantity: 3 },
       }
-      const result = pass.transform(op, schema) as BatchLinkOp
+      const result = pass.transform(op, schema) as BatchCreateLinkNodeOp
 
-      expect(result.type).toBe('batchLink')
+      expect(result.type).toBe('batchCreateLinkNode')
       expect(result.edgeType).toBe('orderItem')
-      expect(result.links).toHaveLength(1)
-      expect(result.links[0]!.fromId).toBe('order-1')
-      expect(result.links[0]!.toId).toBe('prod-1')
-      expect(result.links[0]!.edgeId).toBe('oi-1')
-      expect(result.links[0]!.data).toEqual({ quantity: 3 })
-      expect(result.reified).toBeDefined()
-      expect(result.reified!.linkLabel).toBe('Link')
-      expect(result.reified!.instanceOfTargetId).toBe('cls-order-item')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.fromLabels).toEqual(['Order'])
+      expect(result.toLabels).toEqual(['Product'])
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0]!.fromId).toBe('order-1')
+      expect(result.items[0]!.toId).toBe('prod-1')
+      expect(result.items[0]!.id).toBe('oi-1')
+      expect(result.items[0]!.data).toEqual({ quantity: 3 })
+      // No instance model knowledge
+      expect(result.links).toBeUndefined()
     })
 
     it('does not convert non-reified CreateEdgeOp', () => {
@@ -126,28 +134,64 @@ describe('ReifyEdgesMutationPass', () => {
       expect(result).toEqual(op)
     })
 
-    it('compiles reified BatchLinkOp to has_link/links_to Cypher', () => {
+    it('compiles to has_link/links_to Cypher (no IM)', () => {
       const op: CreateEdgeOp = {
         type: 'createEdge',
         edgeType: 'orderItem',
-        fromId: 'order-1',
-        toId: 'prod-1',
+        fromId: 'o1',
+        toId: 'p1',
         edgeId: 'oi-1',
         data: { quantity: 3 },
       }
-      const result = pass.transform(op, schema) as BatchLinkOp
-      const cypher = compile(result)
+      const result = pass.transform(op, schemaNoIM) as BatchCreateLinkNodeOp
+      const cypher = compileNoIM(result)
 
       expect(cypher).toContain('has_link')
       expect(cypher).toContain('links_to')
-      expect(cypher).toContain('linkCls')
-      expect(cypher).toContain('instance_of')
-      expect(cypher).toContain(':Link')
+      expect(cypher).toContain(':OrderItem')
+      expect(cypher).not.toContain('instance_of')
     })
   })
 
-  describe('UpdateEdgeOp annotation', () => {
-    it('annotates reified UpdateEdgeOp', () => {
+  describe('BatchLinkOp → BatchCreateLinkNodeOp', () => {
+    it('converts reified BatchLinkOp', () => {
+      const op: BatchLinkOp = {
+        type: 'batchLink',
+        edgeType: 'orderItem',
+        links: [
+          { fromId: 'o1', toId: 'p1', edgeId: 'oi-1' },
+          { fromId: 'o1', toId: 'p2', edgeId: 'oi-2' },
+        ],
+      }
+      const result = pass.transform(op, schema) as BatchCreateLinkNodeOp
+
+      expect(result.type).toBe('batchCreateLinkNode')
+      expect(result.edgeType).toBe('orderItem')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.items).toHaveLength(2)
+      expect(result.items[0]!.id).toBe('oi-1')
+      expect(result.items[1]!.id).toBe('oi-2')
+    })
+  })
+
+  describe('BatchUnlinkOp → BatchDeleteLinkNodeOp', () => {
+    it('converts reified BatchUnlinkOp', () => {
+      const op: BatchUnlinkOp = {
+        type: 'batchUnlink',
+        edgeType: 'orderItem',
+        links: [{ fromId: 'o1', toId: 'p1' }],
+      }
+      const result = pass.transform(op, schema) as BatchDeleteLinkNodeOp
+
+      expect(result.type).toBe('batchDeleteLinkNode')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.fromLabels).toEqual(['Order'])
+      expect(result.toLabels).toEqual(['Product'])
+    })
+  })
+
+  describe('UpdateEdgeOp → UpdateLinkNodeOp', () => {
+    it('converts reified UpdateEdgeOp', () => {
       const op: UpdateEdgeOp = {
         type: 'updateEdge',
         edgeType: 'orderItem',
@@ -155,16 +199,16 @@ describe('ReifyEdgesMutationPass', () => {
         toId: 'prod-1',
         data: { quantity: 5 },
       }
-      const result = pass.transform(op, schema) as UpdateEdgeOp
+      const result = pass.transform(op, schema) as UpdateLinkNodeOp
 
-      expect(result.type).toBe('updateEdge')
-      expect(result.reified).toEqual({
-        linkLabel: 'Link',
-        instanceOfTargetId: 'cls-order-item',
-      })
+      expect(result.type).toBe('updateLinkNode')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.fromId).toBe('order-1')
+      expect(result.toId).toBe('prod-1')
+      expect(result.data).toEqual({ quantity: 5 })
     })
 
-    it('compiles annotated UpdateEdgeOp to has_link/links_to pattern', () => {
+    it('compiles to has_link/links_to pattern', () => {
       const op: UpdateEdgeOp = {
         type: 'updateEdge',
         edgeType: 'orderItem',
@@ -172,12 +216,27 @@ describe('ReifyEdgesMutationPass', () => {
         toId: 'prod-1',
         data: { quantity: 5 },
       }
-      const result = pass.transform(op, schema) as UpdateEdgeOp
-      const cypher = compile(result)
+      const result = pass.transform(op, schemaNoIM) as UpdateLinkNodeOp
+      const cypher = compileNoIM(result)
 
       expect(cypher).toContain('has_link')
       expect(cypher).toContain('links_to')
-      expect(cypher).toContain(':Link')
+      expect(cypher).toContain(':OrderItem')
+    })
+  })
+
+  describe('DeleteEdgeOp → DeleteLinkNodeOp', () => {
+    it('converts reified DeleteEdgeOp', () => {
+      const op: DeleteEdgeOp = {
+        type: 'deleteEdge',
+        edgeType: 'orderItem',
+        fromId: 'order-1',
+        toId: 'prod-1',
+      }
+      const result = pass.transform(op, schema) as DeleteLinkNodeOp
+
+      expect(result.type).toBe('deleteLinkNode')
+      expect(result.linkLabel).toBe('OrderItem')
     })
   })
 
@@ -192,26 +251,9 @@ describe('ReifyEdgesMutationPass', () => {
       const result = pass.transform(op, schema) as UpdateNodeOp
 
       expect(result.type).toBe('updateNode')
-      expect(result.label).toBe('Link')
+      expect(result.label).toBe('OrderItem')
       expect(result.id).toBe('oi-1')
       expect(result.data).toEqual({ quantity: 10 })
-    })
-  })
-
-  describe('DeleteEdgeOp annotation', () => {
-    it('annotates reified DeleteEdgeOp', () => {
-      const op: DeleteEdgeOp = {
-        type: 'deleteEdge',
-        edgeType: 'orderItem',
-        fromId: 'order-1',
-        toId: 'prod-1',
-      }
-      const result = pass.transform(op, schema) as DeleteEdgeOp
-
-      expect(result.reified).toEqual({
-        linkLabel: 'Link',
-        instanceOfTargetId: 'cls-order-item',
-      })
     })
   })
 
@@ -225,72 +267,42 @@ describe('ReifyEdgesMutationPass', () => {
       const result = pass.transform(op, schema) as DeleteNodeOp
 
       expect(result.type).toBe('deleteNode')
-      expect(result.label).toBe('Link')
+      expect(result.label).toBe('OrderItem')
       expect(result.id).toBe('oi-1')
       expect(result.detach).toBe(true)
     })
   })
 
-  describe('BatchLinkOp annotation', () => {
-    it('annotates reified BatchLinkOp', () => {
-      const op: BatchLinkOp = {
-        type: 'batchLink',
-        edgeType: 'orderItem',
-        links: [
-          { fromId: 'o1', toId: 'p1', edgeId: 'oi-1' },
-          { fromId: 'o1', toId: 'p2', edgeId: 'oi-2' },
-        ],
-      }
-      const result = pass.transform(op, schema) as BatchLinkOp
-
-      expect(result.reified).toBeDefined()
-      expect(result.reified!.linkLabel).toBe('Link')
-      expect(result.reified!.instanceOfTargetId).toBe('cls-order-item')
-    })
-  })
-
-  describe('BatchUnlinkOp annotation', () => {
-    it('annotates reified BatchUnlinkOp', () => {
-      const op: BatchUnlinkOp = {
-        type: 'batchUnlink',
-        edgeType: 'orderItem',
-        links: [{ fromId: 'o1', toId: 'p1' }],
-      }
-      const result = pass.transform(op, schema) as BatchUnlinkOp
-
-      expect(result.reified).toBeDefined()
-      expect(result.reified!.linkLabel).toBe('Link')
-    })
-  })
-
-  describe('UnlinkAllFrom/To annotation', () => {
-    it('annotates reified UnlinkAllFromOp', () => {
+  describe('UnlinkAllFrom/To → DeleteLinkNodesFrom/To', () => {
+    it('converts reified UnlinkAllFromOp', () => {
       const op: UnlinkAllFromOp = {
         type: 'unlinkAllFrom',
         edgeType: 'orderItem',
         fromId: 'o1',
       }
-      const result = pass.transform(op, schema) as UnlinkAllFromOp
+      const result = pass.transform(op, schema) as DeleteLinkNodesFromOp
 
-      expect(result.reified).toBeDefined()
-      expect(result.reified!.linkLabel).toBe('Link')
+      expect(result.type).toBe('deleteLinkNodesFrom')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.fromLabels).toEqual(['Order'])
     })
 
-    it('annotates reified UnlinkAllToOp', () => {
+    it('converts reified UnlinkAllToOp', () => {
       const op: UnlinkAllToOp = {
         type: 'unlinkAllTo',
         edgeType: 'orderItem',
         toId: 'p1',
       }
-      const result = pass.transform(op, schema) as UnlinkAllToOp
+      const result = pass.transform(op, schema) as DeleteLinkNodesToOp
 
-      expect(result.reified).toBeDefined()
-      expect(result.reified!.linkLabel).toBe('Link')
+      expect(result.type).toBe('deleteLinkNodesTo')
+      expect(result.linkLabel).toBe('OrderItem')
+      expect(result.toLabels).toEqual(['Product'])
     })
   })
 
   describe('non-reified edges — passthrough', () => {
-    it('does not annotate non-reified edge ops', () => {
+    it('does not transform non-reified edge ops', () => {
       const op: UpdateEdgeOp = {
         type: 'updateEdge',
         edgeType: 'placedOrder',
@@ -300,67 +312,16 @@ describe('ReifyEdgesMutationPass', () => {
       }
       const result = pass.transform(op, schema) as UpdateEdgeOp
 
-      expect(result.reified).toBeUndefined()
+      expect(result.type).toBe('updateEdge')
     })
   })
 
-  describe('without instance model', () => {
-    it('uses capitalize-first link label', () => {
-      const op: CreateEdgeOp = {
-        type: 'createEdge',
-        edgeType: 'orderItem',
-        fromId: 'o1',
-        toId: 'p1',
-        edgeId: 'oi-1',
-      }
-      const result = pass.transform(op, schemaNoIM) as BatchLinkOp
-
-      expect(result.reified!.linkLabel).toBe('OrderItem')
-      expect(result.reified!.instanceOfTargetId).toBeUndefined()
-    })
-
-    it('compiles without instance_of edge', () => {
-      const op: CreateEdgeOp = {
-        type: 'createEdge',
-        edgeType: 'orderItem',
-        fromId: 'o1',
-        toId: 'p1',
-        edgeId: 'oi-1',
-      }
-      const result = pass.transform(op, schemaNoIM) as BatchLinkOp
-      const cypher = compileNoIM(result)
-
-      expect(cypher).toContain('has_link')
-      expect(cypher).toContain('links_to')
-      expect(cypher).toContain(':OrderItem')
-      expect(cypher).not.toContain('instance_of')
-    })
-  })
-
-  describe('full pipeline (InstanceModel + Reify)', () => {
+  describe('full pipeline (Reify → IM)', () => {
     it('produces kernel-compliant mutation Cypher', () => {
-      const imPass = new InstanceModelMutationPass(instanceModelConfig)
       const reifyPass = new ReifyEdgesMutationPass()
+      const imPass = new InstanceModelMutationPass(instanceModelConfig)
 
-      // Create a node (goes through InstanceModelMutationPass)
-      const createOp: MutationOp = {
-        type: 'createNode',
-        label: 'order',
-        id: 'o-1',
-        data: { status: 'pending' },
-      }
-      const afterIM = imPass.transform(createOp, schema)
-      const createResult = Array.isArray(afterIM) ? afterIM : [afterIM]
-      const afterReify = createResult.flatMap((op) => {
-        const r = reifyPass.transform(op, schema)
-        return Array.isArray(r) ? r : [r]
-      })
-      const createCypher = compile(afterReify[0]!)
-
-      expect(createCypher).toContain(':Node')
-      expect(createCypher).toContain('instance_of')
-
-      // Create an edge (goes through ReifyEdgesMutationPass only)
+      // Create an edge — reify first, then IM
       const edgeOp: CreateEdgeOp = {
         type: 'createEdge',
         edgeType: 'orderItem',
@@ -369,14 +330,58 @@ describe('ReifyEdgesMutationPass', () => {
         edgeId: 'oi-1',
         data: { quantity: 2 },
       }
-      const reifiedOp = reifyPass.transform(edgeOp, schema) as BatchLinkOp
-      const edgeCypher = compile(reifiedOp)
 
-      expect(edgeCypher).toContain(':Link')
-      expect(edgeCypher).toContain('has_link')
-      expect(edgeCypher).toContain('links_to')
-      expect(edgeCypher).toContain('instance_of')
-      expect(edgeCypher).toContain(':Node')
+      // Pass 1: Reify
+      const afterReify = reifyPass.transform(edgeOp, schema)
+      const reifiedOps = Array.isArray(afterReify) ? afterReify : [afterReify]
+
+      // Pass 2: IM
+      const afterIM = reifiedOps.flatMap((op) => {
+        const r = imPass.transform(op, schema)
+        return Array.isArray(r) ? r : [r]
+      })
+
+      const finalOp = afterIM[0]! as BatchCreateLinkNodeOp
+      expect(finalOp.type).toBe('batchCreateLinkNode')
+      expect(finalOp.linkLabel).toBe('Link')
+      expect(finalOp.fromLabels).toEqual(['Node'])
+      expect(finalOp.toLabels).toEqual(['Node'])
+      expect(finalOp.links).toBeDefined()
+      expect(finalOp.links![0]!.edgeType).toBe('instance_of')
+      expect(finalOp.links![0]!.targetId).toBe('cls-order-item')
+
+      const cypher = compile(finalOp)
+      expect(cypher).toContain(':Link')
+      expect(cypher).toContain('has_link')
+      expect(cypher).toContain('links_to')
+      expect(cypher).toContain('instance_of')
+      expect(cypher).toContain(':Node')
+    })
+
+    it('creates node correctly in full pipeline', () => {
+      const reifyPass = new ReifyEdgesMutationPass()
+      const imPass = new InstanceModelMutationPass(instanceModelConfig)
+
+      const createOp: MutationOp = {
+        type: 'createNode',
+        label: 'order',
+        id: 'o-1',
+        data: { status: 'pending' },
+      }
+
+      // Pass 1: Reify (no-op for createNode)
+      const afterReify = reifyPass.transform(createOp, schema)
+      const reifiedOps = Array.isArray(afterReify) ? afterReify : [afterReify]
+
+      // Pass 2: IM
+      const afterIM = reifiedOps.flatMap((op) => {
+        const r = imPass.transform(op, schema)
+        return Array.isArray(r) ? r : [r]
+      })
+
+      const createCypher = compile(afterIM[0]!)
+      expect(createCypher).toContain(':Node')
+      expect(createCypher).toContain('instance_of')
     })
   })
 })

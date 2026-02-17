@@ -5,9 +5,9 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST } from '../ast'
-import type { CompiledQuery } from '../compiler'
-import { getCompiler } from '../compiler'
+import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
+import { getCompiler } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes, NodeProps } from '../inference'
 
@@ -65,7 +65,7 @@ export class PathBuilder<
 
   whereEdge<K extends string>(
     _field: K,
-    _operator: import('../ast').ComparisonOperator,
+    _operator: import('./ast').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
@@ -73,7 +73,7 @@ export class PathBuilder<
 
   whereIntermediateNode<K extends string>(
     _field: K,
-    _operator: import('../ast').ComparisonOperator,
+    _operator: import('./ast').ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')

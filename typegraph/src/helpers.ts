@@ -49,7 +49,7 @@ export function resolveNodeLabels(schema: SchemaShape, nodeType: string): string
 /**
  * Format labels array for Cypher: ['User', 'Entity'] → ':User:Entity'
  */
-export function formatLabels(labels: string[]): string {
+export function formatLabels(labels: readonly string[]): string {
   return labels.map((l) => `:${l}`).join('')
 }
 

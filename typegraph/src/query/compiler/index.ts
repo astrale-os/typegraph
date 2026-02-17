@@ -1,5 +1,5 @@
 /**
- * Compiler Module
+ * Query Compiler Module
  *
  * Transforms AST into database-specific query strings.
  */
@@ -17,8 +17,8 @@ export { getCompiler, getQueryPipeline } from './cache'
 export { CompilationPipeline } from './optimizer'
 export type { CompilationPass } from './optimizer'
 
-// Compilation passes
-export { InstanceModelPass, ReifyEdgesPass, InstanceModelMutationPass, ReifyEdgesMutationPass, STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from './passes'
+// Query compilation passes
+export { InstanceModelPass, ReifyEdgesPass } from './passes'
 
 // Types
 export type { CompiledQuery, CompilerOptions } from './types'
