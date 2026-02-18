@@ -1,5 +1,5 @@
 /**
  * Mutation Compilation Passes
  */
-export { InstanceModelMutationPass } from './instance-model-mutation-pass'
+export { InstanceOfMutationPass } from './instance-of-mutation-pass'
 export { ReifyEdgesMutationPass } from './reify-edges-mutation-pass'

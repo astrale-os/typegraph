@@ -283,7 +283,7 @@ export type {
 } from './mutation'
 
 // Mutation Passes
-export { InstanceModelMutationPass } from './mutation/passes'
+export { InstanceOfMutationPass } from './mutation/passes'
 export { ReifyEdgesMutationPass } from './mutation/passes'
 
 // Mutation errors

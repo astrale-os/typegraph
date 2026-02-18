@@ -165,6 +165,16 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
    */
   extendSchema(extension: Partial<SchemaShape>, options?: { validators?: ValidatorMap }): void
 
+  /**
+   * Set the method dispatch function.
+   *
+   * Used by kernel to wire kernel.call after graph creation, resolving the
+   * circular dependency where graph needs kernel.call but kernel needs graph.
+   *
+   * @param dispatch - Method dispatch function (typically kernel.call)
+   */
+  setDispatch(dispatch: MethodDispatchFn): void
+
   // ---------------------------------------------------------------------------
   // LIFECYCLE
   // ---------------------------------------------------------------------------
@@ -228,7 +238,7 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   private readonly _mutate: GraphMutations<S, T>
   private readonly _options: GraphOptions<S>
   private readonly _idGenerator: IdGenerator
-  private readonly _dispatch: MethodDispatchFn | undefined
+  private _dispatch: MethodDispatchFn | undefined
   private readonly _schemaInfo: (MethodSchemaInfo & ConstraintSchemaInfo) | undefined
   private _auth: unknown
 
@@ -254,6 +264,13 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
       validation: options.validation,
       dryRun: options.dryRun,
     })
+  }
+
+  /**
+   * Used by kernel-boot to wire kernel.call after kernel creation.
+   */
+  setDispatch(dispatch: MethodDispatchFn): void {
+    this._dispatch = dispatch
   }
 
   // ---------------------------------------------------------------------------

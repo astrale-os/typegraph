@@ -7,7 +7,7 @@
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
-import { resolveNodeLabels, edgeFrom, edgeTo } from '../helpers'
+import { resolveNodeLabels } from '../helpers'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -46,21 +46,6 @@ import { MutationCompilationPipeline } from './ast/pipeline'
 import type { MutationCompilationPass } from './ast/pipeline'
 import { MutationCypherCompiler } from './cypher/compiler'
 import type { CompiledMutation } from './cypher/compiler'
-
-// =============================================================================
-// SHARED UTILITIES
-// =============================================================================
-
-function resolveEdgeEndpointLabels<S extends SchemaShape>(
-  schema: S,
-  edge: EdgeTypes<S>,
-): { fromLabels: string[]; toLabels: string[] } {
-  const fromTypes = edgeFrom(schema, edge as string)
-  const toTypes = edgeTo(schema, edge as string)
-  const fromLabels = fromTypes[0] ? resolveNodeLabels(schema, fromTypes[0]) : []
-  const toLabels = toTypes[0] ? resolveNodeLabels(schema, toTypes[0]) : []
-  return { fromLabels, toLabels }
-}
 
 // =============================================================================
 // EXECUTOR INTERFACE
@@ -158,6 +143,7 @@ export class GraphMutationsImpl<
     // Build op
     const links = options?.link
       ? Object.entries(options.link).map(([edgeType, targetId]) => {
+          // eslint-disable-next-line eqeqeq
           if (targetId == null || targetId === '') {
             throw new Error(
               `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,
@@ -1048,6 +1034,7 @@ class MutationTransactionImpl<
 
     const links = options?.link
       ? Object.entries(options.link).map(([edgeType, targetId]) => {
+          // eslint-disable-next-line eqeqeq
           if (targetId == null || targetId === '') {
             throw new Error(
               `Invalid link target for edge type '${edgeType}': expected a node ID or 'self', got ${JSON.stringify(targetId)}`,

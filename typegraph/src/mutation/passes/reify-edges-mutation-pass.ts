@@ -4,7 +4,7 @@
  * Converts edge MutationOps into link-node op types when the edge is reified.
  * Purely structural — knows nothing about the instance model.
  *
- * Runs BEFORE InstanceModelMutationPass in the mutation pipeline.
+ * Runs BEFORE InstanceOfMutationPass in the mutation pipeline.
  * The IM pass then handles relabeling and instance_of on the resulting link-node ops.
  */
 

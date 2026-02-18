@@ -1,12 +1,12 @@
 /**
- * InstanceModelMutationPass Specification Tests
+ * InstanceOfMutationPass Specification Tests
  *
  * Tests for the mutation pass that rewrites node labels to :Node
  * and injects instance_of links to class nodes.
  */
 
 import { describe, it, expect } from 'vitest'
-import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
+import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import type { SchemaShape } from '../../src/schema'
 import { ClassId } from '../../src/schema'
@@ -74,8 +74,8 @@ function compileOp(op: MutationOp): string {
 // TESTS
 // =============================================================================
 
-describe('InstanceModelMutationPass', () => {
-  const pass = new InstanceModelMutationPass()
+describe('InstanceOfMutationPass', () => {
+  const pass = new InstanceOfMutationPass()
 
   describe('CreateNodeOp', () => {
     it('relabels to Node and adds instance_of link', () => {

@@ -11,7 +11,7 @@ import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
-import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
+import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
 import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
 import type { SchemaShape } from '../../src/schema'
 import { ClassId, InterfaceId } from '../../src/schema'
@@ -125,7 +125,7 @@ function compileQuery(ast: QueryAST): { cypher: string; params: Record<string, u
 const mutationCompiler = new MutationCypherCompiler()
 const mutationPipeline = new MutationCompilationPipeline([
   new ReifyEdgesMutationPass(),
-  new InstanceModelMutationPass(),
+  new InstanceOfMutationPass(),
 ])
 
 function compileMutation(op: MutationOp): { query: string; params: Record<string, unknown> } {

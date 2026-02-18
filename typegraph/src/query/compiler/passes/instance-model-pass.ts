@@ -191,9 +191,7 @@ export class InstanceModelPass implements CompilationPass {
     schema: SchemaShape,
     aliases: AliasRegistry,
   ): WhereStep {
-    const rewritten = step.conditions.map((c) =>
-      this.rewriteCondition(c, schema, aliases),
-    )
+    const rewritten = step.conditions.map((c) => this.rewriteCondition(c, schema, aliases))
     return { type: 'where', conditions: rewritten }
   }
 
@@ -208,9 +206,7 @@ export class InstanceModelPass implements CompilationPass {
       case 'logical':
         return {
           ...condition,
-          conditions: condition.conditions.map((c) =>
-            this.rewriteCondition(c, schema, aliases),
-          ),
+          conditions: condition.conditions.map((c) => this.rewriteCondition(c, schema, aliases)),
         }
       default:
         return condition
@@ -321,9 +317,7 @@ export class InstanceModelPass implements CompilationPass {
   private rewriteBranch(step: BranchStep, schema: SchemaShape): BranchStep {
     return {
       ...step,
-      branches: step.branches.map((branch) =>
-        this.transformSteps(branch, schema),
-      ),
+      branches: step.branches.map((branch) => this.transformSteps(branch, schema)),
     }
   }
 
@@ -426,9 +420,7 @@ export class InstanceModelPass implements CompilationPass {
   private polymorphicCondition(clsAlias: string, interfaceName: string): WhereStep {
     const classIds = this.implementors[interfaceName]
     if (!classIds?.length) {
-      throw new Error(
-        `InstanceModelPass: no implementors found for interface '${interfaceName}'`,
-      )
+      throw new Error(`InstanceModelPass: no implementors found for interface '${interfaceName}'`)
     }
     return {
       type: 'where',

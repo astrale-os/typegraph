@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
-import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
+import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import type { SchemaShape } from '../../src/schema'
 import { ClassId } from '../../src/schema'
@@ -313,7 +313,7 @@ describe('ReifyEdgesMutationPass', () => {
   describe('full pipeline (Reify → IM)', () => {
     it('produces kernel-compliant mutation Cypher', () => {
       const reifyPass = new ReifyEdgesMutationPass()
-      const imPass = new InstanceModelMutationPass()
+      const imPass = new InstanceOfMutationPass()
 
       // Create an edge — reify first, then IM
       const edgeOp: CreateEdgeOp = {
@@ -354,7 +354,7 @@ describe('ReifyEdgesMutationPass', () => {
 
     it('creates node correctly in full pipeline', () => {
       const reifyPass = new ReifyEdgesMutationPass()
-      const imPass = new InstanceModelMutationPass()
+      const imPass = new InstanceOfMutationPass()
 
       const createOp: MutationOp = {
         type: 'createNode',

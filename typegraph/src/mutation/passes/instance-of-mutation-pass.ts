@@ -1,5 +1,5 @@
 /**
- * InstanceModelMutationPass — Type-Instance Lowering for Mutations
+ * InstanceOfMutationPass — Type-Instance Lowering for Mutations
  *
  * Transforms MutationOps to use the physical instance model:
  * - Node labels become 'Node'
@@ -16,8 +16,8 @@ import type { MutationOp, InlineLink } from '../ast/types'
 import type { SchemaShape } from '../../schema'
 import { STRUCTURAL_EDGES, META_LABELS } from '../../schema'
 
-export class InstanceModelMutationPass implements MutationCompilationPass {
-  readonly name = 'InstanceModelMutation'
+export class InstanceOfMutationPass implements MutationCompilationPass {
+  readonly name = 'InstanceOfMutation'
 
   transform(op: MutationOp, schema: SchemaShape): MutationOp | MutationOp[] {
     if (!schema.classRefs) return op
@@ -124,7 +124,7 @@ function mergeLinks(
   const classId = schema.classRefs![typeKey]
   if (!classId) {
     throw new Error(
-      `InstanceModelMutationPass: no class ref found for type '${typeKey}'`,
+      `InstanceOfMutationPass: no class ref found for type '${typeKey}'`,
     )
   }
 

@@ -20,7 +20,6 @@ import type {
   ForkStep,
   AliasInfo,
   AliasRegistry,
-  Projection,
 } from '../../ast'
 import type { SchemaShape } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
