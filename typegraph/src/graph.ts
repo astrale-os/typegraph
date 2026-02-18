@@ -6,6 +6,7 @@
  */
 
 import type { SchemaShape, TypeMap, UntypedMap } from './schema'
+import { mergeSchemaExtension } from './schema'
 import type { NodeLabels, EdgeTypes } from './inference'
 import type { GraphAdapter, TransactionContext } from './adapter'
 import type { GraphQuery, QueryExecutor } from './query/types'
@@ -29,6 +30,8 @@ import type { MethodDispatchFn, MethodSchemaInfo } from './methods'
 import { MethodNotDispatchedError } from './errors'
 import type { ConstraintSchemaInfo } from './constraints'
 import { resolveEndpoints } from './constraints'
+import { invalidateCompilerCache, invalidatePipelineCache } from './query/compiler/cache'
+import type { ValidatorMap } from './mutation/validation'
 
 /**
  * Options for creating a graph instance.
@@ -149,6 +152,18 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
     method: string,
     args?: unknown,
   ): Promise<unknown>
+
+  /**
+   * Extend the graph's schema with additional node/edge definitions.
+   *
+   * Mutates the schema object in-place so all internal references
+   * (query builder, mutation validator, compiler) see the change immediately.
+   * Invalidates compiler caches as needed.
+   *
+   * @param extension - New node/edge definitions to merge into the schema
+   * @param options - Optional Zod validators for new types
+   */
+  extendSchema(extension: Partial<SchemaShape>, options?: { validators?: ValidatorMap }): void
 
   // ---------------------------------------------------------------------------
   // LIFECYCLE
@@ -419,10 +434,19 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
       throw new MethodNotDispatchedError(type, method)
     }
 
-    const [row] = await this._adapter.query<{ n: Record<string, unknown> }>(
-      `MATCH (n:${type} {id: $id}) RETURN n`,
-      { id },
-    )
+    let row: { n: Record<string, unknown> } | undefined
+    const im = this._schema.instanceModel
+    if (im?.enabled && im.refs[type]) {
+      ;[row] = await this._adapter.query<{ n: Record<string, unknown> }>(
+        `MATCH (n:Node {id: $id})-[:instance_of]->(cls:Node {id: $classId}) RETURN n`,
+        { id, classId: im.refs[type] },
+      )
+    } else {
+      ;[row] = await this._adapter.query<{ n: Record<string, unknown> }>(
+        `MATCH (n:${type} {id: $id}) RETURN n`,
+        { id },
+      )
+    }
     if (!row) throw new Error(`${type} not found`)
 
     const { id: nodeId, ...props } = row.n
@@ -463,6 +487,26 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
 
   async raw<R>(cypher: string, params?: Record<string, unknown>): Promise<R[]> {
     return this._query.raw<R>(cypher, params)
+  }
+
+  // ---------------------------------------------------------------------------
+  // SCHEMA EXTENSION
+  // ---------------------------------------------------------------------------
+
+  extendSchema(extension: Partial<SchemaShape>, options?: { validators?: ValidatorMap }): void {
+    // 1. Merge new definitions into the shared schema object in-place
+    const { pipelineStale } = mergeSchemaExtension(this._schema, extension)
+
+    // 2. Invalidate compiler caches so they rebuild with the updated schema
+    invalidateCompilerCache(this._schema)
+    if (pipelineStale) {
+      invalidatePipelineCache(this._schema)
+    }
+
+    // 3. Extend Zod validators if provided
+    if (options?.validators && Object.keys(options.validators).length > 0) {
+      ;(this._mutate as unknown as GraphMutationsImpl<S>).extendValidators(options.validators)
+    }
   }
 
   // ---------------------------------------------------------------------------

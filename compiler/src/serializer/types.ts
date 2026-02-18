@@ -49,6 +49,8 @@ function symbolToTypeRef(sym: Symbol, name: string): TypeRef {
       return { kind: 'Alias', name }
     case 'ValueType':
       return { kind: 'ValueType', name }
+    case 'TaggedUnion':
+      return { kind: 'TaggedUnion', name }
     case 'Interface':
     case 'Class':
       return { kind: 'Node', name }

@@ -80,6 +80,17 @@ export function emitSchemaValue(model: GraphModel): string {
     lines.push('  },')
   }
 
+  // Tagged unions
+  if (model.taggedUnions.size > 0) {
+    lines.push('')
+    lines.push('  taggedUnions: {')
+    for (const [, tu] of model.taggedUnions) {
+      const variants = tu.variants.map((v) => `'${v.tag}'`).join(', ')
+      lines.push(`    ${tu.name}: { variants: [${variants}] },`)
+    }
+    lines.push('  },')
+  }
+
   // Methods metadata
   const typesWithMethods = [
     ...[...model.nodeDefs.values()].filter((n) => n.ownMethods.length > 0),
@@ -160,6 +171,7 @@ function typeRefToStr(ref: TypeRef): string {
     case 'Alias':
     case 'Edge':
     case 'ValueType':
+    case 'TaggedUnion':
       return ref.name
     case 'List':
       return typeRefToStr(ref.element)

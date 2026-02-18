@@ -32,6 +32,8 @@ export type CstNodeKind =
   | 'TypeAliasDecl'
   | 'ValueTypeDecl'
   | 'ValueTypeField'
+  | 'TaggedUnionDecl'
+  | 'Variant'
   | 'InterfaceDecl'
   | 'ClassDecl'
   | 'ExtendDecl'
@@ -69,6 +71,7 @@ export interface SchemaNode extends CstNode {
 export type DeclarationNode =
   | TypeAliasDeclNode
   | ValueTypeDeclNode
+  | TaggedUnionDeclNode
   | InterfaceDeclNode
   | ClassDeclNode
   | ExtendDeclNode
@@ -103,6 +106,25 @@ export interface ValueTypeFieldNode extends CstNode {
   listSuffix: { lbracket: Token; rbracket: Token } | null
   nullable: Token | null
   defaultValue: DefaultValueNode | null
+}
+
+// type Name = | tag { fields } | tag { fields }
+export interface TaggedUnionDeclNode extends CstNode {
+  kind: 'TaggedUnionDecl'
+  typeKeyword: Token
+  name: Token
+  eq: Token
+  variants: VariantNode[]
+}
+
+// | tag { field: Type, ... }
+export interface VariantNode extends CstNode {
+  kind: 'Variant'
+  pipe: Token
+  tag: Token // Ident
+  lbrace: Token
+  fields: ValueTypeFieldNode[]
+  rbrace: Token
 }
 
 // interface Name : Parents { body }

@@ -44,6 +44,8 @@ export type {
   MethodParam,
   ValueTypeDef,
   ValueTypeField,
+  TaggedUnionDef,
+  TaggedUnionVariant,
 } from './ir/index'
 export type { ResolvedSchema, Symbol, SymbolKind } from './resolver/index'
 export { DiagnosticBag, DiagnosticCodes } from './diagnostics'

@@ -10,6 +10,7 @@ import {
   type Schema,
   type Declaration,
   type ValueTypeDecl,
+  type TaggedUnionDecl,
   type TypeExpr,
   type Name,
 } from '../ast/index'
@@ -19,7 +20,7 @@ import { type SchemaRegistry, EMPTY_REGISTRY, resolveExtendUri } from '../regist
 
 // ─── Resolved Schema Types ──────────────────────────────────
 
-export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'Interface' | 'Class' | 'Edge'
+export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'TaggedUnion' | 'Interface' | 'Class' | 'Edge'
 
 export interface Symbol {
   name: string
@@ -125,6 +126,9 @@ class Resolver {
       case 'ValueTypeDecl':
         this.registerSymbol(decl.name, 'ValueType', decl)
         break
+      case 'TaggedUnionDecl':
+        this.registerSymbol(decl.name, 'TaggedUnion', decl)
+        break
       case 'InterfaceDecl':
         this.registerSymbol(decl.name, 'Interface', decl)
         break
@@ -206,6 +210,14 @@ class Resolver {
         }
         break
 
+      case 'TaggedUnionDecl':
+        for (const variant of decl.variants) {
+          for (const field of variant.fields) {
+            this.resolveTypeExpr(field.type)
+          }
+        }
+        break
+
       case 'InterfaceDecl':
         for (const parent of decl.extends) {
           this.resolveNameAs(parent, ['Interface'])
@@ -263,7 +275,7 @@ class Resolver {
   private resolveTypeExpr(expr: TypeExpr): void {
     switch (expr.kind) {
       case 'NamedType':
-        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'Interface', 'Class'])
+        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'TaggedUnion', 'Interface', 'Class'])
         break
 
       case 'NullableType':
@@ -288,20 +300,39 @@ class Resolver {
   // ─── Cycle Detection for Value Types ─────────────────────
 
   private detectValueTypeCycles(declarations: Declaration[]): void {
-    const valueTypes = new Map<string, ValueTypeDecl>()
+    // Collect all value types and tagged unions (both are data types that can reference each other)
+    const dataTypes = new Map<string, ValueTypeDecl | TaggedUnionDecl>()
     for (const decl of declarations) {
-      if (decl.kind === 'ValueTypeDecl') {
-        valueTypes.set(decl.name.value, decl)
+      if (decl.kind === 'ValueTypeDecl' || decl.kind === 'TaggedUnionDecl') {
+        dataTypes.set(decl.name.value, decl)
       }
     }
 
     const visited = new Set<string>()
     const inStack = new Set<string>()
 
+    const visitTypeExpr = (expr: TypeExpr): void => {
+      switch (expr.kind) {
+        case 'NamedType': {
+          const sym = this.symbols.get(expr.name.value)
+          if (sym?.symbolKind === 'ValueType' || sym?.symbolKind === 'TaggedUnion') {
+            visit(expr.name.value)
+          }
+          break
+        }
+        case 'UnionType':
+          for (const t of expr.types) visitTypeExpr(t)
+          break
+        case 'NullableType':
+          visitTypeExpr(expr.inner)
+          break
+      }
+    }
+
     const visit = (name: string): void => {
       if (visited.has(name)) return
       if (inStack.has(name)) {
-        const decl = valueTypes.get(name)!
+        const decl = dataTypes.get(name)!
         this.diagnostics.error(
           decl.name.span,
           DiagnosticCodes.V_CIRCULAR_VALUE_TYPE,
@@ -310,15 +341,18 @@ class Resolver {
         return
       }
 
-      const decl = valueTypes.get(name)
+      const decl = dataTypes.get(name)
       if (!decl) return
 
       inStack.add(name)
-      for (const field of decl.fields) {
-        if (field.type.kind === 'NamedType') {
-          const sym = this.symbols.get(field.type.name.value)
-          if (sym?.symbolKind === 'ValueType') {
-            visit(field.type.name.value)
+      if (decl.kind === 'ValueTypeDecl') {
+        for (const field of decl.fields) {
+          visitTypeExpr(field.type)
+        }
+      } else {
+        for (const variant of decl.variants) {
+          for (const field of variant.fields) {
+            visitTypeExpr(field.type)
           }
         }
       }
@@ -326,7 +360,7 @@ class Resolver {
       visited.add(name)
     }
 
-    for (const name of valueTypes.keys()) {
+    for (const name of dataTypes.keys()) {
       visit(name)
     }
   }

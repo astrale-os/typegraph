@@ -16,6 +16,7 @@ export interface SchemaIR {
   builtin_scalars: string[]
   type_aliases: TypeAlias[]
   value_types: ValueTypeDef[]
+  tagged_unions: TaggedUnionDef[]
   classes: ClassDef[]
 }
 
@@ -42,6 +43,18 @@ export interface ValueTypeField {
   type: TypeRef
   nullable: boolean
   default: ValueNode | null
+}
+
+// --- Tagged Union Definitions ---
+
+export interface TaggedUnionDef {
+  name: string
+  variants: TaggedUnionVariant[]
+}
+
+export interface TaggedUnionVariant {
+  tag: string
+  fields: ValueTypeField[]
 }
 
 // --- Class Definitions (discriminated on `type`) ---
@@ -110,6 +123,7 @@ export type TypeRef =
   | { kind: 'AnyEdge' }
   | { kind: 'Union'; types: TypeRef[] }
   | { kind: 'ValueType'; name: string }
+  | { kind: 'TaggedUnion'; name: string }
   | { kind: 'List'; element: TypeRef }
 
 // --- ValueNode (structured defaults) ---

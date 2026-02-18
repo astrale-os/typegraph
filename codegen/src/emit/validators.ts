@@ -42,6 +42,32 @@ export function emitValidators(model: GraphModel): string {
     lines.push('')
   }
 
+  // Tagged union validators
+  if (model.taggedUnions.size > 0) {
+    for (const [, tu] of model.taggedUnions) {
+      const variantSchemas = tu.variants.map((v) => {
+        const fieldLines: string[] = []
+        fieldLines.push(`      kind: z.literal('${v.tag}'),`)
+        for (const field of v.fields) {
+          let chain = resolveZodTypeRef(model, field.type)
+          if (field.nullable) {
+            chain = `${chain}.nullable().optional()`
+          }
+          if (field.default) {
+            const val = renderDefault(field.default)
+            if (val !== null) chain = `${chain}.default(${val})`
+          }
+          fieldLines.push(`      ${field.name}: ${chain},`)
+        }
+        return `    z.object({\n${fieldLines.join('\n')}\n    })`
+      })
+      lines.push(`  ${tu.name}: z.discriminatedUnion('kind', [`)
+      lines.push(variantSchemas.join(',\n') + ',')
+      lines.push('  ]),')
+    }
+    lines.push('')
+  }
+
   // Concrete node validators (flattened with inherited attributes)
   for (const [, node] of model.nodeDefs) {
     if (node.abstract) continue

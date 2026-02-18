@@ -101,4 +101,6 @@ export const DiagnosticCodes = {
   V_DUPLICATE_FIELD: 'V014',
   V_CIRCULAR_VALUE_TYPE: 'V015',
   V_ACCESS_WIDENING: 'V016',
+  V_DUPLICATE_VARIANT: 'V017',
+  V_TOO_FEW_VARIANTS: 'V018',
 } as const

@@ -33,6 +33,7 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
     scalars: [],
     aliases: new Map(),
     valueTypes: new Map(),
+    taggedUnions: new Map(),
     nodeDefs: new Map(),
     edgeDefs: new Map(),
     extensions: [],
@@ -74,6 +75,19 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
       model.valueTypes.set(vt.name, {
         name: vt.name,
         fields: vt.fields,
+      })
+    }
+
+    for (const tu of ir.tagged_unions ?? []) {
+      const existing = model.taggedUnions.get(tu.name)
+      if (existing) {
+        if (JSON.stringify(existing.variants) === JSON.stringify(tu.variants)) continue
+        if (strict) throw new ConflictError('tagged union', tu.name)
+        continue
+      }
+      model.taggedUnions.set(tu.name, {
+        name: tu.name,
+        variants: tu.variants,
       })
     }
 
@@ -121,6 +135,7 @@ export function normalizeIR(raw: Record<string, unknown>): SchemaIR {
     builtin_scalars: (raw.builtin_scalars as string[]) ?? [],
     type_aliases: (raw.type_aliases as SchemaIR['type_aliases']) ?? [],
     value_types: (raw.value_types as SchemaIR['value_types']) ?? [],
+    tagged_unions: (raw.tagged_unions as SchemaIR['tagged_unions']) ?? [],
     classes,
   }
 }

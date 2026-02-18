@@ -13,6 +13,7 @@ import {
   type SchemaIR,
   type TypeAlias,
   type ValueTypeDef,
+  type TaggedUnionDef,
   type ClassDef,
   type Extension,
 } from '../ir/index'
@@ -21,6 +22,7 @@ import {
   serializeExtend,
   serializeTypeAlias,
   serializeValueType,
+  serializeTaggedUnion,
   serializeInterface,
   serializeNode,
   serializeEdge,
@@ -47,6 +49,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
   const extensions: Extension[] = []
   const typeAliases: TypeAlias[] = []
   const valueTypes: ValueTypeDef[] = []
+  const taggedUnions: TaggedUnionDef[] = []
   const classes: ClassDef[] = []
 
   for (const decl of ctx.schema.declarations) {
@@ -59,6 +62,9 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
         break
       case 'ValueTypeDecl':
         valueTypes.push(serializeValueType(ctx, decl))
+        break
+      case 'TaggedUnionDecl':
+        taggedUnions.push(serializeTaggedUnion(ctx, decl))
         break
       case 'InterfaceDecl':
         classes.push(serializeInterface(ctx, decl))
@@ -90,6 +96,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
     builtin_scalars: builtinScalars,
     type_aliases: typeAliases,
     value_types: valueTypes,
+    tagged_unions: taggedUnions,
     classes,
   }
 }

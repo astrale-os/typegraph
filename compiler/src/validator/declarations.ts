@@ -14,6 +14,7 @@ import {
   type EdgeDecl,
   type TypeAliasDecl,
   type ValueTypeDecl,
+  type TaggedUnionDecl,
   type Method,
   type Modifier,
   type FlagModifier,
@@ -38,6 +39,9 @@ export function validateDeclarations(ctx: ValidatorContext): void {
         break
       case 'ValueTypeDecl':
         validateValueType(ctx, decl)
+        break
+      case 'TaggedUnionDecl':
+        validateTaggedUnion(ctx, decl)
         break
       case 'InterfaceDecl':
         validateInterface(ctx, decl)
@@ -84,6 +88,44 @@ function validateValueType(ctx: ValidatorContext, decl: ValueTypeDecl): void {
     seen.add(field.name.value)
 
     validateFieldDefault(ctx, field)
+  }
+}
+
+// ─── Tagged Union ─────────────────────────────────────────
+
+function validateTaggedUnion(ctx: ValidatorContext, decl: TaggedUnionDecl): void {
+  if (decl.variants.length < 2) {
+    ctx.diagnostics.error(
+      decl.name.span,
+      DiagnosticCodes.V_TOO_FEW_VARIANTS,
+      `Tagged union '${decl.name.value}' must have at least 2 variants`,
+    )
+  }
+
+  const seenTags = new Set<string>()
+  for (const variant of decl.variants) {
+    if (seenTags.has(variant.tag)) {
+      ctx.diagnostics.error(
+        variant.span,
+        DiagnosticCodes.V_DUPLICATE_VARIANT,
+        `Duplicate variant tag '${variant.tag}' in tagged union '${decl.name.value}'`,
+      )
+    }
+    seenTags.add(variant.tag)
+
+    const seenFields = new Set<string>()
+    for (const field of variant.fields) {
+      if (seenFields.has(field.name.value)) {
+        ctx.diagnostics.error(
+          field.name.span,
+          DiagnosticCodes.V_DUPLICATE_FIELD,
+          `Duplicate field '${field.name.value}' in variant '${variant.tag}'`,
+        )
+      }
+      seenFields.add(field.name.value)
+
+      validateFieldDefault(ctx, field)
+    }
   }
 }
 

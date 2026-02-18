@@ -68,3 +68,19 @@ export function getQueryPipeline(schema: SchemaShape): CompilationPipeline {
   }
   return pipeline
 }
+
+/**
+ * Invalidate the cached CompilationPipeline for a schema.
+ * Call after extending a schema that may have changed reifyEdges or instanceModel.
+ */
+export function invalidatePipelineCache(schema: SchemaShape): void {
+  pipelineCache.delete(schema)
+}
+
+/**
+ * Invalidate the cached CypherCompiler for a schema.
+ * Call after extending a schema so the compiler reconstructs on next use.
+ */
+export function invalidateCompilerCache(schema: SchemaShape): void {
+  compilerCache.delete(schema)
+}

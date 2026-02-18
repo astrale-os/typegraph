@@ -13,6 +13,7 @@ import {
   type TypeAliasDeclNode,
   type ValueTypeDeclNode,
   type ValueTypeFieldNode,
+  type TaggedUnionDeclNode,
   type NullableTypeNode,
   type ExtendDeclNode,
   type AttributeNode,
@@ -26,6 +27,7 @@ import {
   type TypeAliasDecl,
   type ValueTypeDecl,
   type ValueTypeField,
+  type TaggedUnionDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -50,6 +52,8 @@ export function lowerDeclaration(ctx: LoweringContext, node: DeclarationNode): D
       return lowerTypeAlias(ctx, node)
     case 'ValueTypeDecl':
       return lowerValueType(ctx, node)
+    case 'TaggedUnionDecl':
+      return lowerTaggedUnion(ctx, node)
     case 'InterfaceDecl':
       return lowerInterface(ctx, node)
     case 'ClassDecl':
@@ -76,6 +80,19 @@ function lowerValueType(ctx: LoweringContext, node: ValueTypeDeclNode): ValueTyp
     kind: 'ValueTypeDecl',
     name: lowerName(node.name),
     fields: node.fields.map((f) => lowerValueTypeField(ctx, f)),
+    span: spanOf(node),
+  }
+}
+
+function lowerTaggedUnion(ctx: LoweringContext, node: TaggedUnionDeclNode): TaggedUnionDecl {
+  return {
+    kind: 'TaggedUnionDecl',
+    name: lowerName(node.name),
+    variants: node.variants.map((v) => ({
+      tag: v.tag.text,
+      fields: v.fields.map((f) => lowerValueTypeField(ctx, f)),
+      span: spanOf(v),
+    })),
     span: spanOf(node),
   }
 }

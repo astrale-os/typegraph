@@ -14,6 +14,8 @@ import {
   type TypeAliasDeclNode,
   type ValueTypeDeclNode,
   type ValueTypeFieldNode,
+  type TaggedUnionDeclNode,
+  type VariantNode,
   type InterfaceDeclNode,
   type ClassDeclNode,
   type ExtendDeclNode,
@@ -54,7 +56,7 @@ export function parseDeclaration(p: ParserContext): DeclarationNode | null {
 
 // --- type Name = TypeExpr [modifiers]  or  type Name = { fields } ---
 
-function parseTypeAlias(p: ParserContext): TypeAliasDeclNode | ValueTypeDeclNode {
+function parseTypeAlias(p: ParserContext): TypeAliasDeclNode | ValueTypeDeclNode | TaggedUnionDeclNode {
   const children: CstChild[] = []
 
   const typeKeyword = p.expectKeyword('type')
@@ -65,6 +67,11 @@ function parseTypeAlias(p: ParserContext): TypeAliasDeclNode | ValueTypeDeclNode
 
   const eq = p.expect('Eq')
   children.push(eq)
+
+  // Branch: if next token is `|`, parse as tagged union
+  if (p.at('Pipe')) {
+    return parseTaggedUnion(p, children, typeKeyword, name, eq)
+  }
 
   // Branch: if next token is `{`, parse as structured value type
   if (p.at('LBrace')) {
@@ -134,6 +141,76 @@ function parseValueType(
     lbrace,
     fields,
     rbrace,
+  }
+}
+
+// --- type Name = | tag { fields } | tag { fields } ---
+
+function parseTaggedUnion(
+  p: ParserContext,
+  children: CstChild[],
+  typeKeyword: Token,
+  name: Token,
+  eq: Token,
+): TaggedUnionDeclNode {
+  const variants: VariantNode[] = []
+
+  while (p.at('Pipe')) {
+    const variantChildren: CstChild[] = []
+
+    const pipe = p.advance() // consume |
+    children.push(pipe)
+    variantChildren.push(pipe)
+
+    const tag = p.expectIdent()
+    children.push(tag)
+    variantChildren.push(tag)
+
+    const lbrace = p.expect('LBrace')
+    children.push(lbrace)
+    variantChildren.push(lbrace)
+
+    const fields: ValueTypeFieldNode[] = []
+    while (!p.at('RBrace') && !p.at('EOF')) {
+      if (isDeclStart(p.current())) {
+        p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'")
+        break
+      }
+
+      const field = parseValueTypeField(p)
+      if (field) {
+        fields.push(field)
+        children.push(field)
+        variantChildren.push(field)
+      } else {
+        const skipped = p.advance()
+        children.push(skipped)
+        variantChildren.push(skipped)
+      }
+    }
+
+    const rbrace = p.expect('RBrace')
+    children.push(rbrace)
+    variantChildren.push(rbrace)
+
+    variants.push({
+      kind: 'Variant',
+      children: variantChildren,
+      pipe,
+      tag,
+      lbrace,
+      fields,
+      rbrace,
+    })
+  }
+
+  return {
+    kind: 'TaggedUnionDecl',
+    children,
+    typeKeyword,
+    name,
+    eq,
+    variants,
   }
 }
 

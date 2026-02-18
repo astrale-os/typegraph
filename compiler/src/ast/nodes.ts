@@ -30,6 +30,7 @@ export interface Schema extends AstNode {
 export type Declaration =
   | TypeAliasDecl
   | ValueTypeDecl
+  | TaggedUnionDecl
   | InterfaceDecl
   | NodeDecl
   | EdgeDecl
@@ -60,6 +61,20 @@ export interface ValueTypeField extends AstNode {
   nullable: boolean
   list: boolean
   defaultValue: Expression | null
+}
+
+// --- Tagged Union ---
+// type PublicKey = | jwk { key: String } | jwksUri { uri: String }
+
+export interface TaggedUnionDecl extends AstNode {
+  kind: 'TaggedUnionDecl'
+  name: Name
+  variants: TaggedUnionVariant[]
+}
+
+export interface TaggedUnionVariant extends AstNode {
+  tag: string
+  fields: ValueTypeField[]
 }
 
 // --- Interface ---

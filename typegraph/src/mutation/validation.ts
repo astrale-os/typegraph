@@ -312,6 +312,22 @@ export class MutationValidator<S extends SchemaShape> {
   }
 
   // ---------------------------------------------------------------------------
+  // SCHEMA EXTENSION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Merge additional Zod validators into the validator map.
+   * Called by graph.extendSchema() when distributions provide validators.
+   */
+  extendValidators(newValidators: ValidatorMap): void {
+    if (this.validators) {
+      Object.assign(this.validators, newValidators)
+    } else {
+      ;(this as unknown as { validators: ValidatorMap }).validators = { ...newValidators }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // PRIVATE
   // ---------------------------------------------------------------------------
 

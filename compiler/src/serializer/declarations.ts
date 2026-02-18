@@ -11,6 +11,7 @@ import {
   type TypeAliasDecl,
   type ValueTypeDecl,
   type ValueTypeField as AstValueTypeField,
+  type TaggedUnionDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -28,6 +29,7 @@ import {
   type TypeAlias,
   type ValueTypeDef,
   type ValueTypeField,
+  type TaggedUnionDef,
   type NodeDef,
   type EdgeDef,
   type MethodDef,
@@ -79,6 +81,16 @@ function serializeValueTypeField(ctx: SerializerContext, field: AstValueTypeFiel
     type: typeRef,
     nullable: field.nullable,
     default: field.defaultValue ? serializeValueNode(field.defaultValue) : null,
+  }
+}
+
+export function serializeTaggedUnion(ctx: SerializerContext, decl: TaggedUnionDecl): TaggedUnionDef {
+  return {
+    name: decl.name.value,
+    variants: decl.variants.map((v) => ({
+      tag: v.tag,
+      fields: v.fields.map((f) => serializeValueTypeField(ctx, f)),
+    })),
   }
 }
 

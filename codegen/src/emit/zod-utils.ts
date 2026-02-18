@@ -31,6 +31,8 @@ export function resolveZodTypeRef(
       return 'z.string()'
     case 'ValueType':
       return `validators.${ref.name}`
+    case 'TaggedUnion':
+      return `validators.${ref.name}`
     case 'AnyEdge':
       return 'z.string()'
     case 'List':

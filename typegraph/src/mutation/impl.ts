@@ -104,7 +104,10 @@ export interface MutationConfig<S extends SchemaShape = SchemaShape> {
 // GRAPH MUTATIONS IMPLEMENTATION
 // =============================================================================
 
-export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements GraphMutations<S, T> {
+export class GraphMutationsImpl<
+  S extends SchemaShape,
+  T extends TypeMap = UntypedMap,
+> implements GraphMutations<S, T> {
   private readonly schema: S
   private readonly executor: MutationExecutor
   private readonly idGenerator: IdGenerator
@@ -173,8 +176,12 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     if (this.dryRunMode) {
-      return this.dryRunBuilder.createNode(label, dbReadyData as NodeInput<S, N>, compiled.query, options)
-        .simulatedResult! as unknown as NodeResult<S, N, T>
+      return this.dryRunBuilder.createNode(
+        label,
+        dbReadyData as NodeInput<S, N>,
+        compiled.query,
+        options,
+      ).simulatedResult! as unknown as NodeResult<S, N, T>
     }
 
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
@@ -211,7 +218,9 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     }
 
     const hookData = await this.hooksRunner.runBeforeUpdate(
-      label, id, validatedData as Partial<NodeInput<S, N>>,
+      label,
+      id,
+      validatedData as Partial<NodeInput<S, N>>,
     )
     const dbReadyData = serializeDates(stripUndefined(hookData as Record<string, unknown>))
 
@@ -219,8 +228,12 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     if (this.dryRunMode) {
-      return this.dryRunBuilder.updateNode(label, id, dbReadyData as Partial<NodeInput<S, N>>, compiled.query)
-        .simulatedResult! as unknown as NodeResult<S, N, T>
+      return this.dryRunBuilder.updateNode(
+        label,
+        id,
+        dbReadyData as Partial<NodeInput<S, N>>,
+        compiled.query,
+      ).simulatedResult! as unknown as NodeResult<S, N, T>
     }
 
     const results = await this.executor.run<{ n: NodeProps<S, N> }>(compiled.query, compiled.params)
@@ -256,7 +269,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     }
 
     const results = await this.executor.run<{ deleted: boolean; relCount?: number }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
 
     if (!detach && results.length === 0) {
@@ -268,7 +282,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
         RETURN n IS NOT NULL as exists, count(r) as relCount
       `
       const checkResult = await this.executor.run<{ exists: boolean; relCount: number }>(
-        checkQuery, { id },
+        checkQuery,
+        { id },
       )
       const { exists, relCount } = checkResult[0] ?? { exists: false, relCount: 0 }
       if (exists && relCount > 0) {
@@ -300,7 +315,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ n: NodeProps<S, N>; created: boolean }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -335,7 +351,10 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     }
 
     const hookData = await this.hooksRunner.runBeforeLink(
-      edge, from, to, validatedEdgeData as EdgeInput<S, E> | undefined,
+      edge,
+      from,
+      to,
+      validatedEdgeData as EdgeInput<S, E> | undefined,
     )
     const dbReadyEdgeData = hookData
       ? serializeDates(stripUndefined(hookData as Record<string, unknown>))
@@ -346,12 +365,17 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
 
     if (this.dryRunMode) {
       return this.dryRunBuilder.createEdge(
-        edge, from, to, dbReadyEdgeData as EdgeInput<S, E> | undefined, compiled.query,
+        edge,
+        from,
+        to,
+        dbReadyEdgeData as EdgeInput<S, E> | undefined,
+        compiled.query,
       ).simulatedResult!
     }
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -388,7 +412,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -399,27 +424,23 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
-  async unlink<E extends EdgeTypes<S>>(
-    edge: E,
-    from: string,
-    to: string,
-  ): Promise<DeleteResult> {
+  async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
     await this.hooksRunner.runBeforeUnlink(edge, from, to)
 
     const op = ops.deleteEdge(edge as string, from, to)
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ deleted: boolean }>(compiled.query, compiled.params)
-    const deleteResult: DeleteResult = { deleted: results[0]?.deleted ?? false, id: `${from}->${to}` }
+    const deleteResult: DeleteResult = {
+      deleted: results[0]?.deleted ?? false,
+      id: `${from}->${to}`,
+    }
 
     await this.hooksRunner.runAfterUnlink(deleteResult)
     return deleteResult
   }
 
-  async unlinkById<E extends EdgeTypes<S>>(
-    edge: E,
-    edgeId: string,
-  ): Promise<DeleteResult> {
+  async unlinkById<E extends EdgeTypes<S>>(edge: E, edgeId: string): Promise<DeleteResult> {
     const op = ops.deleteEdgeById(edge as string, edgeId)
     const compiled = this.runPipeline(op)
 
@@ -444,7 +465,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -498,7 +520,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     // Cycle check
     const cycleCheck = this.compiler.compileCycleCheck(moveOp)
     const cycleResults = await this.executor.run<{ wouldCycle: boolean }>(
-      cycleCheck.query, cycleCheck.params,
+      cycleCheck.query,
+      cycleCheck.params,
     )
     if (cycleResults[0]?.wouldCycle) {
       throw new CycleDetectedError(nodeId, newParentId)
@@ -507,14 +530,18 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     // Try move (node has existing parent)
     const moveCompiled = this.compiler.compileMove(moveOp)
     let results = await this.executor.run<{
-      nodeId: string; previousParentId: string | null; newParentId: string
+      nodeId: string
+      previousParentId: string | null
+      newParentId: string
     }>(moveCompiled.query, moveCompiled.params)
 
     // Orphan fallback
     if (results.length === 0) {
       const orphanCompiled = this.compiler.compileMoveOrphan(moveOp)
       results = await this.executor.run<{
-        nodeId: string; previousParentId: string | null; newParentId: string
+        nodeId: string
+        previousParentId: string | null
+        newParentId: string
       }>(orphanCompiled.query, orphanCompiled.params)
     }
 
@@ -541,7 +568,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const edgeType = this.resolveHierarchyEdge(options?.edge)
     const subtreeCompiled = this.compiler.compileGetSubtree(rootId, edgeType)
     const countResults = await this.executor.run<{ node: unknown; depth: number }>(
-      subtreeCompiled.query, subtreeCompiled.params,
+      subtreeCompiled.query,
+      subtreeCompiled.params,
     )
 
     return { rootId, affectedNodes: countResults.length }
@@ -563,11 +591,18 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     }
 
     const op = ops.cloneNode(
-      label as string, sourceId, newId, (overrides ?? {}) as Record<string, unknown>, parent,
+      label as string,
+      sourceId,
+      newId,
+      (overrides ?? {}) as Record<string, unknown>,
+      parent,
     )
     const compiled = this.runPipeline(op)
 
-    const results = await this.executor.run<{ clone: NodeProps<S, N> }>(compiled.query, compiled.params)
+    const results = await this.executor.run<{ clone: NodeProps<S, N> }>(
+      compiled.query,
+      compiled.params,
+    )
     const result = results[0]
 
     if (!result) {
@@ -585,16 +620,19 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
 
     const subtreeCompiled = this.compiler.compileGetSubtree(sourceRootId, edgeType)
     const subtreeNodes = await this.executor.run<{
-      node: NodeProps<S, NodeLabels<S>>; depth: number; nodeLabels: string[]
+      node: NodeProps<S, NodeLabels<S>>
+      depth: number
+      nodeLabels: string[]
     }>(subtreeCompiled.query, subtreeCompiled.params)
 
     if (subtreeNodes.length === 0) {
       throw new SourceNotFoundError('node', sourceRootId)
     }
 
-    const nodesToClone = options?.maxDepth !== undefined
-      ? subtreeNodes.filter((n) => n.depth <= options.maxDepth!)
-      : subtreeNodes
+    const nodesToClone =
+      options?.maxDepth !== undefined
+        ? subtreeNodes.filter((n) => n.depth <= options.maxDepth!)
+        : subtreeNodes
 
     const idMapping: Record<string, string> = {}
     const labelsMapping: Record<string, string[]> = {}
@@ -620,11 +658,19 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
         }
 
         // Build and compile through pipeline
-        const cloneOp = ops.createNode(nodeLabels[0]!, newId, finalData as Record<string, unknown>, {
-          additionalLabels: nodeLabels.slice(1),
-        })
+        const cloneOp = ops.createNode(
+          nodeLabels[0]!,
+          newId,
+          finalData as Record<string, unknown>,
+          {
+            additionalLabels: nodeLabels.slice(1),
+          },
+        )
         const compiled = this.runPipeline(cloneOp)
-        const results = await tx.run<{ n: NodeProps<S, NodeLabels<S>> }>(compiled.query, compiled.params)
+        const results = await tx.run<{ n: NodeProps<S, NodeLabels<S>> }>(
+          compiled.query,
+          compiled.params,
+        )
         const result = results[0]
 
         if (result && depth === 0) {
@@ -634,12 +680,20 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
         // Re-create parent edge within the clone tree
         if (depth > 0) {
           const parentOfOriginal = nodesToClone.find(
-            (p) => p.depth === depth - 1 && subtreeNodes.indexOf(p) < subtreeNodes.indexOf({ node, depth, nodeLabels: nodeLabels! }),
+            (p) =>
+              p.depth === depth - 1 &&
+              subtreeNodes.indexOf(p) <
+                subtreeNodes.indexOf({ node, depth, nodeLabels: nodeLabels! }),
           )
           if (parentOfOriginal) {
             const parentNewId = idMapping[parentOfOriginal.node.id]
             if (parentNewId) {
-              const linkOp = ops.createEdge(edgeType, newId, parentNewId, this.idGenerator.generate(edgeType))
+              const linkOp = ops.createEdge(
+                edgeType,
+                newId,
+                parentNewId,
+                this.idGenerator.generate(edgeType),
+              )
               const linkCompiled = this.runPipeline(linkOp)
               await tx.run(linkCompiled.query, linkCompiled.params)
             }
@@ -650,7 +704,9 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
       // Link root to parent if requested
       if (clonedRoot && options?.parentId) {
         const linkOp = ops.createEdge(
-          edgeType, clonedRoot.id, options.parentId,
+          edgeType,
+          clonedRoot.id,
+          options.parentId,
           this.idGenerator.generate(edgeType),
         )
         const linkCompiled = this.runPipeline(linkOp)
@@ -677,7 +733,10 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const op = ops.deleteSubtree(rootId, edgeType)
     const compiled = this.runPipeline(op)
 
-    const results = await this.executor.run<{ deletedNodes: number }>(compiled.query, compiled.params)
+    const results = await this.executor.run<{ deletedNodes: number }>(
+      compiled.query,
+      compiled.params,
+    )
 
     return { rootId, deletedNodes: results[0]?.deletedNodes ?? 0, deletedEdges: 0 }
   }
@@ -703,7 +762,9 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
           if (error instanceof ValidationError) {
             throw new ValidationError(
               `Batch validation failed at index ${i}: ${error.message}`,
-              error.field, error.expected, error.received,
+              error.field,
+              error.expected,
+              error.received,
             )
           }
           throw error
@@ -744,7 +805,9 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
           if (error instanceof ValidationError) {
             throw new ValidationError(
               `Batch update validation failed at index ${i}: ${error.message}`,
-              error.field, error.expected, error.received,
+              error.field,
+              error.expected,
+              error.received,
             )
           }
           throw error
@@ -774,7 +837,10 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const op = ops.batchDelete(label as string, ids)
     const compiled = this.runPipeline(op)
 
-    const results = await this.executor.run<{ deletedCount: number }>(compiled.query, compiled.params)
+    const results = await this.executor.run<{ deletedCount: number }>(
+      compiled.query,
+      compiled.params,
+    )
     return { deleted: results[0]?.deletedCount ?? 0 }
   }
 
@@ -803,7 +869,8 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     const compiled = this.runPipeline(op)
 
     const results = await this.executor.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
 
     return results.map((r, i) => ({
@@ -865,8 +932,13 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
   async transaction<R>(fn: (tx: MutationTransaction<S, T>) => Promise<R>): Promise<R> {
     return this.executor.runInTransaction(async (runner) => {
       const txContext = new MutationTransactionImpl<S, T>(
-        this.schema, runner, this.idGenerator, this.pipeline, this.compiler,
-        this.validator, this.validationOptions,
+        this.schema,
+        runner,
+        this.idGenerator,
+        this.pipeline,
+        this.compiler,
+        this.validator,
+        this.validationOptions,
       )
       return fn(txContext)
     })
@@ -878,6 +950,18 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
 
   async raw<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {
     return this.executor.run<T>(cypher, params ?? {})
+  }
+
+  // ---------------------------------------------------------------------------
+  // SCHEMA EXTENSION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Extend the validator map with additional Zod validators for new types.
+   * Called by GraphImpl.extendSchema().
+   */
+  extendValidators(newValidators: import('./validation').ValidatorMap): void {
+    this.validator.extendValidators(newValidators)
   }
 
   // ---------------------------------------------------------------------------
@@ -893,7 +977,9 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
     if (edge) return edge as string
     const hierarchy = this.schema.hierarchy
     if (!hierarchy?.defaultEdge) {
-      throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
+      throw new Error(
+        'No hierarchy edge specified and schema has no default hierarchy configuration',
+      )
     }
     return hierarchy.defaultEdge
   }
@@ -910,7 +996,10 @@ export class GraphMutationsImpl<S extends SchemaShape, T extends TypeMap = Untyp
 // MUTATION TRANSACTION IMPLEMENTATION
 // =============================================================================
 
-class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements MutationTransaction<S, T> {
+class MutationTransactionImpl<
+  S extends SchemaShape,
+  T extends TypeMap = UntypedMap,
+> implements MutationTransaction<S, T> {
   private readonly schema: S
   private readonly runner: TransactionRunner
   private readonly idGenerator: IdGenerator
@@ -1046,7 +1135,8 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ n: NodeProps<S, N>; created: boolean }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -1072,17 +1162,14 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
       validatedEdgeData = stripUndefined(data as Record<string, unknown>)
     }
 
-    const dbReadyEdgeData = validatedEdgeData
-      ? serializeDates(validatedEdgeData)
-      : undefined
+    const dbReadyEdgeData = validatedEdgeData ? serializeDates(validatedEdgeData) : undefined
 
-    const op = ops.createEdge(
-      edge as string, from, to, edgeId, dbReadyEdgeData,
-    )
+    const op = ops.createEdge(edge as string, from, to, edgeId, dbReadyEdgeData)
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -1111,7 +1198,8 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
     const result = results[0]
 
@@ -1122,11 +1210,7 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
   }
 
-  async unlink<E extends EdgeTypes<S>>(
-    edge: E,
-    from: string,
-    to: string,
-  ): Promise<DeleteResult> {
+  async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
     const op = ops.deleteEdge(edge as string, from, to)
     const compiled = this.runPipeline(op)
 
@@ -1149,7 +1233,9 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
           if (error instanceof ValidationError) {
             throw new ValidationError(
               `Batch link validation failed at index ${i}: ${error.message}`,
-              error.field, error.expected, error.received,
+              error.field,
+              error.expected,
+              error.received,
             )
           }
           throw error
@@ -1170,7 +1256,8 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     const compiled = this.runPipeline(op)
 
     const results = await this.runner.run<{ r: EdgeProps<S, E>; fromId: string; toId: string }>(
-      compiled.query, compiled.params,
+      compiled.query,
+      compiled.params,
     )
 
     return results.map((r, i) => ({
@@ -1240,13 +1327,17 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
 
     const moveCompiled = this.compiler.compileMove(moveOp)
     let results = await this.runner.run<{
-      nodeId: string; previousParentId: string | null; newParentId: string
+      nodeId: string
+      previousParentId: string | null
+      newParentId: string
     }>(moveCompiled.query, moveCompiled.params)
 
     if (results.length === 0) {
       const orphanCompiled = this.compiler.compileMoveOrphan(moveOp)
       results = await this.runner.run<{
-        nodeId: string; previousParentId: string | null; newParentId: string
+        nodeId: string
+        previousParentId: string | null
+        newParentId: string
       }>(orphanCompiled.query, orphanCompiled.params)
     }
 
@@ -1271,7 +1362,9 @@ class MutationTransactionImpl<S extends SchemaShape, T extends TypeMap = Untyped
     if (edge) return edge as string
     const hierarchy = (this.schema as { hierarchy?: { defaultEdge?: string } }).hierarchy
     if (!hierarchy?.defaultEdge) {
-      throw new Error('No hierarchy edge specified and schema has no default hierarchy configuration')
+      throw new Error(
+        'No hierarchy edge specified and schema has no default hierarchy configuration',
+      )
     }
     return hierarchy.defaultEdge
   }

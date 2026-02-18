@@ -3,6 +3,7 @@ import type {
   ResolvedNode,
   ResolvedEdge,
   ResolvedValueType,
+  ResolvedTaggedUnion,
   IRAttribute,
   TypeRef,
 } from '../model'
@@ -33,6 +34,16 @@ export function emitInterfaces(model: GraphModel): string {
     parts.push('')
     for (const vt of valueTypes) {
       parts.push(emitValueTypeInterface(model, vt))
+    }
+  }
+
+  // Tagged unions → discriminated union types
+  const taggedUnions = [...model.taggedUnions.values()]
+  if (taggedUnions.length > 0) {
+    parts.push(section('Tagged Unions'))
+    parts.push('')
+    for (const tu of taggedUnions) {
+      parts.push(emitTaggedUnionType(model, tu))
     }
   }
 
@@ -70,6 +81,20 @@ export function emitInterfaces(model: GraphModel): string {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
+
+function emitTaggedUnionType(model: GraphModel, tu: ResolvedTaggedUnion): string {
+  const variantTypes = tu.variants.map((v) => {
+    const fields = v.fields.map((f) => {
+      const tsType = resolveTypeRef(model, f.type)
+      const optional = f.nullable ? '?' : ''
+      const nullUnion = f.nullable ? ' | null' : ''
+      return `    ${f.name}${optional}: ${tsType}${nullUnion}`
+    })
+    const kindField = `    kind: '${v.tag}'`
+    return `  | {\n${kindField}\n${fields.join('\n')}\n  }`
+  })
+  return `export type ${tu.name} =\n${variantTypes.join('\n')}\n`
+}
 
 function emitValueTypeInterface(model: GraphModel, vt: ResolvedValueType): string {
   if (vt.fields.length === 0) {
@@ -121,6 +146,8 @@ export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
       return 'string'
     case 'ValueType':
       return ref.name
+    case 'TaggedUnion':
+      return ref.name
     case 'AnyEdge':
       return 'string'
     case 'List':
@@ -149,6 +176,8 @@ export function resolveMethodReturnTypeRef(model: GraphModel, ref: TypeRef): str
       return pascalCase(ref.name) + 'Payload'
     case 'ValueType':
       return ref.name
+    case 'TaggedUnion':
+      return ref.name
     case 'AnyEdge':
       return 'unknown'
     case 'List':
@@ -176,6 +205,8 @@ export function resolveMethodParamTypeRef(model: GraphModel, ref: TypeRef): stri
     case 'Edge':
       return pascalCase(ref.name) + 'Payload'
     case 'ValueType':
+      return ref.name
+    case 'TaggedUnion':
       return ref.name
     case 'AnyEdge':
       return 'unknown'

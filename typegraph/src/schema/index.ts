@@ -17,5 +17,8 @@ export type {
   Cardinality,
 } from './types'
 
+// Schema extension
+export { mergeSchemaExtension, type MergeResult } from './extend'
+
 // Structural edge & meta-label constants
 export { STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from './structural-edges'
