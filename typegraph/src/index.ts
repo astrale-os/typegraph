@@ -37,7 +37,11 @@ export type {
   TypeMap,
   UntypedMap,
   Cardinality,
+  ClassRefs,
 } from './schema'
+
+// Branded ID types and constructors
+export { NodeId, ClassId, InterfaceId } from './schema'
 
 export type { ResolveNode, ResolveEdge, ResolveNodeInput, ResolveEdgeInput } from './resolve'
 

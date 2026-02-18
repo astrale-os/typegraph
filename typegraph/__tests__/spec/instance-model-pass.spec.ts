@@ -10,6 +10,7 @@ import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
 import type { SchemaShape } from '../../src/schema'
+import { ClassId, InterfaceId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
@@ -40,12 +41,12 @@ const schema: SchemaShape = {
     },
   },
   classRefs: {
-    user: 'cls-user',
-    post: 'cls-post',
-    comment: 'cls-comment',
-    category: 'cls-category',
-    timestamped: 'iface-timestamped',
-    printable: 'iface-printable',
+    user: ClassId('cls-user'),
+    post: ClassId('cls-post'),
+    comment: ClassId('cls-comment'),
+    category: ClassId('cls-category'),
+    timestamped: InterfaceId('iface-timestamped'),
+    printable: InterfaceId('iface-printable'),
   },
 }
 

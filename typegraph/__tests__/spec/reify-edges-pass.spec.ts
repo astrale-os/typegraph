@@ -11,6 +11,7 @@ import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
 import type { SchemaShape } from '../../src/schema'
+import { ClassId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
@@ -50,11 +51,11 @@ const reifiedSchema: SchemaShape = {
 const reifiedWithInstanceModel: SchemaShape = {
   ...reifiedSchema,
   classRefs: {
-    order: 'cls-order',
-    product: 'cls-product',
-    customer: 'cls-customer',
-    orderItem: 'cls-order-item',
-    placedOrder: 'cls-placed-order',
+    order: ClassId('cls-order'),
+    product: ClassId('cls-product'),
+    customer: ClassId('cls-customer'),
+    orderItem: ClassId('cls-order-item'),
+    placedOrder: ClassId('cls-placed-order'),
   },
 }
 

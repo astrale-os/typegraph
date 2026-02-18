@@ -14,7 +14,11 @@ export type {
   TypeMap,
   UntypedMap,
   Cardinality,
+  ClassRefs,
 } from './types'
+
+// Branded ID types and constructors (both type and value exports)
+export { NodeId, ClassId, InterfaceId } from './types'
 
 // Schema extension
 export { mergeSchemaExtension, type MergeResult } from './extend'

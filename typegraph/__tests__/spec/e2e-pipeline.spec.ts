@@ -14,6 +14,7 @@ import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
 import type { SchemaShape } from '../../src/schema'
+import { ClassId, InterfaceId } from '../../src/schema'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
 import type { MutationOp } from '../../src/mutation/ast/types'
@@ -91,17 +92,17 @@ const ecommerceSchema: SchemaShape = {
   },
   reifyEdges: false,
   classRefs: {
-    customer: 'cls-customer',
-    product: 'cls-product',
-    category: 'cls-category',
-    order: 'cls-order',
-    review: 'cls-review',
-    timestamped: 'iface-timestamped',
-    hasSlug: 'iface-hasSlug',
-    priceable: 'iface-priceable',
-    identity: 'iface-identity',
-    orderItem: 'lcls-orderItem',
-    reviewOf: 'lcls-reviewOf',
+    customer: ClassId('cls-customer'),
+    product: ClassId('cls-product'),
+    category: ClassId('cls-category'),
+    order: ClassId('cls-order'),
+    review: ClassId('cls-review'),
+    timestamped: InterfaceId('iface-timestamped'),
+    hasSlug: InterfaceId('iface-hasSlug'),
+    priceable: InterfaceId('iface-priceable'),
+    identity: InterfaceId('iface-identity'),
+    orderItem: ClassId('lcls-orderItem'),
+    reviewOf: ClassId('lcls-reviewOf'),
   },
 }
 

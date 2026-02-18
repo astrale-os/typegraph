@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest'
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import type { SchemaShape } from '../../src/schema'
+import { ClassId } from '../../src/schema'
 import type {
   MutationOp,
   CreateNodeOp,
@@ -56,10 +57,10 @@ const schema: SchemaShape = {
     },
   },
   classRefs: {
-    customer: 'cls-customer',
-    order: 'cls-order',
-    product: 'cls-product',
-    orderItem: 'cls-order-item',
+    customer: ClassId('cls-customer'),
+    order: ClassId('cls-order'),
+    product: ClassId('cls-product'),
+    orderItem: ClassId('cls-order-item'),
   },
 }
 
@@ -505,7 +506,7 @@ describe('InstanceModelMutationPass', () => {
     it('throws when class ref is missing', () => {
       const schemaPartialRefs: SchemaShape = {
         ...schema,
-        classRefs: { customer: 'cls-customer' },
+        classRefs: { customer: ClassId('cls-customer') },
       }
       const op: CreateNodeOp = {
         type: 'createNode',

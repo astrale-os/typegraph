@@ -5,7 +5,34 @@
  * The universal constraint for the Graph type parameter.
  */
 
+// ─── Branded ID Types ────────────────────────────────────────
+
+/**
+ * Branded ID types for type safety at the schema level.
+ */
+type NodeBrand = { readonly __nodeId: true }
+type ClassBrand = { readonly __classId: true }
+type InterfaceBrand = { readonly __interfaceId: true }
+
+export type NodeId = string & NodeBrand
+export type ClassId = NodeId & ClassBrand
+export type InterfaceId = NodeId & InterfaceBrand
+
+/**
+ * Type constructors for branded IDs.
+ */
+export const NodeId = (id: string): NodeId => id as NodeId
+export const ClassId = (id: string): ClassId => id as ClassId
+export const InterfaceId = (id: string): InterfaceId => id as InterfaceId
+
 // ─── Schema Metadata (runtime value) ────────────────────────
+
+/**
+ * Materialized class/interface references.
+ * Maps type names (e.g., 'customer', 'order', 'Node') to their meta-node IDs.
+ * Set at runtime by `materializeSchema()` via `graph.extendSchema({ classRefs })`.
+ */
+export type ClassRefs = Readonly<Record<string, ClassId | InterfaceId>>
 
 export interface SchemaNodeDef {
   readonly abstract: boolean
@@ -60,7 +87,7 @@ export interface SchemaShape {
    * Set by `materializeSchema()` via `graph.extendSchema({ classRefs })`.
    * When present, compilation passes use structural instance_of joins.
    */
-  readonly classRefs?: Readonly<Record<string, string>>
+  readonly classRefs?: ClassRefs
 }
 
 // ─── Type Map (generated types) ──────────────────────────────

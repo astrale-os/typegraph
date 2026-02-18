@@ -10,6 +10,7 @@ import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mu
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import type { SchemaShape } from '../../src/schema'
+import { ClassId } from '../../src/schema'
 import type {
   MutationOp,
   CreateEdgeOp,
@@ -59,10 +60,10 @@ const schema: SchemaShape = {
     },
   },
   classRefs: {
-    customer: 'cls-customer',
-    order: 'cls-order',
-    product: 'cls-product',
-    orderItem: 'cls-order-item',
+    customer: ClassId('cls-customer'),
+    order: ClassId('cls-order'),
+    product: ClassId('cls-product'),
+    orderItem: ClassId('cls-order-item'),
   },
   reifyEdges: false,
 }
