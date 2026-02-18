@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
 import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
-import type { SchemaShape, InstanceModelConfig } from '../../src/schema'
+import type { SchemaShape } from '../../src/schema'
 import type {
   MutationOp,
   CreateEdgeOp,
@@ -36,17 +36,6 @@ import { normalizeCypher } from './fixtures/test-schema'
 // TEST FIXTURES
 // =============================================================================
 
-const instanceModelConfig: InstanceModelConfig = {
-  enabled: true,
-  refs: {
-    customer: 'cls-customer',
-    order: 'cls-order',
-    product: 'cls-product',
-    orderItem: 'cls-order-item',
-  },
-  implementors: {},
-}
-
 const schema: SchemaShape = {
   nodes: {
     customer: { abstract: false, attributes: ['name'] },
@@ -67,16 +56,20 @@ const schema: SchemaShape = {
         customer: { types: ['customer'] },
         order: { types: ['order'] },
       },
-      // NOT reified
     },
   },
-  instanceModel: instanceModelConfig,
+  classRefs: {
+    customer: 'cls-customer',
+    order: 'cls-order',
+    product: 'cls-product',
+    orderItem: 'cls-order-item',
+  },
   reifyEdges: false,
 }
 
 const schemaNoIM: SchemaShape = {
   ...schema,
-  instanceModel: undefined,
+  classRefs: undefined,
 }
 
 const compiler = new MutationCypherCompiler()
@@ -319,7 +312,7 @@ describe('ReifyEdgesMutationPass', () => {
   describe('full pipeline (Reify → IM)', () => {
     it('produces kernel-compliant mutation Cypher', () => {
       const reifyPass = new ReifyEdgesMutationPass()
-      const imPass = new InstanceModelMutationPass(instanceModelConfig)
+      const imPass = new InstanceModelMutationPass()
 
       // Create an edge — reify first, then IM
       const edgeOp: CreateEdgeOp = {
@@ -360,7 +353,7 @@ describe('ReifyEdgesMutationPass', () => {
 
     it('creates node correctly in full pipeline', () => {
       const reifyPass = new ReifyEdgesMutationPass()
-      const imPass = new InstanceModelMutationPass(instanceModelConfig)
+      const imPass = new InstanceModelMutationPass()
 
       const createOp: MutationOp = {
         type: 'createNode',

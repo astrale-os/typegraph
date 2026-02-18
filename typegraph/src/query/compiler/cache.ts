@@ -53,15 +53,12 @@ export function getQueryPipeline(schema: SchemaShape): CompilationPipeline {
   if (!pipeline) {
     const passes: CompilationPass[] = []
 
-    // Lowering passes (order matters: InstanceModel before ReifyEdges)
-    if (schema.instanceModel?.enabled) {
-      passes.push(new InstanceModelPass(schema.instanceModel))
+    if (schema.classRefs) {
+      passes.push(new InstanceModelPass())
     }
     if (schema.reifyEdges || Object.values(schema.edges).some((e) => e.reified)) {
       passes.push(new ReifyEdgesPass())
     }
-
-    // Optimization passes would go here (when implemented)
 
     pipeline = new CompilationPipeline(passes)
     pipelineCache.set(schema, pipeline)
@@ -71,7 +68,7 @@ export function getQueryPipeline(schema: SchemaShape): CompilationPipeline {
 
 /**
  * Invalidate the cached CompilationPipeline for a schema.
- * Call after extending a schema that may have changed reifyEdges or instanceModel.
+ * Call after extending a schema that may have changed reifyEdges or classRefs.
  */
 export function invalidatePipelineCache(schema: SchemaShape): void {
   pipelineCache.delete(schema)

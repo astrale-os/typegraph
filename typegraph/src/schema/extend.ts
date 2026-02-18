@@ -9,18 +9,13 @@
  * so in-place mutation propagates to all consumers automatically.
  */
 
-import type {
-  SchemaShape,
-  SchemaNodeDef,
-  SchemaEdgeDef,
-  SchemaMethodDef,
-} from './types'
+import type { SchemaShape, SchemaNodeDef, SchemaEdgeDef, SchemaMethodDef } from './types'
 
 /**
  * Result of merging a schema extension, indicating what changed.
  */
 export interface MergeResult {
-  /** Whether the pipeline cache should be invalidated (reifyEdges/instanceModel changed) */
+  /** Whether the pipeline cache should be invalidated (reifyEdges/classRefs changed) */
   pipelineStale: boolean
 }
 
@@ -28,7 +23,7 @@ export interface MergeResult {
  * Merge an extension into a schema object in-place.
  *
  * Mutates the target schema's `nodes`, `edges`, `methods`, `scalars`,
- * `reifyEdges`, and `instanceModel` properties. All downstream consumers
+ * `reifyEdges`, and `classRefs` properties. All downstream consumers
  * holding a reference to the same schema object see the changes immediately.
  *
  * @returns Info about what changed, for cache invalidation decisions
@@ -80,12 +75,12 @@ export function mergeSchemaExtension(
     pipelineStale = true
   }
 
-  // InstanceModel config
-  if (extension.instanceModel !== undefined) {
-    if (extension.instanceModel.enabled !== target.instanceModel?.enabled) {
+  // classRefs (additive merge — supports multi-distribution)
+  if (extension.classRefs !== undefined) {
+    if (!target.classRefs) {
       pipelineStale = true
     }
-    schema.instanceModel = extension.instanceModel
+    schema.classRefs = { ...target.classRefs, ...extension.classRefs }
   }
 
   return { pipelineStale }

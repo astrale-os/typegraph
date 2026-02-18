@@ -435,11 +435,11 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
     }
 
     let row: { n: Record<string, unknown> } | undefined
-    const im = this._schema.instanceModel
-    if (im?.enabled && im.refs[type]) {
+    const classId = this._schema.classRefs?.[type]
+    if (classId) {
       ;[row] = await this._adapter.query<{ n: Record<string, unknown> }>(
         `MATCH (n:Node {id: $id})-[:instance_of]->(cls:Node {id: $classId}) RETURN n`,
-        { id, classId: im.refs[type] },
+        { id, classId },
       )
     } else {
       ;[row] = await this._adapter.query<{ n: Record<string, unknown> }>(

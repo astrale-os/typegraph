@@ -11,7 +11,6 @@ export type {
   SchemaConstraints,
   SchemaMethodDef,
   HierarchyConfig,
-  InstanceModelConfig,
   TypeMap,
   UntypedMap,
   Cardinality,

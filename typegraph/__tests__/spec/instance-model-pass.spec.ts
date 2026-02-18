@@ -9,32 +9,16 @@ import { describe, it, expect } from 'vitest'
 import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
-import type { SchemaShape, InstanceModelConfig } from '../../src/schema'
+import type { SchemaShape } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
 // TEST SCHEMA WITH INSTANCE MODEL
 // =============================================================================
 
-const instanceModelConfig: InstanceModelConfig = {
-  enabled: true,
-  refs: {
-    user: 'cls-user',
-    post: 'cls-post',
-    comment: 'cls-comment',
-    category: 'cls-category',
-    timestamped: 'iface-timestamped',
-    printable: 'iface-printable',
-  },
-  implementors: {
-    timestamped: ['cls-user', 'cls-post', 'cls-comment'],
-    printable: ['cls-post'],
-  },
-}
-
 const schema: SchemaShape = {
   nodes: {
-    user: { abstract: false, attributes: ['email', 'name'] },
+    user: { abstract: false, attributes: ['email', 'name'], implements: ['timestamped'] },
     post: { abstract: false, implements: ['timestamped', 'printable'], attributes: ['title'] },
     comment: { abstract: false, implements: ['timestamped'], attributes: ['content'] },
     category: { abstract: false, attributes: ['name'] },
@@ -55,7 +39,14 @@ const schema: SchemaShape = {
       },
     },
   },
-  instanceModel: instanceModelConfig,
+  classRefs: {
+    user: 'cls-user',
+    post: 'cls-post',
+    comment: 'cls-comment',
+    category: 'cls-category',
+    timestamped: 'iface-timestamped',
+    printable: 'iface-printable',
+  },
 }
 
 function compile(ast: QueryAST): { cypher: string; params: Record<string, unknown> } {
@@ -68,7 +59,7 @@ function compile(ast: QueryAST): { cypher: string; params: Record<string, unknow
 // =============================================================================
 
 describe('InstanceModelPass', () => {
-  const pass = new InstanceModelPass(instanceModelConfig)
+  const pass = new InstanceModelPass()
 
   describe('MatchStep — concrete class', () => {
     it('rewrites label to :Node + instance_of join', () => {
@@ -168,10 +159,13 @@ describe('InstanceModelPass', () => {
   })
 
   describe('no-op when disabled', () => {
-    it('returns AST unchanged when not enabled', () => {
-      const disabledPass = new InstanceModelPass({ ...instanceModelConfig, enabled: false })
+    it('returns AST unchanged when classRefs is absent', () => {
+      const schemaNoRefs: SchemaShape = {
+        nodes: schema.nodes,
+        edges: schema.edges,
+      }
       const ast = new QueryAST().addMatch('user')
-      const transformed = disabledPass.transform(ast, schema)
+      const transformed = pass.transform(ast, schemaNoRefs)
 
       expect(transformed.steps).toEqual(ast.steps)
     })
@@ -184,14 +178,12 @@ describe('InstanceModelPass', () => {
     })
 
     it('throws on missing ref', () => {
-      const badConfig: InstanceModelConfig = {
-        enabled: true,
-        refs: {}, // empty refs
-        implementors: {},
+      const schemaEmptyRefs: SchemaShape = {
+        ...schema,
+        classRefs: {},
       }
-      const badPass = new InstanceModelPass(badConfig)
       const ast = new QueryAST().addMatch('user')
-      expect(() => badPass.transform(ast, schema)).toThrow("no ref found for type 'user'")
+      expect(() => pass.transform(ast, schemaEmptyRefs)).toThrow("no ref found for type 'user'")
     })
   })
 })

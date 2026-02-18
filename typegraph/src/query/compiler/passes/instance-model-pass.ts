@@ -21,27 +21,22 @@ import type {
   HierarchyStep,
   AliasInfo,
   AliasRegistry,
-  Projection,
 } from '../../ast'
-import type { SchemaShape, InstanceModelConfig } from '../../../schema'
+import type { SchemaShape, SchemaNodeDef } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
 import { STRUCTURAL_EDGES, META_LABELS } from '../../../schema'
 
 export class InstanceModelPass implements CompilationPass {
   readonly name = 'InstanceModel'
 
-  private config: InstanceModelConfig
   private clsCounter = 0
-
-  constructor(config: InstanceModelConfig) {
-    this.config = config
-  }
+  private implementors: Record<string, string[]> = {}
 
   transform(ast: QueryAST, schema: SchemaShape): QueryAST {
-    if (!this.config.enabled) return ast
+    if (!schema.classRefs) return ast
 
-    // Reset counter per transform call
     this.clsCounter = 0
+    this.implementors = computeImplementors(schema.nodes, schema.classRefs)
 
     const newSteps: ASTNode[] = []
     const newAliases: AliasRegistry = new Map(ast.aliases as Map<string, AliasInfo>)
@@ -117,7 +112,7 @@ export class InstanceModelPass implements CompilationPass {
 
     // WHERE on class ID
     if (kind === 'class') {
-      out.push(this.classIdCondition(clsAlias, step.label))
+      out.push(this.classIdCondition(clsAlias, step.label, schema))
     } else {
       out.push(this.polymorphicCondition(clsAlias, step.label))
     }
@@ -163,7 +158,7 @@ export class InstanceModelPass implements CompilationPass {
 
     // WHERE on class ID
     if (kind === 'class') {
-      out.push(this.classIdCondition(clsAlias, targetType))
+      out.push(this.classIdCondition(clsAlias, targetType, schema))
     } else {
       out.push(this.polymorphicCondition(clsAlias, targetType))
     }
@@ -177,7 +172,7 @@ export class InstanceModelPass implements CompilationPass {
     step: HierarchyStep,
     schema: SchemaShape,
     out: ASTNode[],
-    aliases: AliasRegistry,
+    _aliases: AliasRegistry,
   ): void {
     // Relabel targetLabel if present
     if (step.targetLabel && schema.nodes[step.targetLabel]) {
@@ -233,10 +228,10 @@ export class InstanceModelPass implements CompilationPass {
       if (!schema.nodes[label]) continue
       const kind = this.nodeKind(schema, label)
       if (kind === 'class') {
-        const id = this.config.refs[label]
+        const id = schema.classRefs![label]
         if (id) classIds.push(id)
       } else {
-        const ids = this.config.implementors[label]
+        const ids = this.implementors[label]
         if (ids) classIds.push(...ids)
       }
     }
@@ -261,10 +256,10 @@ export class InstanceModelPass implements CompilationPass {
       const sets = condition.labels.map((label) => {
         const kind = this.nodeKind(schema, label)
         if (kind === 'class') {
-          const id = this.config.refs[label]
+          const id = schema.classRefs![label]
           return id ? new Set([id]) : new Set<string>()
         } else {
-          return new Set(this.config.implementors[label] ?? [])
+          return new Set(this.implementors[label] ?? [])
         }
       })
       // Intersection
@@ -408,8 +403,8 @@ export class InstanceModelPass implements CompilationPass {
   }
 
   /** Match a single class node by ID */
-  private classIdCondition(clsAlias: string, typeName: string): WhereStep {
-    const classId = this.config.refs[typeName]
+  private classIdCondition(clsAlias: string, typeName: string, schema: SchemaShape): WhereStep {
+    const classId = schema.classRefs![typeName]
     if (!classId) {
       throw new Error(`InstanceModelPass: no ref found for type '${typeName}'`)
     }
@@ -429,7 +424,7 @@ export class InstanceModelPass implements CompilationPass {
 
   /** Match any class that implements an interface (by pre-resolved class IDs) */
   private polymorphicCondition(clsAlias: string, interfaceName: string): WhereStep {
-    const classIds = this.config.implementors[interfaceName]
+    const classIds = this.implementors[interfaceName]
     if (!classIds?.length) {
       throw new Error(
         `InstanceModelPass: no implementors found for interface '${interfaceName}'`,
@@ -448,4 +443,58 @@ export class InstanceModelPass implements CompilationPass {
       ],
     }
   }
+}
+
+/**
+ * Derive the implementors map from schema nodes and classRefs.
+ * For each interface, resolves the set of concrete class node IDs that
+ * satisfy it (transitively through interface extends chains).
+ */
+function computeImplementors(
+  nodes: Readonly<Record<string, SchemaNodeDef>>,
+  classRefs: Readonly<Record<string, string>>,
+): Record<string, string[]> {
+  const extendsMap = new Map<string, Set<string>>()
+  const interfaces: string[] = []
+  const concretes: { key: string; implements: string[] }[] = []
+
+  for (const [name, def] of Object.entries(nodes)) {
+    if (def.abstract) {
+      interfaces.push(name)
+      if (def.implements?.length) extendsMap.set(name, new Set(def.implements))
+    } else if (def.implements?.length) {
+      concretes.push({ key: name, implements: [...def.implements] })
+    }
+  }
+
+  function allAncestors(name: string, visited = new Set<string>()): Set<string> {
+    if (visited.has(name)) return new Set()
+    visited.add(name)
+    const result = new Set<string>([name])
+    const parents = extendsMap.get(name)
+    if (parents) {
+      for (const parent of parents) {
+        for (const a of allAncestors(parent, visited)) result.add(a)
+      }
+    }
+    return result
+  }
+
+  const result: Record<string, string[]> = {}
+  for (const iface of interfaces) result[iface] = []
+
+  for (const cls of concretes) {
+    const id = classRefs[cls.key]
+    if (!id) continue
+    const satisfied = new Set<string>()
+    for (const direct of cls.implements) {
+      for (const a of allAncestors(direct)) satisfied.add(a)
+    }
+    for (const ifaceKey of satisfied) {
+      result[ifaceKey] ??= []
+      result[ifaceKey].push(id)
+    }
+  }
+
+  return result
 }

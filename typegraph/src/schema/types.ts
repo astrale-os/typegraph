@@ -3,9 +3,6 @@
  *
  * Defines the shape of the `schema` const emitted by codegen.
  * The universal constraint for the Graph type parameter.
- *
- * The old system inferred types from Zod schemas at the TypeScript level.
- * The new system uses concrete types directly from codegen output.
  */
 
 // ─── Schema Metadata (runtime value) ────────────────────────
@@ -47,30 +44,6 @@ export interface HierarchyConfig {
 }
 
 /**
- * Instance model configuration.
- * When enabled, the compilation passes rewrite label-based matching
- * into structural instance_of joins to class/interface nodes.
- *
- * Produced by `materializeSchema()` — see kernel/boot/bootstrap.ts.
- * Attached to SchemaShape at runtime, not by codegen.
- */
-export interface InstanceModelConfig {
-  /** Whether to use the instance model. */
-  readonly enabled: boolean
-  /**
-   * Refs mapping: type name → node ID for class and interface nodes.
-   * Populated at bootstrap or from codegen. All lookups are by ID, never by name.
-   */
-  readonly refs: Readonly<Record<string, string>>
-  /**
-   * Pre-resolved implementor map: interface name → class node IDs
-   * that implement it (transitively through extends).
-   * Avoids runtime joins through implements/extends.
-   */
-  readonly implementors: Readonly<Record<string, readonly string[]>>
-}
-
-/**
  * Shape of the generated `schema` const.
  * Every codegen output's `schema` satisfies this interface.
  */
@@ -82,8 +55,12 @@ export interface SchemaShape {
   readonly hierarchy?: HierarchyConfig
   /** Global default for edge reification. Per-edge `reified` overrides this. */
   readonly reifyEdges?: boolean
-  /** Instance model configuration. When set and enabled, compilation passes use structural type membership. */
-  readonly instanceModel?: InstanceModelConfig
+  /**
+   * Materialized class/interface refs: type name -> node ID.
+   * Set by `materializeSchema()` via `graph.extendSchema({ classRefs })`.
+   * When present, compilation passes use structural instance_of joins.
+   */
+  readonly classRefs?: Readonly<Record<string, string>>
 }
 
 // ─── Type Map (generated types) ──────────────────────────────

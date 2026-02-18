@@ -746,7 +746,7 @@ export class MutationCypherCompiler {
     schema: SchemaShape,
   ): { fromLabels: string[]; toLabels: string[] } {
     // When instance model is enabled, all instances are :Node
-    if (schema.instanceModel?.enabled) {
+    if (schema.classRefs) {
       return { fromLabels: ['Node'], toLabels: ['Node'] }
     }
     const fromTypes = edgeFrom(schema, edgeType)

@@ -10,7 +10,7 @@ import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
-import type { SchemaShape, InstanceModelConfig } from '../../src/schema'
+import type { SchemaShape } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================
@@ -47,21 +47,15 @@ const reifiedSchema: SchemaShape = {
 // TEST SCHEMA — REIFIED + INSTANCE MODEL
 // =============================================================================
 
-const instanceModelConfig: InstanceModelConfig = {
-  enabled: true,
-  refs: {
+const reifiedWithInstanceModel: SchemaShape = {
+  ...reifiedSchema,
+  classRefs: {
     order: 'cls-order',
     product: 'cls-product',
     customer: 'cls-customer',
     orderItem: 'cls-order-item',
     placedOrder: 'cls-placed-order',
   },
-  implementors: {},
-}
-
-const reifiedWithInstanceModel: SchemaShape = {
-  ...reifiedSchema,
-  instanceModel: instanceModelConfig,
 }
 
 function compile(ast: QueryAST, schema: SchemaShape) {
@@ -77,32 +71,28 @@ describe('ReifyEdgesPass', () => {
 
   describe('basic reification (no instance model)', () => {
     it('rewrites reified edge traversal to has_link/links_to pattern', () => {
-      const ast = new QueryAST()
-        .addMatch('order')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'out',
-          toLabels: ['product'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('order').addTraversal({
+        edges: ['orderItem'],
+        direction: 'out',
+        toLabels: ['product'],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, reifiedSchema)
       const result = compile(transformed, reifiedSchema)
       const cypher = normalizeCypher(result.cypher)
 
       expect(cypher).toContain('has_link')
-      expect(cypher).toContain('OrderItem')  // PascalCase link label
+      expect(cypher).toContain('OrderItem') // PascalCase link label
       expect(cypher).toContain('links_to')
     })
 
     it('does not rewrite non-reified edges', () => {
-      const ast = new QueryAST()
-        .addMatch('customer')
-        .addTraversal({
-          edges: ['placedOrder'],
-          direction: 'out',
-          toLabels: ['order'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('customer').addTraversal({
+        edges: ['placedOrder'],
+        direction: 'out',
+        toLabels: ['order'],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, reifiedSchema)
       const result = compile(transformed, reifiedSchema)
       const cypher = normalizeCypher(result.cypher)
@@ -112,15 +102,13 @@ describe('ReifyEdgesPass', () => {
     })
 
     it('converts edgeWhere to node WHERE on link', () => {
-      const ast = new QueryAST()
-        .addMatch('order')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'out',
-          toLabels: ['product'],
-          cardinality: 'many',
-          edgeWhere: [{ field: 'quantity', operator: 'gt', value: 5 }],
-        })
+      const ast = new QueryAST().addMatch('order').addTraversal({
+        edges: ['orderItem'],
+        direction: 'out',
+        toLabels: ['product'],
+        cardinality: 'many',
+        edgeWhere: [{ field: 'quantity', operator: 'gt', value: 5 }],
+      })
       const transformed = pass.transform(ast, reifiedSchema)
       const result = compile(transformed, reifiedSchema)
       const cypher = normalizeCypher(result.cypher)
@@ -133,14 +121,12 @@ describe('ReifyEdgesPass', () => {
 
   describe('direction handling', () => {
     it('reverses hops for inbound traversal', () => {
-      const ast = new QueryAST()
-        .addMatch('product')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'in',
-          toLabels: ['order'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('product').addTraversal({
+        edges: ['orderItem'],
+        direction: 'in',
+        toLabels: ['order'],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, reifiedSchema)
       const result = compile(transformed, reifiedSchema)
       const cypher = normalizeCypher(result.cypher)
@@ -151,14 +137,12 @@ describe('ReifyEdgesPass', () => {
     })
 
     it('rejects bidirectional traversal', () => {
-      const ast = new QueryAST()
-        .addMatch('order')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'both',
-          toLabels: ['product'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('order').addTraversal({
+        edges: ['orderItem'],
+        direction: 'both',
+        toLabels: ['product'],
+        cardinality: 'many',
+      })
 
       expect(() => pass.transform(ast, reifiedSchema)).toThrow(
         'bidirectional traversal on reified edge',
@@ -168,15 +152,13 @@ describe('ReifyEdgesPass', () => {
 
   describe('variable-length rejection', () => {
     it('rejects variable-length path on reified edge', () => {
-      const ast = new QueryAST()
-        .addMatch('order')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'out',
-          toLabels: ['product'],
-          cardinality: 'many',
-          variableLength: { min: 1, max: 3, uniqueness: 'nodes' },
-        })
+      const ast = new QueryAST().addMatch('order').addTraversal({
+        edges: ['orderItem'],
+        direction: 'out',
+        toLabels: ['product'],
+        cardinality: 'many',
+        variableLength: { min: 1, max: 3, uniqueness: 'nodes' },
+      })
 
       expect(() => pass.transform(ast, reifiedSchema)).toThrow(
         'variable-length traversal on reified edge',
@@ -193,14 +175,12 @@ describe('ReifyEdgesPass', () => {
           orderItem: { ...reifiedSchema.edges.orderItem, reified: false },
         },
       }
-      const ast = new QueryAST()
-        .addMatch('order')
-        .addTraversal({
-          edges: ['orderItem'],
-          direction: 'out',
-          toLabels: ['product'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('order').addTraversal({
+        edges: ['orderItem'],
+        direction: 'out',
+        toLabels: ['product'],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, noReifySchema)
 
       expect(transformed.steps).toEqual(ast.steps)
@@ -214,17 +194,15 @@ describe('ReifyEdgesPass', () => {
 
 describe('ReifyEdgesPass + InstanceModelPass (full pipeline)', () => {
   it('produces full kernel-compliant Cypher', () => {
-    const imPass = new InstanceModelPass(instanceModelConfig)
+    const imPass = new InstanceModelPass()
     const reifyPass = new ReifyEdgesPass()
 
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addTraversal({
-        edges: ['orderItem'],
-        direction: 'out',
-        toLabels: ['product'],
-        cardinality: 'many',
-      })
+    const ast = new QueryAST().addMatch('order').addTraversal({
+      edges: ['orderItem'],
+      direction: 'out',
+      toLabels: ['product'],
+      cardinality: 'many',
+    })
 
     // Pipeline order: InstanceModel first, then ReifyEdges
     const afterIM = imPass.transform(ast, reifiedWithInstanceModel)

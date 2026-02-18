@@ -22,7 +22,7 @@ import type {
   AliasRegistry,
   Projection,
 } from '../../ast'
-import type { SchemaShape, InstanceModelConfig } from '../../../schema'
+import type { SchemaShape } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
 import { isReified } from '../../../helpers'
 import { STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from '../../../schema'
@@ -107,9 +107,7 @@ export class ReifyEdgesPass implements CompilationPass {
     edgeAliasToLinkAlias: Map<string, string>,
   ): void {
     // Only reify if ALL edges in the step are reified
-    const shouldReify = step.edges.every(
-      (e) => !STRUCTURAL_EDGE_SET.has(e) && isReified(schema, e),
-    )
+    const shouldReify = step.edges.every((e) => !STRUCTURAL_EDGE_SET.has(e) && isReified(schema, e))
 
     if (!shouldReify) {
       out.push(step)
@@ -133,7 +131,7 @@ export class ReifyEdgesPass implements CompilationPass {
     }
 
     const linkAlias = this.nextLinkAlias()
-    const instanceModel = schema.instanceModel
+    const classRefs = schema.classRefs
 
     // Track edge alias → link alias mapping
     if (step.edgeAlias) {
@@ -149,20 +147,20 @@ export class ReifyEdgesPass implements CompilationPass {
     })
 
     if (step.direction === 'out') {
-      this.expandOutbound(step, linkAlias, instanceModel, out, aliases)
+      this.expandOutbound(step, linkAlias, classRefs, out, aliases)
     } else {
-      this.expandInbound(step, linkAlias, instanceModel, out, aliases)
+      this.expandInbound(step, linkAlias, classRefs, out, aliases)
     }
   }
 
   private expandOutbound(
     step: TraversalStep,
     linkAlias: string,
-    instanceModel: InstanceModelConfig | undefined,
+    classRefs: Readonly<Record<string, string>> | undefined,
     out: ASTNode[],
     aliases: AliasRegistry,
   ): void {
-    const linkLabel = this.resolveLinkLabel(step.edges[0]!, instanceModel)
+    const linkLabel = this.resolveLinkLabel(step.edges[0]!, classRefs)
 
     // Hop 1: source → link via has_link
     out.push({
@@ -176,8 +174,8 @@ export class ReifyEdgesPass implements CompilationPass {
       cardinality: 'many',
     } satisfies TraversalStep)
 
-    // Link type discrimination via instance_of (when instance model enabled)
-    this.addLinkTypeFilter(step.edges[0]!, linkAlias, instanceModel, out, aliases)
+    // Link type discrimination via instance_of (when classRefs are present)
+    this.addLinkTypeFilter(step.edges[0]!, linkAlias, classRefs, out, aliases)
 
     // Edge WHERE conditions → node WHERE on link
     if (step.edgeWhere?.length) {
@@ -209,11 +207,11 @@ export class ReifyEdgesPass implements CompilationPass {
   private expandInbound(
     step: TraversalStep,
     linkAlias: string,
-    instanceModel: InstanceModelConfig | undefined,
+    classRefs: Readonly<Record<string, string>> | undefined,
     out: ASTNode[],
     aliases: AliasRegistry,
   ): void {
-    const linkLabel = this.resolveLinkLabel(step.edges[0]!, instanceModel)
+    const linkLabel = this.resolveLinkLabel(step.edges[0]!, classRefs)
 
     // Hop 1: target ← link via links_to (reversed)
     out.push({
@@ -228,7 +226,7 @@ export class ReifyEdgesPass implements CompilationPass {
     } satisfies TraversalStep)
 
     // Link type discrimination
-    this.addLinkTypeFilter(step.edges[0]!, linkAlias, instanceModel, out, aliases)
+    this.addLinkTypeFilter(step.edges[0]!, linkAlias, classRefs, out, aliases)
 
     // Edge WHERE conditions → node WHERE on link
     if (step.edgeWhere?.length) {
@@ -264,11 +262,11 @@ export class ReifyEdgesPass implements CompilationPass {
   private addLinkTypeFilter(
     edgeType: string,
     linkAlias: string,
-    instanceModel: InstanceModelConfig | undefined,
+    classRefs: Readonly<Record<string, string>> | undefined,
     out: ASTNode[],
     aliases: AliasRegistry,
   ): void {
-    if (!instanceModel?.enabled) return // Label discrimination is already handled via toLabels
+    if (!classRefs) return // Label discrimination is already handled via toLabels
 
     const lclsAlias = this.nextLinkClassAlias()
     aliases.set(lclsAlias, {
@@ -291,11 +289,9 @@ export class ReifyEdgesPass implements CompilationPass {
     } satisfies TraversalStep)
 
     // WHERE on link class ID
-    const classId = instanceModel.refs[edgeType]
+    const classId = classRefs[edgeType]
     if (!classId) {
-      throw new Error(
-        `ReifyEdgesPass: no class ref found for edge type '${edgeType}'`,
-      )
+      throw new Error(`ReifyEdgesPass: no class ref found for edge type '${edgeType}'`)
     }
     out.push({
       type: 'where',
@@ -315,10 +311,7 @@ export class ReifyEdgesPass implements CompilationPass {
   // Where condition rewriting
   // ---------------------------------------------------------------------------
 
-  private rewriteWhereConditions(
-    step: WhereStep,
-    schema: SchemaShape,
-  ): WhereStep {
+  private rewriteWhereConditions(step: WhereStep, schema: SchemaShape): WhereStep {
     const rewritten = step.conditions.map((c) => this.rewriteCondition(c, schema))
     return { type: 'where', conditions: rewritten }
   }
@@ -473,9 +466,9 @@ export class ReifyEdgesPass implements CompilationPass {
 
   private resolveLinkLabel(
     edgeType: string,
-    instanceModel: InstanceModelConfig | undefined,
+    classRefs: Readonly<Record<string, string>> | undefined,
   ): string {
-    if (instanceModel?.enabled) {
+    if (classRefs) {
       return META_LABELS.LINK
     }
     // Capitalize first letter, preserving camelCase: 'orderItem' → 'OrderItem'

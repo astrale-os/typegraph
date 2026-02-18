@@ -13,10 +13,9 @@ import { InstanceModelPass } from '../../src/query/compiler/passes/instance-mode
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
-import type { InstanceModelConfig } from '../../src/schema'
+import type { SchemaShape } from '../../src/schema'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
 import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
-import type { SchemaShape } from '../../src/schema'
 import type { MutationOp } from '../../src/mutation/ast/types'
 import { normalizeCypher } from './fixtures/test-schema'
 
@@ -29,12 +28,24 @@ const ecommerceSchema: SchemaShape = {
     // Interfaces (abstract)
     timestamped: { abstract: true, attributes: ['createdAt', 'updatedAt'], implements: [] },
     hasSlug: { abstract: true, attributes: ['slug'], implements: [] },
-    priceable: { abstract: true, attributes: ['priceCents', 'currency'], implements: ['timestamped'] },
+    priceable: {
+      abstract: true,
+      attributes: ['priceCents', 'currency'],
+      implements: ['timestamped'],
+    },
     identity: { abstract: true, attributes: [], implements: [] },
 
     // Concrete types
-    customer: { abstract: false, attributes: ['email', 'name', 'phone'], implements: ['identity', 'timestamped'] },
-    product: { abstract: false, attributes: ['title', 'sku', 'inStock'], implements: ['timestamped', 'hasSlug', 'priceable'] },
+    customer: {
+      abstract: false,
+      attributes: ['email', 'name', 'phone'],
+      implements: ['identity', 'timestamped'],
+    },
+    product: {
+      abstract: false,
+      attributes: ['title', 'sku', 'inStock'],
+      implements: ['timestamped', 'hasSlug', 'priceable'],
+    },
     category: { abstract: false, attributes: ['name'], implements: ['hasSlug'] },
     order: { abstract: false, attributes: ['status', 'totalCents'], implements: ['timestamped'] },
     review: { abstract: false, attributes: ['rating', 'body'], implements: ['timestamped'] },
@@ -79,44 +90,29 @@ const ecommerceSchema: SchemaShape = {
     },
   },
   reifyEdges: false,
-}
-
-// Test-only instance model config with deterministic IDs
-const instanceModel: InstanceModelConfig = {
-  enabled: true,
-  refs: {
-    // Concrete types
+  classRefs: {
     customer: 'cls-customer',
     product: 'cls-product',
     category: 'cls-category',
     order: 'cls-order',
     review: 'cls-review',
-    // Abstract types
     timestamped: 'iface-timestamped',
     hasSlug: 'iface-hasSlug',
     priceable: 'iface-priceable',
     identity: 'iface-identity',
-    // Reified edges
     orderItem: 'lcls-orderItem',
     reviewOf: 'lcls-reviewOf',
   },
-  implementors: {
-    timestamped: ['cls-customer', 'cls-product', 'cls-order', 'cls-review'],
-    hasSlug: ['cls-product', 'cls-category'],
-    priceable: ['cls-product'],
-    identity: ['cls-customer'],
-  },
 }
 
-// Enrich schema with instance model config
-const schema: SchemaShape = { ...ecommerceSchema, instanceModel }
+const schema: SchemaShape = ecommerceSchema
 
 // =============================================================================
 // QUERY PIPELINE HELPERS
 // =============================================================================
 
 function compileQuery(ast: QueryAST): { cypher: string; params: Record<string, unknown> } {
-  const imPass = new InstanceModelPass(instanceModel)
+  const imPass = new InstanceModelPass()
   const reifyPass = new ReifyEdgesPass()
   const compiler = new CypherCompiler(schema)
 
@@ -128,7 +124,7 @@ function compileQuery(ast: QueryAST): { cypher: string; params: Record<string, u
 const mutationCompiler = new MutationCypherCompiler()
 const mutationPipeline = new MutationCompilationPipeline([
   new ReifyEdgesMutationPass(),
-  new InstanceModelMutationPass(instanceModel),
+  new InstanceModelMutationPass(),
 ])
 
 function compileMutation(op: MutationOp): { query: string; params: Record<string, unknown> } {
@@ -142,52 +138,25 @@ function compileMutation(op: MutationOp): { query: string; params: Record<string
 
 describe('E2E: Bootstrap config computation', () => {
   it('assigns correct refs for all concrete types', () => {
-    expect(instanceModel.refs.customer).toBe('cls-customer')
-    expect(instanceModel.refs.product).toBe('cls-product')
-    expect(instanceModel.refs.category).toBe('cls-category')
-    expect(instanceModel.refs.order).toBe('cls-order')
-    expect(instanceModel.refs.review).toBe('cls-review')
+    expect(schema.classRefs!.customer).toBe('cls-customer')
+    expect(schema.classRefs!.product).toBe('cls-product')
+    expect(schema.classRefs!.category).toBe('cls-category')
+    expect(schema.classRefs!.order).toBe('cls-order')
+    expect(schema.classRefs!.review).toBe('cls-review')
   })
 
   it('assigns correct refs for abstract types', () => {
-    expect(instanceModel.refs.timestamped).toBe('iface-timestamped')
-    expect(instanceModel.refs.hasSlug).toBe('iface-hasSlug')
-    expect(instanceModel.refs.priceable).toBe('iface-priceable')
-    expect(instanceModel.refs.identity).toBe('iface-identity')
+    expect(schema.classRefs!.timestamped).toBe('iface-timestamped')
+    expect(schema.classRefs!.hasSlug).toBe('iface-hasSlug')
+    expect(schema.classRefs!.priceable).toBe('iface-priceable')
+    expect(schema.classRefs!.identity).toBe('iface-identity')
   })
 
   it('assigns correct refs for reified edge types', () => {
-    expect(instanceModel.refs.orderItem).toBe('lcls-orderItem')
-    expect(instanceModel.refs.reviewOf).toBe('lcls-reviewOf')
-    // Non-reified edges should not have refs
-    expect(instanceModel.refs.categorizedAs).toBeUndefined()
-    expect(instanceModel.refs.placedBy).toBeUndefined()
-  })
-
-  it('computes correct implementors for interfaces', () => {
-    // timestamped: customer, product, order, review implement it directly.
-    // priceable extends timestamped, and product implements priceable.
-    const timestampedImpl = instanceModel.implementors.timestamped!
-    expect(timestampedImpl).toContain('cls-customer')
-    expect(timestampedImpl).toContain('cls-product')
-    expect(timestampedImpl).toContain('cls-order')
-    expect(timestampedImpl).toContain('cls-review')
-
-    // hasSlug: category, product
-    const hasSlugImpl = instanceModel.implementors.hasSlug!
-    expect(hasSlugImpl).toContain('cls-product')
-    expect(hasSlugImpl).toContain('cls-category')
-    expect(hasSlugImpl).not.toContain('cls-customer')
-
-    // identity: customer only
-    const identityImpl = instanceModel.implementors.identity!
-    expect(identityImpl).toContain('cls-customer')
-    expect(identityImpl).toHaveLength(1)
-
-    // priceable: product only (priceable extends timestamped, product implements priceable)
-    const priceableImpl = instanceModel.implementors.priceable!
-    expect(priceableImpl).toContain('cls-product')
-    expect(priceableImpl).toHaveLength(1)
+    expect(schema.classRefs!.orderItem).toBe('lcls-orderItem')
+    expect(schema.classRefs!.reviewOf).toBe('lcls-reviewOf')
+    expect(schema.classRefs!.categorizedAs).toBeUndefined()
+    expect(schema.classRefs!.placedBy).toBeUndefined()
   })
 })
 
@@ -209,14 +178,12 @@ describe('E2E: Query pipeline (InstanceModel + ReifyEdges)', () => {
   })
 
   it('traversal with non-reified edge keeps edge name', () => {
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addTraversal({
-        edges: ['placedBy'],
-        direction: 'out',
-        toLabels: ['customer'],
-        cardinality: 'one',
-      })
+    const ast = new QueryAST().addMatch('order').addTraversal({
+      edges: ['placedBy'],
+      direction: 'out',
+      toLabels: ['customer'],
+      cardinality: 'one',
+    })
     const { cypher, params } = compileQuery(ast)
     const c = normalizeCypher(cypher)
 
@@ -229,14 +196,12 @@ describe('E2E: Query pipeline (InstanceModel + ReifyEdges)', () => {
   })
 
   it('traversal with reified edge → has_link/links_to through :Link', () => {
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addTraversal({
-        edges: ['orderItem'],
-        direction: 'out',
-        toLabels: ['product'],
-        cardinality: 'many',
-      })
+    const ast = new QueryAST().addMatch('order').addTraversal({
+      edges: ['orderItem'],
+      direction: 'out',
+      toLabels: ['product'],
+      cardinality: 'many',
+    })
     const { cypher, params } = compileQuery(ast)
     const c = normalizeCypher(cypher)
 
@@ -257,15 +222,13 @@ describe('E2E: Query pipeline (InstanceModel + ReifyEdges)', () => {
   })
 
   it('reified edge with edgeWhere → node WHERE on link node', () => {
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addTraversal({
-        edges: ['orderItem'],
-        direction: 'out',
-        toLabels: ['product'],
-        cardinality: 'many',
-        edgeWhere: [{ field: 'quantity', operator: 'gt', value: 5 }],
-      })
+    const ast = new QueryAST().addMatch('order').addTraversal({
+      edges: ['orderItem'],
+      direction: 'out',
+      toLabels: ['product'],
+      cardinality: 'many',
+      edgeWhere: [{ field: 'quantity', operator: 'gt', value: 5 }],
+    })
     const { cypher } = compileQuery(ast)
     const c = normalizeCypher(cypher)
 
@@ -275,14 +238,12 @@ describe('E2E: Query pipeline (InstanceModel + ReifyEdges)', () => {
   })
 
   it('inbound reified edge → reversed hops', () => {
-    const ast = new QueryAST()
-      .addMatch('product')
-      .addTraversal({
-        edges: ['orderItem'],
-        direction: 'in',
-        toLabels: ['order'],
-        cardinality: 'many',
-      })
+    const ast = new QueryAST().addMatch('product').addTraversal({
+      edges: ['orderItem'],
+      direction: 'in',
+      toLabels: ['order'],
+      cardinality: 'many',
+    })
     const { cypher } = compileQuery(ast)
     const c = normalizeCypher(cypher)
 

@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { InstanceModelMutationPass } from '../../src/mutation/passes/instance-model-mutation-pass'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
-import type { InstanceModelConfig, SchemaShape } from '../../src/schema'
+import type { SchemaShape } from '../../src/schema'
 import type {
   MutationOp,
   CreateNodeOp,
@@ -33,17 +33,6 @@ import { normalizeCypher } from './fixtures/test-schema'
 // TEST FIXTURES
 // =============================================================================
 
-const instanceModelConfig: InstanceModelConfig = {
-  enabled: true,
-  refs: {
-    customer: 'cls-customer',
-    order: 'cls-order',
-    product: 'cls-product',
-    orderItem: 'cls-order-item',
-  },
-  implementors: {},
-}
-
 const schema: SchemaShape = {
   nodes: {
     customer: { abstract: false, attributes: ['name', 'email'] },
@@ -66,7 +55,12 @@ const schema: SchemaShape = {
       reified: true,
     },
   },
-  instanceModel: instanceModelConfig,
+  classRefs: {
+    customer: 'cls-customer',
+    order: 'cls-order',
+    product: 'cls-product',
+    orderItem: 'cls-order-item',
+  },
 }
 
 const compiler = new MutationCypherCompiler()
@@ -80,7 +74,7 @@ function compileOp(op: MutationOp): string {
 // =============================================================================
 
 describe('InstanceModelMutationPass', () => {
-  const pass = new InstanceModelMutationPass(instanceModelConfig)
+  const pass = new InstanceModelMutationPass()
 
   describe('CreateNodeOp', () => {
     it('relabels to Node and adds instance_of link', () => {
@@ -491,31 +485,28 @@ describe('InstanceModelMutationPass', () => {
   })
 
   describe('disabled pass', () => {
-    it('returns op unchanged when disabled', () => {
-      const disabledPass = new InstanceModelMutationPass({
-        enabled: false,
-        refs: {},
-        implementors: {},
-      })
+    it('returns op unchanged when classRefs is absent', () => {
+      const schemaNoRefs: SchemaShape = {
+        nodes: schema.nodes,
+        edges: schema.edges,
+      }
       const op: CreateNodeOp = {
         type: 'createNode',
         label: 'customer',
         id: 'c1',
         data: { name: 'Alice' },
       }
-      const result = disabledPass.transform(op, schema)
+      const result = pass.transform(op, schemaNoRefs)
       expect(result).toEqual(op)
     })
   })
 
   describe('error handling', () => {
     it('throws when class ref is missing', () => {
-      const partialConfig: InstanceModelConfig = {
-        enabled: true,
-        refs: { customer: 'cls-customer' }, // no 'order' ref
-        implementors: {},
+      const schemaPartialRefs: SchemaShape = {
+        ...schema,
+        classRefs: { customer: 'cls-customer' },
       }
-      const partialPass = new InstanceModelMutationPass(partialConfig)
       const op: CreateNodeOp = {
         type: 'createNode',
         label: 'order',
@@ -523,7 +514,7 @@ describe('InstanceModelMutationPass', () => {
         data: {},
       }
 
-      expect(() => partialPass.transform(op, schema)).toThrow(
+      expect(() => pass.transform(op, schemaPartialRefs)).toThrow(
         "no class ref found for type 'order'",
       )
     })
