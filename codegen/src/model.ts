@@ -21,10 +21,12 @@ export type {
   ValueNode,
   MethodDef,
   MethodParam,
+  MethodProjection,
   ValueTypeDef,
   ValueTypeField,
   TaggedUnionDef,
   TaggedUnionVariant,
+  DataTypeDef,
 } from '@astrale/kernel-compiler'
 
 // ─── Graph Model (enriched, indexed) ────────────────────────
@@ -44,6 +46,7 @@ export interface GraphModel {
   aliases: Map<string, ResolvedAlias>
   valueTypes: Map<string, ResolvedValueType>
   taggedUnions: Map<string, ResolvedTaggedUnion>
+  dataTypes: Map<string, ResolvedDataType>
   nodeDefs: Map<string, ResolvedNode>
   edgeDefs: Map<string, ResolvedEdge>
   extensions: { uri: string; importedTypes: string[] }[]
@@ -57,6 +60,12 @@ export interface ResolvedValueType {
 export interface ResolvedTaggedUnion {
   name: string
   variants: TaggedUnionVariant[]
+}
+
+export interface ResolvedDataType {
+  name: string
+  fields: ValueTypeField[] | null
+  scalarType: string | null
 }
 
 export interface ResolvedAlias {
@@ -76,6 +85,7 @@ export interface ResolvedNode {
   allAttributes: IRAttribute[]
   ownMethods: MethodDef[]
   allMethods: MethodDef[]
+  dataRef?: string
   origin?: string
 }
 
@@ -87,5 +97,6 @@ export interface ResolvedEdge {
   ownMethods: MethodDef[]
   allMethods: MethodDef[]
   constraints: EdgeConstraints
+  dataRef?: string
   origin?: string
 }

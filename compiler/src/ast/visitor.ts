@@ -25,6 +25,7 @@ import {
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
+  type DataDecl,
   type ExtendDecl,
   type Attribute,
   type Param,
@@ -45,6 +46,7 @@ export interface AstVisitor<R = void> {
   visitInterface?(decl: InterfaceDecl): R
   visitNode?(decl: NodeDecl): R
   visitEdge?(decl: EdgeDecl): R
+  visitData?(decl: DataDecl): R
   visitExtend?(decl: ExtendDecl): R
   visitAttribute?(attr: Attribute): R
   visitParam?(param: Param): R
@@ -104,6 +106,14 @@ export function walkDeclaration(visitor: AstVisitor, decl: Declaration): void {
       visitor.visitExtend?.(decl)
       break
 
+    case 'DataDecl':
+      visitor.visitData?.(decl)
+      if (decl.scalarType) walkTypeExpr(visitor, decl.scalarType)
+      if (decl.fields) {
+        for (const field of decl.fields) walkTypeExpr(visitor, field.type)
+      }
+      break
+
     default: {
       const _exhaustive: never = decl
       void _exhaustive
@@ -149,6 +159,7 @@ export class AstWalker implements AstVisitor {
   visitInterface(_decl: InterfaceDecl): void {}
   visitNode(_decl: NodeDecl): void {}
   visitEdge(_decl: EdgeDecl): void {}
+  visitData(_decl: DataDecl): void {}
   visitExtend(_decl: ExtendDecl): void {}
   visitAttribute(_attr: Attribute): void {}
   visitParam(_param: Param): void {}

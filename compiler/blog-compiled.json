@@ -7,18 +7,10 @@
   "extensions": [
     {
       "uri": "https://kernel.astrale.ai/v1",
-      "imported_types": [
-        "Identity"
-      ]
+      "imported_types": ["Identity"]
     }
   ],
-  "builtin_scalars": [
-    "String",
-    "Int",
-    "Float",
-    "Boolean",
-    "Timestamp"
-  ],
+  "builtin_scalars": ["String", "Int", "Float", "Boolean", "Timestamp"],
   "type_aliases": [
     {
       "name": "Email",
@@ -38,33 +30,21 @@
       "name": "Plan",
       "underlying_type": "String",
       "constraints": {
-        "enum_values": [
-          "free",
-          "pro",
-          "enterprise"
-        ]
+        "enum_values": ["free", "pro", "enterprise"]
       }
     },
     {
       "name": "OrgRole",
       "underlying_type": "String",
       "constraints": {
-        "enum_values": [
-          "member",
-          "admin",
-          "owner"
-        ]
+        "enum_values": ["member", "admin", "owner"]
       }
     },
     {
       "name": "PostStatus",
       "underlying_type": "String",
       "constraints": {
-        "enum_values": [
-          "draft",
-          "published",
-          "archived"
-        ]
+        "enum_values": ["draft", "published", "archived"]
       }
     }
   ],
@@ -108,9 +88,7 @@
       "type": "node",
       "name": "Publishable",
       "abstract": true,
-      "implements": [
-        "Timestamped"
-      ],
+      "implements": ["Timestamped"],
       "attributes": [
         {
           "name": "published_at",
@@ -162,10 +140,7 @@
       "type": "node",
       "name": "User",
       "abstract": false,
-      "implements": [
-        "Identity",
-        "Timestamped"
-      ],
+      "implements": ["Identity", "Timestamped"],
       "attributes": [
         {
           "name": "username",
@@ -217,10 +192,7 @@
       "type": "node",
       "name": "Organization",
       "abstract": false,
-      "implements": [
-        "Identity",
-        "Timestamped"
-      ],
+      "implements": ["Identity", "Timestamped"],
       "attributes": [
         {
           "name": "name",
@@ -263,10 +235,7 @@
       "type": "node",
       "name": "Post",
       "abstract": false,
-      "implements": [
-        "Publishable",
-        "Reactable"
-      ],
+      "implements": ["Publishable", "Reactable"],
       "attributes": [
         {
           "name": "title",
@@ -306,10 +275,7 @@
       "type": "node",
       "name": "Comment",
       "abstract": false,
-      "implements": [
-        "Reactable",
-        "Timestamped"
-      ],
+      "implements": ["Reactable", "Timestamped"],
       "attributes": [
         {
           "name": "body",

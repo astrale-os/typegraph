@@ -52,6 +52,17 @@ export function emitTypemap(model: GraphModel): string {
     lines.push(`    ${node.name}: ${node.name}Input`)
   }
   lines.push('  }')
+
+  // nodeData mapping: node type → data type (only for nodes with data)
+  const nodesWithData = concretes.filter((n) => n.dataRef)
+  if (nodesWithData.length > 0) {
+    lines.push('  nodeData: {')
+    for (const node of nodesWithData) {
+      lines.push(`    ${node.name}: ${node.dataRef}`)
+    }
+    lines.push('  }')
+  }
+
   lines.push('}')
   lines.push('')
 

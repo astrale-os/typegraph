@@ -361,10 +361,10 @@ describe('Parser', () => {
       // 3 interfaces: Node, Link, Identity
       expect(interfaces).toHaveLength(3)
 
-      // 14 classes: Class, Interface, Operation, has_parent, instance_of,
+      // 15 classes: Class, Interface, Root, Operation, has_parent, instance_of,
       //   has_link, links_to, implements, extends, method_of,
       //   has_perm, excluded_from, constrained_by, extends_with
-      expect(classes).toHaveLength(14)
+      expect(classes).toHaveLength(15)
     })
 
     it('correctly identifies edges in kernel', () => {
@@ -382,8 +382,8 @@ describe('Parser', () => {
       const nodes = cst.declarations.filter(
         (d) => d.kind === 'ClassDecl' && (d as ClassDeclNode).signature === null,
       )
-      // Class, Interface, Operation
-      expect(nodes).toHaveLength(3)
+      // Class, Interface, Operation, Root
+      expect(nodes).toHaveLength(4)
     })
   })
 

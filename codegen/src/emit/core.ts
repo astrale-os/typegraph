@@ -82,6 +82,7 @@ export function emitCore(model: GraphModel): string {
 
   // ── Refs type ────────────────────────────────────────────
   emitRefsType(lines)
+  emitNestedCoreRefsType(lines)
 
   return lines.join('\n')
 }
@@ -149,4 +150,18 @@ function emitRefsType(lines: string[]): void {
   lines.push('')
   lines.push('export type Refs<T extends CoreDefinition = CoreDefinition> =')
   lines.push('  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>')
+  lines.push('')
+}
+
+function emitNestedCoreRefsType(lines: string[]): void {
+  lines.push('/** Nested core refs type - supports hierarchical access like core.electronics.phones */')
+  lines.push('type NestedCoreKeys<T extends Record<string, any>> = {')
+  lines.push('  [K in keyof T & string]: T[K] extends { readonly children: infer C extends Record<string, any> }')
+  lines.push('    ? NestedCoreKeys<C> & NodeId  // Parent with children')
+  lines.push('    : NodeId                       // Leaf node ID')
+  lines.push('}')
+  lines.push('')
+  lines.push('export type CoreRefs<T extends CoreDefinition = CoreDefinition> =')
+  lines.push("  NestedCoreKeys<T['nodes']> & Record<SchemaType, NodeId>")
+  lines.push('')
 }

@@ -10,13 +10,7 @@ import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runt
 export const CurrencyValues = ['USD', 'EUR', 'GBP', 'JPY'] as const
 export type Currency = (typeof CurrencyValues)[number]
 
-export const OrderStatusValues = [
-  'pending',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-] as const
+export const OrderStatusValues = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const
 export type OrderStatus = (typeof OrderStatusValues)[number]
 
 // ─── Branded IDs ────────────────────────────────────────────
@@ -259,12 +253,7 @@ export const validators = {
 
 export const CustomerOps = {
   displayName: op('Customer.displayName', 'public', z.object({}), z.string()),
-  recentOrders: op(
-    'Customer.recentOrders',
-    'private',
-    z.object({ limit: z.number().int().default(10) }),
-    z.array(validators.Order),
-  ),
+  recentOrders: op('Customer.recentOrders', 'private', z.object({ limit: z.number().int().default(10) }), z.array(validators.Order)),
 } as const
 
 export const OrderOps = {
@@ -301,18 +290,7 @@ export const schema = {
     Product: {
       abstract: false,
       implements: ['Timestamped', 'HasSlug', 'Priceable'],
-      attributes: [
-        'createdAt',
-        'updatedAt',
-        'slug',
-        'priceCents',
-        'currency',
-        'title',
-        'description',
-        'sku',
-        'inStock',
-        'imageUrl',
-      ],
+      attributes: ['createdAt', 'updatedAt', 'slug', 'priceCents', 'currency', 'title', 'description', 'sku', 'inStock', 'imageUrl'],
     },
     Category: {
       abstract: false,
@@ -422,7 +400,8 @@ export const schemaBootstrap = {
     { classKey: 'Order', interfaceKey: 'Timestamped' },
     { classKey: 'Review', interfaceKey: 'Timestamped' },
   ],
-  extends: [],
+  extends: [
+  ],
 } as const
 
 // ─── Method Factory ─────────────────────────────────────────
@@ -436,13 +415,7 @@ export const defineOrderItemMethods = defineMethods.withSelf<OrderItemPayload & 
 // ─── Schema Types ───────────────────────────────────────────
 
 export type SchemaNodeType = 'Customer' | 'Product' | 'Category' | 'Order' | 'Review'
-export type SchemaEdgeType =
-  | 'placedOrder'
-  | 'orderItem'
-  | 'inCategory'
-  | 'parentCategory'
-  | 'reviewed'
-  | 'wishlisted'
+export type SchemaEdgeType = 'placedOrder' | 'orderItem' | 'inCategory' | 'parentCategory' | 'reviewed' | 'wishlisted'
 export type SchemaType = SchemaNodeType | SchemaEdgeType
 
 // ─── Core ───────────────────────────────────────────────────
@@ -486,7 +459,10 @@ export interface CoreDefinition {
   edges?: CoreEdgeDef[]
 }
 
-export function node<T extends SchemaNodeType>(type: T, props: CoreNodeProps[T]): CoreNodeDef<T>
+export function node<T extends SchemaNodeType>(
+  type: T,
+  props: CoreNodeProps[T],
+): CoreNodeDef<T>
 export function node<T extends SchemaNodeType, C extends Record<string, CoreNodeDef>>(
   type: T,
   props: CoreNodeProps[T],
@@ -512,17 +488,20 @@ export function defineCore<const T extends CoreDefinition>(def: T): T {
   return def
 }
 
-type FlattenCoreKeys<T extends Record<string, any>> = {
-  [K in keyof T & string]:
-    | K
-    | (T[K] extends { readonly children: infer C extends Record<string, any> }
-        ? FlattenCoreKeys<C>
-        : never)
-}[keyof T & string]
+type FlattenCoreKeys<T extends Record<string, any>> =
+  { [K in keyof T & string]: K | (T[K] extends { readonly children: infer C extends Record<string, any> } ? FlattenCoreKeys<C> : never) }[keyof T & string]
 
 export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes']>
 
-export type Refs<T extends CoreDefinition = CoreDefinition> = Record<
-  SchemaType | Extract<ExtractCoreKeys<T>, string>,
-  NodeId
->
+export type Refs<T extends CoreDefinition = CoreDefinition> =
+  Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>
+
+/** Nested core refs type - supports hierarchical access like core.electronics.phones */
+type NestedCoreKeys<T extends Record<string, any>> = {
+  [K in keyof T & string]: T[K] extends { readonly children: infer C extends Record<string, any> }
+    ? NestedCoreKeys<C> & NodeId  // Parent with children
+    : NodeId                       // Leaf node ID
+}
+
+export type CoreRefs<T extends CoreDefinition = CoreDefinition> =
+  NestedCoreKeys<T['nodes']> & Record<SchemaType, NodeId>

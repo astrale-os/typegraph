@@ -34,6 +34,7 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
     aliases: new Map(),
     valueTypes: new Map(),
     taggedUnions: new Map(),
+    dataTypes: new Map(),
     nodeDefs: new Map(),
     edgeDefs: new Map(),
     extensions: [],
@@ -91,6 +92,20 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
       })
     }
 
+    for (const dt of ir.data_types ?? []) {
+      const existing = model.dataTypes.get(dt.name)
+      if (existing) {
+        if (JSON.stringify(existing) === JSON.stringify({ name: dt.name, fields: dt.fields, scalarType: dt.scalar_type })) continue
+        if (strict) throw new ConflictError('data type', dt.name)
+        continue
+      }
+      model.dataTypes.set(dt.name, {
+        name: dt.name,
+        fields: dt.fields,
+        scalarType: dt.scalar_type,
+      })
+    }
+
     for (const cls of ir.classes) {
       if (cls.type === 'node') registerNode(model, cls, strict)
       else registerEdge(model, cls, strict)
@@ -136,6 +151,7 @@ export function normalizeIR(raw: Record<string, unknown>): SchemaIR {
     type_aliases: (raw.type_aliases as SchemaIR['type_aliases']) ?? [],
     value_types: (raw.value_types as SchemaIR['value_types']) ?? [],
     tagged_unions: (raw.tagged_unions as SchemaIR['tagged_unions']) ?? [],
+    data_types: (raw.data_types as SchemaIR['data_types']) ?? [],
     classes,
   }
 }
@@ -157,6 +173,7 @@ function registerNode(model: GraphModel, node: NodeDef, strict: boolean): void {
     allAttributes: [], // populated by resolveInheritance
     ownMethods: node.methods ?? [],
     allMethods: [], // populated by resolveInheritance
+    dataRef: node.data_ref,
     origin: node.origin,
   })
 }
@@ -176,6 +193,7 @@ function registerEdge(model: GraphModel, edge: EdgeDef, strict: boolean): void {
     ownMethods: edge.methods ?? [],
     allMethods: [], // edges don't inherit; set to ownMethods below
     constraints: edge.constraints,
+    dataRef: edge.data_ref,
     origin: edge.origin,
   })
 }
@@ -281,6 +299,7 @@ function structurallyEqualNode(a: ResolvedNode, b: NodeDef): boolean {
   return (
     a.name === b.name &&
     a.abstract === b.abstract &&
+    a.dataRef === b.data_ref &&
     JSON.stringify(a.implements) === JSON.stringify(b.implements ?? []) &&
     JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes) &&
     JSON.stringify(a.ownMethods) === JSON.stringify(b.methods ?? [])
@@ -290,6 +309,7 @@ function structurallyEqualNode(a: ResolvedNode, b: NodeDef): boolean {
 function structurallyEqualEdge(a: ResolvedEdge, b: EdgeDef): boolean {
   return (
     a.name === b.name &&
+    a.dataRef === b.data_ref &&
     JSON.stringify(a.endpoints) === JSON.stringify(b.endpoints) &&
     JSON.stringify(a.ownAttributes) === JSON.stringify(b.attributes) &&
     JSON.stringify(a.constraints) === JSON.stringify(b.constraints) &&

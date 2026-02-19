@@ -11,6 +11,8 @@ import {
   type Declaration,
   type ValueTypeDecl,
   type TaggedUnionDecl,
+  type DataDecl,
+  type Method,
   type TypeExpr,
   type Name,
 } from '../ast/index'
@@ -20,7 +22,7 @@ import { type SchemaRegistry, EMPTY_REGISTRY, resolveExtendUri } from '../regist
 
 // ─── Resolved Schema Types ──────────────────────────────────
 
-export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'TaggedUnion' | 'Interface' | 'Class' | 'Edge'
+export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'TaggedUnion' | 'Interface' | 'Class' | 'Edge' | 'Data'
 
 export interface Symbol {
   name: string
@@ -131,12 +133,18 @@ class Resolver {
         break
       case 'InterfaceDecl':
         this.registerSymbol(decl.name, 'Interface', decl)
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, 'Data', decl.dataDecl)
         break
       case 'NodeDecl':
         this.registerSymbol(decl.name, 'Class', decl)
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, 'Data', decl.dataDecl)
         break
       case 'EdgeDecl':
         this.registerSymbol(decl.name, 'Edge', decl)
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, 'Data', decl.dataDecl)
+        break
+      case 'DataDecl':
+        this.registerSymbol(decl.name, 'Data', decl)
         break
       case 'ExtendDecl': {
         const resolvedUri = resolveExtendUri(decl.uri, this.sourceUri)
@@ -226,11 +234,10 @@ class Resolver {
           this.resolveTypeExpr(attr.type)
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type)
-          }
-          this.resolveTypeExpr(method.returnType)
+          this.resolveMethod(method)
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl)
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ['Data'])
         break
 
       case 'NodeDecl':
@@ -241,11 +248,10 @@ class Resolver {
           this.resolveTypeExpr(attr.type)
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type)
-          }
-          this.resolveTypeExpr(method.returnType)
+          this.resolveMethod(method)
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl)
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ['Data'])
         break
 
       case 'EdgeDecl':
@@ -259,11 +265,14 @@ class Resolver {
           this.resolveTypeExpr(attr.type)
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type)
-          }
-          this.resolveTypeExpr(method.returnType)
+          this.resolveMethod(method)
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl)
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ['Data'])
+        break
+
+      case 'DataDecl':
+        this.resolveDataDeclFields(decl)
         break
 
       case 'ExtendDecl':
@@ -272,10 +281,31 @@ class Resolver {
     }
   }
 
+  private resolveMethod(method: Method): void {
+    for (const param of method.params) {
+      this.resolveTypeExpr(param.type)
+    }
+    this.resolveTypeExpr(method.returnType)
+    if (method.projection?.dataRef) {
+      this.resolveNameAs(method.projection.dataRef, ['Data'])
+    }
+  }
+
+  private resolveDataDeclFields(decl: DataDecl): void {
+    if (decl.scalarType) {
+      this.resolveTypeExpr(decl.scalarType)
+    }
+    if (decl.fields) {
+      for (const field of decl.fields) {
+        this.resolveTypeExpr(field.type)
+      }
+    }
+  }
+
   private resolveTypeExpr(expr: TypeExpr): void {
     switch (expr.kind) {
       case 'NamedType':
-        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'TaggedUnion', 'Interface', 'Class'])
+        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'TaggedUnion', 'Interface', 'Class', 'Data'])
         break
 
       case 'NullableType':

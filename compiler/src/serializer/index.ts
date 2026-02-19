@@ -14,6 +14,7 @@ import {
   type TypeAlias,
   type ValueTypeDef,
   type TaggedUnionDef,
+  type DataTypeDef,
   type ClassDef,
   type Extension,
 } from '../ir/index'
@@ -23,6 +24,7 @@ import {
   serializeTypeAlias,
   serializeValueType,
   serializeTaggedUnion,
+  serializeDataType,
   serializeInterface,
   serializeNode,
   serializeEdge,
@@ -50,6 +52,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
   const typeAliases: TypeAlias[] = []
   const valueTypes: ValueTypeDef[] = []
   const taggedUnions: TaggedUnionDef[] = []
+  const dataTypes: DataTypeDef[] = []
   const classes: ClassDef[] = []
 
   for (const decl of ctx.schema.declarations) {
@@ -66,6 +69,9 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
       case 'TaggedUnionDecl':
         taggedUnions.push(serializeTaggedUnion(ctx, decl))
         break
+      case 'DataDecl':
+        dataTypes.push(serializeDataType(ctx, decl))
+        break
       case 'InterfaceDecl':
         classes.push(serializeInterface(ctx, decl))
         break
@@ -75,6 +81,13 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
       case 'EdgeDecl':
         classes.push(serializeEdge(ctx, decl))
         break
+    }
+  }
+
+  // Also collect inline data decls from class bodies
+  for (const decl of ctx.schema.declarations) {
+    if ((decl.kind === 'NodeDecl' || decl.kind === 'InterfaceDecl' || decl.kind === 'EdgeDecl') && decl.dataDecl) {
+      dataTypes.push(serializeDataType(ctx, decl.dataDecl))
     }
   }
 
@@ -97,6 +110,7 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
     type_aliases: typeAliases,
     value_types: valueTypes,
     tagged_unions: taggedUnions,
+    data_types: dataTypes,
     classes,
   }
 }

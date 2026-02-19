@@ -4,6 +4,7 @@ import type {
   ResolvedEdge,
   ResolvedValueType,
   ResolvedTaggedUnion,
+  ResolvedDataType,
   IRAttribute,
   TypeRef,
 } from '../model'
@@ -47,6 +48,18 @@ export function emitInterfaces(model: GraphModel): string {
     }
   }
 
+  // Data types → interfaces (for structured) or type aliases (for scalar)
+  const dataTypes = [...model.dataTypes.values()]
+  if (dataTypes.length > 0) {
+    parts.push(section('Data Types'))
+    parts.push('')
+    for (const dt of dataTypes) {
+      parts.push(emitDataTypeInterface(model, dt))
+    }
+    parts.push('export type WithData<T, D> = T & { data(): Promise<D> }')
+    parts.push('')
+  }
+
   // Abstract nodes → interfaces
   const abstracts = [...model.nodeDefs.values()].filter((n) => n.abstract)
   if (abstracts.length > 0) {
@@ -81,6 +94,23 @@ export function emitInterfaces(model: GraphModel): string {
 }
 
 // ─── Helpers ────────────────────────────────────────────────
+
+function emitDataTypeInterface(model: GraphModel, dt: ResolvedDataType): string {
+  if (dt.scalarType) {
+    const tsType = scalarToTs(dt.scalarType)
+    return `export type ${dt.name} = ${tsType}\n`
+  }
+  if (!dt.fields || dt.fields.length === 0) {
+    return `export interface ${dt.name} {}\n`
+  }
+  const fields = dt.fields.map((f) => {
+    const tsType = resolveTypeRef(model, f.type)
+    const optional = f.nullable ? '?' : ''
+    const nullUnion = f.nullable ? ' | null' : ''
+    return `  ${f.name}${optional}: ${tsType}${nullUnion}`
+  })
+  return `export interface ${dt.name} {\n${fields.join('\n')}\n}\n`
+}
 
 function emitTaggedUnionType(model: GraphModel, tu: ResolvedTaggedUnion): string {
   const variantTypes = tu.variants.map((v) => {

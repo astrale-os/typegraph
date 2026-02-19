@@ -9,6 +9,8 @@ import type { SchemaShape, TypeMap, UntypedMap } from './schema'
 import { mergeSchemaExtension } from './schema'
 import type { NodeLabels, EdgeTypes } from './inference'
 import type { GraphAdapter, TransactionContext } from './adapter'
+import type { CoreRefs } from './core'
+import { createCoreProxy } from './core-proxy'
 import type { GraphQuery, QueryExecutor } from './query/types'
 import { GraphQueryImpl } from './query/impl'
 import type {
@@ -59,6 +61,12 @@ export interface GraphOptions<S extends SchemaShape = SchemaShape> {
    * Required for method name resolution and constraint enforcement.
    */
   schemaInfo?: MethodSchemaInfo & ConstraintSchemaInfo
+  /**
+   * Core refs from genesis data installation (optional).
+   * Enables hierarchical access via graph.core.* proxy.
+   * Pass the raw CoreRefs structure; the proxy type C is inferred.
+   */
+  coreRefs?: CoreRefs
 }
 
 /**
@@ -79,11 +87,16 @@ export interface TransactionScope<S extends SchemaShape, T extends TypeMap = Unt
  * - Transaction support
  * - Auth-scoped graph for method dispatch
  * - Connection lifecycle management
+ *
+ * @typeParam S - Schema shape
+ * @typeParam T - Type map for node/edge types
+ * @typeParam C - Core refs type (defaults to any for backward compat)
  */
-export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> extends GraphQuery<
-  S,
-  T
-> {
+export interface Graph<
+  S extends SchemaShape,
+  T extends TypeMap = UntypedMap,
+  C = any,
+> extends GraphQuery<S, T> {
   // ---------------------------------------------------------------------------
   // ADAPTER
   // ---------------------------------------------------------------------------
@@ -101,7 +114,7 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
    *
    * @param auth - Auth context (opaque to the SDK, passed through to dispatch)
    */
-  as(auth: unknown): Graph<S, T>
+  as(auth: unknown): Graph<S, T, C>
 
   // ---------------------------------------------------------------------------
   // MUTATION API
@@ -176,6 +189,22 @@ export interface Graph<S extends SchemaShape, T extends TypeMap = UntypedMap> ex
   setDispatch(dispatch: MethodDispatchFn): void
 
   // ---------------------------------------------------------------------------
+  // CORE REFS
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Core refs proxy for hierarchical access to genesis nodes.
+   * Undefined if no core data was installed.
+   *
+   * Type-safe when CoreRefs type is provided as third generic parameter.
+   *
+   * @example
+   * graph.core.electronics.phones  // → node ID (typed!)
+   * graph.core.admin               // → node ID (typed!)
+   */
+  readonly core?: C
+
+  // ---------------------------------------------------------------------------
   // LIFECYCLE
   // ---------------------------------------------------------------------------
 
@@ -231,7 +260,11 @@ function createMutationExecutorBridge(adapter: GraphAdapter): MutationExecutor {
  *
  * Thin orchestrator that delegates to GraphQueryImpl and GraphMutationsImpl.
  */
-class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements Graph<S, T> {
+class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any> implements Graph<
+  S,
+  T,
+  C
+> {
   private readonly _schema: S
   private readonly _adapter: GraphAdapter
   private readonly _query: GraphQuery<S, T>
@@ -241,6 +274,7 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   private _dispatch: MethodDispatchFn | undefined
   private readonly _schemaInfo: (MethodSchemaInfo & ConstraintSchemaInfo) | undefined
   private _auth: unknown
+  private _coreProxy?: C
 
   constructor(schema: S, options: GraphOptions<S>) {
     this._schema = schema
@@ -250,6 +284,11 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
     this._dispatch = options.dispatch
     this._schemaInfo = options.schemaInfo
     this._auth = undefined
+
+    // Create core proxy if refs provided
+    if (options.coreRefs) {
+      this._coreProxy = createCoreProxy(options.coreRefs)
+    }
 
     // Create query implementation with adapter bridge
     const queryExecutor = createQueryExecutorBridge(this._adapter)
@@ -277,8 +316,8 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
   // AUTH SCOPING
   // ---------------------------------------------------------------------------
 
-  as(auth: unknown): Graph<S, T> {
-    const scoped = Object.create(this) as GraphImpl<S, T>
+  as(auth: unknown): Graph<S, T, C> {
+    const scoped = Object.create(this) as GraphImpl<S, T, C>
     scoped._auth = auth
     return scoped
   }
@@ -303,6 +342,10 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
 
   get executor(): QueryExecutor | null {
     return this._query.executor
+  }
+
+  get core(): C | undefined {
+    return this._coreProxy
   }
 
   // ---------------------------------------------------------------------------
@@ -524,6 +567,11 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
     if (options?.validators && Object.keys(options.validators).length > 0) {
       ;(this._mutate as unknown as GraphMutationsImpl<S>).extendValidators(options.validators)
     }
+
+    // 4. Set core refs if provided
+    if ('coreRefs' in extension && extension.coreRefs) {
+      this._coreProxy = createCoreProxy(extension.coreRefs as CoreRefs) as C
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -548,10 +596,10 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implement
 // =============================================================================
 
 /** Create a graph instance. Connects eagerly (fail-fast). */
-export async function createGraph<S extends SchemaShape, T extends TypeMap = UntypedMap>(
+export async function createGraph<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any>(
   schema: S,
   options: GraphOptions<S>,
-): Promise<Graph<S, T>> {
+): Promise<Graph<S, T, C>> {
   await options.adapter.connect()
-  return new GraphImpl<S, T>(schema, options)
+  return new GraphImpl<S, T, C>(schema, options)
 }

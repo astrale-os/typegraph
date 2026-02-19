@@ -54,9 +54,63 @@ function emitMethodInterface(model: GraphModel, typeName: string, methods: Metho
 }
 
 function formatReturnType(model: GraphModel, m: MethodDef): string {
-  let ts = resolveMethodReturnTypeRef(model, m.return_type)
+  let ts = formatProjectedReturnType(model, m)
   if (m.return_nullable) ts = `${ts} | null`
   return `${ts} | Promise<${ts}>`
+}
+
+function formatProjectedReturnType(model: GraphModel, m: MethodDef): string {
+  // Unwrap List to get the element type for projection logic
+  const isList = m.return_type.kind === 'List'
+  const elementRef = m.return_type.kind === 'List' ? m.return_type.element : m.return_type
+  const elementType = resolveMethodReturnTypeRef(model, elementRef)
+  const elementName = elementRef.kind === 'Node' ? elementRef.name : null
+  const classDataRef = elementName ? getNodeDataRef(model, elementName) : null
+
+  let result: string
+
+  if (!m.projection) {
+    if (classDataRef) {
+      result = `WithData<${elementType}, ${classDataRef}>`
+    } else {
+      result = elementType
+    }
+  } else {
+    result = applyProjection(m.projection, elementType, classDataRef)
+  }
+
+  return isList ? `${result}[]` : result
+}
+
+function applyProjection(proj: { star: boolean; fields: string[]; include_data: boolean }, elementType: string, classDataRef: string | null): string {
+  // { DataType } only — no attributes
+  if (!proj.star && proj.fields.length === 0 && proj.include_data) {
+    if (classDataRef) {
+      return `{ data(): Promise<${classDataRef}> }`
+    }
+    return elementType
+  }
+
+  // Determine the attributes portion
+  let attrType: string
+  if (proj.star || proj.fields.length === 0) {
+    attrType = elementType
+  } else {
+    const fields = proj.fields.map((f) => `'${f}'`).join(' | ')
+    attrType = `Pick<${elementType}, ${fields}>`
+  }
+
+  if (proj.include_data && classDataRef) {
+    return `WithData<${attrType}, ${classDataRef}>`
+  }
+
+  return attrType
+}
+
+function getNodeDataRef(model: GraphModel, nodeName: string): string | null {
+  const node = model.nodeDefs.get(nodeName)
+  if (node?.dataRef) return node.dataRef
+  return null
 }
 
 function formatMethodParams(model: GraphModel, m: MethodDef): string {

@@ -36,6 +36,7 @@ export type CstNodeKind =
   | 'Variant'
   | 'InterfaceDecl'
   | 'ClassDecl'
+  | 'DataDecl'
   | 'ExtendDecl'
   | 'ExtendsClause'
   | 'IdentList'
@@ -43,8 +44,10 @@ export type CstNodeKind =
   | 'Param'
   | 'Body'
   | 'Attribute'
+  | 'DataRef'
   | 'Method'
   | 'MethodParam'
+  | 'Projection'
   | 'DefaultValue'
   | 'Expression'
   | 'TypeExpr'
@@ -74,6 +77,7 @@ export type DeclarationNode =
   | TaggedUnionDeclNode
   | InterfaceDeclNode
   | ClassDeclNode
+  | DataDeclNode
   | ExtendDeclNode
 
 // type Name = TypeExpr [modifiers]
@@ -159,6 +163,18 @@ export interface ExtendDeclNode extends CstNode {
   rbrace: Token
 }
 
+// data Name = { fields } | data Name = ScalarType
+export interface DataDeclNode extends CstNode {
+  kind: 'DataDecl'
+  dataKeyword: Token // "data"
+  name: Token // Ident
+  eq: Token | null // = (null for reference-only in class body)
+  typeExpr: TypeExprNode | null // non-null for scalar alias: data Payload = Bytes
+  lbrace: Token | null
+  fields: ValueTypeFieldNode[]
+  rbrace: Token | null
+}
+
 // --- Shared Components ---
 
 // : Ident, Ident, ...
@@ -191,13 +207,22 @@ export interface ParamNode extends CstNode {
   typeExpr: TypeExprNode
 }
 
-// { Attribute* Method* }
+// { Attribute* DataDecl? DataRef? Method* }
 export interface BodyNode extends CstNode {
   kind: 'Body'
   lbrace: Token
   attributes: AttributeNode[]
+  dataDecls: DataDeclNode[]
+  dataRefs: DataRefNode[]
   methods: MethodNode[]
   rbrace: Token
+}
+
+// data Name (no =, reference to standalone data type inside class body)
+export interface DataRefNode extends CstNode {
+  kind: 'DataRef'
+  dataKeyword: Token
+  name: Token // Ident
 }
 
 // name : TypeExpr [mods] = default
@@ -210,7 +235,7 @@ export interface AttributeNode extends CstNode {
   defaultValue: DefaultValueNode | null
 }
 
-// fn name(params): ReturnType[]?
+// fn name(params): ReturnType { projection }[]?
 export interface MethodNode extends CstNode {
   kind: 'Method'
   privateKeyword: Token | null
@@ -221,8 +246,18 @@ export interface MethodNode extends CstNode {
   rparen: Token
   colon: Token
   returnType: TypeExprNode
+  projection: ProjectionNode | null
   listSuffix: { lbracket: Token; rbracket: Token } | null
   nullable: Token | null
+}
+
+// { *, field, DataType }
+export interface ProjectionNode extends CstNode {
+  kind: 'Projection'
+  lbrace: Token
+  star: Token | null
+  items: Token[] // Ident tokens (field names or data type references)
+  rbrace: Token
 }
 
 // name : TypeExpr = default

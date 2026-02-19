@@ -34,6 +34,7 @@ export type Declaration =
   | InterfaceDecl
   | NodeDecl
   | EdgeDecl
+  | DataDecl
   | ExtendDecl
 
 // --- Type Alias ---
@@ -86,6 +87,8 @@ export interface InterfaceDecl extends AstNode {
   extends: Name[]
   attributes: Attribute[]
   methods: Method[]
+  dataDecl: DataDecl | null
+  dataRef: Name | null
 }
 
 // --- Node ---
@@ -98,6 +101,8 @@ export interface NodeDecl extends AstNode {
   modifiers: Modifier[]
   attributes: Attribute[]
   methods: Method[]
+  dataDecl: DataDecl | null
+  dataRef: Name | null
 }
 
 // --- Edge ---
@@ -112,6 +117,19 @@ export interface EdgeDecl extends AstNode {
   modifiers: Modifier[]
   attributes: Attribute[]
   methods: Method[]
+  dataDecl: DataDecl | null
+  dataRef: Name | null
+}
+
+// --- Data ---
+// data OperationData = { paramsSchema: String, ... }
+// data Payload = Bytes
+
+export interface DataDecl extends AstNode {
+  kind: 'DataDecl'
+  name: Name
+  fields: ValueTypeField[] | null
+  scalarType: TypeExpr | null
 }
 
 // --- Extend ---
@@ -145,6 +163,13 @@ export interface Method extends AstNode {
   returnType: TypeExpr
   returnList: boolean
   returnNullable: boolean
+  projection: Projection | null
+}
+
+export interface Projection extends AstNode {
+  star: boolean
+  fields: Name[]
+  dataRef: Name | null
 }
 
 export interface MethodParam extends AstNode {

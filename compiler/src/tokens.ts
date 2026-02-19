@@ -96,6 +96,7 @@ export const CONTEXTUAL_KEYWORDS = [
   'interface',
   'class',
   'extend',
+  'data',
   'fn',
   'private',
   // Literals

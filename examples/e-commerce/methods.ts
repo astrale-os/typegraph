@@ -6,7 +6,6 @@ import {
   OrderOps,
   OrderItemOps,
 } from './schema.generated'
-import { READ, EDIT } from '@astrale-os/kernel-core'
 
 export const CustomerMethods = defineCustomerMethods(CustomerOps, {
   displayName: {

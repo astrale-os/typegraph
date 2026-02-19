@@ -36,6 +36,14 @@ export function isDeclStart(token: Token): boolean {
   return token.kind === 'Ident' && DECL_KEYWORDS.includes(token.text)
 }
 
+/**
+ * Check if current position is a `data` declaration start (not a `data:` attribute).
+ * `data` followed by an Ident is a declaration; `data:` is an attribute.
+ */
+export function isDataDeclStart(p: ParserContext): boolean {
+  return p.atKeyword('data') && p.peek(1).kind === 'Ident'
+}
+
 // ─── Parser Context ─────────────────────────────────────────
 // Shared interface so sub-modules can operate on the parser
 // without circular class references.
@@ -160,6 +168,7 @@ export class Parser implements ParserContext {
     const skipped: Token[] = []
     while (!this.at('EOF')) {
       if (isDeclStart(this.current())) break
+      if (isKeyword(this.current(), 'data') && this.peek(1).kind === 'Ident') break
       if (this.at('RBrace') || this.at('RBracket') || this.at('RParen')) break
       skipped.push(this.advance())
     }

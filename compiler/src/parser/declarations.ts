@@ -18,6 +18,8 @@ import {
   type VariantNode,
   type InterfaceDeclNode,
   type ClassDeclNode,
+  type DataDeclNode,
+  type DataRefNode,
   type ExtendDeclNode,
   type ExtendsClauseNode,
   type IdentListNode,
@@ -27,6 +29,7 @@ import {
   type AttributeNode,
   type MethodNode,
   type MethodParamNode,
+  type ProjectionNode,
   type NullableTypeNode,
   type DefaultValueNode,
   type ModifierListNode,
@@ -44,12 +47,13 @@ export function parseDeclaration(p: ParserContext): DeclarationNode | null {
   if (p.atKeyword('type')) return parseTypeAlias(p)
   if (p.atKeyword('interface')) return parseInterface(p)
   if (p.atKeyword('class')) return parseClass(p)
+  if (p.atKeyword('data')) return parseDataDecl(p)
   if (p.atKeyword('extend')) return parseExtend(p)
 
   p.diagnostics.error(
     p.current().span,
     DiagnosticCodes.P_EXPECTED_DECLARATION,
-    `Expected declaration (type, interface, class, extend), got '${p.current().text}'`,
+    `Expected declaration (type, interface, class, data, extend), got '${p.current().text}'`,
   )
   return null
 }
@@ -351,6 +355,74 @@ function parseClass(p: ParserContext): ClassDeclNode {
   }
 }
 
+// --- data Name = { fields } | data Name = ScalarType ---
+
+function parseDataDecl(p: ParserContext): DataDeclNode {
+  const children: CstChild[] = []
+
+  const dataKeyword = p.expectKeyword('data')
+  children.push(dataKeyword)
+
+  const name = p.expectIdent()
+  children.push(name)
+
+  const eq = p.expect('Eq')
+  children.push(eq)
+
+  // Branch: if next token is `{`, parse as structured data type
+  if (p.at('LBrace')) {
+    const lbrace = p.expect('LBrace')
+    children.push(lbrace)
+
+    const fields: ValueTypeFieldNode[] = []
+    while (!p.at('RBrace') && !p.at('EOF')) {
+      if (isDeclStart(p.current())) {
+        p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'")
+        break
+      }
+      const field = parseValueTypeField(p)
+      if (field) {
+        fields.push(field)
+        children.push(field)
+      } else {
+        const skipped = p.advance()
+        children.push(skipped)
+      }
+    }
+
+    const rbrace = p.expect('RBrace')
+    children.push(rbrace)
+
+    return {
+      kind: 'DataDecl',
+      children,
+      dataKeyword,
+      name,
+      eq,
+      typeExpr: null,
+      lbrace,
+      fields,
+      rbrace,
+    }
+  }
+
+  // Scalar alias: data Payload = Bytes
+  const typeExpr = parseTypeExpr(p)
+  children.push(typeExpr)
+
+  return {
+    kind: 'DataDecl',
+    children,
+    dataKeyword,
+    name,
+    eq,
+    typeExpr,
+    lbrace: null,
+    fields: [],
+    rbrace: null,
+  }
+}
+
 // --- extend "uri" { Ident, Ident } ---
 
 function parseExtend(p: ParserContext): ExtendDeclNode {
@@ -483,7 +555,7 @@ function parseParam(p: ParserContext): ParamNode {
   }
 }
 
-// { (Attribute | Method)* }
+// { (Attribute | DataDecl | DataRef | Method)* }
 function parseBody(p: ParserContext): BodyNode {
   const children: CstChild[] = []
 
@@ -492,6 +564,8 @@ function parseBody(p: ParserContext): BodyNode {
 
   const attributes: AttributeNode[] = []
   const methods: MethodNode[] = []
+  const dataDecls: DataDeclNode[] = []
+  const dataRefs: DataRefNode[] = []
 
   while (!p.at('RBrace') && !p.at('EOF')) {
     // If we see a declaration keyword or EOF, the body is probably missing its closing brace.
@@ -509,6 +583,24 @@ function parseBody(p: ParserContext): BodyNode {
       methods.push(method)
       children.push(method)
       continue
+    }
+
+    // data keyword inside body: inline data decl or data ref
+    // `data Name = { ... }` or `data Name = Scalar` → inline data declaration
+    // `data Name` (no = and no :) → data reference
+    // `data: Type` → regular attribute (data is just a field name)
+    if (isKeyword(p.current(), 'data') && p.peek(1).kind === 'Ident') {
+      if (p.peek(2).kind === 'Eq') {
+        const dataDecl = parseDataDecl(p)
+        dataDecls.push(dataDecl)
+        children.push(dataDecl)
+        continue
+      } else {
+        const dataRef = parseDataRef(p)
+        dataRefs.push(dataRef)
+        children.push(dataRef)
+        continue
+      }
     }
 
     const attr = parseAttribute(p)
@@ -530,8 +622,33 @@ function parseBody(p: ParserContext): BodyNode {
     children,
     lbrace,
     attributes,
+    dataDecls,
+    dataRefs,
     methods,
     rbrace,
+  }
+}
+
+// data Name (reference to standalone data type, no =)
+function parseDataRef(p: ParserContext): DataRefNode {
+  const children: CstChild[] = []
+
+  const dataKeyword = p.expectKeyword('data')
+  children.push(dataKeyword)
+
+  const name = p.expectIdent()
+  children.push(name)
+
+  // Optional trailing comma
+  if (p.at('Comma')) {
+    children.push(p.advance())
+  }
+
+  return {
+    kind: 'DataRef',
+    children,
+    dataKeyword,
+    name,
   }
 }
 
@@ -581,7 +698,7 @@ function parseAttribute(p: ParserContext): AttributeNode | null {
   }
 }
 
-// [private] fn name(params): ReturnType[]?
+// [private] fn name(params): ReturnType { projection }[]?
 function parseMethod(p: ParserContext): MethodNode {
   const children: CstChild[] = []
 
@@ -633,6 +750,13 @@ function parseMethod(p: ParserContext): MethodNode {
     returnType = nt.inner
   }
 
+  // Brace projection: Type { *, field, DataType }
+  let projection: ProjectionNode | null = null
+  if (!nullable && p.at('LBrace')) {
+    projection = parseProjection(p)
+    children.push(projection)
+  }
+
   // Optional list suffix: []
   let listSuffix: { lbracket: Token; rbracket: Token } | null = null
   if (!nullable && p.at('LBracket') && p.peek(1).kind === 'RBracket') {
@@ -654,8 +778,53 @@ function parseMethod(p: ParserContext): MethodNode {
     rparen,
     colon,
     returnType,
+    projection,
     listSuffix,
     nullable,
+  }
+}
+
+// { *, field1, field2, DataType }
+function parseProjection(p: ParserContext): ProjectionNode {
+  const children: CstChild[] = []
+
+  const lbrace = p.expect('LBrace')
+  children.push(lbrace)
+
+  let star: Token | null = null
+  const items: Token[] = []
+
+  if (p.at('Star')) {
+    star = p.advance()
+    children.push(star)
+    if (p.at('Comma')) {
+      children.push(p.advance())
+    }
+  }
+
+  while (!p.at('RBrace') && !p.at('EOF')) {
+    if (p.at('Ident')) {
+      const ident = p.advance()
+      items.push(ident)
+      children.push(ident)
+      if (p.at('Comma')) {
+        children.push(p.advance())
+      }
+    } else {
+      break
+    }
+  }
+
+  const rbrace = p.expect('RBrace')
+  children.push(rbrace)
+
+  return {
+    kind: 'Projection',
+    children,
+    lbrace,
+    star,
+    items,
+    rbrace,
   }
 }
 

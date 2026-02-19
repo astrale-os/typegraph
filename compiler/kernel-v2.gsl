@@ -1,0 +1,101 @@
+-- ============================================================
+-- kernel.gsl — The Kernel Schema
+-- ============================================================
+-- Defines the kernel's type system: root abstractions,
+-- meta-model, structural edges, and permission model.
+-- ============================================================
+
+interface Node {}
+
+interface Link {}
+
+-- ────────────────────────────────────────────────────────────
+-- Meta-Model
+-- ────────────────────────────────────────────────────────────
+
+class Class: Node {}
+
+class Interface: Node {}
+
+-- ────────────────────────────────────────────────────────────
+-- Structural Edges
+-- ────────────────────────────────────────────────────────────
+
+class has_parent(child: Node, parent: Node) [
+  no_self,
+  acyclic,
+  child -> 0..1
+]
+
+class instance_of(instance: Node | Link, class: Class) [
+  instance -> 1
+]
+
+class has_link(source: Node, link: Link) [
+  link -> 1
+]
+
+class links_to(link: Link, target: Node) [
+  link -> 1
+]
+
+-- ────────────────────────────────────────────────────────────
+-- Type System Edges
+-- ────────────────────────────────────────────────────────────
+
+class implements(class: Class, interface: Interface) [
+  no_self
+]
+
+class extends(child: Interface, parent: Interface) [
+  no_self,
+  acyclic
+]
+
+-- ────────────────────────────────────────────────────────────
+-- Operations
+-- ────────────────────────────────────────────────────────────
+
+class Operation: Node {
+  name: String
+  syscall: Boolean
+
+  data OperationData = {
+    paramsSchema: String
+    resultSchema: String
+    code: String
+  }
+
+  fn listOperations(): Operation(name, OperationData)
+}
+
+class method_of(operation: Operation, owner: Class | Interface) [
+  operation -> 0..1
+]
+
+-- ────────────────────────────────────────────────────────────
+-- Permission Edges
+-- ────────────────────────────────────────────────────────────
+
+interface Identity: Node {}
+
+class Root: Identity {}
+
+class has_perm(identity: Identity, target: Node) {
+  perm: Bitmask
+}
+
+class excluded_from(subject: Identity, excluded: Identity) [
+  no_self,
+  acyclic
+]
+
+class constrained_by(subject: Identity, constraint: Identity) [
+  no_self,
+  acyclic
+]
+
+class extends_with(subject: Identity, extension: Identity) [
+  no_self,
+  acyclic
+]

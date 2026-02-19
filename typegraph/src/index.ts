@@ -328,12 +328,14 @@ export { collectMethodNames } from './methods'
 // =============================================================================
 
 export { installCore } from './core'
+export { createCoreProxy } from './core-proxy'
 export type {
   CoreNodeDef,
   CoreEdgeDef,
   CoreDefinition,
   InstallCoreOptions,
   InstallCoreResult,
+  CoreRefs,
 } from './core'
 
 // =============================================================================

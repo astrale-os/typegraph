@@ -14,6 +14,7 @@ import {
   type ValueTypeDeclNode,
   type ValueTypeFieldNode,
   type TaggedUnionDeclNode,
+  type DataDeclNode,
   type NullableTypeNode,
   type ExtendDeclNode,
   type AttributeNode,
@@ -31,11 +32,13 @@ import {
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
+  type DataDecl,
   type ExtendDecl,
   type Attribute,
   type Param,
   type Method,
   type MethodParam,
+  type Projection,
   type Name,
 } from '../ast/index'
 import { type Token } from '../tokens'
@@ -58,6 +61,8 @@ export function lowerDeclaration(ctx: LoweringContext, node: DeclarationNode): D
       return lowerInterface(ctx, node)
     case 'ClassDecl':
       return lowerClass(ctx, node)
+    case 'DataDecl':
+      return lowerDataDecl(ctx, node)
     case 'ExtendDecl':
       return lowerExtend(node)
     default:
@@ -118,13 +123,27 @@ function lowerValueTypeField(ctx: LoweringContext, node: ValueTypeFieldNode): Va
   }
 }
 
+function lowerDataDecl(ctx: LoweringContext, node: DataDeclNode): DataDecl {
+  return {
+    kind: 'DataDecl',
+    name: lowerName(node.name),
+    fields: node.lbrace ? node.fields.map((f) => lowerValueTypeField(ctx, f)) : null,
+    scalarType: node.typeExpr ? lowerTypeExpr(node.typeExpr) : null,
+    span: spanOf(node),
+  }
+}
+
 function lowerInterface(ctx: LoweringContext, node: InterfaceDeclNode): InterfaceDecl {
+  const inlineData = node.body?.dataDecls?.[0] ?? null
+  const dataRef = node.body?.dataRefs?.[0] ?? null
   return {
     kind: 'InterfaceDecl',
     name: lowerName(node.name),
     extends: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node),
   }
 }
@@ -138,6 +157,8 @@ function lowerClass(ctx: LoweringContext, node: ClassDeclNode): NodeDecl | EdgeD
 }
 
 function lowerNodeClass(ctx: LoweringContext, node: ClassDeclNode): NodeDecl {
+  const inlineData = node.body?.dataDecls?.[0] ?? null
+  const dataRef = node.body?.dataRefs?.[0] ?? null
   return {
     kind: 'NodeDecl',
     name: lowerName(node.name),
@@ -145,11 +166,15 @@ function lowerNodeClass(ctx: LoweringContext, node: ClassDeclNode): NodeDecl {
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node),
   }
 }
 
 function lowerEdge(ctx: LoweringContext, node: ClassDeclNode): EdgeDecl {
+  const inlineData = node.body?.dataDecls?.[0] ?? null
+  const dataRef = node.body?.dataRefs?.[0] ?? null
   return {
     kind: 'EdgeDecl',
     name: lowerName(node.name),
@@ -158,6 +183,8 @@ function lowerEdge(ctx: LoweringContext, node: ClassDeclNode): EdgeDecl {
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node),
   }
 }
@@ -182,6 +209,26 @@ function lowerParam(node: ParamNode): Param {
 }
 
 function lowerMethod(ctx: LoweringContext, node: MethodNode): Method {
+  let projection: Projection | null = null
+  if (node.projection) {
+    const fields: Name[] = []
+    let dataRef: Name | null = null
+    for (const item of node.projection.items) {
+      // PascalCase (first char uppercase) → data type reference
+      if (item.text[0] >= 'A' && item.text[0] <= 'Z') {
+        dataRef = lowerName(item)
+      } else {
+        fields.push(lowerName(item))
+      }
+    }
+    projection = {
+      star: node.projection.star !== null,
+      fields,
+      dataRef,
+      span: spanOf(node.projection),
+    }
+  }
+
   return {
     kind: 'Method',
     name: lowerName(node.name),
@@ -190,6 +237,7 @@ function lowerMethod(ctx: LoweringContext, node: MethodNode): Method {
     returnType: lowerTypeExpr(node.returnType),
     returnList: node.listSuffix !== null,
     returnNullable: node.nullable !== null,
+    projection,
     span: spanOf(node),
   }
 }

@@ -12,9 +12,7 @@ export function emitSchemaTypes(model: GraphModel): string {
     .filter((n) => !n.abstract && !n.origin)
     .map((n) => n.name)
 
-  const edges = [...model.edgeDefs.values()]
-    .filter((e) => !e.origin)
-    .map((e) => e.name)
+  const edges = [...model.edgeDefs.values()].filter((e) => !e.origin).map((e) => e.name)
 
   if (concreteNodes.length > 0) {
     lines.push(`export type SchemaNodeType = ${concreteNodes.map((n) => `'${n}'`).join(' | ')}`)

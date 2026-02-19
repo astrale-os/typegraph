@@ -12,6 +12,7 @@ import {
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
+  type DataDecl,
   type TypeAliasDecl,
   type ValueTypeDecl,
   type TaggedUnionDecl,
@@ -51,6 +52,9 @@ export function validateDeclarations(ctx: ValidatorContext): void {
         break
       case 'EdgeDecl':
         validateEdge(ctx, decl)
+        break
+      case 'DataDecl':
+        validateDataDecl(ctx, decl)
         break
       case 'ExtendDecl':
         // Nothing to validate beyond resolution
@@ -132,7 +136,6 @@ function validateTaggedUnion(ctx: ValidatorContext, decl: TaggedUnionDecl): void
 // ─── Interface ─────────────────────────────────────────────
 
 function validateInterface(ctx: ValidatorContext, decl: InterfaceDecl): void {
-  // Interfaces can only extend other interfaces
   for (const parent of decl.extends) {
     const sym = ctx.schema.symbols.get(parent.value)
     if (sym && sym.symbolKind !== 'Interface') {
@@ -148,7 +151,10 @@ function validateInterface(ctx: ValidatorContext, decl: InterfaceDecl): void {
     validateAttribute(ctx, attr)
   }
 
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef)
+
   validateMethods(ctx, decl.methods)
+  validateMethodProjections(ctx, decl.name.value, decl.methods)
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -160,7 +166,6 @@ function validateInterface(ctx: ValidatorContext, decl: InterfaceDecl): void {
 // ─── Class ─────────────────────────────────────────────────
 
 function validateClass(ctx: ValidatorContext, decl: NodeDecl): void {
-  // Classes can only implement interfaces
   for (const parent of decl.implements) {
     const sym = ctx.schema.symbols.get(parent.value)
     if (sym && sym.symbolKind !== 'Interface') {
@@ -172,7 +177,6 @@ function validateClass(ctx: ValidatorContext, decl: NodeDecl): void {
     }
   }
 
-  // Node classes shouldn't have edge modifiers
   for (const mod of decl.modifiers) {
     ctx.diagnostics.warning(
       mod.span,
@@ -185,7 +189,10 @@ function validateClass(ctx: ValidatorContext, decl: NodeDecl): void {
     validateAttribute(ctx, attr)
   }
 
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef)
+
   validateMethods(ctx, decl.methods)
+  validateMethodProjections(ctx, decl.name.value, decl.methods)
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -205,7 +212,10 @@ function validateEdge(ctx: ValidatorContext, decl: EdgeDecl): void {
     validateAttribute(ctx, attr)
   }
 
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef)
+
   validateMethods(ctx, decl.methods)
+  validateMethodProjections(ctx, decl.name.value, decl.methods)
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -257,6 +267,107 @@ function validateEdgeModifier(ctx: ValidatorContext, mod: Modifier, decl: EdgeDe
         mod.span,
         DiagnosticCodes.V_INVALID_CARDINALITY,
         `Invalid cardinality: min (${card.min}) > max (${card.max})`,
+      )
+    }
+  }
+}
+
+// ─── Data Declarations ─────────────────────────────────────
+
+function validateDataDecl(ctx: ValidatorContext, decl: DataDecl): void {
+  if (decl.fields) {
+    const seen = new Set<string>()
+    for (const field of decl.fields) {
+      if (seen.has(field.name.value)) {
+        ctx.diagnostics.error(
+          field.name.span,
+          DiagnosticCodes.V_DUPLICATE_FIELD,
+          `Duplicate field '${field.name.value}' in data type '${decl.name.value}'`,
+        )
+      }
+      seen.add(field.name.value)
+      validateFieldDefault(ctx, field)
+    }
+  }
+}
+
+function validateDataAttachment(ctx: ValidatorContext, typeName: string, dataDecl: DataDecl | null, dataRef: import('../ast/index').Name | null): void {
+  if (dataDecl && dataRef) {
+    ctx.diagnostics.error(
+      dataRef.span,
+      DiagnosticCodes.V_MULTIPLE_DATA_DECLS,
+      `'${typeName}' has both an inline data declaration and a data reference; only one is allowed`,
+    )
+  }
+  if (dataRef) {
+    const sym = ctx.schema.symbols.get(dataRef.value)
+    if (sym && sym.symbolKind !== 'Data') {
+      ctx.diagnostics.error(
+        dataRef.span,
+        DiagnosticCodes.V_DATA_REF_NOT_DATA,
+        `'${dataRef.value}' is a ${sym.symbolKind}, but expected Data`,
+      )
+    }
+  }
+}
+
+function getClassDataTypeName(ctx: ValidatorContext, className: string): string | null {
+  const sym = ctx.schema.symbols.get(className)
+  if (!sym?.declaration) return null
+  const decl = sym.declaration
+  if (decl.kind === 'NodeDecl' || decl.kind === 'InterfaceDecl' || decl.kind === 'EdgeDecl') {
+    if (decl.dataDecl) return decl.dataDecl.name.value
+    if (decl.dataRef) return decl.dataRef.value
+  }
+  return null
+}
+
+function validateMethodProjections(ctx: ValidatorContext, typeName: string, methods: Method[]): void {
+  for (const method of methods) {
+    if (!method.projection) continue
+
+    // Resolve the return type to find the target class
+    const returnTypeName = method.returnType.kind === 'NamedType' ? method.returnType.name.value : null
+    if (!returnTypeName) continue
+
+    const targetSym = ctx.schema.symbols.get(returnTypeName)
+    if (!targetSym) continue
+
+    // Validate field picks exist on the target class
+    if (method.projection.fields.length > 0) {
+      const targetDecl = targetSym.declaration
+      if (targetDecl && (targetDecl.kind === 'NodeDecl' || targetDecl.kind === 'InterfaceDecl' || targetDecl.kind === 'EdgeDecl')) {
+        const attrNames = new Set(targetDecl.attributes.map((a) => a.name.value))
+        for (const field of method.projection.fields) {
+          if (!attrNames.has(field.value)) {
+            ctx.diagnostics.error(
+              field.span,
+              DiagnosticCodes.V_PROJECTION_UNKNOWN_FIELD,
+              `Field '${field.value}' does not exist on '${returnTypeName}'`,
+            )
+          }
+        }
+      }
+    }
+
+    // Validate data ref in projection
+    if (method.projection.dataRef) {
+      const dataTypeName = getClassDataTypeName(ctx, returnTypeName)
+      if (!dataTypeName) {
+        ctx.diagnostics.error(
+          method.projection.dataRef.span,
+          DiagnosticCodes.V_PROJECTION_NO_DATA,
+          `'${returnTypeName}' does not have a data declaration, cannot reference '${method.projection.dataRef.value}' in projection`,
+        )
+      }
+    }
+
+    // Warn if * + named fields (redundant)
+    if (method.projection.star && method.projection.fields.length > 0) {
+      ctx.diagnostics.warning(
+        method.projection.fields[0].span,
+        DiagnosticCodes.V_PROJECTION_REDUNDANT_STAR,
+        `'*' already includes all fields; named fields are redundant`,
       )
     }
   }

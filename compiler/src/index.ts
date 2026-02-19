@@ -42,10 +42,12 @@ export type {
   TypeAlias,
   MethodDef,
   MethodParam,
+  MethodProjection,
   ValueTypeDef,
   ValueTypeField,
   TaggedUnionDef,
   TaggedUnionVariant,
+  DataTypeDef,
 } from './ir/index'
 export type { ResolvedSchema, Symbol, SymbolKind } from './resolver/index'
 export { DiagnosticBag, DiagnosticCodes } from './diagnostics'

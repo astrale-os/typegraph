@@ -297,7 +297,7 @@ describe('Lowering', () => {
 
       const kinds = decls.map((d) => d.kind)
       expect(kinds.filter((k) => k === 'InterfaceDecl')).toHaveLength(3)
-      expect(kinds.filter((k) => k === 'NodeDecl')).toHaveLength(3)
+      expect(kinds.filter((k) => k === 'NodeDecl')).toHaveLength(4)
       expect(kinds.filter((k) => k === 'EdgeDecl')).toHaveLength(11)
     })
 
@@ -306,7 +306,7 @@ describe('Lowering', () => {
       const nodes = decls.filter((d) => d.kind === 'NodeDecl') as NodeDecl[]
       const edges = decls.filter((d) => d.kind === 'EdgeDecl') as EdgeDecl[]
 
-      expect(nodes.map((n) => n.name.value).sort()).toEqual(['Class', 'Interface', 'Operation'])
+      expect(nodes.map((n) => n.name.value).sort()).toEqual(['Class', 'Interface', 'Operation', 'Root'])
 
       const edgeNames = edges.map((e) => e.name.value).sort()
       expect(edgeNames).toContain('has_parent')

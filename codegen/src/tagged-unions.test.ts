@@ -19,6 +19,7 @@ function makeIR(overrides: Partial<SchemaIR> = {}): SchemaIR {
     type_aliases: [],
     value_types: [],
     tagged_unions: [],
+    data_types: [],
     classes: [],
     ...overrides,
   }

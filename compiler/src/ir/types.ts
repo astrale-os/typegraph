@@ -17,6 +17,7 @@ export interface SchemaIR {
   type_aliases: TypeAlias[]
   value_types: ValueTypeDef[]
   tagged_unions: TaggedUnionDef[]
+  data_types: DataTypeDef[]
   classes: ClassDef[]
 }
 
@@ -57,6 +58,14 @@ export interface TaggedUnionVariant {
   fields: ValueTypeField[]
 }
 
+// --- Data Type Definitions ---
+
+export interface DataTypeDef {
+  name: string
+  fields: ValueTypeField[] | null
+  scalar_type: string | null
+}
+
 // --- Class Definitions (discriminated on `type`) ---
 
 export type ClassDef = NodeDef | EdgeDef
@@ -68,6 +77,7 @@ export interface NodeDef {
   implements: string[]
   attributes: IRAttribute[]
   methods: MethodDef[]
+  data_ref?: string
   origin?: string
 }
 
@@ -78,6 +88,7 @@ export interface EdgeDef {
   attributes: IRAttribute[]
   methods: MethodDef[]
   constraints: EdgeConstraints
+  data_ref?: string
   origin?: string
 }
 
@@ -143,6 +154,13 @@ export interface MethodDef {
   params: MethodParam[]
   return_type: TypeRef
   return_nullable: boolean
+  projection: MethodProjection | null
+}
+
+export interface MethodProjection {
+  star: boolean
+  fields: string[]
+  include_data: boolean
 }
 
 export interface MethodParam {

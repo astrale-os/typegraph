@@ -12,6 +12,7 @@ import {
   type ValueTypeDecl,
   type ValueTypeField as AstValueTypeField,
   type TaggedUnionDecl,
+  type DataDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
@@ -30,9 +31,11 @@ import {
   type ValueTypeDef,
   type ValueTypeField,
   type TaggedUnionDef,
+  type DataTypeDef,
   type NodeDef,
   type EdgeDef,
   type MethodDef,
+  type MethodProjection,
   type MethodParam,
   type Endpoint,
   type Cardinality,
@@ -94,6 +97,20 @@ export function serializeTaggedUnion(ctx: SerializerContext, decl: TaggedUnionDe
   }
 }
 
+export function serializeDataType(ctx: SerializerContext, decl: DataDecl): DataTypeDef {
+  return {
+    name: decl.name.value,
+    fields: decl.fields ? decl.fields.map((f) => serializeValueTypeField(ctx, f)) : null,
+    scalar_type: decl.scalarType?.kind === 'NamedType' ? decl.scalarType.name.value : null,
+  }
+}
+
+function getDataRefName(decl: InterfaceDecl | NodeDecl | EdgeDecl): string | undefined {
+  if (decl.dataDecl) return decl.dataDecl.name.value
+  if (decl.dataRef) return decl.dataRef.value
+  return undefined
+}
+
 export function serializeInterface(ctx: SerializerContext, decl: InterfaceDecl): NodeDef {
   return {
     type: 'node',
@@ -102,6 +119,7 @@ export function serializeInterface(ctx: SerializerContext, decl: InterfaceDecl):
     implements: decl.extends.map((e) => e.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
     methods: decl.methods.map((m) => serializeMethod(ctx, m)),
+    data_ref: getDataRefName(decl),
   }
 }
 
@@ -113,6 +131,7 @@ export function serializeNode(ctx: SerializerContext, decl: NodeDecl): NodeDef {
     implements: decl.implements.map((i) => i.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
     methods: decl.methods.map((m) => serializeMethod(ctx, m)),
+    data_ref: getDataRefName(decl),
   }
 }
 
@@ -133,6 +152,7 @@ export function serializeEdge(ctx: SerializerContext, decl: EdgeDecl): EdgeDef {
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
     methods: decl.methods.map((m) => serializeMethod(ctx, m)),
     constraints: extractEdgeConstraints(decl.modifiers),
+    data_ref: getDataRefName(decl),
   }
 }
 
@@ -142,12 +162,22 @@ function serializeMethod(ctx: SerializerContext, method: Method): MethodDef {
     returnType = { kind: 'List', element: returnType }
   }
 
+  let projection: MethodProjection | null = null
+  if (method.projection) {
+    projection = {
+      star: method.projection.star,
+      fields: method.projection.fields.map((f) => f.value),
+      include_data: method.projection.dataRef !== null,
+    }
+  }
+
   return {
     name: method.name.value,
     access: method.access,
     params: method.params.map((p) => serializeMethodParam(ctx, p)),
     return_type: returnType,
     return_nullable: method.returnNullable,
+    projection,
   }
 }
 

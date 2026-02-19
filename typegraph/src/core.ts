@@ -8,6 +8,7 @@
 
 import type { Graph } from './graph'
 import type { SchemaShape, TypeMap, UntypedMap } from './schema'
+import type { NodeId } from './schema'
 
 // ─── Core Definition Types (generic) ─────────────────────────
 //
@@ -58,9 +59,17 @@ export interface InstallCoreOptions {
 
 // ─── Result ──────────────────────────────────────────────────
 
+/**
+ * A tree of NodeIds mirroring the core definition structure.
+ * Leaf nodes are NodeIds; parent nodes (with children) are nested CoreRefs.
+ */
+export interface CoreRefs {
+  readonly [key: string]: NodeId | CoreRefs
+}
+
 export interface InstallCoreResult {
-  /** Symbolic ref name → actual node ID */
-  refs: Record<string, string>
+  /** Core refs tree — mirrors the core definition hierarchy */
+  core: CoreRefs
   created: { nodes: number; edges: number }
 }
 
@@ -72,7 +81,7 @@ export interface InstallCoreResult {
  * 1. Recursively creates nodes (depth-first, children after parent).
  * 2. Creates edges, resolving symbolic ref names to actual node IDs.
  *
- * @returns Refs map and creation counts.
+ * @returns Core refs tree and creation counts.
  */
 export async function installCore<S extends SchemaShape, T extends TypeMap = UntypedMap>(
   graph: Graph<S, T>,
@@ -80,22 +89,33 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
   options: InstallCoreOptions = {},
 ): Promise<InstallCoreResult> {
   const { beforeCreate, beforeLink, onNode, onEdge } = options
-  const refs: Record<string, string> = {}
+  // Flat map — internal only, used for edge resolution
+  const flatRefs: Record<string, string> = {}
+  const coreRefs: Record<string, any> = {}
   let nodeCount = 0
   let edgeCount = 0
 
-  async function createNodes(nodes: Record<string, CoreNodeDef>): Promise<void> {
+  async function createNodes(
+    nodes: Record<string, CoreNodeDef>,
+    parent: Record<string, any> = coreRefs,
+  ): Promise<void> {
     for (const [ref, def] of Object.entries(nodes)) {
       const props = beforeCreate ? beforeCreate(def.__type, { ...def.props }) : def.props
 
       // Cast through any — the core DSL already validates types at definition time.
       const result = await (graph.mutate as any).create(def.__type, props)
-      refs[ref] = result.id
+      const nodeId = result.id
+
+      flatRefs[ref] = nodeId
       nodeCount++
-      onNode?.(ref, def.__type, result.id)
+      onNode?.(ref, def.__type, nodeId)
 
       if (def.children) {
-        await createNodes(def.children)
+        const children: Record<string, any> = {}
+        parent[ref] = children
+        await createNodes(def.children, children)
+      } else {
+        parent[ref] = nodeId
       }
     }
   }
@@ -108,8 +128,8 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
       const fromRef = endpointValues[0]!
       const toRef = endpointValues[1]!
 
-      const fromId = refs[fromRef] ?? fromRef
-      const toId = refs[toRef] ?? toRef
+      const fromId = flatRefs[fromRef] ?? fromRef
+      const toId = flatRefs[toRef] ?? toRef
 
       const edgeProps = beforeLink
         ? beforeLink(edgeDef.__type, edgeDef.props ? { ...edgeDef.props } : undefined)
@@ -121,5 +141,5 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
     }
   }
 
-  return { refs, created: { nodes: nodeCount, edges: edgeCount } }
+  return { core: coreRefs, created: { nodes: nodeCount, edges: edgeCount } }
 }
