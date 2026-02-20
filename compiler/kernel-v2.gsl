@@ -65,8 +65,6 @@ class Operation: Node {
     resultSchema: String
     code: String
   }
-
-  fn listOperations(): Operation(name, OperationData)
 }
 
 class method_of(operation: Operation, owner: Class | Interface) [

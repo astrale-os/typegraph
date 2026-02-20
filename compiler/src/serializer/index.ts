@@ -86,7 +86,10 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
 
   // Also collect inline data decls from class bodies
   for (const decl of ctx.schema.declarations) {
-    if ((decl.kind === 'NodeDecl' || decl.kind === 'InterfaceDecl' || decl.kind === 'EdgeDecl') && decl.dataDecl) {
+    if (
+      (decl.kind === 'NodeDecl' || decl.kind === 'InterfaceDecl' || decl.kind === 'EdgeDecl') &&
+      decl.dataDecl
+    ) {
       dataTypes.push(serializeDataType(ctx, decl.dataDecl))
     }
   }

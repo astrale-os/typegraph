@@ -291,7 +291,12 @@ function validateDataDecl(ctx: ValidatorContext, decl: DataDecl): void {
   }
 }
 
-function validateDataAttachment(ctx: ValidatorContext, typeName: string, dataDecl: DataDecl | null, dataRef: import('../ast/index').Name | null): void {
+function validateDataAttachment(
+  ctx: ValidatorContext,
+  typeName: string,
+  dataDecl: DataDecl | null,
+  dataRef: import('../ast/index').Name | null,
+): void {
   if (dataDecl && dataRef) {
     ctx.diagnostics.error(
       dataRef.span,
@@ -322,12 +327,17 @@ function getClassDataTypeName(ctx: ValidatorContext, className: string): string 
   return null
 }
 
-function validateMethodProjections(ctx: ValidatorContext, typeName: string, methods: Method[]): void {
+function validateMethodProjections(
+  ctx: ValidatorContext,
+  typeName: string,
+  methods: Method[],
+): void {
   for (const method of methods) {
     if (!method.projection) continue
 
     // Resolve the return type to find the target class
-    const returnTypeName = method.returnType.kind === 'NamedType' ? method.returnType.name.value : null
+    const returnTypeName =
+      method.returnType.kind === 'NamedType' ? method.returnType.name.value : null
     if (!returnTypeName) continue
 
     const targetSym = ctx.schema.symbols.get(returnTypeName)
@@ -336,7 +346,12 @@ function validateMethodProjections(ctx: ValidatorContext, typeName: string, meth
     // Validate field picks exist on the target class
     if (method.projection.fields.length > 0) {
       const targetDecl = targetSym.declaration
-      if (targetDecl && (targetDecl.kind === 'NodeDecl' || targetDecl.kind === 'InterfaceDecl' || targetDecl.kind === 'EdgeDecl')) {
+      if (
+        targetDecl &&
+        (targetDecl.kind === 'NodeDecl' ||
+          targetDecl.kind === 'InterfaceDecl' ||
+          targetDecl.kind === 'EdgeDecl')
+      ) {
         const attrNames = new Set(targetDecl.attributes.map((a) => a.name.value))
         for (const field of method.projection.fields) {
           if (!attrNames.has(field.value)) {

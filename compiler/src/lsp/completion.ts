@@ -48,6 +48,13 @@ const DECL_KEYWORDS: CompletionItem[] = [
     insertTextFormat: InsertTextFormat.Snippet,
     detail: 'Extension import',
   },
+  {
+    label: 'data',
+    kind: CompletionItemKind.Keyword,
+    insertText: 'data ${1:Name} = {\n\t$0\n}',
+    insertTextFormat: InsertTextFormat.Snippet,
+    detail: 'Data declaration',
+  },
 ]
 
 const MODIFIER_ITEMS: CompletionItem[] = [
@@ -143,6 +150,14 @@ const FN_SNIPPET: CompletionItem = {
   detail: 'Method declaration',
 }
 
+const DATA_BODY_SNIPPET: CompletionItem = {
+  label: 'data',
+  kind: CompletionItemKind.Keyword,
+  insertText: 'data ${1:Name}',
+  insertTextFormat: InsertTextFormat.Snippet,
+  detail: 'Data reference',
+}
+
 export function provideCompletion(
   workspace: Workspace,
   state: DocumentState,
@@ -171,7 +186,7 @@ export function provideCompletion(
       return edgeTargetCompletions(state)
 
     case 'body':
-      return [FN_SNIPPET, ...typeCompletions(state)]
+      return [FN_SNIPPET, DATA_BODY_SNIPPET, ...typeCompletions(state)]
 
     default:
       // Fallback: offer everything
@@ -313,6 +328,10 @@ function symbolKindToCompletion(kind: SymbolKind): CompletionItemKind {
       return CompletionItemKind.Struct
     case 'Edge':
       return CompletionItemKind.Reference
+    case 'Data':
+      return CompletionItemKind.Struct
+    case 'TaggedUnion':
+      return CompletionItemKind.Enum
     default:
       return CompletionItemKind.Text
   }

@@ -60,6 +60,12 @@ export type { AstVisitor } from './ast/index'
 // Kernel prelude & registry (separate entry — consumer opt-in)
 export { KERNEL_PRELUDE } from './prelude'
 export { buildKernelRegistry, KERNEL_SCHEMA_URI } from './kernel-prelude'
-export { EMPTY_REGISTRY, MapSchemaRegistry, LazyFileRegistry, isLocalPath, resolveExtendUri } from './registry'
+export {
+  EMPTY_REGISTRY,
+  MapSchemaRegistry,
+  LazyFileRegistry,
+  isLocalPath,
+  resolveExtendUri,
+} from './registry'
 export type { SchemaRegistry, CompileFileFn } from './registry'
 export { createLazyFileRegistry } from './file-resolver'

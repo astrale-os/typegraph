@@ -490,6 +490,55 @@ describe('Edge Cases', () => {
     expect(source).toMatch(/getAll\(\):\s*Widget \| Promise<Widget>/)
   })
 
+  it('array of data-only projection', () => {
+    const { source } = compileAndGenerate(`
+      data BlobData = { content: String }
+      class File {
+        name: String
+        data BlobData
+        fn listBlobs(): File { BlobData }[]
+      }
+    `)
+    expect(source).toMatch(/listBlobs\(\):\s*\{ data\(\): Promise<BlobData> \}\[\]/)
+  })
+
+  it('array of fields + data projection', () => {
+    const { source } = compileAndGenerate(`
+      data Meta = { info: String }
+      class Doc {
+        title: String
+        author: String
+        data Meta
+        fn listDocs(): Doc { title, Meta }[]
+      }
+    `)
+    expect(source).toMatch(/listDocs\(\):\s*WithData<Pick<Doc, 'title'>, Meta>\[\]/)
+  })
+
+  it('array of star + data projection', () => {
+    const { source } = compileAndGenerate(`
+      data Blob = { raw: String }
+      class Asset {
+        name: String
+        data Blob
+        fn listAssets(): Asset { *, Blob }[]
+      }
+    `)
+    expect(source).toMatch(/listAssets\(\):\s*WithData<Asset, Blob>\[\]/)
+  })
+
+  it('bare array return with data class', () => {
+    const { source } = compileAndGenerate(`
+      data ItemData = { payload: String }
+      class Item {
+        label: String
+        data ItemData
+        fn listAll(): Item[]
+      }
+    `)
+    expect(source).toMatch(/listAll\(\):\s*WithData<Item, ItemData>\[\]/)
+  })
+
   it('single field projection', () => {
     const { source } = compileAndGenerate(`
       class User {

@@ -9,12 +9,15 @@ import {
   type Declaration,
   type TypeAliasDecl,
   type ValueTypeDecl,
+  type TaggedUnionDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
   type ExtendDecl,
+  type DataDecl,
   type Attribute,
   type Method,
+  type Projection,
   type TypeExpr,
   NamedType,
   NullableType,
@@ -45,6 +48,10 @@ function declarationToSymbol(decl: Declaration, state: DocumentState): DocumentS
       return edgeSymbol(decl, state)
     case 'ExtendDecl':
       return extendSymbol(decl, state)
+    case 'DataDecl':
+      return dataSymbol(decl, state)
+    case 'TaggedUnionDecl':
+      return taggedUnionSymbol(decl, state)
     default:
       return null
   }
@@ -88,6 +95,7 @@ function interfaceSymbol(decl: InterfaceDecl, state: DocumentState): DocumentSym
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
       ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state),
     ],
   }
 }
@@ -104,6 +112,7 @@ function classSymbol(decl: NodeDecl, state: DocumentState): DocumentSymbol {
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
       ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state),
     ],
   }
 }
@@ -119,6 +128,7 @@ function edgeSymbol(decl: EdgeDecl, state: DocumentState): DocumentSymbol {
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
       ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state),
     ],
   }
 }
@@ -131,6 +141,67 @@ function extendSymbol(decl: ExtendDecl, state: DocumentState): DocumentSymbol {
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.span, state),
   }
+}
+
+function dataSymbol(decl: DataDecl, state: DocumentState): DocumentSymbol {
+  const children: DocumentSymbol[] = []
+  if (decl.fields) {
+    for (const f of decl.fields) {
+      children.push({
+        name: f.name.value,
+        detail: renderTypeExpr(f.type) + (f.list ? '[]' : '') + (f.nullable ? '?' : ''),
+        kind: SymbolKind.Field,
+        range: spanToRange(f.span, state),
+        selectionRange: spanToRange(f.name.span, state),
+      })
+    }
+  }
+  return {
+    name: decl.name.value,
+    detail: decl.scalarType ? `data = ${renderTypeExpr(decl.scalarType)}` : 'data',
+    kind: SymbolKind.Struct,
+    range: spanToRange(decl.span, state),
+    selectionRange: spanToRange(decl.name.span, state),
+    children: children.length > 0 ? children : undefined,
+  }
+}
+
+function taggedUnionSymbol(decl: TaggedUnionDecl, state: DocumentState): DocumentSymbol {
+  return {
+    name: decl.name.value,
+    detail: 'tagged union',
+    kind: SymbolKind.Enum,
+    range: spanToRange(decl.span, state),
+    selectionRange: spanToRange(decl.name.span, state),
+    children: decl.variants.map((v) => ({
+      name: v.tag,
+      detail: v.fields.length > 0 ? `{ ${v.fields.map((f) => f.name.value).join(', ')} }` : '{}',
+      kind: SymbolKind.EnumMember,
+      range: spanToRange(v.span, state),
+      selectionRange: spanToRange(v.span, state),
+    })),
+  }
+}
+
+function dataChildSymbols(
+  dataDecl: DataDecl | null,
+  dataRef: import('../ast/index').Name | null,
+  state: DocumentState,
+): DocumentSymbol[] {
+  const children: DocumentSymbol[] = []
+  if (dataDecl) {
+    children.push(dataSymbol(dataDecl, state))
+  }
+  if (dataRef) {
+    children.push({
+      name: dataRef.value,
+      detail: 'data ref',
+      kind: SymbolKind.Struct,
+      range: spanToRange(dataRef.span, state),
+      selectionRange: spanToRange(dataRef.span, state),
+    })
+  }
+  return children
 }
 
 function attributeSymbol(attr: Attribute, state: DocumentState): DocumentSymbol {
@@ -146,14 +217,25 @@ function attributeSymbol(attr: Attribute, state: DocumentState): DocumentSymbol 
 function methodSymbol(m: Method, state: DocumentState): DocumentSymbol {
   const params = m.params.map((p) => p.name.value).join(', ')
   const ret = renderTypeExpr(m.returnType)
+  const proj = renderProjection(m.projection)
   const suffix = m.returnList ? '[]' : m.returnNullable ? '?' : ''
   return {
     name: m.name.value,
-    detail: `(${params}): ${ret}${suffix}`,
+    detail: `(${params}): ${ret}${proj}${suffix}`,
     kind: SymbolKind.Method,
     range: spanToRange(m.span, state),
     selectionRange: spanToRange(m.name.span, state),
   }
+}
+
+function renderProjection(proj: Projection | null): string {
+  if (!proj) return ''
+  const items: string[] = []
+  if (proj.star) items.push('*')
+  for (const f of proj.fields) items.push(f.value)
+  if (proj.dataRef) items.push(proj.dataRef.value)
+  if (items.length === 0) return ''
+  return ` { ${items.join(', ')} }`
 }
 
 function formatTypeExpr(attr: Attribute): string {

@@ -59,7 +59,7 @@ SEMANTIC_TOKEN_MODIFIERS.forEach((m, i) => {
 })
 
 // Keywords that get special highlighting
-const KEYWORD_SET = new Set(['class', 'interface', 'type', 'extend', 'edge', 'fn'])
+const KEYWORD_SET = new Set(['class', 'interface', 'type', 'extend', 'edge', 'fn', 'data'])
 
 const MODIFIER_KEYWORDS = new Set([
   'unique',
@@ -231,6 +231,9 @@ function classifyIdent(
           return [TYPE_INDEX.class, 0]
         case 'Edge':
           return [TYPE_INDEX.variable, 0]
+        case 'Data':
+        case 'TaggedUnion':
+          return [TYPE_INDEX.type, 0]
       }
     }
   }

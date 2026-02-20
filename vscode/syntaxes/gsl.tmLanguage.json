@@ -8,6 +8,7 @@
     { "include": "#type-alias" },
     { "include": "#interface" },
     { "include": "#class" },
+    { "include": "#data-decl" },
     { "include": "#string" },
     { "include": "#number" },
     { "include": "#keywords" }
@@ -61,7 +62,7 @@
         "1": { "name": "keyword.declaration.type.gsl" },
         "2": { "name": "entity.name.type.alias.gsl" }
       },
-      "end": "(?=\\b(?:class|interface|type|extend)\\b|$(?!\\s))",
+      "end": "(?=\\b(?:class|interface|type|extend|data)\\b|$(?!\\s))",
       "patterns": [
         { "include": "#modifier-block" },
         { "include": "#type-reference" },
@@ -98,6 +99,36 @@
         { "include": "#extends-clause" },
         { "include": "#modifier-block" },
         { "include": "#body" },
+        { "include": "#comment" }
+      ]
+    },
+
+    "data-decl": {
+      "begin": "\\b(data)\\s+([A-Z]\\w*)",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.data.gsl" },
+        "2": { "name": "entity.name.type.data.gsl" }
+      },
+      "end": "(?<=})|(?=\\b(?:class|interface|type|extend|data)\\b)|(?=$)",
+      "patterns": [
+        { "include": "#body" },
+        { "include": "#type-reference" },
+        { "include": "#operators" },
+        { "include": "#comment" }
+      ]
+    },
+
+    "fn-decl": {
+      "begin": "\\b(fn)\\s+(\\w+)",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.fn.gsl" },
+        "2": { "name": "entity.name.function.gsl" }
+      },
+      "end": "(?=[,}]|$)",
+      "patterns": [
+        { "include": "#signature" },
+        { "include": "#type-expression" },
+        { "include": "#operators" },
         { "include": "#comment" }
       ]
     },
@@ -143,7 +174,19 @@
       "end": "\\}",
       "beginCaptures": { "0": { "name": "punctuation.brace.open.gsl" } },
       "endCaptures": { "0": { "name": "punctuation.brace.close.gsl" } },
-      "patterns": [{ "include": "#attribute" }, { "include": "#comment" }]
+      "patterns": [
+        { "include": "#fn-decl" },
+        { "include": "#data-decl" },
+        {
+          "match": "\\b(data)\\s+([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.data.gsl" },
+            "2": { "name": "entity.name.type.data.gsl" }
+          }
+        },
+        { "include": "#attribute" },
+        { "include": "#comment" }
+      ]
     },
 
     "attribute": {

@@ -9,11 +9,14 @@ import {
   Declaration,
   type TypeAliasDecl,
   type ValueTypeDecl,
+  type TaggedUnionDecl,
   type InterfaceDecl,
   type NodeDecl,
   type EdgeDecl,
+  type DataDecl,
   type Attribute,
   type Method,
+  type Projection,
   type TypeExpr,
   type NamedType,
   type NullableType,
@@ -86,6 +89,10 @@ function renderSymbol(sym: Symbol): string | null {
       return renderClass(decl)
     case 'EdgeDecl':
       return renderEdge(decl)
+    case 'DataDecl':
+      return renderDataDecl(decl)
+    case 'TaggedUnionDecl':
+      return renderTaggedUnion(decl)
     default:
       return null
   }
@@ -114,14 +121,14 @@ function renderValueType(decl: ValueTypeDecl): string {
 
 function renderInterface(decl: InterfaceDecl): string {
   const ext = decl.extends.length > 0 ? `: ${decl.extends.map((e) => e.value).join(', ')}` : ''
-  const body = renderBody(decl.attributes, decl.methods)
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef)
   return `\`\`\`gsl\ninterface ${decl.name.value}${ext}${body}\n\`\`\``
 }
 
 function renderClass(decl: NodeDecl): string {
   const impl =
     decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(', ')}` : ''
-  const body = renderBody(decl.attributes, decl.methods)
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef)
   return `\`\`\`gsl\nclass ${decl.name.value}${impl}${body}\n\`\`\``
 }
 
@@ -131,8 +138,33 @@ function renderEdge(decl: EdgeDecl): string {
     decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(', ')}` : ''
   const mods =
     decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(', ')}]` : ''
-  const body = renderBody(decl.attributes, decl.methods)
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef)
   return `\`\`\`gsl\nclass ${decl.name.value}(${params})${impl}${mods}${body}\n\`\`\``
+}
+
+function renderDataDecl(decl: DataDecl): string {
+  if (decl.scalarType) {
+    return `\`\`\`gsl\ndata ${decl.name.value} = ${renderTypeExpr(decl.scalarType)}\n\`\`\``
+  }
+  if (decl.fields && decl.fields.length > 0) {
+    const fields = decl.fields.map((f) => {
+      const type = renderTypeExpr(f.type)
+      const list = f.list ? '[]' : ''
+      const nullable = f.nullable ? '?' : ''
+      return `  ${f.name.value}: ${type}${list}${nullable}`
+    })
+    return `\`\`\`gsl\ndata ${decl.name.value} = {\n${fields.join('\n')}\n}\n\`\`\``
+  }
+  return `\`\`\`gsl\ndata ${decl.name.value} = {}\n\`\`\``
+}
+
+function renderTaggedUnion(decl: TaggedUnionDecl): string {
+  const variants = decl.variants.map((v) => {
+    if (v.fields.length === 0) return `| ${v.tag}`
+    const fields = v.fields.map((f) => `${f.name.value}: ${renderTypeExpr(f.type)}`)
+    return `| ${v.tag} { ${fields.join(', ')} }`
+  })
+  return `\`\`\`gsl\ntype ${decl.name.value} = ${variants.join(' ')}\n\`\`\``
 }
 
 function renderAttribute(attr: Attribute): string {
@@ -145,12 +177,33 @@ function renderAttribute(attr: Attribute): string {
 function renderMethod(m: Method): string {
   const params = m.params.map((p) => `${p.name.value}: ${renderTypeExpr(p.type)}`).join(', ')
   const ret = renderTypeExpr(m.returnType)
+  const proj = renderProjection(m.projection)
   const suffix = m.returnList ? '[]' : m.returnNullable ? '?' : ''
-  return `fn ${m.name.value}(${params}): ${ret}${suffix}`
+  return `fn ${m.name.value}(${params}): ${ret}${proj}${suffix}`
 }
 
-function renderBody(attributes: Attribute[], methods: Method[]): string {
+function renderProjection(proj: Projection | null): string {
+  if (!proj) return ''
+  const items: string[] = []
+  if (proj.star) items.push('*')
+  for (const f of proj.fields) items.push(f.value)
+  if (proj.dataRef) items.push(proj.dataRef.value)
+  if (items.length === 0) return ''
+  return ` { ${items.join(', ')} }`
+}
+
+function renderBody(
+  attributes: Attribute[],
+  methods: Method[],
+  dataDecl?: DataDecl | null,
+  dataRef?: import('../ast/index').Name | null,
+): string {
   const lines: string[] = [...attributes.map(renderAttribute), ...methods.map(renderMethod)]
+  if (dataDecl) {
+    lines.push(`data ${dataDecl.name.value}`)
+  } else if (dataRef) {
+    lines.push(`data ${dataRef.value}`)
+  }
   return lines.length > 0 ? ` {\n  ${lines.join('\n  ')}\n}` : ' {}'
 }
 

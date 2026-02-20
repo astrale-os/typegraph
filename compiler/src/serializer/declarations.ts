@@ -87,7 +87,10 @@ function serializeValueTypeField(ctx: SerializerContext, field: AstValueTypeFiel
   }
 }
 
-export function serializeTaggedUnion(ctx: SerializerContext, decl: TaggedUnionDecl): TaggedUnionDef {
+export function serializeTaggedUnion(
+  ctx: SerializerContext,
+  decl: TaggedUnionDecl,
+): TaggedUnionDef {
   return {
     name: decl.name.value,
     variants: decl.variants.map((v) => ({

@@ -9,7 +9,8 @@ import { provideDocumentSymbols } from './symbols'
 import { provideSemanticTokens, SEMANTIC_TOKEN_TYPES } from './semantic-tokens'
 import { KERNEL_PRELUDE } from '../prelude'
 import { buildKernelRegistry } from '../kernel-prelude'
-import { SymbolKind } from 'vscode-languageserver-types'
+import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types'
+import { type DocumentState } from './workspace'
 
 const kernelRegistry = buildKernelRegistry()
 
@@ -470,5 +471,200 @@ describe('Methods — Semantic Tokens', () => {
     }
 
     expect(fnIsKeyword).toBe(true)
+  })
+})
+
+// ─── Data Declarations & Projections ────────────────────────
+
+const DATA_SAMPLE = `
+data OperationData = {
+  paramsSchema: String,
+  resultSchema: String,
+  code: String
+}
+
+data Payload = String
+
+class Operation: Node {
+  name: String,
+  syscall: Boolean,
+  data OperationData,
+  fn getOp(): Operation,
+  fn listOps(): Operation { name, syscall }[],
+  fn getOpCode(): Operation { OperationData }
+}
+`
+
+describe('Data — Hover', () => {
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/data-hover.gsl'
+  ws.update(uri, DATA_SAMPLE, 1)
+
+  it('shows hover for standalone structured data', () => {
+    const state = ws.get(uri)!
+    const idx = DATA_SAMPLE.indexOf('data OperationData')
+    const hover = provideHover(ws, state, idx + 5) // in "OperationData"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('data OperationData')
+    expect(value).toContain('paramsSchema: String')
+    expect(value).toContain('code: String')
+  })
+
+  it('shows hover for scalar data alias', () => {
+    const state = ws.get(uri)!
+    const idx = DATA_SAMPLE.indexOf('data Payload')
+    const hover = provideHover(ws, state, idx + 5) // in "Payload"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('data Payload = String')
+  })
+
+  it('shows data ref in class hover', () => {
+    const state = ws.get(uri)!
+    const idx = DATA_SAMPLE.indexOf('class Operation')
+    const hover = provideHover(ws, state, idx + 6) // in "Operation"
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('class Operation')
+    expect(value).toContain('data OperationData')
+  })
+
+  it('shows projection in method hover (via class)', () => {
+    const state = ws.get(uri)!
+    const idx = DATA_SAMPLE.indexOf('class Operation')
+    const hover = provideHover(ws, state, idx + 6)
+    expect(hover).not.toBeNull()
+    const value = (hover!.contents as any).value as string
+    expect(value).toContain('fn listOps(): Operation { name, syscall }[]')
+  })
+})
+
+describe('Data — Document Symbols', () => {
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/data-symbols.gsl'
+  ws.update(uri, DATA_SAMPLE, 1)
+
+  it('includes standalone data decls in outline', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const names = symbols.map((s) => s.name)
+    expect(names).toContain('OperationData')
+    expect(names).toContain('Payload')
+  })
+
+  it('data has Struct kind', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const opData = symbols.find((s) => s.name === 'OperationData')!
+    expect(opData.kind).toBe(SymbolKind.Struct)
+  })
+
+  it('structured data has field children', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const opData = symbols.find((s) => s.name === 'OperationData')!
+    expect(opData.children).toBeDefined()
+    expect(opData.children!.map((c) => c.name)).toContain('paramsSchema')
+    expect(opData.children!.map((c) => c.name)).toContain('code')
+  })
+
+  it('scalar data shows type in detail', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const payload = symbols.find((s) => s.name === 'Payload')!
+    expect(payload.detail).toContain('String')
+  })
+
+  it('inline data ref appears as child of class', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const operation = symbols.find((s) => s.name === 'Operation')!
+    expect(operation.children).toBeDefined()
+    const dataChild = operation.children!.find((c) => c.name === 'OperationData')
+    expect(dataChild).toBeDefined()
+    expect(dataChild!.kind).toBe(SymbolKind.Struct)
+  })
+
+  it('shows projection in method detail', () => {
+    const state = ws.get(uri)!
+    const symbols = provideDocumentSymbols(state)
+    const operation = symbols.find((s) => s.name === 'Operation')!
+    const listOps = operation.children!.find((c) => c.name === 'listOps')!
+    expect(listOps.detail).toContain('{ name, syscall }')
+  })
+})
+
+describe('Data — Completion', () => {
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/data-comp.gsl'
+  ws.update(uri, DATA_SAMPLE, 1)
+
+  it('offers data keyword at top-level', () => {
+    const state = ws.get(uri)!
+    const items = provideCompletion(ws, state, DATA_SAMPLE.length)
+    expect(items.some((i) => i.label === 'data')).toBe(true)
+  })
+
+  it('offers data keyword inside body', () => {
+    const state = ws.get(uri)!
+    // Position inside Operation body after an attribute
+    const idx = DATA_SAMPLE.indexOf('syscall: Boolean,') + 'syscall: Boolean,'.length + 1
+    const items = provideCompletion(ws, state, idx)
+    expect(items.some((i) => i.label === 'data')).toBe(true)
+  })
+
+  it('Data symbols have Struct completion kind', () => {
+    const state = ws.get(uri)!
+    // After colon → type completions
+    const idx = DATA_SAMPLE.indexOf('name: ') + 6
+    const items = provideCompletion(ws, state, idx)
+    const opData = items.find((i) => i.label === 'OperationData')
+    expect(opData).toBeDefined()
+    expect(opData!.kind).toBe(CompletionItemKind.Struct)
+  })
+})
+
+describe('Data — Semantic Tokens', () => {
+  const ws = new Workspace(KERNEL_PRELUDE, kernelRegistry)
+  const uri = 'file:///test/data-sem.gsl'
+  ws.update(uri, DATA_SAMPLE, 1)
+
+  function decodeTokens(sample: string, state: DocumentState) {
+    const data = provideSemanticTokens(state)
+    const lineMap = state.lineMap
+    const result: { text: string; type: string }[] = []
+    let prevLine = 0
+    let prevChar = 0
+    for (let i = 0; i < data.length; i += 5) {
+      const deltaLine = data[i]
+      const deltaChar = data[i + 1]
+      const length = data[i + 2]
+      const typeIdx = data[i + 3]
+      const line = prevLine + deltaLine
+      const char = deltaLine === 0 ? prevChar + deltaChar : deltaChar
+      const offset = lineMap.offsetAt(line, char)
+      const text = sample.slice(offset, offset + length)
+      result.push({ text, type: SEMANTIC_TOKEN_TYPES[typeIdx] })
+      prevLine = line
+      prevChar = char
+    }
+    return result
+  }
+
+  it('classifies data keyword as keyword', () => {
+    const state = ws.get(uri)!
+    const tokens = decodeTokens(DATA_SAMPLE, state)
+    const dataKeywords = tokens.filter((t) => t.text === 'data')
+    expect(dataKeywords.length).toBeGreaterThan(0)
+    expect(dataKeywords.every((t) => t.type === 'keyword')).toBe(true)
+  })
+
+  it('classifies OperationData as type', () => {
+    const state = ws.get(uri)!
+    const tokens = decodeTokens(DATA_SAMPLE, state)
+    const opDataTokens = tokens.filter((t) => t.text === 'OperationData')
+    expect(opDataTokens.length).toBeGreaterThan(0)
+    expect(opDataTokens.every((t) => t.type === 'type')).toBe(true)
   })
 })

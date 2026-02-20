@@ -10354,7 +10354,14 @@ var DiagnosticCodes = {
   V_DUPLICATE_PARAM: "V013",
   V_DUPLICATE_FIELD: "V014",
   V_CIRCULAR_VALUE_TYPE: "V015",
-  V_ACCESS_WIDENING: "V016"
+  V_ACCESS_WIDENING: "V016",
+  V_DUPLICATE_VARIANT: "V017",
+  V_TOO_FEW_VARIANTS: "V018",
+  V_MULTIPLE_DATA_DECLS: "V019",
+  V_DATA_REF_NOT_DATA: "V020",
+  V_PROJECTION_UNKNOWN_FIELD: "V021",
+  V_PROJECTION_NO_DATA: "V022",
+  V_PROJECTION_REDUNDANT_STAR: "V024"
 };
 
 // src/lexer.ts
@@ -10827,11 +10834,12 @@ function parseDeclaration(p) {
   if (p.atKeyword("type")) return parseTypeAlias(p);
   if (p.atKeyword("interface")) return parseInterface(p);
   if (p.atKeyword("class")) return parseClass(p);
+  if (p.atKeyword("data")) return parseDataDecl(p);
   if (p.atKeyword("extend")) return parseExtend(p);
   p.diagnostics.error(
     p.current().span,
     DiagnosticCodes.P_EXPECTED_DECLARATION,
-    `Expected declaration (type, interface, class, extend), got '${p.current().text}'`
+    `Expected declaration (type, interface, class, data, extend), got '${p.current().text}'`
   );
   return null;
 }
@@ -10843,6 +10851,9 @@ function parseTypeAlias(p) {
   children.push(name);
   const eq = p.expect("Eq");
   children.push(eq);
+  if (p.at("Pipe")) {
+    return parseTaggedUnion(p, children, typeKeyword, name, eq);
+  }
   if (p.at("LBrace")) {
     return parseValueType(p, children, typeKeyword, name, eq);
   }
@@ -10892,6 +10903,58 @@ function parseValueType(p, children, typeKeyword, name, eq) {
     lbrace,
     fields,
     rbrace
+  };
+}
+function parseTaggedUnion(p, children, typeKeyword, name, eq) {
+  const variants = [];
+  while (p.at("Pipe")) {
+    const variantChildren = [];
+    const pipe = p.advance();
+    children.push(pipe);
+    variantChildren.push(pipe);
+    const tag = p.expectIdent();
+    children.push(tag);
+    variantChildren.push(tag);
+    const lbrace = p.expect("LBrace");
+    children.push(lbrace);
+    variantChildren.push(lbrace);
+    const fields = [];
+    while (!p.at("RBrace") && !p.at("EOF")) {
+      if (isDeclStart(p.current())) {
+        p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'");
+        break;
+      }
+      const field = parseValueTypeField(p);
+      if (field) {
+        fields.push(field);
+        children.push(field);
+        variantChildren.push(field);
+      } else {
+        const skipped = p.advance();
+        children.push(skipped);
+        variantChildren.push(skipped);
+      }
+    }
+    const rbrace = p.expect("RBrace");
+    children.push(rbrace);
+    variantChildren.push(rbrace);
+    variants.push({
+      kind: "Variant",
+      children: variantChildren,
+      pipe,
+      tag,
+      lbrace,
+      fields,
+      rbrace
+    });
+  }
+  return {
+    kind: "TaggedUnionDecl",
+    children,
+    typeKeyword,
+    name,
+    eq,
+    variants
   };
 }
 function parseValueTypeField(p) {
@@ -10999,6 +11062,60 @@ function parseClass(p) {
     body
   };
 }
+function parseDataDecl(p) {
+  const children = [];
+  const dataKeyword = p.expectKeyword("data");
+  children.push(dataKeyword);
+  const name = p.expectIdent();
+  children.push(name);
+  const eq = p.expect("Eq");
+  children.push(eq);
+  if (p.at("LBrace")) {
+    const lbrace = p.expect("LBrace");
+    children.push(lbrace);
+    const fields = [];
+    while (!p.at("RBrace") && !p.at("EOF")) {
+      if (isDeclStart(p.current())) {
+        p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'");
+        break;
+      }
+      const field = parseValueTypeField(p);
+      if (field) {
+        fields.push(field);
+        children.push(field);
+      } else {
+        const skipped = p.advance();
+        children.push(skipped);
+      }
+    }
+    const rbrace = p.expect("RBrace");
+    children.push(rbrace);
+    return {
+      kind: "DataDecl",
+      children,
+      dataKeyword,
+      name,
+      eq,
+      typeExpr: null,
+      lbrace,
+      fields,
+      rbrace
+    };
+  }
+  const typeExpr = parseTypeExpr(p);
+  children.push(typeExpr);
+  return {
+    kind: "DataDecl",
+    children,
+    dataKeyword,
+    name,
+    eq,
+    typeExpr,
+    lbrace: null,
+    fields: [],
+    rbrace: null
+  };
+}
 function parseExtend(p) {
   const children = [];
   const extendKeyword = p.expectKeyword("extend");
@@ -11102,6 +11219,8 @@ function parseBody(p) {
   children.push(lbrace);
   const attributes = [];
   const methods = [];
+  const dataDecls = [];
+  const dataRefs = [];
   while (!p.at("RBrace") && !p.at("EOF")) {
     if (isDeclStart(p.current())) {
       p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACE, "Unclosed '{'");
@@ -11112,6 +11231,19 @@ function parseBody(p) {
       methods.push(method);
       children.push(method);
       continue;
+    }
+    if (isKeyword(p.current(), "data") && p.peek(1).kind === "Ident") {
+      if (p.peek(2).kind === "Eq") {
+        const dataDecl = parseDataDecl(p);
+        dataDecls.push(dataDecl);
+        children.push(dataDecl);
+        continue;
+      } else {
+        const dataRef = parseDataRef(p);
+        dataRefs.push(dataRef);
+        children.push(dataRef);
+        continue;
+      }
     }
     const attr = parseAttribute(p);
     if (attr) {
@@ -11129,8 +11261,26 @@ function parseBody(p) {
     children,
     lbrace,
     attributes,
+    dataDecls,
+    dataRefs,
     methods,
     rbrace
+  };
+}
+function parseDataRef(p) {
+  const children = [];
+  const dataKeyword = p.expectKeyword("data");
+  children.push(dataKeyword);
+  const name = p.expectIdent();
+  children.push(name);
+  if (p.at("Comma")) {
+    children.push(p.advance());
+  }
+  return {
+    kind: "DataRef",
+    children,
+    dataKeyword,
+    name
   };
 }
 function parseAttribute(p) {
@@ -11204,6 +11354,11 @@ function parseMethod(p) {
     nullable = nt.question;
     returnType = nt.inner;
   }
+  let projection = null;
+  if (!nullable && p.at("LBrace")) {
+    projection = parseProjection(p);
+    children.push(projection);
+  }
   let listSuffix = null;
   if (!nullable && p.at("LBracket") && p.peek(1).kind === "RBracket") {
     const lbracket = p.advance();
@@ -11223,8 +11378,45 @@ function parseMethod(p) {
     rparen,
     colon,
     returnType,
+    projection,
     listSuffix,
     nullable
+  };
+}
+function parseProjection(p) {
+  const children = [];
+  const lbrace = p.expect("LBrace");
+  children.push(lbrace);
+  let star = null;
+  const items = [];
+  if (p.at("Star")) {
+    star = p.advance();
+    children.push(star);
+    if (p.at("Comma")) {
+      children.push(p.advance());
+    }
+  }
+  while (!p.at("RBrace") && !p.at("EOF")) {
+    if (p.at("Ident")) {
+      const ident = p.advance();
+      items.push(ident);
+      children.push(ident);
+      if (p.at("Comma")) {
+        children.push(p.advance());
+      }
+    } else {
+      break;
+    }
+  }
+  const rbrace = p.expect("RBrace");
+  children.push(rbrace);
+  return {
+    kind: "Projection",
+    children,
+    lbrace,
+    star,
+    items,
+    rbrace
   };
 }
 function parseMethodParam(p) {
@@ -11366,6 +11558,7 @@ var Parser = class {
     const skipped = [];
     while (!this.at("EOF")) {
       if (isDeclStart(this.current())) break;
+      if (isKeyword(this.current(), "data") && this.peek(1).kind === "Ident") break;
       if (this.at("RBrace") || this.at("RBracket") || this.at("RParen")) break;
       skipped.push(this.advance());
     }
@@ -11640,10 +11833,14 @@ function lowerDeclaration(ctx, node) {
       return lowerTypeAlias(ctx, node);
     case "ValueTypeDecl":
       return lowerValueType(ctx, node);
+    case "TaggedUnionDecl":
+      return lowerTaggedUnion(ctx, node);
     case "InterfaceDecl":
       return lowerInterface(ctx, node);
     case "ClassDecl":
       return lowerClass(ctx, node);
+    case "DataDecl":
+      return lowerDataDecl(ctx, node);
     case "ExtendDecl":
       return lowerExtend(node);
     default:
@@ -11667,6 +11864,18 @@ function lowerValueType(ctx, node) {
     span: spanOf(node)
   };
 }
+function lowerTaggedUnion(ctx, node) {
+  return {
+    kind: "TaggedUnionDecl",
+    name: lowerName(node.name),
+    variants: node.variants.map((v) => ({
+      tag: v.tag.text,
+      fields: v.fields.map((f) => lowerValueTypeField(ctx, f)),
+      span: spanOf(v)
+    })),
+    span: spanOf(node)
+  };
+}
 function lowerValueTypeField(ctx, node) {
   let typeExpr = node.typeExpr;
   let nullable = node.nullable !== null;
@@ -11684,13 +11893,26 @@ function lowerValueTypeField(ctx, node) {
     span: spanOf(node)
   };
 }
+function lowerDataDecl(ctx, node) {
+  return {
+    kind: "DataDecl",
+    name: lowerName(node.name),
+    fields: node.lbrace ? node.fields.map((f) => lowerValueTypeField(ctx, f)) : null,
+    scalarType: node.typeExpr ? lowerTypeExpr(node.typeExpr) : null,
+    span: spanOf(node)
+  };
+}
 function lowerInterface(ctx, node) {
+  const inlineData = node.body?.dataDecls?.[0] ?? null;
+  const dataRef = node.body?.dataRefs?.[0] ?? null;
   return {
     kind: "InterfaceDecl",
     name: lowerName(node.name),
     extends: node.extendsClause ? node.extendsClause.names.items.map((t) => lowerName(t)) : [],
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node)
   };
 }
@@ -11701,6 +11923,8 @@ function lowerClass(ctx, node) {
   return lowerNodeClass(ctx, node);
 }
 function lowerNodeClass(ctx, node) {
+  const inlineData = node.body?.dataDecls?.[0] ?? null;
+  const dataRef = node.body?.dataRefs?.[0] ?? null;
   return {
     kind: "NodeDecl",
     name: lowerName(node.name),
@@ -11708,10 +11932,14 @@ function lowerNodeClass(ctx, node) {
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node)
   };
 }
 function lowerEdge(ctx, node) {
+  const inlineData = node.body?.dataDecls?.[0] ?? null;
+  const dataRef = node.body?.dataRefs?.[0] ?? null;
   return {
     kind: "EdgeDecl",
     name: lowerName(node.name),
@@ -11720,6 +11948,8 @@ function lowerEdge(ctx, node) {
     modifiers: lowerModifiers(ctx, node.modifiers),
     attributes: node.body ? node.body.attributes.map((a) => lowerAttribute(ctx, a)) : [],
     methods: node.body ? node.body.methods.map((m) => lowerMethod(ctx, m)) : [],
+    dataDecl: inlineData ? lowerDataDecl(ctx, inlineData) : null,
+    dataRef: dataRef ? lowerName(dataRef.name) : null,
     span: spanOf(node)
   };
 }
@@ -11739,6 +11969,24 @@ function lowerParam(node) {
   };
 }
 function lowerMethod(ctx, node) {
+  let projection = null;
+  if (node.projection) {
+    const fields = [];
+    let dataRef = null;
+    for (const item of node.projection.items) {
+      if (item.text[0] >= "A" && item.text[0] <= "Z") {
+        dataRef = lowerName(item);
+      } else {
+        fields.push(lowerName(item));
+      }
+    }
+    projection = {
+      star: node.projection.star !== null,
+      fields,
+      dataRef,
+      span: spanOf(node.projection)
+    };
+  }
   return {
     kind: "Method",
     name: lowerName(node.name),
@@ -11747,6 +11995,7 @@ function lowerMethod(ctx, node) {
     returnType: lowerTypeExpr(node.returnType),
     returnList: node.listSuffix !== null,
     returnNullable: node.nullable !== null,
+    projection,
     span: spanOf(node)
   };
 }
@@ -11928,14 +12177,23 @@ var Resolver = class {
       case "ValueTypeDecl":
         this.registerSymbol(decl.name, "ValueType", decl);
         break;
+      case "TaggedUnionDecl":
+        this.registerSymbol(decl.name, "TaggedUnion", decl);
+        break;
       case "InterfaceDecl":
         this.registerSymbol(decl.name, "Interface", decl);
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, "Data", decl.dataDecl);
         break;
       case "NodeDecl":
         this.registerSymbol(decl.name, "Class", decl);
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, "Data", decl.dataDecl);
         break;
       case "EdgeDecl":
         this.registerSymbol(decl.name, "Edge", decl);
+        if (decl.dataDecl) this.registerSymbol(decl.dataDecl.name, "Data", decl.dataDecl);
+        break;
+      case "DataDecl":
+        this.registerSymbol(decl.name, "Data", decl);
         break;
       case "ExtendDecl": {
         const resolvedUri = resolveExtendUri(decl.uri, this.sourceUri);
@@ -11998,6 +12256,13 @@ var Resolver = class {
           this.resolveTypeExpr(field.type);
         }
         break;
+      case "TaggedUnionDecl":
+        for (const variant of decl.variants) {
+          for (const field of variant.fields) {
+            this.resolveTypeExpr(field.type);
+          }
+        }
+        break;
       case "InterfaceDecl":
         for (const parent of decl.extends) {
           this.resolveNameAs(parent, ["Interface"]);
@@ -12006,11 +12271,10 @@ var Resolver = class {
           this.resolveTypeExpr(attr.type);
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type);
-          }
-          this.resolveTypeExpr(method.returnType);
+          this.resolveMethod(method);
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl);
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ["Data"]);
         break;
       case "NodeDecl":
         for (const parent of decl.implements) {
@@ -12020,11 +12284,10 @@ var Resolver = class {
           this.resolveTypeExpr(attr.type);
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type);
-          }
-          this.resolveTypeExpr(method.returnType);
+          this.resolveMethod(method);
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl);
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ["Data"]);
         break;
       case "EdgeDecl":
         for (const parent of decl.implements) {
@@ -12037,20 +12300,41 @@ var Resolver = class {
           this.resolveTypeExpr(attr.type);
         }
         for (const method of decl.methods) {
-          for (const param of method.params) {
-            this.resolveTypeExpr(param.type);
-          }
-          this.resolveTypeExpr(method.returnType);
+          this.resolveMethod(method);
         }
+        if (decl.dataDecl) this.resolveDataDeclFields(decl.dataDecl);
+        if (decl.dataRef) this.resolveNameAs(decl.dataRef, ["Data"]);
+        break;
+      case "DataDecl":
+        this.resolveDataDeclFields(decl);
         break;
       case "ExtendDecl":
         break;
     }
   }
+  resolveMethod(method) {
+    for (const param of method.params) {
+      this.resolveTypeExpr(param.type);
+    }
+    this.resolveTypeExpr(method.returnType);
+    if (method.projection?.dataRef) {
+      this.resolveNameAs(method.projection.dataRef, ["Data"]);
+    }
+  }
+  resolveDataDeclFields(decl) {
+    if (decl.scalarType) {
+      this.resolveTypeExpr(decl.scalarType);
+    }
+    if (decl.fields) {
+      for (const field of decl.fields) {
+        this.resolveTypeExpr(field.type);
+      }
+    }
+  }
   resolveTypeExpr(expr) {
     switch (expr.kind) {
       case "NamedType":
-        this.resolveNameAs(expr.name, ["Scalar", "TypeAlias", "ValueType", "Interface", "Class"]);
+        this.resolveNameAs(expr.name, ["Scalar", "TypeAlias", "ValueType", "TaggedUnion", "Interface", "Class", "Data"]);
         break;
       case "NullableType":
         this.resolveTypeExpr(expr.inner);
@@ -12069,18 +12353,35 @@ var Resolver = class {
   }
   // ─── Cycle Detection for Value Types ─────────────────────
   detectValueTypeCycles(declarations) {
-    const valueTypes = /* @__PURE__ */ new Map();
+    const dataTypes = /* @__PURE__ */ new Map();
     for (const decl of declarations) {
-      if (decl.kind === "ValueTypeDecl") {
-        valueTypes.set(decl.name.value, decl);
+      if (decl.kind === "ValueTypeDecl" || decl.kind === "TaggedUnionDecl") {
+        dataTypes.set(decl.name.value, decl);
       }
     }
     const visited = /* @__PURE__ */ new Set();
     const inStack = /* @__PURE__ */ new Set();
+    const visitTypeExpr = (expr) => {
+      switch (expr.kind) {
+        case "NamedType": {
+          const sym = this.symbols.get(expr.name.value);
+          if (sym?.symbolKind === "ValueType" || sym?.symbolKind === "TaggedUnion") {
+            visit(expr.name.value);
+          }
+          break;
+        }
+        case "UnionType":
+          for (const t of expr.types) visitTypeExpr(t);
+          break;
+        case "NullableType":
+          visitTypeExpr(expr.inner);
+          break;
+      }
+    };
     const visit = (name) => {
       if (visited.has(name)) return;
       if (inStack.has(name)) {
-        const decl2 = valueTypes.get(name);
+        const decl2 = dataTypes.get(name);
         this.diagnostics.error(
           decl2.name.span,
           DiagnosticCodes.V_CIRCULAR_VALUE_TYPE,
@@ -12088,21 +12389,24 @@ var Resolver = class {
         );
         return;
       }
-      const decl = valueTypes.get(name);
+      const decl = dataTypes.get(name);
       if (!decl) return;
       inStack.add(name);
-      for (const field of decl.fields) {
-        if (field.type.kind === "NamedType") {
-          const sym = this.symbols.get(field.type.name.value);
-          if (sym?.symbolKind === "ValueType") {
-            visit(field.type.name.value);
+      if (decl.kind === "ValueTypeDecl") {
+        for (const field of decl.fields) {
+          visitTypeExpr(field.type);
+        }
+      } else {
+        for (const variant of decl.variants) {
+          for (const field of variant.fields) {
+            visitTypeExpr(field.type);
           }
         }
       }
       inStack.delete(name);
       visited.add(name);
     };
-    for (const name of valueTypes.keys()) {
+    for (const name of dataTypes.keys()) {
       visit(name);
     }
   }
@@ -12263,6 +12567,9 @@ function validateDeclarations(ctx) {
       case "ValueTypeDecl":
         validateValueType(ctx, decl);
         break;
+      case "TaggedUnionDecl":
+        validateTaggedUnion(ctx, decl);
+        break;
       case "InterfaceDecl":
         validateInterface(ctx, decl);
         break;
@@ -12271,6 +12578,9 @@ function validateDeclarations(ctx) {
         break;
       case "EdgeDecl":
         validateEdge(ctx, decl);
+        break;
+      case "DataDecl":
+        validateDataDecl(ctx, decl);
         break;
       case "ExtendDecl":
         break;
@@ -12302,6 +12612,38 @@ function validateValueType(ctx, decl) {
     validateFieldDefault(ctx, field);
   }
 }
+function validateTaggedUnion(ctx, decl) {
+  if (decl.variants.length < 2) {
+    ctx.diagnostics.error(
+      decl.name.span,
+      DiagnosticCodes.V_TOO_FEW_VARIANTS,
+      `Tagged union '${decl.name.value}' must have at least 2 variants`
+    );
+  }
+  const seenTags = /* @__PURE__ */ new Set();
+  for (const variant of decl.variants) {
+    if (seenTags.has(variant.tag)) {
+      ctx.diagnostics.error(
+        variant.span,
+        DiagnosticCodes.V_DUPLICATE_VARIANT,
+        `Duplicate variant tag '${variant.tag}' in tagged union '${decl.name.value}'`
+      );
+    }
+    seenTags.add(variant.tag);
+    const seenFields = /* @__PURE__ */ new Set();
+    for (const field of variant.fields) {
+      if (seenFields.has(field.name.value)) {
+        ctx.diagnostics.error(
+          field.name.span,
+          DiagnosticCodes.V_DUPLICATE_FIELD,
+          `Duplicate field '${field.name.value}' in variant '${variant.tag}'`
+        );
+      }
+      seenFields.add(field.name.value);
+      validateFieldDefault(ctx, field);
+    }
+  }
+}
 function validateInterface(ctx, decl) {
   for (const parent of decl.extends) {
     const sym = ctx.schema.symbols.get(parent.value);
@@ -12316,7 +12658,9 @@ function validateInterface(ctx, decl) {
   for (const attr of decl.attributes) {
     validateAttribute(ctx, attr);
   }
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef);
   validateMethods(ctx, decl.methods);
+  validateMethodProjections(ctx, decl.name.value, decl.methods);
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -12345,7 +12689,9 @@ function validateClass(ctx, decl) {
   for (const attr of decl.attributes) {
     validateAttribute(ctx, attr);
   }
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef);
   validateMethods(ctx, decl.methods);
+  validateMethodProjections(ctx, decl.name.value, decl.methods);
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -12360,7 +12706,9 @@ function validateEdge(ctx, decl) {
   for (const attr of decl.attributes) {
     validateAttribute(ctx, attr);
   }
+  validateDataAttachment(ctx, decl.name.value, decl.dataDecl, decl.dataRef);
   validateMethods(ctx, decl.methods);
+  validateMethodProjections(ctx, decl.name.value, decl.methods);
   validateMethodOverrides(
     ctx,
     decl.name.value,
@@ -12402,6 +12750,92 @@ function validateEdgeModifier(ctx, mod, decl) {
         mod.span,
         DiagnosticCodes.V_INVALID_CARDINALITY,
         `Invalid cardinality: min (${card.min}) > max (${card.max})`
+      );
+    }
+  }
+}
+function validateDataDecl(ctx, decl) {
+  if (decl.fields) {
+    const seen = /* @__PURE__ */ new Set();
+    for (const field of decl.fields) {
+      if (seen.has(field.name.value)) {
+        ctx.diagnostics.error(
+          field.name.span,
+          DiagnosticCodes.V_DUPLICATE_FIELD,
+          `Duplicate field '${field.name.value}' in data type '${decl.name.value}'`
+        );
+      }
+      seen.add(field.name.value);
+      validateFieldDefault(ctx, field);
+    }
+  }
+}
+function validateDataAttachment(ctx, typeName, dataDecl, dataRef) {
+  if (dataDecl && dataRef) {
+    ctx.diagnostics.error(
+      dataRef.span,
+      DiagnosticCodes.V_MULTIPLE_DATA_DECLS,
+      `'${typeName}' has both an inline data declaration and a data reference; only one is allowed`
+    );
+  }
+  if (dataRef) {
+    const sym = ctx.schema.symbols.get(dataRef.value);
+    if (sym && sym.symbolKind !== "Data") {
+      ctx.diagnostics.error(
+        dataRef.span,
+        DiagnosticCodes.V_DATA_REF_NOT_DATA,
+        `'${dataRef.value}' is a ${sym.symbolKind}, but expected Data`
+      );
+    }
+  }
+}
+function getClassDataTypeName(ctx, className) {
+  const sym = ctx.schema.symbols.get(className);
+  if (!sym?.declaration) return null;
+  const decl = sym.declaration;
+  if (decl.kind === "NodeDecl" || decl.kind === "InterfaceDecl" || decl.kind === "EdgeDecl") {
+    if (decl.dataDecl) return decl.dataDecl.name.value;
+    if (decl.dataRef) return decl.dataRef.value;
+  }
+  return null;
+}
+function validateMethodProjections(ctx, typeName, methods) {
+  for (const method of methods) {
+    if (!method.projection) continue;
+    const returnTypeName = method.returnType.kind === "NamedType" ? method.returnType.name.value : null;
+    if (!returnTypeName) continue;
+    const targetSym = ctx.schema.symbols.get(returnTypeName);
+    if (!targetSym) continue;
+    if (method.projection.fields.length > 0) {
+      const targetDecl = targetSym.declaration;
+      if (targetDecl && (targetDecl.kind === "NodeDecl" || targetDecl.kind === "InterfaceDecl" || targetDecl.kind === "EdgeDecl")) {
+        const attrNames = new Set(targetDecl.attributes.map((a) => a.name.value));
+        for (const field of method.projection.fields) {
+          if (!attrNames.has(field.value)) {
+            ctx.diagnostics.error(
+              field.span,
+              DiagnosticCodes.V_PROJECTION_UNKNOWN_FIELD,
+              `Field '${field.value}' does not exist on '${returnTypeName}'`
+            );
+          }
+        }
+      }
+    }
+    if (method.projection.dataRef) {
+      const dataTypeName = getClassDataTypeName(ctx, returnTypeName);
+      if (!dataTypeName) {
+        ctx.diagnostics.error(
+          method.projection.dataRef.span,
+          DiagnosticCodes.V_PROJECTION_NO_DATA,
+          `'${returnTypeName}' does not have a data declaration, cannot reference '${method.projection.dataRef.value}' in projection`
+        );
+      }
+    }
+    if (method.projection.star && method.projection.fields.length > 0) {
+      ctx.diagnostics.warning(
+        method.projection.fields[0].span,
+        DiagnosticCodes.V_PROJECTION_REDUNDANT_STAR,
+        `'*' already includes all fields; named fields are redundant`
       );
     }
   }
@@ -12622,6 +13056,8 @@ function symbolToTypeRef(sym, name) {
       return { kind: "Alias", name };
     case "ValueType":
       return { kind: "ValueType", name };
+    case "TaggedUnion":
+      return { kind: "TaggedUnion", name };
     case "Interface":
     case "Class":
       return { kind: "Node", name };
@@ -12767,6 +13203,27 @@ function serializeValueTypeField(ctx, field) {
     default: field.defaultValue ? serializeValueNode(field.defaultValue) : null
   };
 }
+function serializeTaggedUnion(ctx, decl) {
+  return {
+    name: decl.name.value,
+    variants: decl.variants.map((v) => ({
+      tag: v.tag,
+      fields: v.fields.map((f) => serializeValueTypeField(ctx, f))
+    }))
+  };
+}
+function serializeDataType(ctx, decl) {
+  return {
+    name: decl.name.value,
+    fields: decl.fields ? decl.fields.map((f) => serializeValueTypeField(ctx, f)) : null,
+    scalar_type: decl.scalarType?.kind === "NamedType" ? decl.scalarType.name.value : null
+  };
+}
+function getDataRefName(decl) {
+  if (decl.dataDecl) return decl.dataDecl.name.value;
+  if (decl.dataRef) return decl.dataRef.value;
+  return void 0;
+}
 function serializeInterface(ctx, decl) {
   return {
     type: "node",
@@ -12774,7 +13231,8 @@ function serializeInterface(ctx, decl) {
     abstract: true,
     implements: decl.extends.map((e) => e.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
-    methods: decl.methods.map((m) => serializeMethod(ctx, m))
+    methods: decl.methods.map((m) => serializeMethod(ctx, m)),
+    data_ref: getDataRefName(decl)
   };
 }
 function serializeNode(ctx, decl) {
@@ -12784,7 +13242,8 @@ function serializeNode(ctx, decl) {
     abstract: false,
     implements: decl.implements.map((i) => i.value),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
-    methods: decl.methods.map((m) => serializeMethod(ctx, m))
+    methods: decl.methods.map((m) => serializeMethod(ctx, m)),
+    data_ref: getDataRefName(decl)
   };
 }
 function serializeEdge(ctx, decl) {
@@ -12801,7 +13260,8 @@ function serializeEdge(ctx, decl) {
     endpoints: decl.params.map((p) => serializeEndpoint(ctx, p, cardinalityMap)),
     attributes: decl.attributes.map((a) => serializeAttribute(ctx, a)),
     methods: decl.methods.map((m) => serializeMethod(ctx, m)),
-    constraints: extractEdgeConstraints(decl.modifiers)
+    constraints: extractEdgeConstraints(decl.modifiers),
+    data_ref: getDataRefName(decl)
   };
 }
 function serializeMethod(ctx, method) {
@@ -12809,12 +13269,21 @@ function serializeMethod(ctx, method) {
   if (method.returnList) {
     returnType = { kind: "List", element: returnType };
   }
+  let projection = null;
+  if (method.projection) {
+    projection = {
+      star: method.projection.star,
+      fields: method.projection.fields.map((f) => f.value),
+      include_data: method.projection.dataRef !== null
+    };
+  }
   return {
     name: method.name.value,
     access: method.access,
     params: method.params.map((p) => serializeMethodParam(ctx, p)),
     return_type: returnType,
-    return_nullable: method.returnNullable
+    return_nullable: method.returnNullable,
+    projection
   };
 }
 function serializeMethodParam(ctx, param) {
@@ -12858,6 +13327,8 @@ function serializeSchema(ctx, options) {
   const extensions = [];
   const typeAliases = [];
   const valueTypes = [];
+  const taggedUnions = [];
+  const dataTypes = [];
   const classes = [];
   for (const decl of ctx.schema.declarations) {
     switch (decl.kind) {
@@ -12870,6 +13341,12 @@ function serializeSchema(ctx, options) {
       case "ValueTypeDecl":
         valueTypes.push(serializeValueType(ctx, decl));
         break;
+      case "TaggedUnionDecl":
+        taggedUnions.push(serializeTaggedUnion(ctx, decl));
+        break;
+      case "DataDecl":
+        dataTypes.push(serializeDataType(ctx, decl));
+        break;
       case "InterfaceDecl":
         classes.push(serializeInterface(ctx, decl));
         break;
@@ -12879,6 +13356,11 @@ function serializeSchema(ctx, options) {
       case "EdgeDecl":
         classes.push(serializeEdge(ctx, decl));
         break;
+    }
+  }
+  for (const decl of ctx.schema.declarations) {
+    if ((decl.kind === "NodeDecl" || decl.kind === "InterfaceDecl" || decl.kind === "EdgeDecl") && decl.dataDecl) {
+      dataTypes.push(serializeDataType(ctx, decl.dataDecl));
     }
   }
   const builtinScalars = [];
@@ -12897,6 +13379,8 @@ function serializeSchema(ctx, options) {
     builtin_scalars: builtinScalars,
     type_aliases: typeAliases,
     value_types: valueTypes,
+    tagged_unions: taggedUnions,
+    data_types: dataTypes,
     classes
   };
 }
@@ -13171,6 +13655,10 @@ ${sym.symbolKind.toLowerCase()} ${sym.name}
       return renderClass(decl);
     case "EdgeDecl":
       return renderEdge(decl);
+    case "DataDecl":
+      return renderDataDecl(decl);
+    case "TaggedUnionDecl":
+      return renderTaggedUnion(decl);
     default:
       return null;
   }
@@ -13201,14 +13689,14 @@ ${fields.join("\n")}
 }
 function renderInterface(decl) {
   const ext = decl.extends.length > 0 ? `: ${decl.extends.map((e) => e.value).join(", ")}` : "";
-  const body = renderBody(decl.attributes, decl.methods);
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef);
   return `\`\`\`gsl
 interface ${decl.name.value}${ext}${body}
 \`\`\``;
 }
 function renderClass(decl) {
   const impl = decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(", ")}` : "";
-  const body = renderBody(decl.attributes, decl.methods);
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef);
   return `\`\`\`gsl
 class ${decl.name.value}${impl}${body}
 \`\`\``;
@@ -13217,9 +13705,42 @@ function renderEdge(decl) {
   const params = decl.params.map((p) => `${p.name.value}: ${renderTypeExpr2(p.type)}`).join(", ");
   const impl = decl.implements.length > 0 ? `: ${decl.implements.map((i) => i.value).join(", ")}` : "";
   const mods = decl.modifiers.length > 0 ? ` [${decl.modifiers.map(renderModifier).join(", ")}]` : "";
-  const body = renderBody(decl.attributes, decl.methods);
+  const body = renderBody(decl.attributes, decl.methods, decl.dataDecl, decl.dataRef);
   return `\`\`\`gsl
 class ${decl.name.value}(${params})${impl}${mods}${body}
+\`\`\``;
+}
+function renderDataDecl(decl) {
+  if (decl.scalarType) {
+    return `\`\`\`gsl
+data ${decl.name.value} = ${renderTypeExpr2(decl.scalarType)}
+\`\`\``;
+  }
+  if (decl.fields && decl.fields.length > 0) {
+    const fields = decl.fields.map((f) => {
+      const type = renderTypeExpr2(f.type);
+      const list = f.list ? "[]" : "";
+      const nullable = f.nullable ? "?" : "";
+      return `  ${f.name.value}: ${type}${list}${nullable}`;
+    });
+    return `\`\`\`gsl
+data ${decl.name.value} = {
+${fields.join("\n")}
+}
+\`\`\``;
+  }
+  return `\`\`\`gsl
+data ${decl.name.value} = {}
+\`\`\``;
+}
+function renderTaggedUnion(decl) {
+  const variants = decl.variants.map((v) => {
+    if (v.fields.length === 0) return `| ${v.tag}`;
+    const fields = v.fields.map((f) => `${f.name.value}: ${renderTypeExpr2(f.type)}`);
+    return `| ${v.tag} { ${fields.join(", ")} }`;
+  });
+  return `\`\`\`gsl
+type ${decl.name.value} = ${variants.join(" ")}
 \`\`\``;
 }
 function renderAttribute(attr) {
@@ -13230,11 +13751,26 @@ function renderAttribute(attr) {
 function renderMethod(m) {
   const params = m.params.map((p) => `${p.name.value}: ${renderTypeExpr2(p.type)}`).join(", ");
   const ret = renderTypeExpr2(m.returnType);
+  const proj = renderProjection(m.projection);
   const suffix = m.returnList ? "[]" : m.returnNullable ? "?" : "";
-  return `fn ${m.name.value}(${params}): ${ret}${suffix}`;
+  return `fn ${m.name.value}(${params}): ${ret}${proj}${suffix}`;
 }
-function renderBody(attributes, methods) {
+function renderProjection(proj) {
+  if (!proj) return "";
+  const items = [];
+  if (proj.star) items.push("*");
+  for (const f of proj.fields) items.push(f.value);
+  if (proj.dataRef) items.push(proj.dataRef.value);
+  if (items.length === 0) return "";
+  return ` { ${items.join(", ")} }`;
+}
+function renderBody(attributes, methods, dataDecl, dataRef) {
   const lines = [...attributes.map(renderAttribute), ...methods.map(renderMethod)];
+  if (dataDecl) {
+    lines.push(`data ${dataDecl.name.value}`);
+  } else if (dataRef) {
+    lines.push(`data ${dataRef.value}`);
+  }
   return lines.length > 0 ? ` {
   ${lines.join("\n  ")}
 }` : " {}";
@@ -13334,6 +13870,13 @@ var DECL_KEYWORDS2 = [
     insertText: 'extend "${1:uri}" { ${2:Type} }',
     insertTextFormat: InsertTextFormat.Snippet,
     detail: "Extension import"
+  },
+  {
+    label: "data",
+    kind: CompletionItemKind.Keyword,
+    insertText: "data ${1:Name} = {\n	$0\n}",
+    insertTextFormat: InsertTextFormat.Snippet,
+    detail: "Data declaration"
   }
 ];
 var MODIFIER_ITEMS = [
@@ -13426,6 +13969,13 @@ var FN_SNIPPET = {
   insertTextFormat: InsertTextFormat.Snippet,
   detail: "Method declaration"
 };
+var DATA_BODY_SNIPPET = {
+  label: "data",
+  kind: CompletionItemKind.Keyword,
+  insertText: "data ${1:Name}",
+  insertTextFormat: InsertTextFormat.Snippet,
+  detail: "Data reference"
+};
 function provideCompletion(workspace, state, offset) {
   const text = state.document.getText();
   const context = inferContext(text, offset);
@@ -13443,7 +13993,7 @@ function provideCompletion(workspace, state, offset) {
     case "edge_target":
       return edgeTargetCompletions(state);
     case "body":
-      return [FN_SNIPPET, ...typeCompletions(state)];
+      return [FN_SNIPPET, DATA_BODY_SNIPPET, ...typeCompletions(state)];
     default:
       return [...DECL_KEYWORDS2, ...typeCompletions(state)];
   }
@@ -13535,6 +14085,10 @@ function symbolKindToCompletion(kind) {
       return CompletionItemKind.Struct;
     case "Edge":
       return CompletionItemKind.Reference;
+    case "Data":
+      return CompletionItemKind.Struct;
+    case "TaggedUnion":
+      return CompletionItemKind.Enum;
     default:
       return CompletionItemKind.Text;
   }
@@ -13560,6 +14114,10 @@ function declarationToSymbol(decl, state) {
       return edgeSymbol(decl, state);
     case "ExtendDecl":
       return extendSymbol(decl, state);
+    case "DataDecl":
+      return dataSymbol(decl, state);
+    case "TaggedUnionDecl":
+      return taggedUnionSymbol(decl, state);
     default:
       return null;
   }
@@ -13599,7 +14157,8 @@ function interfaceSymbol(decl, state) {
     selectionRange: spanToRange(decl.name.span, state),
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
-      ...decl.methods.map((m) => methodSymbol(m, state))
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state)
     ]
   };
 }
@@ -13613,7 +14172,8 @@ function classSymbol(decl, state) {
     selectionRange: spanToRange(decl.name.span, state),
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
-      ...decl.methods.map((m) => methodSymbol(m, state))
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state)
     ]
   };
 }
@@ -13627,7 +14187,8 @@ function edgeSymbol(decl, state) {
     selectionRange: spanToRange(decl.name.span, state),
     children: [
       ...decl.attributes.map((a) => attributeSymbol(a, state)),
-      ...decl.methods.map((m) => methodSymbol(m, state))
+      ...decl.methods.map((m) => methodSymbol(m, state)),
+      ...dataChildSymbols(decl.dataDecl, decl.dataRef, state)
     ]
   };
 }
@@ -13639,6 +14200,60 @@ function extendSymbol(decl, state) {
     range: spanToRange(decl.span, state),
     selectionRange: spanToRange(decl.span, state)
   };
+}
+function dataSymbol(decl, state) {
+  const children = [];
+  if (decl.fields) {
+    for (const f of decl.fields) {
+      children.push({
+        name: f.name.value,
+        detail: renderTypeExpr3(f.type) + (f.list ? "[]" : "") + (f.nullable ? "?" : ""),
+        kind: SymbolKind.Field,
+        range: spanToRange(f.span, state),
+        selectionRange: spanToRange(f.name.span, state)
+      });
+    }
+  }
+  return {
+    name: decl.name.value,
+    detail: decl.scalarType ? `data = ${renderTypeExpr3(decl.scalarType)}` : "data",
+    kind: SymbolKind.Struct,
+    range: spanToRange(decl.span, state),
+    selectionRange: spanToRange(decl.name.span, state),
+    children: children.length > 0 ? children : void 0
+  };
+}
+function taggedUnionSymbol(decl, state) {
+  return {
+    name: decl.name.value,
+    detail: "tagged union",
+    kind: SymbolKind.Enum,
+    range: spanToRange(decl.span, state),
+    selectionRange: spanToRange(decl.name.span, state),
+    children: decl.variants.map((v) => ({
+      name: v.tag,
+      detail: v.fields.length > 0 ? `{ ${v.fields.map((f) => f.name.value).join(", ")} }` : "{}",
+      kind: SymbolKind.EnumMember,
+      range: spanToRange(v.span, state),
+      selectionRange: spanToRange(v.span, state)
+    }))
+  };
+}
+function dataChildSymbols(dataDecl, dataRef, state) {
+  const children = [];
+  if (dataDecl) {
+    children.push(dataSymbol(dataDecl, state));
+  }
+  if (dataRef) {
+    children.push({
+      name: dataRef.value,
+      detail: "data ref",
+      kind: SymbolKind.Struct,
+      range: spanToRange(dataRef.span, state),
+      selectionRange: spanToRange(dataRef.span, state)
+    });
+  }
+  return children;
 }
 function attributeSymbol(attr, state) {
   return {
@@ -13652,14 +14267,24 @@ function attributeSymbol(attr, state) {
 function methodSymbol(m, state) {
   const params = m.params.map((p) => p.name.value).join(", ");
   const ret = renderTypeExpr3(m.returnType);
+  const proj = renderProjection2(m.projection);
   const suffix = m.returnList ? "[]" : m.returnNullable ? "?" : "";
   return {
     name: m.name.value,
-    detail: `(${params}): ${ret}${suffix}`,
+    detail: `(${params}): ${ret}${proj}${suffix}`,
     kind: SymbolKind.Method,
     range: spanToRange(m.span, state),
     selectionRange: spanToRange(m.name.span, state)
   };
+}
+function renderProjection2(proj) {
+  if (!proj) return "";
+  const items = [];
+  if (proj.star) items.push("*");
+  for (const f of proj.fields) items.push(f.value);
+  if (proj.dataRef) items.push(proj.dataRef.value);
+  if (items.length === 0) return "";
+  return ` { ${items.join(", ")} }`;
 }
 function formatTypeExpr(attr) {
   return renderTypeExpr3(attr.type);
@@ -13714,7 +14339,7 @@ var MOD_INDEX = {};
 SEMANTIC_TOKEN_MODIFIERS.forEach((m, i) => {
   MOD_INDEX[m] = 1 << i;
 });
-var KEYWORD_SET = /* @__PURE__ */ new Set(["class", "interface", "type", "extend", "edge", "fn"]);
+var KEYWORD_SET = /* @__PURE__ */ new Set(["class", "interface", "type", "extend", "edge", "fn", "data"]);
 var MODIFIER_KEYWORDS = /* @__PURE__ */ new Set([
   "unique",
   "readonly",
@@ -13841,6 +14466,9 @@ function classifyIdent(token, symbols, inModifier) {
           return [TYPE_INDEX.class, 0];
         case "Edge":
           return [TYPE_INDEX.variable, 0];
+        case "Data":
+        case "TaggedUnion":
+          return [TYPE_INDEX.type, 0];
       }
     }
   }
