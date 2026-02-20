@@ -19,6 +19,11 @@ import type {
   BranchStep,
   ForkStep,
   HierarchyStep,
+  PatternStep,
+  PatternNode,
+  PatternEdge,
+  SubqueryStep,
+  SubqueryCondition,
   AliasInfo,
   AliasRegistry,
 } from '../../ast'
@@ -71,6 +76,14 @@ export class InstanceModelPass implements CompilationPass {
 
         case 'hierarchy':
           this.expandHierarchy(step, schema, newSteps, newAliases)
+          break
+
+        case 'pattern':
+          newSteps.push(this.expandPattern(step, schema, newAliases))
+          break
+
+        case 'subquery':
+          newSteps.push({ ...step, steps: this.transformSteps(step.steps, schema) })
           break
 
         default:
@@ -183,6 +196,111 @@ export class InstanceModelPass implements CompilationPass {
   }
 
   // ---------------------------------------------------------------------------
+  // PatternStep expansion
+  // ---------------------------------------------------------------------------
+
+  private expandPattern(
+    step: PatternStep,
+    schema: SchemaShape,
+    aliases: AliasRegistry,
+  ): PatternStep {
+    const newNodes: PatternNode[] = []
+    const newEdges: PatternEdge[] = [...step.edges]
+
+    // Determine which nodes are "grounded" (appear in at least one required edge, or standalone)
+    const requiredNodeAliases = new Set<string>()
+    const allEdgeNodeAliases = new Set<string>()
+    for (const edge of step.edges) {
+      allEdgeNodeAliases.add(edge.from)
+      allEdgeNodeAliases.add(edge.to)
+      if (!edge.optional) {
+        requiredNodeAliases.add(edge.from)
+        requiredNodeAliases.add(edge.to)
+      }
+    }
+
+    for (const node of step.nodes) {
+      // Skip nodes without labels, or with meta-labels, or not in schema
+      if (
+        !node.labels?.length ||
+        node.labels[0] === META_LABELS.NODE ||
+        node.labels[0] === META_LABELS.LINK ||
+        node.labels[0] === META_LABELS.CLASS ||
+        !schema.nodes[node.labels[0]]
+      ) {
+        newNodes.push(node)
+        continue
+      }
+
+      const typeName = node.labels[0]!
+      const kind = this.nodeKind(schema, typeName)
+      const clsAlias = this.nextClassAlias()
+
+      // Relabel to :Node (preserve other node properties)
+      newNodes.push({ ...node, labels: [META_LABELS.NODE] })
+
+      // Build class ID condition for the class node
+      const classIdWhere = this.buildClassIdInlineWhere(clsAlias, typeName, kind, schema)
+
+      // Add class node
+      newNodes.push({
+        alias: clsAlias,
+        labels: [META_LABELS.NODE, META_LABELS.CLASS],
+        where: classIdWhere,
+      })
+      this.registerClassAlias(clsAlias, aliases)
+
+      // Add instance_of edge
+      // Grounded = in a required edge OR standalone (no edges at all)
+      const isGrounded = requiredNodeAliases.has(node.alias) || !allEdgeNodeAliases.has(node.alias)
+      newEdges.push({
+        from: node.alias,
+        to: clsAlias,
+        types: [STRUCTURAL_EDGES.INSTANCE_OF],
+        direction: 'out',
+        optional: !isGrounded,
+      })
+    }
+
+    return { type: 'pattern', nodes: newNodes, edges: newEdges }
+  }
+
+  /** Build inline WHERE conditions for a class node (used in PatternStep) */
+  private buildClassIdInlineWhere(
+    clsAlias: string,
+    typeName: string,
+    kind: 'class' | 'interface',
+    schema: SchemaShape,
+  ): WhereCondition[] {
+    if (kind === 'class') {
+      const classId = schema.classRefs![typeName]
+      if (!classId) {
+        throw new Error(`InstanceModelPass: no ref found for type '${typeName}'`)
+      }
+      return [{
+        type: 'comparison',
+        target: clsAlias,
+        field: 'id',
+        operator: 'eq',
+        value: classId,
+      }]
+    }
+
+    // Interface: use IN for multiple implementors
+    const classIds = this.implementors[typeName]
+    if (!classIds?.length) {
+      throw new Error(`InstanceModelPass: no implementors found for interface '${typeName}'`)
+    }
+    return [{
+      type: 'comparison',
+      target: clsAlias,
+      field: 'id',
+      operator: classIds.length === 1 ? 'eq' : 'in',
+      value: classIds.length === 1 ? classIds[0] : classIds,
+    }]
+  }
+
+  // ---------------------------------------------------------------------------
   // WhereStep rewriting
   // ---------------------------------------------------------------------------
 
@@ -208,6 +326,11 @@ export class InstanceModelPass implements CompilationPass {
           ...condition,
           conditions: condition.conditions.map((c) => this.rewriteCondition(c, schema, aliases)),
         }
+      case 'subquery':
+        return {
+          ...condition,
+          query: this.transformSteps(condition.query, schema),
+        } as SubqueryCondition
       default:
         return condition
     }
@@ -351,6 +474,12 @@ export class InstanceModelPass implements CompilationPass {
           break
         case 'fork':
           result.push(this.rewriteFork(step as ForkStep, schema))
+          break
+        case 'pattern':
+          result.push(this.expandPattern(step as PatternStep, schema, tempAliases))
+          break
+        case 'subquery':
+          result.push({ ...step, steps: this.transformSteps((step as SubqueryStep).steps, schema) })
           break
         default:
           result.push(step)

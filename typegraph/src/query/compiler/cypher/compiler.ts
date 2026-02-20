@@ -15,8 +15,6 @@ import type {
   WhereCondition,
   ComparisonCondition,
   LogicalCondition,
-  ExistsCondition,
-  ConnectedToCondition,
   LabelCondition,
   EdgeWhereCondition,
   BranchStep,
@@ -29,6 +27,16 @@ import type {
   ReachableStep,
   Projection,
   ForkStep,
+  PatternNode,
+  PatternEdge,
+  PatternStep,
+  SubqueryStep,
+  SubqueryCondition,
+  UnwindStep,
+  ReturnStep,
+  ProjectionReturn,
+  ProjectionExpression,
+  ComputedOperator,
 } from '../../ast'
 import { resolveNodeLabels, formatLabels, toPascalCase } from '../../../helpers'
 import type { CompiledQuery, CompilerOptions } from '../types'
@@ -90,8 +98,10 @@ export class CypherCompiler implements QueryCompilerProvider {
       this.compileStep(step)
     }
 
-    // Compile projection (RETURN clause) - skip if branch step already handled it
-    if (!this.hasBranchStep) {
+    // Compile projection (RETURN clause)
+    // ReturnStep is already compiled in compileStep - only use legacy projection if no ReturnStep
+    const hasReturnStep = mergedSteps.some((s) => s.type === 'return')
+    if (!this.hasBranchStep && !hasReturnStep) {
       this.compileProjection(ast.projection, ast)
     }
 
@@ -130,26 +140,9 @@ export class CypherCompiler implements QueryCompilerProvider {
     const result: ASTNode[] = []
     let pendingWhereConditions: WhereCondition[] = []
 
-    const hasConnectedTo = (conditions: WhereCondition[]) =>
-      conditions.some((c) => c.type === 'connectedTo')
-
     for (const step of steps) {
       if (step.type === 'where') {
-        // If this WhereStep has connectedTo conditions, it will produce MATCH patterns
-        // which naturally separate WHERE clauses from adjacent steps.
-        // Don't merge it with pending conditions - preserve the step ordering.
-        if (hasConnectedTo(step.conditions)) {
-          if (pendingWhereConditions.length > 0) {
-            result.push({
-              type: 'where',
-              conditions: [...pendingWhereConditions],
-            } as WhereStep)
-            pendingWhereConditions = []
-          }
-          result.push(step)
-        } else {
-          pendingWhereConditions.push(...step.conditions)
-        }
+        pendingWhereConditions.push(...step.conditions)
       } else {
         // Non-WHERE step: flush pending and add the step
         if (pendingWhereConditions.length > 0) {
@@ -220,6 +213,19 @@ export class CypherCompiler implements QueryCompilerProvider {
       case 'fork':
         this.compileFork(step)
         break
+      // New v2 types
+      case 'pattern':
+        this.compilePattern(step)
+        break
+      case 'subquery':
+        this.compileSubqueryStep(step)
+        break
+      case 'unwind':
+        this.compileUnwind(step)
+        break
+      case 'return':
+        this.compileReturnStep(step)
+        break
     }
   }
 
@@ -287,31 +293,8 @@ export class CypherCompiler implements QueryCompilerProvider {
   private compileWhere(step: WhereStep): void {
     if (step.conditions.length === 0) return
 
-    // OPTIMIZATION: Separate ConnectedToConditions from other conditions
-    // ConnectedToConditions are compiled as MATCH patterns (more efficient)
-    // Other conditions remain as WHERE clauses
-    const connectedToConditions: ConnectedToCondition[] = []
-    const otherConditions: WhereCondition[] = []
-
-    for (const condition of step.conditions) {
-      if (condition.type === 'connectedTo') {
-        connectedToConditions.push(condition)
-      } else {
-        otherConditions.push(condition)
-      }
-    }
-
-    // Compile ConnectedTo conditions as MATCH patterns
-    // This allows the query planner to use index lookups on the target node ID
-    for (const condition of connectedToConditions) {
-      this.compileConnectedToAsMatch(condition)
-    }
-
-    // Compile remaining conditions as WHERE clause
-    if (otherConditions.length > 0) {
-      const conditions = otherConditions.map((c) => this.compileCondition(c)).join(' AND ')
-      this.clauses.push(`WHERE ${conditions}`)
-    }
+    const conditions = step.conditions.map((c) => this.compileCondition(c)).join(' AND ')
+    this.clauses.push(`WHERE ${conditions}`)
   }
 
   private compileCondition(condition: WhereCondition): string {
@@ -320,17 +303,15 @@ export class CypherCompiler implements QueryCompilerProvider {
         return this.compileComparisonCondition(condition)
       case 'logical':
         return this.compileLogicalCondition(condition)
-      case 'exists':
-        return this.compileExistsCondition(condition)
       case 'label':
         return this.compileLabelCondition(condition)
-      case 'connectedTo':
-        // ConnectedTo conditions are handled separately in compileWhere via compileConnectedToAsMatch.
-        // This case should never be reached in normal usage (API doesn't expose nested connectedTo).
-        throw new Error(
-          'ConnectedTo conditions inside logical operators (AND/OR/NOT) are not supported. ' +
-            'Use whereConnectedTo() directly on the query builder instead.',
-        )
+      // New v2: SubqueryCondition
+      case 'subquery':
+        return this.compileSubqueryCondition(condition)
+      case 'aliasComparison': {
+        const aliasOp = this.operatorToCypher(condition.operator)
+        return `${condition.leftAlias}.${condition.leftField} ${aliasOp} ${condition.rightAlias}.${condition.rightField}`
+      }
     }
   }
 
@@ -371,13 +352,6 @@ export class CypherCompiler implements QueryCompilerProvider {
     return `(${compiled.join(` ${operator} `)})`
   }
 
-  private compileExistsCondition(condition: ExistsCondition): string {
-    const { edge, direction, target, negated } = condition
-    const [leftArrow, rightArrow] = this.getArrow(direction)
-    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}()`
-    return negated ? `NOT ${pattern}` : pattern
-  }
-
   private compileLabelCondition(condition: LabelCondition): string {
     const { labels, mode, negated, target } = condition
 
@@ -391,34 +365,6 @@ export class CypherCompiler implements QueryCompilerProvider {
     const combined = labelChecks.length === 1 ? labelChecks[0] : `(${labelChecks.join(joiner)})`
 
     return negated ? `NOT ${combined}` : combined!
-  }
-
-  /**
-   * Compile a connectedTo condition as an optimized MATCH pattern.
-   *
-   * OPTIMIZATION: Instead of generating a WHERE clause pattern like:
-   *   WHERE (n0)-[:EDGE]->({id: $p0})
-   *
-   * We generate an explicit MATCH clause:
-   *   MATCH (n0)-[:EDGE]->(target0 {id: $p0})
-   *
-   * This is more efficient because:
-   * 1. Traversal starts from the known node, not from a label scan
-   * 2. The pattern is explicit, giving better hints to the optimizer
-   */
-  private compileConnectedToAsMatch(condition: ConnectedToCondition): void {
-    const { edge, direction, nodeId, target } = condition
-    const paramRef = this.addParam(nodeId)
-
-    // Generate a unique alias for the target node
-    const targetAlias = `ct${this.paramCounter}`
-
-    const [leftArrow, rightArrow] = this.getArrow(direction)
-
-    // Generate: MATCH (source)-[:EDGE]->(targetAlias {id: $param})
-    // or:       MATCH (source)<-[:EDGE]-(targetAlias {id: $param})
-    const pattern = `(${target})${leftArrow}[:${edge}]${rightArrow}(${targetAlias} {id: ${paramRef}})`
-    this.clauses.push(`MATCH ${pattern}`)
   }
 
   private compileEdgeWhere(conditions: EdgeWhereCondition[], edgeAlias: string): string {
@@ -575,14 +521,10 @@ export class CypherCompiler implements QueryCompilerProvider {
     } else if (operator === 'intersect') {
       // INTERSECT: Cypher doesn't have native INTERSECT
       // Use WITH + pattern matching approach for simple cases
-      // For each branch after the first, we add it as a pattern that must also match
-
       if (branches.length < 2) {
         throw new Error('INTERSECT requires at least 2 branches')
       }
 
-      // Strategy: Find the node alias from first branch and ensure all branches
-      // return the same nodes. Use WITH to chain the patterns.
       const branchResults: string[] = []
       let finalNodeAlias = 'n0'
 
@@ -590,7 +532,6 @@ export class CypherCompiler implements QueryCompilerProvider {
         const branchSteps = branches[i]!
         const branchClauses: string[] = []
 
-        // Get the node alias from the match step
         let nodeAlias = 'n0'
         for (const bStep of branchSteps) {
           if (bStep.type === 'match') {
@@ -599,13 +540,10 @@ export class CypherCompiler implements QueryCompilerProvider {
           }
         }
 
-        // Track the final node alias for RETURN
         finalNodeAlias = nodeAlias
 
-        // Compile each step in the branch
         for (const bStep of branchSteps) {
           if (bStep.type === 'match') {
-            // Resolve labels when schema is available (includes base labels like :Node)
             const labelStr = this.schema
               ? formatLabels(resolveNodeLabels(this.schema, bStep.label))
               : `:${bStep.label}`
@@ -616,7 +554,6 @@ export class CypherCompiler implements QueryCompilerProvider {
           }
         }
 
-        // Add WITH to chain to next pattern (except for last branch)
         if (i < branches.length - 1) {
           branchClauses.push(`WITH ${nodeAlias}`)
         }
@@ -624,11 +561,21 @@ export class CypherCompiler implements QueryCompilerProvider {
         branchResults.push(branchClauses.join('\n'))
       }
 
-      // Add RETURN clause at the end
       branchResults.push(`RETURN ${finalNodeAlias}`)
-
-      // Clear and set the intersect query
       this.clauses = [branchResults.join('\n')]
+    } else if (operator === 'except') {
+      // EXCEPT: Set difference - results in first branch but not in others
+      if (branches.length < 2) {
+        throw new Error('EXCEPT requires at least 2 branches')
+      }
+
+      const branchQueries: string[] = []
+      for (const branchSteps of branches) {
+        branchQueries.push(this.compileBranchQuery(branchSteps))
+      }
+
+      const exceptKeyword = distinct ? 'EXCEPT' : 'EXCEPT ALL'
+      this.clauses = [branchQueries.join(`\n${exceptKeyword}\n`)]
     }
   }
 
@@ -730,6 +677,531 @@ export class CypherCompiler implements QueryCompilerProvider {
       }
     }
   }
+
+  // ===========================================================================
+  // PATTERN COMPILATION (Spec 04)
+  // ===========================================================================
+
+  /**
+   * Compile a pattern step to MATCH clauses.
+   */
+  private compilePattern(step: PatternStep): void {
+    const emittedNodes = new Set<string>()
+
+    // Group edges by whether they're optional
+    const requiredEdges = step.edges.filter((e) => !e.optional)
+    const optionalEdges = step.edges.filter((e) => e.optional)
+
+    // Build the required MATCH patterns first
+    if (requiredEdges.length > 0) {
+      this.compilePatternEdges(step.nodes, requiredEdges, emittedNodes, 'MATCH')
+    }
+
+    // Emit any standalone nodes not covered by edges
+    const standaloneNodes = step.nodes.filter((n) => !emittedNodes.has(n.alias))
+    for (const node of standaloneNodes) {
+      const pattern = this.buildNodePattern(node)
+      this.clauses.push(`MATCH ${pattern}`)
+      emittedNodes.add(node.alias)
+    }
+
+    // Build OPTIONAL MATCH for optional edges
+    if (optionalEdges.length > 0) {
+      this.compilePatternEdges(step.nodes, optionalEdges, emittedNodes, 'OPTIONAL MATCH')
+    }
+
+    // Compile inline WHERE conditions
+    this.compilePatternConditions(step)
+  }
+
+  /**
+   * Build a Cypher node pattern string.
+   */
+  private buildNodePattern(node: PatternNode): string {
+    let pattern = `(${node.alias}`
+
+    if (node.labels?.length) {
+      let labels: string
+      if (this.schema && this.schema.nodes[node.labels[0]!]) {
+        labels = formatLabels(resolveNodeLabels(this.schema, node.labels[0]!))
+      } else if (this.schema) {
+        labels = formatLabels(node.labels)
+      } else {
+        labels = `:${node.labels.join(':')}`
+      }
+      pattern += labels
+    }
+
+    if (node.id !== undefined) {
+      const paramRef = this.addParam(node.id)
+      pattern += ` {id: ${paramRef}}`
+    }
+
+    pattern += ')'
+    return pattern
+  }
+
+  /**
+   * Build a Cypher edge pattern with direction arrows.
+   */
+  private buildEdgePattern(edge: PatternEdge): {
+    leftArrow: string
+    rightArrow: string
+    edgeStr: string
+  } {
+    const [leftArrow, rightArrow] = this.getArrow(edge.direction)
+    const typesStr = edge.types.join('|')
+    const aliasStr = edge.alias ?? ''
+
+    let lengthStr = ''
+    if (edge.variableLength) {
+      const { min, max } = edge.variableLength
+      if (max !== undefined) {
+        lengthStr = `*${min}..${max}`
+      } else {
+        lengthStr = `*${min}..`
+      }
+    }
+
+    const edgeStr = `[${aliasStr}:${typesStr}${lengthStr}]`
+    return { leftArrow, rightArrow, edgeStr }
+  }
+
+  /**
+   * Compile a set of pattern edges to MATCH clauses.
+   */
+  private compilePatternEdges(
+    nodes: PatternNode[],
+    edges: PatternEdge[],
+    emittedNodes: Set<string>,
+    keyword: 'MATCH' | 'OPTIONAL MATCH',
+  ): void {
+    const nodeMap = new Map(nodes.map((n) => [n.alias, n]))
+
+    for (const edge of edges) {
+      const fromNode = nodeMap.get(edge.from)
+      const toNode = nodeMap.get(edge.to)
+
+      const { leftArrow, rightArrow, edgeStr } = this.buildEdgePattern(edge)
+
+      const fromPattern = emittedNodes.has(edge.from)
+        ? `(${edge.from})`
+        : this.buildNodePattern(fromNode ?? { alias: edge.from })
+
+      const toPattern = emittedNodes.has(edge.to)
+        ? `(${edge.to})`
+        : this.buildNodePattern(toNode ?? { alias: edge.to })
+
+      this.clauses.push(`${keyword} ${fromPattern}${leftArrow}${edgeStr}${rightArrow}${toPattern}`)
+
+      emittedNodes.add(edge.from)
+      emittedNodes.add(edge.to)
+    }
+  }
+
+  /**
+   * Compile inline WHERE conditions from pattern nodes and edges.
+   */
+  private compilePatternConditions(step: PatternStep): void {
+    const conditions: string[] = []
+
+    for (const node of step.nodes) {
+      if (node.where?.length) {
+        for (const condition of node.where) {
+          conditions.push(this.compileCondition(condition))
+        }
+      }
+    }
+
+    for (const edge of step.edges) {
+      if (edge.where?.length && edge.alias) {
+        for (const edgeCond of edge.where) {
+          const fieldRef = `${edge.alias}.${edgeCond.field}`
+          const cypherOp = this.operatorToCypher(edgeCond.operator)
+
+          if (edgeCond.operator === 'isNull') {
+            conditions.push(`${fieldRef} IS NULL`)
+          } else if (edgeCond.operator === 'isNotNull') {
+            conditions.push(`${fieldRef} IS NOT NULL`)
+          } else {
+            const paramRef = this.addParam(edgeCond.value)
+            conditions.push(`${fieldRef} ${cypherOp} ${paramRef}`)
+          }
+        }
+      }
+    }
+
+    if (conditions.length > 0) {
+      this.clauses.push(`WHERE ${conditions.join(' AND ')}`)
+    }
+  }
+
+  // ===========================================================================
+  // SUBQUERY COMPILATION (Spec 05)
+  // ===========================================================================
+
+  /**
+   * Compile a correlated subquery step to CALL { ... } syntax.
+   */
+  private compileSubqueryStep(step: SubqueryStep): void {
+    this.clauses.push('CALL {')
+
+    if (step.correlatedAliases.length > 0) {
+      this.clauses.push(`  WITH ${step.correlatedAliases.join(', ')}`)
+    }
+
+    const subResult = this.compileSteps(step.steps)
+
+    for (const clause of subResult.clauses) {
+      this.clauses.push(`  ${clause}`)
+    }
+
+    if (!subResult.hasReturn && step.exportedAliases.length > 0) {
+      this.clauses.push(`  RETURN ${step.exportedAliases.join(', ')}`)
+    }
+
+    this.clauses.push('}')
+  }
+
+  /**
+   * Compile a subquery condition to EXISTS/COUNT syntax.
+   *
+   * OPTIMIZATION: Detects the common "connected to node by ID" pattern
+   * (a single traversal + WHERE id = value) and compiles it as an inline
+   * MATCH pattern instead of EXISTS { ... }, enabling index-based lookup.
+   */
+  private compileSubqueryCondition(condition: SubqueryCondition): string {
+    // Try optimization for exists/notExists: inline MATCH pattern
+    if (condition.mode === 'exists' || condition.mode === 'notExists') {
+      const optimized = this.tryCompileOptimizedConnectedTo(condition)
+      if (optimized !== null) return optimized
+    }
+
+    const subResult = this.compileSteps(condition.query)
+    const subqueryBody = subResult.clauses.join(' ')
+
+    switch (condition.mode) {
+      case 'exists':
+        return `EXISTS { ${subqueryBody} }`
+
+      case 'notExists':
+        return `NOT EXISTS { ${subqueryBody} }`
+
+      case 'count': {
+        const { operator, value } = condition.countPredicate
+        const cypherOp = this.operatorToCypher(operator)
+        const paramRef = this.addParam(value)
+        return `COUNT { ${subqueryBody} } ${cypherOp} ${paramRef}`
+      }
+    }
+  }
+
+  /**
+   * Try to compile a subquery condition as an optimized inline pattern.
+   *
+   * Detects: EXISTS { MATCH (n)-[:EDGE]->(target) WHERE target.id = $p }
+   * Compiles as: (n)-[:EDGE]->({id: $p})
+   *
+   * This is 10-100x faster because the query planner can use index lookups
+   * on the target node ID instead of evaluating the full subquery.
+   *
+   * Returns null if the pattern doesn't match (falls back to generic compilation).
+   */
+  private tryCompileOptimizedConnectedTo(
+    condition: SubqueryCondition,
+  ): string | null {
+    const { query } = condition
+
+    // Pattern: exactly 1 traversal + 1 where step
+    if (query.length !== 2) return null
+
+    const [first, second] = query
+    if (first!.type !== 'traversal' || second!.type !== 'where') return null
+
+    const traversal = first as TraversalStep
+    const whereStep = second as WhereStep
+
+    // WHERE must have exactly 1 comparison on 'id' with 'eq'
+    if (whereStep.conditions.length !== 1) return null
+    const cond = whereStep.conditions[0]!
+    if (cond.type !== 'comparison') return null
+    if (cond.field !== 'id' || cond.operator !== 'eq') return null
+    if (cond.target !== traversal.toAlias) return null
+
+    // Pattern matches — compile as inline MATCH pattern
+    const [leftArrow, rightArrow] = this.getArrow(traversal.direction)
+    const edgeTypes = traversal.edges.join('|')
+    const paramRef = this.addParam(cond.value)
+    const pattern = `(${traversal.fromAlias})${leftArrow}[:${edgeTypes}]${rightArrow}({id: ${paramRef}})`
+
+    return condition.mode === 'notExists' ? `NOT ${pattern}` : pattern
+  }
+
+  /**
+   * Compile a list of steps without the full AST wrapper.
+   * Used for subquery compilation.
+   */
+  private compileSteps(steps: ASTNode[]): {
+    clauses: string[]
+    params: Record<string, unknown>
+    hasReturn: boolean
+  } {
+    const savedClauses = this.clauses
+    const savedOrderBy = this.orderByClause
+    const savedLimit = this.limitClause
+    const savedSkip = this.skipClause
+    const savedDistinct = this.hasDistinct
+    const savedAggregate = this.aggregateStep
+    const savedBranch = this.hasBranchStep
+
+    this.clauses = []
+    this.orderByClause = null
+    this.limitClause = null
+    this.skipClause = null
+    this.hasDistinct = false
+    this.aggregateStep = null
+    this.hasBranchStep = false
+
+    let hasReturn = false
+    for (const step of steps) {
+      if (step.type === 'return') hasReturn = true
+      this.compileStep(step)
+    }
+
+    // Append ordering/pagination to sub-clauses
+    if (this.orderByClause) this.clauses.push(this.orderByClause)
+    if (this.skipClause) this.clauses.push(this.skipClause)
+    if (this.limitClause) this.clauses.push(this.limitClause)
+
+    const result = {
+      clauses: this.clauses,
+      params: this.params,
+      hasReturn,
+    }
+
+    // Restore state
+    this.clauses = savedClauses
+    this.orderByClause = savedOrderBy
+    this.limitClause = savedLimit
+    this.skipClause = savedSkip
+    this.hasDistinct = savedDistinct
+    this.aggregateStep = savedAggregate
+    this.hasBranchStep = savedBranch
+
+    return result
+  }
+
+  // ===========================================================================
+  // RETURN/PROJECTION COMPILATION (Spec 06)
+  // ===========================================================================
+
+  /**
+   * Compile a ReturnStep to RETURN clause.
+   */
+  private compileReturnStep(step: ReturnStep): void {
+    if (step.countOnly) {
+      const alias =
+        step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
+      this.clauses.push(`RETURN count(${alias}) AS count`)
+      return
+    }
+
+    if (step.existsOnly) {
+      const alias =
+        step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
+      this.clauses.push(`RETURN count(${alias}) > 0 AS exists`)
+      return
+    }
+
+    const returnExprs: string[] = []
+    for (const ret of step.returns) {
+      returnExprs.push(this.compileReturnItem(ret))
+    }
+
+    const distinct = this.hasDistinct ? 'DISTINCT ' : ''
+    this.clauses.push(`RETURN ${distinct}${returnExprs.join(', ')}`)
+  }
+
+  /**
+   * Compile a single return item.
+   */
+  private compileReturnItem(ret: ProjectionReturn): string {
+    switch (ret.kind) {
+      case 'alias': {
+        if (ret.fields?.length) {
+          return ret.fields.map((f) => `${ret.alias}.${f}`).join(', ')
+        }
+        const resultAlias =
+          ret.resultAlias && ret.resultAlias !== ret.alias ? ` AS ${ret.resultAlias}` : ''
+        return `${ret.alias}${resultAlias}`
+      }
+      case 'expression': {
+        const exprStr = this.compileExpression(ret.expression)
+        return `${exprStr} AS ${ret.resultAlias}`
+      }
+      case 'collect': {
+        const distinct = ret.distinct ? 'DISTINCT ' : ''
+        return `collect(${distinct}${ret.sourceAlias}) AS ${ret.resultAlias}`
+      }
+      case 'path': {
+        const resultAlias =
+          ret.resultAlias && ret.resultAlias !== ret.pathAlias ? ` AS ${ret.resultAlias}` : ''
+        return `${ret.pathAlias}${resultAlias}`
+      }
+    }
+  }
+
+  /**
+   * Compile a projection expression to Cypher.
+   */
+  private compileExpression(expr: ProjectionExpression): string {
+    switch (expr.type) {
+      case 'field':
+        return `${expr.alias}.${expr.field}`
+      case 'literal':
+        return this.compileLiteralValue(expr.value)
+      case 'param':
+        return `$${expr.name}`
+      case 'computed':
+        return this.compileComputedExpression(expr)
+      case 'case':
+        return this.compileCaseExpression(expr)
+      case 'function':
+        return this.compileFunctionExpression(expr)
+    }
+  }
+
+  /**
+   * Compile a literal value to Cypher representation.
+   */
+  private compileLiteralValue(value: unknown): string {
+    if (value === null) return 'null'
+    if (typeof value === 'string') return `'${value.replace(/'/g, "\\'")}'`
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return value ? 'true' : 'false'
+    if (Array.isArray(value)) {
+      return `[${value.map((v) => this.compileLiteralValue(v)).join(', ')}]`
+    }
+    // For objects, use parameter
+    const paramRef = this.addParam(value)
+    return paramRef
+  }
+
+  /**
+   * Compile computed expression with operator.
+   */
+  private compileComputedExpression(expr: {
+    type: 'computed'
+    operator: ComputedOperator
+    operands: ProjectionExpression[]
+  }): string {
+    const operands = expr.operands.map((op) => this.compileExpression(op))
+
+    switch (expr.operator) {
+      // Arithmetic
+      case 'add':
+        return `(${operands[0]} + ${operands[1]})`
+      case 'subtract':
+        return `(${operands[0]} - ${operands[1]})`
+      case 'multiply':
+        return `(${operands[0]} * ${operands[1]})`
+      case 'divide':
+        return `(${operands[0]} / ${operands[1]})`
+      case 'modulo':
+        return `(${operands[0]} % ${operands[1]})`
+      // Type conversions
+      case 'toString':
+        return `toString(${operands[0]})`
+      case 'toInteger':
+        return `toInteger(${operands[0]})`
+      case 'toFloat':
+        return `toFloat(${operands[0]})`
+      case 'toBoolean':
+        return `toBoolean(${operands[0]})`
+      // String functions
+      case 'trim':
+        return `trim(${operands[0]})`
+      case 'toLower':
+        return `toLower(${operands[0]})`
+      case 'toUpper':
+        return `toUpper(${operands[0]})`
+      case 'substring':
+        return operands.length === 3
+          ? `substring(${operands[0]}, ${operands[1]}, ${operands[2]})`
+          : `substring(${operands[0]}, ${operands[1]})`
+      case 'concat':
+        return operands.join(' + ')
+      case 'split':
+        return `split(${operands[0]}, ${operands[1]})`
+      case 'replace':
+        return `replace(${operands[0]}, ${operands[1]}, ${operands[2]})`
+      // Collection functions
+      case 'size':
+        return `size(${operands[0]})`
+      case 'head':
+        return `head(${operands[0]})`
+      case 'tail':
+        return `tail(${operands[0]})`
+      case 'last':
+        return `last(${operands[0]})`
+      case 'reverse':
+        return `reverse(${operands[0]})`
+      // Null handling
+      case 'coalesce':
+        return `coalesce(${operands.join(', ')})`
+      case 'nullIf':
+        return `nullIf(${operands[0]}, ${operands[1]})`
+    }
+  }
+
+  /**
+   * Compile CASE WHEN expression.
+   */
+  private compileCaseExpression(expr: {
+    type: 'case'
+    branches: Array<{ when: WhereCondition; then: ProjectionExpression }>
+    else?: ProjectionExpression
+  }): string {
+    const parts: string[] = ['CASE']
+
+    for (const branch of expr.branches) {
+      const whenCondition = this.compileCondition(branch.when)
+      const thenExpr = this.compileExpression(branch.then)
+      parts.push(`WHEN ${whenCondition} THEN ${thenExpr}`)
+    }
+
+    if (expr.else) {
+      parts.push(`ELSE ${this.compileExpression(expr.else)}`)
+    }
+
+    parts.push('END')
+    return parts.join(' ')
+  }
+
+  /**
+   * Compile function call expression.
+   */
+  private compileFunctionExpression(expr: {
+    type: 'function'
+    name: string
+    args: ProjectionExpression[]
+  }): string {
+    const args = expr.args.map((arg) => this.compileExpression(arg))
+    return `${expr.name}(${args.join(', ')})`
+  }
+
+  // ===========================================================================
+  // UNWIND COMPILATION (Spec 07)
+  // ===========================================================================
+
+  /**
+   * Compile an unwind step to UNWIND clause.
+   */
+  private compileUnwind(step: UnwindStep): void {
+    this.clauses.push(`UNWIND ${step.sourceAlias}.${step.field} AS ${step.itemAlias}`)
+  }
+
+  // ===========================================================================
 
   private compilePath(step: PathStep): void {
     const { algorithm, fromAlias, toAlias, edge, direction, maxHops, pathAlias } = step

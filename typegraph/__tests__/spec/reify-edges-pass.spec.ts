@@ -193,6 +193,333 @@ describe('ReifyEdgesPass', () => {
 // TESTS — REIFY + INSTANCE MODEL (FULL PIPELINE)
 // =============================================================================
 
+// =============================================================================
+// TESTS — PATTERN STEP REIFICATION
+// =============================================================================
+
+describe('ReifyEdgesPass — PatternStep', () => {
+  const pass = new ReifyEdgesPass()
+
+  describe('reified edge expansion (no instance model)', () => {
+    it('expands reified pattern edge to has_link + link node + links_to', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false }],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const result = compile(transformed, reifiedSchema)
+      const cypher = normalizeCypher(result.cypher)
+
+      expect(cypher).toContain('has_link')
+      expect(cypher).toContain('OrderItem') // PascalCase link label
+      expect(cypher).toContain('links_to')
+    })
+
+    it('does not expand non-reified pattern edges', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'c', labels: ['customer'] },
+          { alias: 'o', labels: ['order'] },
+        ],
+        edges: [{ from: 'c', to: 'o', types: ['placedOrder'], direction: 'out', optional: false }],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const result = compile(transformed, reifiedSchema)
+      const cypher = normalizeCypher(result.cypher)
+
+      expect(cypher).toContain('placedOrder')
+      expect(cypher).not.toContain('has_link')
+    })
+
+    it('handles inbound direction on reified pattern edge', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'p', labels: ['product'] },
+          { alias: 'o', labels: ['order'] },
+        ],
+        edges: [{ from: 'p', to: 'o', types: ['orderItem'], direction: 'in', optional: false }],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const result = compile(transformed, reifiedSchema)
+      const cypher = normalizeCypher(result.cypher)
+
+      expect(cypher).toContain('links_to')
+      expect(cypher).toContain('has_link')
+    })
+
+    it('rejects bidirectional on reified pattern edge', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'both', optional: false }],
+      })
+
+      expect(() => pass.transform(ast, reifiedSchema)).toThrow(
+        'bidirectional traversal on reified edge',
+      )
+    })
+
+    it('rejects variableLength on reified pattern edge', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{
+          from: 'o',
+          to: 'p',
+          types: ['orderItem'],
+          direction: 'out',
+          optional: false,
+          variableLength: { min: 1, max: 3, uniqueness: 'nodes' as const },
+        }],
+      })
+
+      expect(() => pass.transform(ast, reifiedSchema)).toThrow(
+        'variable-length traversal on reified edge',
+      )
+    })
+
+    it('moves edge.where to link node inline where', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{
+          from: 'o',
+          to: 'p',
+          types: ['orderItem'],
+          direction: 'out',
+          optional: false,
+          where: [{ field: 'quantity', operator: 'gt', value: 5 }],
+        }],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const result = compile(transformed, reifiedSchema)
+      const cypher = normalizeCypher(result.cypher)
+
+      expect(cypher).toContain('quantity')
+      expect(cypher).toContain('has_link')
+    })
+
+    it('preserves optionality on expanded edges', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: true }],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const patternStep = transformed.steps[0] as any
+
+      // has_link and links_to edges should both be optional
+      const hasLink = patternStep.edges.find((e: any) => e.types.includes('has_link'))
+      const linksTo = patternStep.edges.find((e: any) => e.types.includes('links_to'))
+      expect(hasLink.optional).toBe(true)
+      expect(linksTo.optional).toBe(true)
+    })
+  })
+
+  describe('reified + instance model', () => {
+    it('with classRefs, link node uses :Link label and gets instance_of + class node', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false }],
+      })
+      const transformed = pass.transform(ast, reifiedWithInstanceModel)
+      const result = compile(transformed, reifiedWithInstanceModel)
+      const cypher = normalizeCypher(result.cypher)
+
+      // Link should use :Link label (not :OrderItem)
+      expect(cypher).toContain(':Link')
+      // Should have instance_of for link class discrimination
+      expect(cypher).toContain('instance_of')
+      // Should have link class ID in params
+      expect(Object.values(result.params)).toContain('cls-order-item')
+    })
+  })
+
+  describe('mixed edges', () => {
+    it('handles mix of reified and non-reified pattern edges', () => {
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'c', labels: ['customer'] },
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [
+          { from: 'c', to: 'o', types: ['placedOrder'], direction: 'out', optional: false },
+          { from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false },
+        ],
+      })
+      const transformed = pass.transform(ast, reifiedSchema)
+      const result = compile(transformed, reifiedSchema)
+      const cypher = normalizeCypher(result.cypher)
+
+      // Non-reified should be preserved
+      expect(cypher).toContain('placedOrder')
+      // Reified should be expanded
+      expect(cypher).toContain('has_link')
+      expect(cypher).toContain('links_to')
+    })
+  })
+
+  describe('no-op', () => {
+    it('passes PatternStep through unchanged when no edges are reified', () => {
+      const noReifySchema: SchemaShape = {
+        ...reifiedSchema,
+        edges: {
+          ...reifiedSchema.edges,
+          orderItem: { ...reifiedSchema.edges.orderItem, reified: false },
+        },
+      }
+      const ast = new QueryAST().addPattern({
+        nodes: [
+          { alias: 'o', labels: ['order'] },
+          { alias: 'p', labels: ['product'] },
+        ],
+        edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false }],
+      })
+      const transformed = pass.transform(ast, noReifySchema)
+
+      expect(transformed.steps).toEqual(ast.steps)
+    })
+  })
+})
+
+// =============================================================================
+// TESTS — SUBQUERY STEP/CONDITION REIFICATION
+// =============================================================================
+
+describe('ReifyEdgesPass — SubqueryStep & SubqueryCondition', () => {
+  const pass = new ReifyEdgesPass()
+
+  it('recursively processes SubqueryStep inner steps', () => {
+    const innerSteps = [
+      {
+        type: 'traversal' as const,
+        edges: ['orderItem'],
+        direction: 'out' as const,
+        fromAlias: 'n0',
+        toAlias: 'n1',
+        toLabels: ['product'],
+        optional: false,
+        cardinality: 'many' as const,
+      },
+    ]
+
+    const ast = new QueryAST()
+      .addMatch('order')
+      .addSubqueryStep({
+        correlatedAliases: ['n0'],
+        steps: innerSteps,
+        exportedAliases: [],
+      })
+
+    const transformed = pass.transform(ast, reifiedSchema)
+
+    // Inner subquery steps should be transformed
+    const subqueryStep = transformed.steps.find((s) => s.type === 'subquery') as any
+    expect(subqueryStep).toBeDefined()
+
+    // Inner traversal should be expanded to has_link/links_to
+    const innerHasLink = subqueryStep.steps.find(
+      (s: any) => s.type === 'traversal' && s.edges.includes('has_link'),
+    )
+    expect(innerHasLink).toBeDefined()
+
+    const innerLinksTo = subqueryStep.steps.find(
+      (s: any) => s.type === 'traversal' && s.edges.includes('links_to'),
+    )
+    expect(innerLinksTo).toBeDefined()
+  })
+
+  it('recursively processes WHERE EXISTS inner query', () => {
+    const innerTraversalStep = {
+      type: 'traversal' as const,
+      edges: ['orderItem'],
+      direction: 'out' as const,
+      fromAlias: 'n0',
+      toAlias: 'n1',
+      toLabels: ['product'],
+      optional: false,
+      cardinality: 'many' as const,
+    }
+
+    const ast = new QueryAST()
+      .addMatch('order')
+      .addWhere([{
+        type: 'subquery',
+        mode: 'exists',
+        query: [innerTraversalStep],
+        correlatedAliases: ['n0'],
+      }])
+
+    const transformed = pass.transform(ast, reifiedSchema)
+
+    // Find the subquery condition
+    const whereStep = transformed.steps.find((s) => s.type === 'where') as any
+    const subqueryCond = whereStep.conditions.find((c: any) => c.type === 'subquery')
+
+    // Inner query should have been expanded
+    const innerHasLink = subqueryCond.query.find(
+      (s: any) => s.type === 'traversal' && s.edges.includes('has_link'),
+    )
+    expect(innerHasLink).toBeDefined()
+  })
+
+  it('recursively processes SubqueryCondition in logical conditions', () => {
+    const innerTraversalStep = {
+      type: 'traversal' as const,
+      edges: ['orderItem'],
+      direction: 'out' as const,
+      fromAlias: 'n0',
+      toAlias: 'n1',
+      toLabels: ['product'],
+      optional: false,
+      cardinality: 'many' as const,
+    }
+
+    const ast = new QueryAST()
+      .addMatch('order')
+      .addWhere([{
+        type: 'logical',
+        operator: 'OR',
+        conditions: [
+          { type: 'comparison', target: 'n0', field: 'status', operator: 'eq', value: 'pending' },
+          { type: 'subquery', mode: 'exists', query: [innerTraversalStep], correlatedAliases: ['n0'] },
+        ],
+      }])
+
+    const transformed = pass.transform(ast, reifiedSchema)
+
+    // Find the logical condition
+    const whereStep = transformed.steps.find((s) => s.type === 'where') as any
+    const logicalCond = whereStep.conditions.find((c: any) => c.type === 'logical')
+    const subqueryCond = logicalCond.conditions.find((c: any) => c.type === 'subquery')
+
+    // Inner query should be expanded
+    const innerHasLink = subqueryCond.query.find(
+      (s: any) => s.type === 'traversal' && s.edges.includes('has_link'),
+    )
+    expect(innerHasLink).toBeDefined()
+  })
+})
+
+// =============================================================================
+// TESTS — REIFY + INSTANCE MODEL (FULL PIPELINE)
+// =============================================================================
+
 describe('ReifyEdgesPass + InstanceModelPass (full pipeline)', () => {
   it('produces full kernel-compliant Cypher', () => {
     const imPass = new InstanceModelPass()

@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MatchBuilder: complex patterns > snapshot: complex pattern 1`] = `
+{
+  "cypher": "MATCH (u:User)-[:authored]->(p:Post)
+MATCH (p)-[:categorizedAs]->(c:Category)
+WHERE u.status = $p0
+RETURN n0
+LIMIT 5",
+  "meta": {
+    "complexity": 0,
+    "hasAggregation": false,
+    "hasVariableLengthPath": false,
+    "matchCount": 0,
+    "returnAliases": undefined,
+  },
+  "params": {
+    "p0": "active",
+  },
+  "resultType": "collection",
+}
+`;

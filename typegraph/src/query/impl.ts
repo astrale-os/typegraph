@@ -13,6 +13,8 @@ import { CollectionBuilder } from './collection'
 import { SingleNodeBuilder } from './single-node'
 import { EdgeBuilder } from './edge'
 import { type PathBuilder } from './path'
+import { MatchBuilder, buildMatchAST } from './match-builder'
+import type { MatchConfig } from './match-builder'
 
 /**
  * Implementation of the GraphQuery interface.
@@ -178,6 +180,34 @@ export class GraphQueryImpl<S extends SchemaShape, T extends TypeMap = UntypedMa
     maxDepth?: number
   }): PathBuilder<S, NFrom, NTo> {
     throw new Error('allPaths() is not yet implemented')
+  }
+
+  // ---------------------------------------------------------------------------
+  // PATTERN MATCHING
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Start a pattern matching query.
+   *
+   * Match queries allow matching complex graph shapes like diamonds,
+   * cycles, and multi-point joins declaratively.
+   *
+   * @example
+   * ```typescript
+   * const compiled = graph.match({
+   *   nodes: { a: 'user', b: 'post', c: 'category' },
+   *   edges: [
+   *     { from: 'a', to: 'b', type: 'authored' },
+   *     { from: 'b', to: 'c', type: 'categorizedAs' },
+   *   ],
+   * })
+   * .where('a', 'status', 'eq', 'active')
+   * .compile()
+   * ```
+   */
+  match(config: MatchConfig<S>): MatchBuilder<S> {
+    const { ast, nodeAliases } = buildMatchAST(config, new QueryAST())
+    return new MatchBuilder(ast, this._schema, this._executor, nodeAliases)
   }
 
   // ---------------------------------------------------------------------------

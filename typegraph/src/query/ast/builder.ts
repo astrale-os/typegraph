@@ -26,6 +26,18 @@ import type {
   HierarchyStep,
   ReachableStep,
   ForkStep,
+  PatternNode,
+  PatternEdge,
+  PatternStep,
+  SubqueryStep,
+  SubqueryExistsCondition,
+  SubqueryNotExistsCondition,
+  SubqueryCountCondition,
+  ComparisonOperator,
+  ProjectionExpression,
+  ProjectionReturn,
+  ReturnStep,
+  UnwindStep,
 } from './types'
 import { createDefaultProjection } from './types'
 
@@ -359,7 +371,7 @@ export class QueryAST {
   }
 
   addBranch(config: {
-    operator: 'union' | 'intersect'
+    operator: 'union' | 'intersect' | 'except'
     branches: QueryAST[]
     distinct?: boolean
   }): QueryAST {
@@ -653,6 +665,325 @@ export class QueryAST {
    */
   get aliasCounter(): number {
     return this._aliasCounter
+  }
+
+  /**
+   * Add a pattern matching step.
+   *
+   * Pattern steps allow matching complex graph shapes like diamonds,
+   * cycles, and multi-point joins in a single declarative step.
+   */
+  addPattern(config: { nodes: PatternNode[]; edges: PatternEdge[] }): QueryAST {
+    const step: PatternStep = {
+      type: 'pattern',
+      nodes: config.nodes,
+      edges: config.edges,
+    }
+
+    const newAliases = new Map(this._aliases)
+    for (const node of config.nodes) {
+      newAliases.set(node.alias, {
+        internalAlias: node.alias,
+        userAlias: node.userAlias,
+        type: 'node',
+        label: node.labels?.[0] ?? '',
+        sourceStep: this._steps.length,
+      })
+    }
+
+    for (const edge of config.edges) {
+      if (edge.alias) {
+        newAliases.set(edge.alias, {
+          internalAlias: edge.alias,
+          userAlias: edge.userAlias,
+          type: 'edge',
+          label: edge.types[0] ?? '',
+          sourceStep: this._steps.length,
+        })
+      }
+    }
+
+    const newUserAliases = new Map(this._userAliases)
+    for (const node of config.nodes) {
+      if (node.userAlias) {
+        newUserAliases.set(node.userAlias, node.alias)
+      }
+    }
+
+    const newEdgeUserAliases = new Map(this._edgeUserAliases)
+    for (const edge of config.edges) {
+      if (edge.userAlias && edge.alias) {
+        newEdgeUserAliases.set(edge.userAlias, edge.alias)
+      }
+    }
+
+    const lastNode = config.nodes[config.nodes.length - 1]
+    const currentAlias = lastNode?.alias ?? this._currentNodeAlias
+    const currentLabel = lastNode?.labels?.[0] ?? this._currentNodeLabel
+
+    return this.createNew(
+      [...this._steps, step],
+      this._projection,
+      newAliases,
+      newUserAliases,
+      newEdgeUserAliases,
+      this._aliasCounter,
+      currentAlias,
+      currentLabel,
+    )
+  }
+
+  /**
+   * Add a correlated subquery step.
+   *
+   * The subquery can reference aliases from the outer query and export
+   * new aliases back to it.
+   */
+  addSubqueryStep(config: {
+    correlatedAliases: string[]
+    steps: ASTNode[]
+    exportedAliases: string[]
+  }): QueryAST {
+    for (const alias of config.correlatedAliases) {
+      if (!this._aliases.has(alias)) {
+        throw new Error(`Correlated alias '${alias}' does not exist in current query`)
+      }
+    }
+
+    const step: SubqueryStep = {
+      type: 'subquery',
+      correlatedAliases: config.correlatedAliases,
+      steps: config.steps,
+      exportedAliases: config.exportedAliases,
+    }
+
+    const newAliases = new Map(this._aliases)
+    for (const exportedAlias of config.exportedAliases) {
+      newAliases.set(exportedAlias, {
+        internalAlias: exportedAlias,
+        type: 'computed',
+        label: '',
+        sourceStep: this._steps.length,
+      })
+    }
+
+    return this.createNew(
+      [...this._steps, step],
+      this._projection,
+      newAliases,
+      new Map(this._userAliases),
+      new Map(this._edgeUserAliases),
+      this._aliasCounter,
+      this._currentNodeAlias,
+      this._currentNodeLabel,
+    )
+  }
+
+  /**
+   * Add an unwind step to expand an array field.
+   */
+  addUnwind(config: {
+    sourceAlias: string
+    field: string
+    itemAlias: string
+  }): QueryAST {
+    if (!this._aliases.has(config.sourceAlias)) {
+      throw new Error(`Source alias '${config.sourceAlias}' does not exist`)
+    }
+
+    const step: UnwindStep = {
+      type: 'unwind',
+      sourceAlias: config.sourceAlias,
+      field: config.field,
+      itemAlias: config.itemAlias,
+    }
+
+    const newAliases = new Map(this._aliases)
+    newAliases.set(config.itemAlias, {
+      internalAlias: config.itemAlias,
+      type: 'value',
+      label: '',
+      sourceStep: this._steps.length,
+    })
+
+    return this.createNew(
+      [...this._steps, step],
+      this._projection,
+      newAliases,
+      new Map(this._userAliases),
+      new Map(this._edgeUserAliases),
+      this._aliasCounter,
+      this._currentNodeAlias,
+      this._currentNodeLabel,
+    )
+  }
+
+  /**
+   * Add an explicit return step.
+   *
+   * This makes projection a first-class pipeline step, enabling subqueries
+   * to have their own projections.
+   */
+  addReturn(config: {
+    returns: ProjectionReturn[]
+    countOnly?: boolean
+    existsOnly?: boolean
+  }): QueryAST {
+    for (const ret of config.returns) {
+      if (ret.kind === 'alias' && !this._aliases.has(ret.alias)) {
+        throw new Error(`Return alias '${ret.alias}' does not exist`)
+      }
+      if (ret.kind === 'collect' && !this._aliases.has(ret.sourceAlias)) {
+        throw new Error(`Collect source alias '${ret.sourceAlias}' does not exist`)
+      }
+      if (ret.kind === 'path' && !this._aliases.has(ret.pathAlias)) {
+        throw new Error(`Path alias '${ret.pathAlias}' does not exist`)
+      }
+      if (ret.kind === 'expression') {
+        this.validateExpression(ret.expression)
+      }
+    }
+
+    const step: ReturnStep = {
+      type: 'return',
+      returns: config.returns,
+      countOnly: config.countOnly,
+      existsOnly: config.existsOnly,
+    }
+
+    return this.createNew(
+      [...this._steps, step],
+      this._projection,
+      new Map(this._aliases),
+      new Map(this._userAliases),
+      new Map(this._edgeUserAliases),
+      this._aliasCounter,
+      this._currentNodeAlias,
+      this._currentNodeLabel,
+    )
+  }
+
+  /**
+   * Add a WHERE EXISTS subquery condition.
+   */
+  addWhereExists(config: {
+    fromAlias: string
+    subquery: (ast: QueryAST) => QueryAST
+    negated?: boolean
+  }): QueryAST {
+    const subAst = config.subquery(new QueryAST())
+
+    const condition: SubqueryExistsCondition | SubqueryNotExistsCondition = config.negated
+      ? {
+          type: 'subquery',
+          mode: 'notExists',
+          query: [...subAst.steps],
+          correlatedAliases: [config.fromAlias],
+        }
+      : {
+          type: 'subquery',
+          mode: 'exists',
+          query: [...subAst.steps],
+          correlatedAliases: [config.fromAlias],
+        }
+
+    const whereStep: WhereStep = {
+      type: 'where',
+      conditions: [condition],
+    }
+
+    return this.createNew([...this._steps, whereStep])
+  }
+
+  /**
+   * Add a WHERE NOT EXISTS subquery condition.
+   */
+  addWhereNotExists(config: {
+    fromAlias: string
+    subquery: (ast: QueryAST) => QueryAST
+  }): QueryAST {
+    return this.addWhereExists({ ...config, negated: true })
+  }
+
+  /**
+   * Add a WHERE COUNT { ... } comparison condition.
+   */
+  addWhereCount(config: {
+    fromAlias: string
+    subquery: (ast: QueryAST) => QueryAST
+    operator: ComparisonOperator
+    value: number
+  }): QueryAST {
+    const subAst = config.subquery(new QueryAST())
+
+    const condition: SubqueryCountCondition = {
+      type: 'subquery',
+      mode: 'count',
+      query: [...subAst.steps],
+      countPredicate: {
+        operator: config.operator,
+        value: config.value,
+      },
+      correlatedAliases: [config.fromAlias],
+    }
+
+    const whereStep: WhereStep = {
+      type: 'where',
+      conditions: [condition],
+    }
+
+    return this.createNew([...this._steps, whereStep])
+  }
+
+  private validateExpression(expr: ProjectionExpression): void {
+    switch (expr.type) {
+      case 'field':
+        if (!this._aliases.has(expr.alias)) {
+          throw new Error(`Expression field alias '${expr.alias}' does not exist`)
+        }
+        break
+      case 'computed':
+        for (const operand of expr.operands) {
+          this.validateExpression(operand)
+        }
+        break
+      case 'case':
+        for (const branch of expr.branches) {
+          this.validateCondition(branch.when)
+          this.validateExpression(branch.then)
+        }
+        if (expr.else) {
+          this.validateExpression(expr.else)
+        }
+        break
+      case 'function':
+        for (const arg of expr.args) {
+          this.validateExpression(arg)
+        }
+        break
+    }
+  }
+
+  private validateCondition(cond: WhereCondition): void {
+    switch (cond.type) {
+      case 'comparison':
+        if (cond.target && !this._aliases.has(cond.target)) {
+          throw new Error(`Condition target alias '${cond.target}' does not exist`)
+        }
+        break
+      case 'logical':
+        for (const subcond of cond.conditions) {
+          this.validateCondition(subcond)
+        }
+        break
+      case 'subquery':
+        for (const alias of cond.correlatedAliases) {
+          if (!this._aliases.has(alias)) {
+            throw new Error(`Correlated alias '${alias}' does not exist`)
+          }
+        }
+        break
+    }
   }
 
   validate(): void {

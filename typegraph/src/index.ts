@@ -98,8 +98,6 @@ export type {
   SkipStep,
   AliasStep,
   HierarchyStep,
-  CursorStep,
-  FirstStep,
   DistinctStep,
   ReachableStep,
   ForkStep,
@@ -108,12 +106,18 @@ export type {
   WhereCondition,
   ComparisonCondition,
   LogicalCondition,
-  ExistsCondition,
-  ConnectedToCondition,
   LabelCondition,
   EdgeWhereCondition,
   ComparisonOperator,
   VariableLengthConfig,
+  // v2 types
+  PatternStep,
+  SubqueryStep,
+  SubqueryCondition,
+  UnwindStep,
+  ReturnStep,
+  ProjectionExpression,
+  AliasComparisonCondition,
 } from './query/ast'
 
 // =============================================================================
@@ -197,7 +201,8 @@ export type {
   PathNode,
   PathEdge,
 } from './query'
-export { collect, collectDistinct, isCollectMarker, TypedReturningBuilder } from './query'
+export { collect, collectDistinct, isCollectMarker, TypedReturningBuilder, MatchBuilder, buildMatchAST } from './query'
+export type { MatchConfig, MatchNodeConfig, MatchEdgeConfig } from './query'
 
 // =============================================================================
 // MUTATIONS

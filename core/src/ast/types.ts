@@ -28,6 +28,27 @@ export type ComparisonOperator =
   | 'isNotNull' // IS NOT NULL
 
 // =============================================================================
+// CONDITION VALUES
+// =============================================================================
+
+/**
+ * Represents a value in a condition - either a literal or a named parameter.
+ *
+ * - `literal`: Value is inlined into the query (use for discriminating values)
+ * - `param`: Value is passed as a parameter (use for user input, enables plan caching)
+ *
+ * @example
+ * // Literal - value is part of the query string
+ * { kind: 'literal', value: 'active' }
+ *
+ * // Parameter - value is passed separately
+ * { kind: 'param', name: 'status' }
+ */
+export type ConditionValue =
+  | { kind: 'literal'; value: unknown }
+  | { kind: 'param'; name: string }
+
+// =============================================================================
 // WHERE CONDITIONS
 // =============================================================================
 
@@ -56,33 +77,6 @@ export interface LogicalCondition {
 }
 
 /**
- * Existence check for edges.
- */
-export interface ExistsCondition {
-  type: 'exists'
-  edge: string
-  direction: 'out' | 'in' | 'both'
-  target: string
-  negated: boolean
-}
-
-/**
- * Filter nodes by edge connection to a specific node ID.
- * Example: "nodes where edge X points to node with id Y"
- */
-export interface ConnectedToCondition {
-  type: 'connectedTo'
-  /** The edge type to check */
-  edge: string
-  /** Direction of the edge: 'out' = outgoing, 'in' = incoming */
-  direction: 'out' | 'in'
-  /** The ID of the target/source node */
-  nodeId: string
-  /** The alias of the node this condition applies to */
-  target: string
-}
-
-/**
  * Filter nodes by label presence.
  * Used for multi-label node queries.
  */
@@ -98,12 +92,29 @@ export interface LabelCondition {
   target: string
 }
 
+/**
+ * Compare fields across two different aliased nodes.
+ * Used in pattern matching for cross-alias comparisons.
+ *
+ * @example
+ * // user.createdAt < project.startDate
+ * { type: 'aliasComparison', leftAlias: 'user', leftField: 'createdAt', operator: 'lt', rightAlias: 'project', rightField: 'startDate' }
+ */
+export interface AliasComparisonCondition {
+  type: 'aliasComparison'
+  leftAlias: string
+  leftField: string
+  operator: ComparisonOperator
+  rightAlias: string
+  rightField: string
+}
+
 export type WhereCondition =
   | ComparisonCondition
   | LogicalCondition
-  | ExistsCondition
-  | ConnectedToCondition
   | LabelCondition
+  | SubqueryCondition
+  | AliasComparisonCondition
 
 /**
  * Condition specifically for edge properties during traversal.
@@ -216,11 +227,17 @@ export interface AliasStep {
 }
 
 /**
- * Branch operations (UNION, INTERSECT).
+ * Branch operations (UNION, INTERSECT, EXCEPT).
  */
 export interface BranchStep {
   type: 'branch'
-  operator: 'union' | 'intersect'
+  /**
+   * Set operation to apply:
+   * - 'union': combine all results (UNION ALL or UNION based on distinct)
+   * - 'intersect': results present in all branches
+   * - 'except': results in first branch but not in others (set difference)
+   */
+  operator: 'union' | 'intersect' | 'except'
   branches: ASTNode[][]
   /** Whether to remove duplicates (UNION vs UNION ALL) */
   distinct: boolean
@@ -327,20 +344,6 @@ export interface HierarchyStep {
 }
 
 /**
- * Cursor-based pagination step.
- * Encodes position using ordered fields for efficient pagination.
- */
-export interface CursorStep {
-  type: 'cursor'
-  /** Direction of pagination */
-  direction: 'after' | 'before'
-  /** Encoded cursor string */
-  cursor: string
-  /** Fields used for ordering (needed to decode cursor) */
-  orderFields: Array<{ field: string; direction: 'ASC' | 'DESC' }>
-}
-
-/**
  * Reachable step for transitive closure queries.
  * Finds all nodes reachable via any path through specified edges.
  */
@@ -369,16 +372,6 @@ export interface ReachableStep {
 }
 
 /**
- * First N results step.
- * Used with cursor pagination to limit result count.
- */
-export interface FirstStep {
-  type: 'first'
-  /** Number of results to return */
-  count: number
-}
-
-/**
  * Fork step for fan-out patterns.
  * Enables multiple independent traversals from the same source node.
  */
@@ -394,6 +387,274 @@ export interface ForkStep {
     /** Edge user aliases created in this branch */
     edgeUserAliases: Record<string, string>
   }>
+}
+
+// =============================================================================
+// PATTERN MATCHING
+// =============================================================================
+
+/**
+ * A node in a pattern match.
+ */
+export interface PatternNode {
+  /** Internal alias for this node */
+  alias: string
+  /** User-facing alias (if different from internal) */
+  userAlias?: string
+  /** Node labels to match */
+  labels?: string[]
+  /** Match node by specific ID */
+  id?: string
+  /** Inline conditions on this node */
+  where?: WhereCondition[]
+}
+
+/**
+ * An edge in a pattern match.
+ */
+export interface PatternEdge {
+  /** Internal alias for this edge (optional) */
+  alias?: string
+  /** User-facing alias */
+  userAlias?: string
+  /** Edge types to match (can be multiple with OR semantics) */
+  types: string[]
+  /** Traversal direction */
+  direction: 'out' | 'in' | 'both'
+  /** Source node alias */
+  from: string
+  /** Target node alias */
+  to: string
+  /** Variable-length path configuration */
+  variableLength?: VariableLengthConfig
+  /** Inline conditions on this edge */
+  where?: EdgeWhereCondition[]
+  /** Whether this edge is optional (LEFT JOIN semantics) */
+  optional: boolean
+}
+
+/**
+ * A declarative pattern matching step.
+ *
+ * Unlike sequential traversals, patterns allow expressing complex graph
+ * shapes like diamonds, cycles, and multi-point joins in a single step.
+ *
+ * @example
+ * // Diamond pattern: A -> B, A -> C, B -> D, C -> D
+ * {
+ *   type: 'pattern',
+ *   nodes: [
+ *     { alias: 'a', labels: ['A'] },
+ *     { alias: 'b', labels: ['B'] },
+ *     { alias: 'c', labels: ['C'] },
+ *     { alias: 'd', labels: ['D'] },
+ *   ],
+ *   edges: [
+ *     { from: 'a', to: 'b', types: ['E1'], direction: 'out', optional: false },
+ *     { from: 'a', to: 'c', types: ['E2'], direction: 'out', optional: false },
+ *     { from: 'b', to: 'd', types: ['E3'], direction: 'out', optional: false },
+ *     { from: 'c', to: 'd', types: ['E4'], direction: 'out', optional: false },
+ *   ],
+ * }
+ */
+export interface PatternStep {
+  type: 'pattern'
+  /** All nodes in the pattern */
+  nodes: PatternNode[]
+  /** All edges connecting the nodes */
+  edges: PatternEdge[]
+}
+
+// =============================================================================
+// SUBQUERY SUPPORT
+// =============================================================================
+
+/**
+ * A subquery condition used in WHERE clauses.
+ *
+ * Replaces `ExistsCondition` and `ConnectedToCondition` with a unified,
+ * more powerful construct.
+ *
+ * Discriminated union by `mode` field: countPredicate is REQUIRED when
+ * mode='count' and FORBIDDEN when mode='exists'|'notExists'.
+ */
+export type SubqueryCondition =
+  | SubqueryExistsCondition
+  | SubqueryNotExistsCondition
+  | SubqueryCountCondition
+
+/** Base fields shared by all subquery condition modes */
+interface SubqueryConditionBase {
+  type: 'subquery'
+  /** The subquery AST nodes */
+  query: ASTNode[]
+  /** Aliases from outer query that this subquery references */
+  correlatedAliases: string[]
+}
+
+/** EXISTS subquery - checks if subquery returns any results */
+export interface SubqueryExistsCondition extends SubqueryConditionBase {
+  mode: 'exists'
+}
+
+/** NOT EXISTS subquery - checks if subquery returns no results */
+export interface SubqueryNotExistsCondition extends SubqueryConditionBase {
+  mode: 'notExists'
+}
+
+/** COUNT subquery - compares count of subquery results */
+export interface SubqueryCountCondition extends SubqueryConditionBase {
+  mode: 'count'
+  /** How to compare the count */
+  countPredicate: {
+    operator: ComparisonOperator
+    value: number
+  }
+}
+
+/**
+ * A correlated subquery step in the main query pipeline.
+ *
+ * Used when subquery results need to be joined back to the main query
+ * (e.g., for aggregations or additional filtering).
+ *
+ * Compiles to: CALL { WITH <correlated> ... RETURN <exported> }
+ */
+export interface SubqueryStep {
+  type: 'subquery'
+  /** Aliases from outer query imported into subquery */
+  correlatedAliases: string[]
+  /** AST steps of the subquery */
+  steps: ASTNode[]
+  /** Aliases exported from subquery to outer query */
+  exportedAliases: string[]
+}
+
+// =============================================================================
+// PROJECTION AS PIPELINE STEP
+// =============================================================================
+
+/**
+ * Operators for computed expressions in projections.
+ */
+export type ComputedOperator =
+  // Arithmetic
+  | 'add'
+  | 'subtract'
+  | 'multiply'
+  | 'divide'
+  | 'modulo'
+  // Type conversions
+  | 'toString'
+  | 'toInteger'
+  | 'toFloat'
+  | 'toBoolean'
+  // String functions
+  | 'trim'
+  | 'toLower'
+  | 'toUpper'
+  | 'substring'
+  | 'concat'
+  | 'split'
+  | 'replace'
+  // Collection functions
+  | 'size'
+  | 'head'
+  | 'tail'
+  | 'last'
+  | 'reverse'
+  // Null handling
+  | 'coalesce'
+  | 'nullIf'
+
+/**
+ * An expression that can be computed in a projection.
+ * Recursive type supporting nested expressions.
+ */
+export type ProjectionExpression =
+  | { type: 'field'; alias: string; field: string }
+  | { type: 'literal'; value: unknown }
+  | { type: 'param'; name: string }
+  | {
+      type: 'computed'
+      operator: ComputedOperator
+      operands: ProjectionExpression[]
+    }
+  | {
+      type: 'case'
+      branches: Array<{
+        when: WhereCondition
+        then: ProjectionExpression
+      }>
+      else?: ProjectionExpression
+    }
+  | {
+      type: 'function'
+      name: string
+      args: ProjectionExpression[]
+    }
+
+/**
+ * A single return item in a ReturnStep.
+ */
+export type ProjectionReturn =
+  | {
+      kind: 'alias'
+      alias: string
+      /** If specified, return only these fields from the node/edge */
+      fields?: string[]
+      /** Result alias (defaults to source alias) */
+      resultAlias?: string
+    }
+  | {
+      kind: 'expression'
+      expression: ProjectionExpression
+      resultAlias: string
+    }
+  | {
+      kind: 'collect'
+      sourceAlias: string
+      distinct?: boolean
+      resultAlias: string
+    }
+  | {
+      kind: 'path'
+      pathAlias: string
+      resultAlias?: string
+    }
+
+/**
+ * Explicit return/projection step in the query pipeline.
+ *
+ * Makes projection a first-class step, enabling subqueries to have
+ * their own projections.
+ */
+export interface ReturnStep {
+  type: 'return'
+  /** Items to return */
+  returns: ProjectionReturn[]
+  /** Return only count */
+  countOnly?: boolean
+  /** Return only exists (count > 0) */
+  existsOnly?: boolean
+}
+
+/**
+ * Unwind an array field into individual rows.
+ *
+ * @example
+ * // Unwind tags array
+ * { type: 'unwind', sourceAlias: 'post', field: 'tags', itemAlias: 'tag' }
+ * // Compiles to: UNWIND post.tags AS tag
+ */
+export interface UnwindStep {
+  type: 'unwind'
+  /** Alias of the node containing the array */
+  sourceAlias: string
+  /** Field name of the array to unwind */
+  field: string
+  /** Alias for each unwound item */
+  itemAlias: string
 }
 
 // =============================================================================
@@ -510,10 +771,12 @@ export type ASTNode =
   | SkipStep
   | DistinctStep
   | HierarchyStep
-  | CursorStep
-  | FirstStep
   | ReachableStep
   | ForkStep
+  | PatternStep
+  | SubqueryStep
+  | UnwindStep
+  | ReturnStep
 
 // =============================================================================
 // ALIAS REGISTRY
@@ -527,8 +790,8 @@ export interface AliasInfo {
   internalAlias: string
   /** User-facing alias (if set via .as()) */
   userAlias?: string
-  /** Whether it's a node or edge */
-  type: 'node' | 'edge' | 'path'
+  /** Whether it's a node, edge, path, computed value, or unwound value */
+  type: 'node' | 'edge' | 'path' | 'computed' | 'value'
   /** Label (for nodes) or edge type (for edges) */
   label: string
   /** Source step index in the AST */

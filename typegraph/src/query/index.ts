@@ -48,3 +48,7 @@ export type { QueryValidationErrorCode } from './validation'
 export { collect, collectDistinct, isCollectMarker } from './collect'
 export type { CollectMarker } from './collect'
 export { TypedReturningBuilder } from './typed-returning'
+
+// Match builder
+export { MatchBuilder, buildMatchAST } from './match-builder'
+export type { MatchConfig, MatchNodeConfig, MatchEdgeConfig } from './match-builder'

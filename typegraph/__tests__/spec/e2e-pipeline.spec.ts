@@ -287,6 +287,164 @@ describe('E2E: Query pipeline (InstanceModel + ReifyEdges)', () => {
 })
 
 // =============================================================================
+// TESTS — PATTERN STEP PIPELINE
+// =============================================================================
+
+describe('E2E: Pattern step pipeline (InstanceModel + ReifyEdges)', () => {
+  it('pattern with reified edge: full pipeline', () => {
+    const ast = new QueryAST().addPattern({
+      nodes: [
+        { alias: 'o', labels: ['order'] },
+        { alias: 'p', labels: ['product'] },
+      ],
+      edges: [{ from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false }],
+    })
+    const { cypher, params } = compileQuery(ast)
+    const c = normalizeCypher(cypher)
+
+    // All nodes should use :Node labels
+    expect(c).toContain(':Node')
+    // instance_of joins for typed nodes
+    expect(c).toContain('instance_of')
+    // Reified edge becomes has_link → :Link → links_to
+    expect(c).toContain('has_link')
+    expect(c).toContain(':Link')
+    expect(c).toContain('links_to')
+    // Class IDs in params
+    expect(Object.values(params)).toContain('cls-order')
+    expect(Object.values(params)).toContain('lcls-orderItem')
+    expect(Object.values(params)).toContain('cls-product')
+  })
+
+  it('pattern with non-reified edge + instance model', () => {
+    const ast = new QueryAST().addPattern({
+      nodes: [
+        { alias: 'o', labels: ['order'] },
+        { alias: 'c', labels: ['customer'] },
+      ],
+      edges: [{ from: 'o', to: 'c', types: ['placedBy'], direction: 'out', optional: false }],
+    })
+    const { cypher, params } = compileQuery(ast)
+    const c = normalizeCypher(cypher)
+
+    // All nodes use :Node
+    expect(c).toContain(':Node')
+    expect(c).toContain('instance_of')
+    // Non-reified edge preserved
+    expect(c).toContain('placedBy')
+    expect(c).not.toContain('has_link')
+    // Class IDs
+    expect(Object.values(params)).toContain('cls-order')
+    expect(Object.values(params)).toContain('cls-customer')
+  })
+
+  it('pattern with mixed edges: full pipeline', () => {
+    const ast = new QueryAST().addPattern({
+      nodes: [
+        { alias: 'c', labels: ['customer'] },
+        { alias: 'o', labels: ['order'] },
+        { alias: 'p', labels: ['product'] },
+      ],
+      edges: [
+        { from: 'o', to: 'c', types: ['placedBy'], direction: 'out', optional: false },
+        { from: 'o', to: 'p', types: ['orderItem'], direction: 'out', optional: false },
+      ],
+    })
+    const { cypher, params } = compileQuery(ast)
+    const c = normalizeCypher(cypher)
+
+    // Non-reified edge preserved
+    expect(c).toContain('placedBy')
+    // Reified edge expanded
+    expect(c).toContain('has_link')
+    expect(c).toContain('links_to')
+    // All class IDs present
+    expect(Object.values(params)).toContain('cls-customer')
+    expect(Object.values(params)).toContain('cls-order')
+    expect(Object.values(params)).toContain('lcls-orderItem')
+    expect(Object.values(params)).toContain('cls-product')
+  })
+})
+
+// =============================================================================
+// TESTS — SUBQUERY PIPELINE
+// =============================================================================
+
+describe('E2E: Subquery pipeline (InstanceModel + ReifyEdges)', () => {
+  it('SubqueryStep inner pipeline gets full treatment', () => {
+    const innerSteps = [
+      {
+        type: 'match' as const,
+        label: 'order',
+        alias: 'sq0',
+      },
+      {
+        type: 'traversal' as const,
+        edges: ['orderItem'],
+        direction: 'out' as const,
+        fromAlias: 'sq0',
+        toAlias: 'sq1',
+        toLabels: ['product'],
+        optional: false,
+        cardinality: 'many' as const,
+      },
+    ]
+
+    const ast = new QueryAST()
+      .addMatch('customer')
+      .addSubqueryStep({
+        correlatedAliases: ['n0'],
+        steps: innerSteps,
+        exportedAliases: [],
+      })
+
+    const { cypher, params } = compileQuery(ast)
+    const c = normalizeCypher(cypher)
+
+    // Outer query should be transformed
+    expect(c).toContain(':Node')
+    expect(Object.values(params)).toContain('cls-customer')
+
+    // Inner subquery should also be fully transformed
+    expect(c).toContain('CALL {')
+    expect(c).toContain('has_link')
+    expect(c).toContain('links_to')
+  })
+
+  it('SubqueryCondition (WHERE EXISTS) gets full treatment', () => {
+    const innerTraversalStep = {
+      type: 'traversal' as const,
+      edges: ['orderItem'],
+      direction: 'out' as const,
+      fromAlias: 'n0',
+      toAlias: 'n1',
+      toLabels: ['product'],
+      optional: false,
+      cardinality: 'many' as const,
+    }
+
+    const ast = new QueryAST()
+      .addMatch('order')
+      .addWhere([{
+        type: 'subquery',
+        mode: 'exists',
+        query: [innerTraversalStep],
+        correlatedAliases: ['n0'],
+      }])
+
+    const { cypher, params } = compileQuery(ast)
+    const c = normalizeCypher(cypher)
+
+    // Outer query should be transformed
+    expect(Object.values(params)).toContain('cls-order')
+
+    // Inner subquery should be transformed with reified edges
+    expect(c).toContain('has_link')
+    expect(c).toContain('links_to')
+  })
+})
+
+// =============================================================================
 // TESTS — MUTATION PIPELINE
 // =============================================================================
 

@@ -26,8 +26,9 @@ import type {
   ComparisonOperator,
   WhereCondition,
   ComparisonCondition,
-  ExistsCondition,
-  ConnectedToCondition,
+  SubqueryExistsCondition,
+  SubqueryNotExistsCondition,
+  SubqueryCountCondition,
 } from './ast'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type {
@@ -54,6 +55,7 @@ import type { QueryExecutor } from './types'
 import { ReturningBuilder } from './returning'
 import { TypedReturningBuilder } from './typed-returning'
 import { createQueryContext, parseReturnSpec, type AliasInfo, type EdgeAliasInfo } from './proxy'
+import { SubqueryBuilder } from './subquery-builder'
 
 // Circular dependency resolution: CollectionBuilder extends NodeQueryBuilder,
 // but NodeQueryBuilder methods return CollectionBuilder. CollectionBuilder
@@ -179,54 +181,161 @@ export abstract class NodeQueryBuilder<
     return this._derive(this._ast.addWhere([condition]))
   }
 
+  /**
+   * Filter to nodes where a subquery returns results.
+   *
+   * @example
+   * graph.node('User')
+   *   .whereExists(q => q.to('AUTHORED', 'Post'))
+   *   .execute()
+   */
+  whereExists(
+    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
+  ): this {
+    const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
+    const condition: SubqueryExistsCondition = {
+      type: 'subquery',
+      mode: 'exists',
+      query: subBuilder.steps,
+      correlatedAliases: [this._ast.currentAlias],
+    }
+    return this._derive(this._ast.addWhere([condition]))
+  }
+
+  /**
+   * Filter to nodes where a subquery returns NO results.
+   *
+   * @example
+   * graph.node('User')
+   *   .whereNotExists(q => q.to('AUTHORED', 'Post'))
+   *   .execute()
+   */
+  whereNotExists(
+    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
+  ): this {
+    const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
+    const condition: SubqueryNotExistsCondition = {
+      type: 'subquery',
+      mode: 'notExists',
+      query: subBuilder.steps,
+      correlatedAliases: [this._ast.currentAlias],
+    }
+    return this._derive(this._ast.addWhere([condition]))
+  }
+
+  /**
+   * Filter to nodes where a subquery count matches a condition.
+   *
+   * @example
+   * graph.node('User')
+   *   .whereCount(q => q.to('AUTHORED', 'Post'), 'gt', 5)
+   *   .execute()
+   */
+  whereCount(
+    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
+    operator: ComparisonOperator,
+    value: number,
+  ): this {
+    const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
+    const condition: SubqueryCountCondition = {
+      type: 'subquery',
+      mode: 'count',
+      query: subBuilder.steps,
+      countPredicate: { operator, value },
+      correlatedAliases: [this._ast.currentAlias],
+    }
+    return this._derive(this._ast.addWhere([condition]))
+  }
+
+  /**
+   * Execute a correlated subquery and make its exports available in the main query.
+   *
+   * @example
+   * graph.node('User')
+   *   .subquery(q => q.to('AUTHORED').count('postCount'))
+   *   .return(({ user, postCount }) => ({ user, postCount }))
+   *   .execute()
+   */
+  subquery(
+    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
+  ): CollectionBuilderType<S, N, Aliases, EdgeAliases, T> {
+    const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
+    const newAst = this._ast.addSubqueryStep({
+      correlatedAliases: [this._ast.currentAlias],
+      steps: subBuilder.buildPipelineSteps(),
+      exportedAliases: subBuilder.getExportedAliases(),
+    })
+    return this._collection(newAst)
+  }
+
+  /**
+   * Unwind an array field into individual rows.
+   *
+   * @example
+   * graph.node('Post')
+   *   .unwind('tags', 'tag')
+   *   .execute()
+   */
+  unwind(
+    field: keyof NodeProps<S, N> & string,
+    itemAlias: string,
+  ): CollectionBuilderType<S, N, Aliases, EdgeAliases, T> {
+    const newAst = this._ast.addUnwind({
+      sourceAlias: this._ast.currentAlias,
+      field,
+      itemAlias,
+    })
+    return this._collection(newAst)
+  }
+
+  /**
+   * Check if nodes have an outgoing/incoming edge of a given type.
+   * Internally uses SubqueryCondition (EXISTS pattern).
+   */
   hasEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
     direction: 'out' | 'in' | 'both' = 'out',
   ): this {
-    const condition: ExistsCondition = {
-      type: 'exists',
-      edge: edge as string,
-      direction,
-      target: this._ast.currentAlias,
-      negated: false,
-    }
-    return this._derive(this._ast.addWhere([condition]))
+    return this.whereExists(q => {
+      if (direction === 'out') return q.to(edge as any)
+      if (direction === 'in') return q.from(edge as any)
+      return q.related(edge as string)
+    })
   }
 
+  /**
+   * Check if nodes do NOT have an edge of a given type.
+   * Internally uses SubqueryCondition (NOT EXISTS pattern).
+   */
   hasNoEdge<E extends OutgoingEdges<S, N> | IncomingEdges<S, N>>(
     edge: E,
     direction: 'out' | 'in' | 'both' = 'out',
   ): this {
-    const condition: ExistsCondition = {
-      type: 'exists',
-      edge: edge as string,
-      direction,
-      target: this._ast.currentAlias,
-      negated: true,
-    }
-    return this._derive(this._ast.addWhere([condition]))
+    return this.whereNotExists(q => {
+      if (direction === 'out') return q.to(edge as any)
+      if (direction === 'in') return q.from(edge as any)
+      return q.related(edge as string)
+    })
   }
 
+  /**
+   * Filter to nodes connected to a specific target via an outgoing edge.
+   * Internally uses SubqueryCondition (EXISTS with ID predicate).
+   */
   whereConnectedTo<E extends OutgoingEdges<S, N>>(edge: E, targetId: string): this {
-    const condition: ConnectedToCondition = {
-      type: 'connectedTo',
-      edge: edge as string,
-      direction: 'out',
-      nodeId: targetId,
-      target: this._ast.currentAlias,
-    }
-    return this._derive(this._ast.addWhere([condition]))
+    return this.whereExists(q =>
+      q.to(edge as any).where('id' as any, 'eq', targetId),
+    )
   }
 
+  /**
+   * Filter to nodes connected from a specific source via an incoming edge.
+   * Internally uses SubqueryCondition (EXISTS with ID predicate).
+   */
   whereConnectedFrom<E extends IncomingEdges<S, N>>(edge: E, sourceId: string): this {
-    const condition: ConnectedToCondition = {
-      type: 'connectedTo',
-      edge: edge as string,
-      direction: 'in',
-      nodeId: sourceId,
-      target: this._ast.currentAlias,
-    }
-    return this._derive(this._ast.addWhere([condition]))
+    return this.whereExists(q =>
+      q.from(edge as any).where('id' as any, 'eq', sourceId),
+    )
   }
 
   // ===========================================================================
