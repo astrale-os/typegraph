@@ -19,3 +19,12 @@ export type {
 
 export { emitSchemaTypes } from './emit/schema-types'
 export { emitCore } from './emit/core'
+
+// ─── High-level compile + generate ──────────────────────────
+
+export { compileGsl } from './compile-gsl'
+export type { CompileGslOptions, CompileGslResult } from './compile-gsl'
+
+// Re-export compiler prelude for convenience
+export { KERNEL_PRELUDE, DEFAULT_PRELUDE } from '@astrale/kernel-compiler'
+export type { Prelude } from '@astrale/kernel-compiler'

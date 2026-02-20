@@ -226,6 +226,7 @@ export class InstanceModelPass implements CompilationPass {
         node.labels[0] === META_LABELS.NODE ||
         node.labels[0] === META_LABELS.LINK ||
         node.labels[0] === META_LABELS.CLASS ||
+        node.labels[0] === META_LABELS.INTERFACE ||
         !schema.nodes[node.labels[0]]
       ) {
         newNodes.push(node)
