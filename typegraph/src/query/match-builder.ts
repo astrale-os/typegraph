@@ -226,11 +226,16 @@ export class MatchBuilder<S extends SchemaShape> {
     return this._ast
   }
 
+  /** Run pipeline + compile on the given AST (defaults to this._ast) */
+  private _compile(ast: QueryAST = this._ast): CompiledQuery {
+    const pipeline = getQueryPipeline(this._schema)
+    const transformedAst = pipeline.run(ast, this._schema)
+    return getCompiler(this._schema).compile(transformedAst)
+  }
+
   /** Compile the query to Cypher */
   compile(): CompiledQuery {
-    const pipeline = getQueryPipeline(this._schema)
-    const transformedAst = pipeline.run(this._ast, this._schema)
-    return getCompiler(this._schema).compile(transformedAst)
+    return this._compile()
   }
 
   /** Get the compiled Cypher string */
@@ -280,9 +285,7 @@ export class MatchBuilder<S extends SchemaShape> {
       edgeAliases: [],
       countOnly: true,
     })
-    const pipeline = getQueryPipeline(this._schema)
-    const transformedAst = pipeline.run(countAst, this._schema)
-    const compiled = getCompiler(this._schema).compile(transformedAst)
+    const compiled = this._compile(countAst)
     const results = await this._executor.run<{ count: number }>(compiled.cypher, compiled.params)
     return results[0]?.count ?? 0
   }

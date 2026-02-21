@@ -65,11 +65,16 @@ export abstract class BaseBuilder<S extends SchemaShape, N extends NodeLabels<S>
     return this._schema
   }
 
+  /** Run pipeline + compile on the given AST (defaults to this._ast) */
+  protected _compile(ast: QueryAST = this._ast): CompiledQuery {
+    const pipeline = getQueryPipeline(this._schema)
+    const transformedAst = pipeline.run(ast, this._schema)
+    return getCompiler(this._schema).compile(transformedAst)
+  }
+
   /** Compile the query to Cypher */
   compile(): CompiledQuery {
-    const pipeline = getQueryPipeline(this._schema)
-    const transformedAst = pipeline.run(this._ast, this._schema)
-    return getCompiler(this._schema).compile(transformedAst)
+    return this._compile()
   }
 
   /** Get the compiled Cypher string */

@@ -10,6 +10,7 @@ import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
+import { getCompiler, getQueryPipeline } from '../../src/query/compiler/cache'
 import type { SchemaShape } from '../../src/schema'
 import { ClassId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
@@ -552,5 +553,70 @@ describe('ReifyEdgesPass + InstanceModelPass (full pipeline)', () => {
     expect(Object.values(result.params)).toContain('cls-order')
     expect(Object.values(result.params)).toContain('cls-order-item')
     expect(Object.values(result.params)).toContain('cls-product')
+  })
+})
+
+// =============================================================================
+// TESTS — count() MUST GO THROUGH THE PIPELINE
+// =============================================================================
+
+describe('count() with reified edge traversals', () => {
+  it('count projection through pipeline produces reified Cypher', () => {
+    // Simulate what CollectionBuilder.count() should do:
+    // build AST with traversal + count projection, then compile through pipeline
+    const ast = new QueryAST()
+      .addMatch('order')
+      .addTraversal({
+        edges: ['orderItem'],
+        direction: 'out',
+        toLabels: ['product'],
+        cardinality: 'many',
+      })
+      .setCountProjection()
+
+    // Compile through the pipeline (what execute() does) — this should work
+    const pipeline = getQueryPipeline(reifiedSchema)
+    const transformedAst = pipeline.run(ast, reifiedSchema)
+    const pipelineResult = getCompiler(reifiedSchema).compile(transformedAst)
+    const pipelineCypher = normalizeCypher(pipelineResult.cypher)
+
+    expect(pipelineCypher).toContain('has_link')
+    expect(pipelineCypher).toContain('links_to')
+    expect(pipelineCypher).toContain('count(')
+
+    // Compile directly (what count() was doing) — this skips reification
+    const directResult = getCompiler(reifiedSchema).compile(ast)
+    const directCypher = normalizeCypher(directResult.cypher)
+
+    // BUG: direct compilation still references the raw edge type 'orderItem'
+    // because ReifyEdgesPass never ran. This means count() returns wrong results.
+    // After the fix, both paths should produce identical Cypher.
+    expect(directCypher).toContain('orderItem') // proves direct path skips reification
+
+    // The pipeline path should NOT contain the raw edge type
+    expect(pipelineCypher).not.toContain('orderItem')
+  })
+
+  it('count projection on inbound reified traversal produces correct Cypher', () => {
+    const ast = new QueryAST()
+      .addMatch('product')
+      .addTraversal({
+        edges: ['orderItem'],
+        direction: 'in',
+        toLabels: ['order'],
+        cardinality: 'many',
+      })
+      .setCountProjection()
+
+    const pipeline = getQueryPipeline(reifiedSchema)
+    const transformedAst = pipeline.run(ast, reifiedSchema)
+    const result = getCompiler(reifiedSchema).compile(transformedAst)
+    const cypher = normalizeCypher(result.cypher)
+
+    // Should have reified pattern with count
+    expect(cypher).toContain('has_link')
+    expect(cypher).toContain('links_to')
+    expect(cypher).toContain('count(')
+    expect(cypher).not.toContain('orderItem')
   })
 })

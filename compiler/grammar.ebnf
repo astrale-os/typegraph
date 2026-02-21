@@ -1,12 +1,46 @@
 (* ============================================================
-   Kernel Schema Language — Formal Grammar v3 (EBNF)
+   GSL — Graph Schema Language
    ============================================================
-   
-   Changes from v2:
-     - Removed `scalar_decl`. Primitive types (String, Int, etc.)
-       are compiler builtins, not grammar-level declarations.
-   
-   Conventions:
+
+   GSL is a domain-specific language for defining typed property
+   graphs. A .gsl file declares nodes, edges, interfaces, type
+   aliases, value types, tagged unions, and data types that
+   together describe a graph schema.
+
+   The compiler pipeline transforms GSL source into Schema IR
+   (a JSON representation):
+     .gsl → Lexer → Parser → CST → Lower → AST
+          → Resolver → Validator → Serializer → SchemaIR (JSON)
+
+   Core concepts:
+     - Nodes are entities in the graph (class without signature)
+     - Edges are typed, directed relationships between nodes
+       (class with a parenthesized endpoint signature)
+     - Interfaces define shared structure; nodes can implement
+       multiple interfaces. Interfaces lower to abstract nodes.
+     - Type aliases constrain a scalar (e.g., Email = String [format: email])
+     - Value types are structured, embeddable objects (not graph nodes)
+     - Tagged unions are discriminated unions of value types
+     - Data types attach opaque payloads to nodes/edges
+     - Methods declare operations on nodes/edges (signatures only;
+       implementations live outside GSL)
+     - Modifiers express constraints: uniqueness, indexing, format
+       validation, cardinality bounds, lifecycle behavior, etc.
+     - Extend statements import types from external schemas
+
+   All keywords are contextual — the lexer emits everything as
+   IDENT and the parser recognizes keywords only in specific
+   positions. Words like `format`, `data`, `cascade` are valid
+   as attribute or parameter names.
+
+   Builtin scalar types (injected by compiler prelude, not declared in source):
+     Default:  String, Int, Float, Boolean, Timestamp
+     Kernel:   String, Int, Float, Boolean, Timestamp, Bitmask, ByteString
+
+   Builtin default-value functions:
+     now()  — current timestamp
+
+   EBNF conventions:
      UPPER_CASE  = terminal tokens (from lexer)
      lower_case  = production rules
      ?           = optional
@@ -26,24 +60,65 @@ schema
   ;
 
 declaration
-  = type_alias
+  = type_decl
   | interface_decl
   | class_decl
+  | data_decl
   | extend_decl
   ;
 
 
 (* ────────────────────────────────────────────────────────────
-   2. Type Alias
+   2. Type Declarations
+
+   The `type` keyword introduces three forms, disambiguated
+   by the token after `=`:
+     `{`  → value type (structured fields)
+     `|`  → tagged union (discriminated variants)
+     else → simple type alias (scalar with optional constraints)
    ──────────────────────────────────────────────────────────── *)
+
+type_decl
+  = type_alias
+  | value_type_decl
+  | tagged_union_decl
+  ;
 
 type_alias
   = 'type' IDENT '=' type_expr modifier_list?
   ;
 
+value_type_decl
+  = 'type' IDENT '=' '{' value_type_field* '}'
+  ;
+
+value_type_field
+  = IDENT ':' type_expr list_suffix? nullable_suffix? default_value? ','?
+  ;
+
+list_suffix
+  = '[' ']'
+  ;
+
+nullable_suffix
+  = '?'
+  ;
+
+tagged_union_decl
+  = 'type' IDENT '=' variant+
+  ;
+
+variant
+  = '|' IDENT '{' value_type_field* '}'
+  ;
+
 
 (* ────────────────────────────────────────────────────────────
    3. Interface Declaration
+
+   Interfaces define shared attribute/method signatures.
+   A node implements an interface via the extends clause.
+   Interfaces lower to abstract nodes in the IR.
    ──────────────────────────────────────────────────────────── *)
 
 interface_decl
@@ -61,10 +136,14 @@ ident_list
 
 (* ────────────────────────────────────────────────────────────
    4. Class Declaration (Node or Edge)
-   
+
    Disambiguation:
-     - Parenthesized signature after name → Edge class
-     - No parentheses → Node class
+     - Parenthesized signature after name → Edge
+     - No parentheses → Node
+
+   Edge signatures name their endpoints with typed parameters.
+   Modifier lists on classes express edge constraints
+   (no_self, acyclic, unique, symmetric, cardinality, lifecycle).
    ──────────────────────────────────────────────────────────── *)
 
 class_decl
@@ -81,7 +160,28 @@ param
 
 
 (* ────────────────────────────────────────────────────────────
-   5. Extend Declaration
+   5. Data Declaration
+
+   Attaches an opaque payload to a node or edge. Two forms:
+     - Structured: data Name = { field: Type, ... }
+     - Scalar alias: data Name = TypeExpr
+
+   Can appear at the top level or inline within a class body.
+   Inside a class body, `data Name` (no `=`) is a reference
+   to a standalone data type defined elsewhere.
+   ──────────────────────────────────────────────────────────── *)
+
+data_decl
+  = 'data' IDENT '=' ('{' value_type_field* '}' | type_expr)
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   6. Extend Declaration (Module Import)
+
+   Imports named types from an external schema. The URI can be
+   a URL ("https://kernel.astrale.ai/v1") or a relative file
+   path ("../kernel.gsl"). Only the listed types are imported.
    ──────────────────────────────────────────────────────────── *)
 
 extend_decl
@@ -90,16 +190,70 @@ extend_decl
 
 
 (* ────────────────────────────────────────────────────────────
-   6. Body (shared by interfaces and classes)
+   7. Body (shared by interfaces and classes)
+
+   A body contains any mix of:
+     - Attributes: typed fields with optional modifiers and defaults
+     - Methods: operation signatures with params and return types
+     - Inline data declarations: structured or scalar payloads
+     - Data references: `data Name` pointing to a standalone data type
+
+   Members may appear in any order. Trailing commas are optional
+   on attributes and data references.
    ──────────────────────────────────────────────────────────── *)
 
 body
-  = '{' attribute* '}'
+  = '{' body_member* '}'
+  ;
+
+body_member
+  = method
+  | data_decl
+  | data_ref
+  | attribute
   ;
 
 attribute
-  = IDENT ':' type_expr modifier_list? default_value?
+  = IDENT ':' type_expr modifier_list? default_value? ','?
   ;
+
+data_ref
+  = 'data' IDENT ','?
+  ;
+
+method
+  = 'private'? 'fn' IDENT '(' method_params? ')' ':' method_return_type
+  ;
+
+method_params
+  = method_param (',' method_param)*
+  ;
+
+method_param
+  = IDENT ':' type_expr default_value?
+  ;
+
+(* Nullable (`?`) is mutually exclusive with projection and list suffix.
+   If the return type is nullable, no projection or list suffix follows. *)
+
+method_return_type
+  = type_expr nullable_suffix
+  | type_expr projection? list_suffix?
+  ;
+
+projection
+  = '{' projection_body '}'
+  ;
+
+projection_body
+  = '*' (',' IDENT)*
+  | IDENT (',' IDENT)*
+  ;
+
+
+(* ────────────────────────────────────────────────────────────
+   8. Default Values and Expressions
+   ──────────────────────────────────────────────────────────── *)
 
 default_value
   = '=' expression
@@ -108,14 +262,20 @@ default_value
 expression
   = STRING_LIT
   | NUMBER_LIT
-  | 'true' | 'false'
+  | 'true'
+  | 'false'
   | 'null'
-  | IDENT '(' ')'              (* nullary function call: now(), uuid() *)
+  | IDENT '(' ')'               (* nullary function call: now() *)
   ;
 
 
 (* ────────────────────────────────────────────────────────────
-   7. Type Expressions
+   9. Type Expressions
+
+   Precedence (low → high):
+     union_type     A | B | C
+     nullable_type  A?
+     primary_type   Ident, edge<T>
    ──────────────────────────────────────────────────────────── *)
 
 type_expr
@@ -136,13 +296,18 @@ primary_type
   ;
 
 edge_target
-  = IDENT
-  | 'any'
+  = IDENT                        (* specific edge class name *)
+  | 'any'                        (* wildcard: any edge type  *)
   ;
 
 
 (* ────────────────────────────────────────────────────────────
-   8. Modifier Lists
+   10. Modifier Lists
+
+   Modifiers appear in square brackets `[...]` after:
+     - Type aliases (value constraints)
+     - Class declarations (edge constraints)
+     - Attributes (field constraints)
    ──────────────────────────────────────────────────────────── *)
 
 modifier_list
@@ -158,20 +323,20 @@ modifier
   ;
 
 flag_modifier
-  = 'no_self'
-  | 'acyclic'
-  | 'unique'
-  | 'symmetric'
-  | 'readonly'
-  | 'indexed'
+  = 'no_self'                    (* edge: prevent self-loops               *)
+  | 'acyclic'                    (* edge: prevent cycles                   *)
+  | 'unique'                     (* edge: unique pair / attr: unique value *)
+  | 'symmetric'                  (* edge: A→B implies B→A                  *)
+  | 'readonly'                   (* attr: immutable after creation         *)
+  | 'indexed'                    (* attr: create index, default order      *)
   ;
 
 kv_modifier
-  = 'format' ':' IDENT
-  | 'match' ':' STRING_LIT
-  | 'in' ':' '[' string_list ']'
-  | 'length' ':' range
-  | 'indexed' ':' ('asc' | 'desc')
+  = 'format' ':' IDENT          (* email, url, uuid, slug, phone          *)
+  | 'match' ':' STRING_LIT      (* regex pattern                          *)
+  | 'in' ':' '[' string_list ']'(* enum values                            *)
+  | 'length' ':' range          (* string length range                    *)
+  | 'indexed' ':' ('asc' | 'desc') (* index with sort direction           *)
   ;
 
 cardinality_modifier
@@ -179,15 +344,15 @@ cardinality_modifier
   ;
 
 cardinality_bound
-  = NUMBER_LIT
-  | NUMBER_LIT '..' NUMBER_LIT
-  | NUMBER_LIT '..' '*'
+  = NUMBER_LIT                   (* exact: child -> 1                      *)
+  | NUMBER_LIT '..' NUMBER_LIT  (* range: child -> 0..1                   *)
+  | NUMBER_LIT '..' '*'         (* unbounded: follower -> 0..*            *)
   ;
 
 range_modifier
-  = '>=' NUMBER_LIT
-  | '<=' NUMBER_LIT
-  | NUMBER_LIT '..' NUMBER_LIT
+  = '>=' NUMBER_LIT             (* minimum value                           *)
+  | '<=' NUMBER_LIT             (* maximum value                           *)
+  | NUMBER_LIT '..' NUMBER_LIT  (* value range                            *)
   ;
 
 lifecycle_modifier
@@ -196,7 +361,9 @@ lifecycle_modifier
   ;
 
 lifecycle_action
-  = 'cascade' | 'unlink' | 'prevent'
+  = 'cascade'                    (* delete connected node/edge             *)
+  | 'unlink'                     (* remove edge, keep target               *)
+  | 'prevent'                    (* block deletion while edge exists       *)
   ;
 
 string_list
@@ -209,7 +376,10 @@ range
 
 
 (* ────────────────────────────────────────────────────────────
-   9. Lexical Tokens
+   11. Lexical Tokens
+
+   The lexer is keyword-free. All keywords are emitted as
+   IDENT and matched contextually by the parser.
    ──────────────────────────────────────────────────────────── *)
 
 IDENT
@@ -224,10 +394,97 @@ NUMBER_LIT
   = [0-9]+ ('.' [0-9]+)?
   ;
 
+(* Punctuation:
+     (  )  {  }  [  ]  <  >
+     :  ,  =  |  ?  *
+     ->  ..  >=  <=
+*)
+
 COMMENT
-  = '--' ~[\n]* '\n'
+  = '--' ~[\n]* '\n'            (* single-line, from -- to end of line    *)
   ;
 
 WS
   = [ \t\r\n]+
   ;
+
+
+(* ────────────────────────────────────────────────────────────
+   12. Contextual Keywords
+
+   Recognized by the parser in keyword positions only.
+   All are valid as identifiers elsewhere.
+
+   Declaration:  type  interface  class  extend  data  fn  private
+   Literals:     true  false  null
+   Types:        edge  any
+   Flags:        no_self  acyclic  unique  symmetric  readonly  indexed
+   KV keys:      format  match  in  length
+   Lifecycle:    on_kill_source  on_kill_target  cascade  unlink  prevent
+   Sort:         asc  desc
+   ──────────────────────────────────────────────────────────── *)
+
+
+(* ────────────────────────────────────────────────────────────
+   13. Schema IR Output Structure
+
+   The compiler serializes the resolved schema to JSON:
+
+   SchemaIR {
+     version:        "1.0"
+     meta:           { generated_at, source_hash }
+     extensions:     [{ uri, imported_types }]
+     builtin_scalars: ["String", "Int", "Float", "Boolean", "Timestamp", ...]
+     type_aliases:   [{ name, underlying_type, constraints }]
+     value_types:    [{ name, fields: [{ name, type, nullable, default }] }]
+     tagged_unions:  [{ name, variants: [{ tag, fields }] }]
+     data_types:     [{ name, fields | scalar_type }]
+     classes:        [NodeDef | EdgeDef]  — discriminated on `type` field
+   }
+
+   NodeDef {
+     type: "node", name, abstract, implements,
+     attributes, methods, data_ref?
+   }
+
+   EdgeDef {
+     type: "edge", name, endpoints, attributes,
+     methods, constraints, data_ref?
+   }
+
+   Endpoint  { param_name, allowed_types, cardinality }
+   Cardinality { min, max }  — max=null means unbounded
+
+   EdgeConstraints {
+     no_self, acyclic, unique, symmetric,
+     on_kill_source?, on_kill_target?
+   }
+
+   TypeRef — discriminated on `kind`:
+     Scalar    { name }
+     Node      { name }
+     Alias     { name }
+     Edge      { name }
+     AnyEdge   {}
+     Union     { types }
+     ValueType { name }
+     TaggedUnion { name }
+     List      { element }
+
+   ValueConstraints {
+     format?, pattern?, enum_values?,
+     length_min?, length_max?,
+     value_min?, value_max?
+   }
+
+   AttributeModifiers {
+     unique?, readonly?, indexed?  — indexed can be true | "asc" | "desc"
+   }
+
+   MethodDef {
+     name, access: "public" | "private",
+     params: [{ name, type, default }],
+     return_type, return_nullable,
+     projection: { star, fields, include_data } | null
+   }
+   ──────────────────────────────────────────────────────────── *)

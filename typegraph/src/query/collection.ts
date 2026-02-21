@@ -10,7 +10,6 @@ import type { BaseBuilder } from './base'
 import { buildOutTraversal, buildInTraversal, buildMultiEdgeTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
 import type { QueryAST } from './ast'
-import { getCompiler } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveNode } from '../resolve'
 import type {
@@ -64,7 +63,9 @@ export class CollectionBuilder<
   // ALIASING
   // ===========================================================================
 
-  as<A extends string>(alias: A): CollectionBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, T> {
+  as<A extends string>(
+    alias: A,
+  ): CollectionBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, T> {
     const { ast, aliases } = this._addAlias(alias)
     return new CollectionBuilder(ast, this._schema, aliases, this._edgeAliases, this._executor)
   }
@@ -398,7 +399,7 @@ export class CollectionBuilder<
       throw new ExecutionError('Query execution not available: no queryExecutor provided in config')
     }
     const newAst = this._ast.setCountProjection()
-    const compiled = getCompiler(this._schema).compile(newAst)
+    const compiled = this._compile(newAst)
     const results = await this._executor.run<{ count: unknown }>(
       compiled.cypher,
       compiled.params,
