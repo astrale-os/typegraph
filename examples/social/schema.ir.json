@@ -23,6 +23,8 @@
   ],
   "type_aliases": [],
   "value_types": [],
+  "tagged_unions": [],
+  "data_types": [],
   "classes": [
     {
       "type": "node",
@@ -88,7 +90,8 @@
             "kind": "Scalar",
             "name": "Int"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         },
         {
           "name": "isFollowing",
@@ -107,7 +110,8 @@
             "kind": "Scalar",
             "name": "Boolean"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         }
       ]
     },
@@ -139,7 +143,8 @@
             "kind": "Scalar",
             "name": "Int"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         }
       ]
     },

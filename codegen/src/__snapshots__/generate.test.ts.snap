@@ -145,7 +145,7 @@ export type PostInput = Omit<Post, 'created_at' | 'updated_at'>
 export type CommentInput = Omit<Comment, 'created_at' | 'updated_at'>
 export type TagInput = Tag
 
-import type { TypeMap } from '@astrale/typegraph'
+import type { TypeMap, Graph } from '@astrale/typegraph'
 
 export interface GeneratedTypeMap extends TypeMap {
   nodes: {
@@ -180,6 +180,8 @@ export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
     validation: { validators, ...options.validation },
   })
 }
+
+export type SchemaGraph = Graph<typeof schema, GeneratedTypeMap>
 
 // ─── Validators ─────────────────────────────────────────────
 

@@ -73,7 +73,7 @@ export interface SchemaNodeTypeMap {
 export type UserInput = User
 export type PostInput = Post
 
-import type { TypeMap } from '@astrale/typegraph'
+import type { TypeMap, Graph } from '@astrale/typegraph'
 
 export interface GeneratedTypeMap extends TypeMap {
   nodes: {
@@ -99,6 +99,8 @@ export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
     validation: { validators, ...options.validation },
   })
 }
+
+export type SchemaGraph = Graph<typeof schema, GeneratedTypeMap>
 
 // ─── Validators ─────────────────────────────────────────────
 
@@ -295,3 +297,13 @@ export type ExtractCoreKeys<T extends CoreDefinition> = FlattenCoreKeys<T['nodes
 
 export type Refs<T extends CoreDefinition = CoreDefinition> =
   Record<SchemaType | Extract<ExtractCoreKeys<T>, string>, NodeId>
+
+/** Nested core refs type - supports hierarchical access like core.electronics.phones */
+type NestedCoreKeys<T extends Record<string, any>> = {
+  [K in keyof T & string]: T[K] extends { readonly children: infer C extends Record<string, any> }
+    ? NestedCoreKeys<C> & NodeId  // Parent with children
+    : NodeId                       // Leaf node ID
+}
+
+export type CoreRefs<T extends CoreDefinition = CoreDefinition> =
+  NestedCoreKeys<T['nodes']> & Record<SchemaType, NodeId>

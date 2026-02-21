@@ -16,6 +16,8 @@
   ],
   "type_aliases": [],
   "value_types": [],
+  "tagged_unions": [],
+  "data_types": [],
   "classes": [
     {
       "type": "node",
@@ -336,7 +338,7 @@
     },
     {
       "type": "node",
-      "name": "System",
+      "name": "Root",
       "abstract": false,
       "implements": [
         "Identity"

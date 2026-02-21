@@ -156,7 +156,7 @@ export type CategoryInput = Category
 export type OrderInput = Order
 export type ReviewInput = Review
 
-import type { TypeMap } from '@astrale/typegraph'
+import type { TypeMap, Graph } from '@astrale/typegraph'
 
 export interface GeneratedTypeMap extends TypeMap {
   nodes: {
@@ -191,6 +191,8 @@ export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
     validation: { validators, ...options.validation },
   })
 }
+
+export type SchemaGraph = Graph<typeof schema, GeneratedTypeMap>
 
 // ─── Validators ─────────────────────────────────────────────
 

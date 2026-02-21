@@ -32,7 +32,7 @@ export function emitTypemap(model: GraphModel): string {
   lines.push('')
 
   // TypeMap interface
-  lines.push("import type { TypeMap } from '@astrale/typegraph'")
+  lines.push("import type { TypeMap, Graph } from '@astrale/typegraph'")
   lines.push('')
   lines.push('export interface GeneratedTypeMap extends TypeMap {')
   lines.push('  nodes: {')
@@ -75,6 +75,10 @@ export function emitTypemap(model: GraphModel): string {
   lines.push('    validation: { validators, ...options.validation },')
   lines.push('  })')
   lines.push('}')
+  lines.push('')
+
+  // Pre-bound Graph type alias
+  lines.push('export type SchemaGraph = Graph<typeof schema, GeneratedTypeMap>')
   lines.push('')
 
   return lines.join('\n')

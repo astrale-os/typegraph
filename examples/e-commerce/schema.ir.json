@@ -71,6 +71,8 @@
     }
   ],
   "value_types": [],
+  "tagged_unions": [],
+  "data_types": [],
   "classes": [
     {
       "type": "node",
@@ -209,7 +211,8 @@
             "kind": "Scalar",
             "name": "String"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         },
         {
           "name": "recentOrders",
@@ -234,7 +237,8 @@
               "name": "Order"
             }
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         }
       ]
     },
@@ -380,7 +384,8 @@
             "kind": "Scalar",
             "name": "Boolean"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         }
       ]
     },
@@ -511,7 +516,8 @@
             "kind": "Scalar",
             "name": "Int"
           },
-          "return_nullable": false
+          "return_nullable": false,
+          "projection": null
         }
       ],
       "constraints": {

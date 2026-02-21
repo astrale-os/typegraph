@@ -7,7 +7,12 @@
 // ============================================================
 
 import { type Token } from '../tokens'
-import { type CstChild, type ExpressionNode, type LiteralExprNode, type CallExprNode } from '../cst/index'
+import {
+  type CstChild,
+  type ExpressionNode,
+  type LiteralExprNode,
+  type CallExprNode,
+} from '../cst/index'
 import { DiagnosticCodes } from '../diagnostics'
 import { type ParserContext } from './index'
 

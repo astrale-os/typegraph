@@ -100,7 +100,7 @@ export type CustomerInput = Omit<Customer, 'created_at'>
 export type ProductInput = Omit<Product, 'created_at'>
 export type OrderInput = Omit<Order, 'created_at'>
 
-import type { TypeMap } from '@astrale/typegraph'
+import type { TypeMap, Graph } from '@astrale/typegraph'
 
 export interface GeneratedTypeMap extends TypeMap {
   nodes: {
@@ -127,6 +127,8 @@ export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
     validation: { validators, ...options.validation },
   })
 }
+
+export type SchemaGraph = Graph<typeof schema, GeneratedTypeMap>
 
 // ─── Validators ─────────────────────────────────────────────
 

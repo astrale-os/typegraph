@@ -29,11 +29,7 @@ export function parseModifierList(p: ParserContext): ModifierListNode {
   while (!p.at('RBracket') && !p.at('EOF')) {
     // Safety: break if we've hit a declaration start (missing `]`)
     if (isDeclStart(p.current())) {
-      p.diagnostics.error(
-        p.current().span,
-        DiagnosticCodes.P_UNCLOSED_BRACKET,
-        "Unclosed '['",
-      )
+      p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACKET, "Unclosed '['")
       break
     }
 
