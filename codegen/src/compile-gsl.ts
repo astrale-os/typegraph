@@ -6,7 +6,7 @@
  * watchers, and tests should use instead of reimplementing the pipeline.
  */
 
-import { compile, KERNEL_PRELUDE } from '@astrale/kernel-compiler'
+import { compile, KERNEL_PRELUDE, createLazyFileRegistry, buildKernelRegistry } from '@astrale/kernel-compiler'
 import type { Prelude, CompileOptions } from '@astrale/kernel-compiler'
 import type { SchemaIR } from './model'
 import { normalizeIR } from './loader'
@@ -61,7 +61,15 @@ export interface CompileGslResult {
  */
 export function compileGsl(gslSource: string, options?: CompileGslOptions): CompileGslResult {
   const prelude = options?.prelude ?? KERNEL_PRELUDE
-  const { ir, diagnostics } = compile(gslSource, { ...options?.compile, prelude })
+  const compileOpts = { ...options?.compile }
+
+  // Auto-create a lazy file registry when sourceUri is provided but no registry,
+  // so that `extend "./other.gsl"` resolves local file dependencies.
+  if (compileOpts.sourceUri && !compileOpts.registry) {
+    compileOpts.registry = createLazyFileRegistry(buildKernelRegistry(), prelude)
+  }
+
+  const { ir, diagnostics } = compile(gslSource, { ...compileOpts, prelude })
 
   const errors = diagnostics.getErrors()
   if (errors.length > 0) {

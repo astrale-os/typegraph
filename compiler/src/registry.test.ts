@@ -233,6 +233,109 @@ class Entity: Node, Middle {
     expect(artifacts?.resolved.symbols.get('Middle')).toBeDefined()
   })
 
+  it('resolves all symbol kinds from a mixed-definition file', () => {
+    // File with type aliases, interfaces, AND classes together
+    writeFileSync(
+      join(tmpDir, 'mixed.gsl'),
+      `type Foo = Int [>= 0]
+interface Bar { x: Foo }
+class Baz { y: Foo }`,
+      'utf-8',
+    )
+
+    const mainPath = join(tmpDir, 'mixed-consumer.gsl')
+    const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)
+    const { diagnostics, artifacts } = compile(
+      `extend "./mixed.gsl" { Foo, Bar, Baz }
+
+class Test: Bar {
+  value: Foo
+}`,
+      { prelude: KERNEL_PRELUDE, registry, sourceUri: mainPath },
+    )
+
+    expect(diagnostics.hasErrors()).toBe(false)
+
+    const foo = artifacts?.resolved.symbols.get('Foo')
+    expect(foo).toBeDefined()
+    expect(foo!.symbolKind).toBe('TypeAlias')
+    expect(foo!.declaration).not.toBeNull()
+
+    const bar = artifacts?.resolved.symbols.get('Bar')
+    expect(bar).toBeDefined()
+    expect(bar!.symbolKind).toBe('Interface')
+    expect(bar!.declaration).not.toBeNull()
+
+    const baz = artifacts?.resolved.symbols.get('Baz')
+    expect(baz).toBeDefined()
+    expect(baz!.symbolKind).toBe('Class')
+    expect(baz!.declaration).not.toBeNull()
+  })
+
+  it('resolves type-only imports from a mixed file', () => {
+    writeFileSync(
+      join(tmpDir, 'mixed2.gsl'),
+      `type NonNegativeFloat = Float [>= 0]
+type MealType = String [in: ["BREAKFAST", "LUNCH"]]
+interface Trackable { id: String }
+class Day { date: String }`,
+      'utf-8',
+    )
+
+    const mainPath = join(tmpDir, 'type-only-consumer.gsl')
+    const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)
+    const { diagnostics, artifacts } = compile(
+      `extend "./mixed2.gsl" { NonNegativeFloat, MealType }
+
+interface Meal {
+  calories: NonNegativeFloat,
+  kind: MealType
+}`,
+      { prelude: KERNEL_PRELUDE, registry, sourceUri: mainPath },
+    )
+
+    expect(diagnostics.hasErrors()).toBe(false)
+    expect(artifacts?.resolved.symbols.get('NonNegativeFloat')!.symbolKind).toBe('TypeAlias')
+    expect(artifacts?.resolved.symbols.get('MealType')!.symbolKind).toBe('TypeAlias')
+  })
+
+  it('resolves nested extend chains with mixed definitions', () => {
+    writeFileSync(
+      join(tmpDir, 'core-types.gsl'),
+      `type Email = String [format: email]
+interface Timestamped { created_at: Timestamp }
+class User { name: String, email: Email }`,
+      'utf-8',
+    )
+
+    writeFileSync(
+      join(tmpDir, 'domain.gsl'),
+      `extend "./core-types.gsl" { Email, Timestamped, User }
+
+type Slug = String
+interface Publishable: Timestamped { slug: Slug }
+class Post: Publishable { title: String }`,
+      'utf-8',
+    )
+
+    const mainPath = join(tmpDir, 'app.gsl')
+    const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)
+    const { diagnostics, artifacts } = compile(
+      `extend "./domain.gsl" { Slug, Publishable, Post }
+
+class Article: Publishable {
+  body: String,
+  url_slug: Slug
+}`,
+      { prelude: KERNEL_PRELUDE, registry, sourceUri: mainPath },
+    )
+
+    expect(diagnostics.hasErrors()).toBe(false)
+    expect(artifacts?.resolved.symbols.get('Slug')!.symbolKind).toBe('TypeAlias')
+    expect(artifacts?.resolved.symbols.get('Publishable')!.symbolKind).toBe('Interface')
+    expect(artifacts?.resolved.symbols.get('Post')!.symbolKind).toBe('Class')
+  })
+
   it('gracefully handles missing local file', () => {
     const mainPath = join(tmpDir, 'missing.gsl')
     const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)

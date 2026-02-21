@@ -10664,11 +10664,7 @@ function parseModifierList(p) {
   const modifiers = [];
   while (!p.at("RBracket") && !p.at("EOF")) {
     if (isDeclStart(p.current())) {
-      p.diagnostics.error(
-        p.current().span,
-        DiagnosticCodes.P_UNCLOSED_BRACKET,
-        "Unclosed '['"
-      );
+      p.diagnostics.error(p.current().span, DiagnosticCodes.P_UNCLOSED_BRACKET, "Unclosed '['");
       break;
     }
     const mod = parseModifier(p);
@@ -13356,6 +13352,45 @@ function serializeSchema(ctx, options) {
       case "EdgeDecl":
         classes.push(serializeEdge(ctx, decl));
         break;
+    }
+  }
+  const emittedNames = /* @__PURE__ */ new Set([
+    ...typeAliases.map((a) => a.name),
+    ...valueTypes.map((v) => v.name),
+    ...taggedUnions.map((t) => t.name),
+    ...classes.map((c) => c.name)
+  ]);
+  for (const decl of ctx.schema.declarations) {
+    if (decl.kind !== "ExtendDecl") continue;
+    if (!isLocalPath(decl.uri)) continue;
+    for (const imp of decl.imports) {
+      if (emittedNames.has(imp.value)) continue;
+      const sym = ctx.schema.symbols.get(imp.value);
+      if (!sym?.declaration) continue;
+      emittedNames.add(imp.value);
+      switch (sym.declaration.kind) {
+        case "TypeAliasDecl":
+          typeAliases.push(serializeTypeAlias(ctx, sym.declaration));
+          break;
+        case "ValueTypeDecl":
+          valueTypes.push(serializeValueType(ctx, sym.declaration));
+          break;
+        case "TaggedUnionDecl":
+          taggedUnions.push(serializeTaggedUnion(ctx, sym.declaration));
+          break;
+        case "InterfaceDecl":
+          classes.push(serializeInterface(ctx, sym.declaration));
+          break;
+        case "NodeDecl":
+          classes.push(serializeNode(ctx, sym.declaration));
+          break;
+        case "EdgeDecl":
+          classes.push(serializeEdge(ctx, sym.declaration));
+          break;
+        case "DataDecl":
+          dataTypes.push(serializeDataType(ctx, sym.declaration));
+          break;
+      }
     }
   }
   for (const decl of ctx.schema.declarations) {

@@ -19,6 +19,8 @@ import {
   type Extension,
 } from '../ir/index'
 import { type ResolvedSchema } from '../resolver/index'
+import type { TypeAliasDecl, ValueTypeDecl, TaggedUnionDecl, InterfaceDecl, NodeDecl, EdgeDecl, DataDecl } from '../ast/index'
+import { isLocalPath } from '../registry'
 import {
   serializeExtend,
   serializeTypeAlias,
@@ -81,6 +83,52 @@ function serializeSchema(ctx: SerializerContext, options?: SerializeOptions): Sc
       case 'EdgeDecl':
         classes.push(serializeEdge(ctx, decl))
         break
+    }
+  }
+
+  // Emit imported definitions from extend declarations so the IR is self-contained.
+  // Without this, `extend "./a.gsl" { Foo }` would only record Foo's name in the
+  // Extension record but not its actual definition, leaving codegen blind to it.
+  const emittedNames = new Set([
+    ...typeAliases.map((a) => a.name),
+    ...valueTypes.map((v) => v.name),
+    ...taggedUnions.map((t) => t.name),
+    ...classes.map((c) => c.name),
+  ])
+
+  for (const decl of ctx.schema.declarations) {
+    if (decl.kind !== 'ExtendDecl') continue
+    // Only emit definitions from local file extends (e.g. "./a.gsl"),
+    // not from remote/kernel extends (e.g. "https://kernel.astrale.ai/v1").
+    if (!isLocalPath(decl.uri)) continue
+    for (const imp of decl.imports) {
+      if (emittedNames.has(imp.value)) continue
+      const sym = ctx.schema.symbols.get(imp.value)
+      if (!sym?.declaration) continue // builtin or stub — skip
+      emittedNames.add(imp.value)
+      switch (sym.declaration.kind) {
+        case 'TypeAliasDecl':
+          typeAliases.push(serializeTypeAlias(ctx, sym.declaration as TypeAliasDecl))
+          break
+        case 'ValueTypeDecl':
+          valueTypes.push(serializeValueType(ctx, sym.declaration as ValueTypeDecl))
+          break
+        case 'TaggedUnionDecl':
+          taggedUnions.push(serializeTaggedUnion(ctx, sym.declaration as TaggedUnionDecl))
+          break
+        case 'InterfaceDecl':
+          classes.push(serializeInterface(ctx, sym.declaration as InterfaceDecl))
+          break
+        case 'NodeDecl':
+          classes.push(serializeNode(ctx, sym.declaration as NodeDecl))
+          break
+        case 'EdgeDecl':
+          classes.push(serializeEdge(ctx, sym.declaration as EdgeDecl))
+          break
+        case 'DataDecl':
+          dataTypes.push(serializeDataType(ctx, sym.declaration as DataDecl))
+          break
+      }
     }
   }
 

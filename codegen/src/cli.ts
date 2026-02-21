@@ -55,7 +55,9 @@ if (isGsl) {
     process.exit(1)
   }
   const gslSource = readFileSync(inputPaths[0], 'utf-8')
-  const result = compileGsl(gslSource)
+  const result = compileGsl(gslSource, {
+    compile: { sourceUri: inputPaths[0] },
+  })
   source = result.source
   scaffold = result.scaffold
 } else {
