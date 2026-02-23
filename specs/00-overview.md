@@ -33,7 +33,7 @@ Graph client (fully typed)
 ## Package Structure
 
 ```
-@astrale/typegraph              — Client SDK + Schema Runtime
+@astrale/typegraph-client              — Client SDK + Schema Runtime
 @astrale/typegraph-codegen      — IR → TypeScript (done, 105 tests)
 @astrale/kernel-compiler        — KRL → IR (done)
 @astrale/typegraph-adapter-*    — Storage adapters (memgraph, falkordb, memory)

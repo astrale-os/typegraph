@@ -53,7 +53,7 @@
   "author": "Astrale",
   "license": "MIT",
   "dependencies": {
-    "@astrale/typegraph": "workspace:*",
+    "@astrale/typegraph-client": "workspace:*",
     "falkordb": "^6.4.1"
   },
   "devDependencies": {

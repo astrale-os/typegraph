@@ -9,5 +9,5 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   minify: false,
-  external: ['neo4j-driver', '@astrale/typegraph'],
+  external: ['neo4j-driver', '@astrale/typegraph-client'],
 })

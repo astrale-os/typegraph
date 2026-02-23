@@ -48,7 +48,7 @@
   "author": "Astrale",
   "license": "MIT",
   "dependencies": {
-    "@astrale/typegraph": "workspace:*"
+    "@astrale/typegraph-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

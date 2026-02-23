@@ -3,28 +3,28 @@
 Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB).
 
 [![CI](https://github.com/astrale-os/typegraph/actions/workflows/ci.yml/badge.svg)](https://github.com/astrale-os/typegraph/actions/workflows/ci.yml)
-[![JSR @astrale/typegraph](https://jsr.io/badges/@astrale/typegraph)](https://jsr.io/@astrale/typegraph)
+[![JSR @astrale/typegraph-client](https://jsr.io/badges/@astrale/typegraph-client)](https://jsr.io/@astrale/typegraph-client)
 
 ## Packages
 
 | Package                                                  | Description                              |
 | -------------------------------------------------------- | ---------------------------------------- |
-| [`@astrale/typegraph`](./typegraph)             | Core query builder and mutation DSL      |
+| [`@astrale/typegraph-client`](./typegraph)             | Core query builder and mutation DSL      |
 
 ## Installation
 
 ```bash
 # Deno
-deno add jsr:@astrale/typegraph
+deno add jsr:@astrale/typegraph-client
 
 # npm (via JSR)
-npx jsr add @astrale/typegraph
+npx jsr add @astrale/typegraph-client
 
 # pnpm (via JSR)
-pnpm dlx jsr add @astrale/typegraph
+pnpm dlx jsr add @astrale/typegraph-client
 
 # Bun
-bunx jsr add @astrale/typegraph
+bunx jsr add @astrale/typegraph-client
 ```
 
 ## Schema Definition
@@ -32,7 +32,7 @@ bunx jsr add @astrale/typegraph
 Define your graph structure with Zod schemas. All nodes and edges have an implicit `id: string` field.
 
 ```typescript
-import { defineSchema, node, edge } from '@astrale/typegraph'
+import { defineSchema, node, edge } from '@astrale/typegraph-client'
 import { z } from 'zod'
 
 const schema = defineSchema({
@@ -91,7 +91,7 @@ const schema = defineSchema({
 ### Basic Queries
 
 ```typescript
-import { createGraph } from '@astrale/typegraph'
+import { createGraph } from '@astrale/typegraph-client'
 
 const graph = createGraph(schema, {
   queryExecutor: myAdapter,

@@ -9,5 +9,5 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   minify: false,
-  external: ['falkordb', '@astrale/typegraph', 'zod'],
+  external: ['falkordb', '@astrale/typegraph-client', 'zod'],
 })

@@ -56,7 +56,7 @@ The codegen-emitted `createGraph` is a thin wrapper that locks in `S` and `T`:
 
 ```typescript
 // generated/shop.ts (codegen output)
-import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph-client'
 import { schema } from './schema'
 import type { ShopTypeMap } from './types'
 
@@ -68,7 +68,7 @@ export function createGraph(options: Omit<GraphOptions, 'schema'>) {
 ### 1.2 Explicit generics (advanced)
 
 ```typescript
-import { createGraph } from '@astrale/typegraph'
+import { createGraph } from '@astrale/typegraph-client'
 import { schema } from './generated/shop/schema'
 import type { ShopTypeMap } from './generated/shop/types'
 
@@ -79,7 +79,7 @@ graph.node('Customer').execute()  // → Promise<CustomerNode[]>
 ### 1.3 Untyped fallback (backward compatible)
 
 ```typescript
-import { createGraph } from '@astrale/typegraph'
+import { createGraph } from '@astrale/typegraph-client'
 import { schema } from './generated/shop/schema'
 
 // No TypeMap → everything works, results are Record<string, unknown>
@@ -285,7 +285,7 @@ export { schema } from './schema'
 export type { ShopTypeMap } from './types'
 export * from './types'
 
-import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph-client'
 import { schema } from './schema'
 import type { ShopTypeMap } from './types'
 

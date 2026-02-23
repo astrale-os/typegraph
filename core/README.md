@@ -73,7 +73,7 @@ console.log(ast.steps) // Inspect query structure
   - Custom query builders
   - Minimal bundle size
 
-- **Use `@astrale/typegraph`** when you need:
+- **Use `@astrale/typegraph-client`** when you need:
   - Full query execution
   - Database connectivity
   - Mutations

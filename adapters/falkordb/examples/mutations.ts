@@ -2,7 +2,7 @@
  * Mutation examples for FalkorDB adapter.
  */
 
-import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph-client'
 import { falkordb, clearGraph } from '../src/index'
 import { z } from 'zod'
 

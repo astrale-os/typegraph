@@ -1,5 +1,5 @@
 {
-  "name": "@astrale/typegraph",
+  "name": "@astrale/typegraph-client",
   "version": "0.2.4",
   "description": "Type-safe graph DSL for Cypher (Neo4j/Memgraph/FalkorDB)",
   "type": "module",
@@ -58,7 +58,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/astrale-os/typegraph.git",
-    "directory": "typegraph"
+    "directory": "client"
   },
   "dependencies": {},
   "devDependencies": {

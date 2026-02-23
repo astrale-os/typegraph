@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { createGraph } from '@astrale/typegraph'
+ * import { createGraph } from '@astrale/typegraph-client'
  * import { schema } from './generated/schema'
  * import { neo4j } from '@astrale/typegraph-adapter-neo4j'
  *

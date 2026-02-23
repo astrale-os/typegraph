@@ -39,7 +39,7 @@ Schema Definition → Type Inference → AST Building → Cypher Compilation →
 Nodes represent vertices in the graph. Use the `node()` builder:
 
 ```typescript
-import { node } from '@astrale/typegraph'
+import { node } from '@astrale/typegraph-client'
 import { z } from 'zod'
 
 const userNode = node({
@@ -91,7 +91,7 @@ const postNode = node({
 Edges represent directed relationships between nodes. Use the `edge()` builder:
 
 ```typescript
-import { edge } from '@astrale/typegraph'
+import { edge } from '@astrale/typegraph-client'
 
 const authoredEdge = edge({
   from: 'user',
@@ -133,7 +133,7 @@ const createdEdge = edge({
 Combine nodes and edges with `defineSchema()`:
 
 ```typescript
-import { defineSchema, node, edge } from '@astrale/typegraph'
+import { defineSchema, node, edge } from '@astrale/typegraph-client'
 import { z } from 'zod'
 
 export const blogSchema = defineSchema({
@@ -419,7 +419,7 @@ TypeGraph provides comprehensive type inference from your schema.
 ### Extracting Node Properties
 
 ```typescript
-import { NodeProps } from '@astrale/typegraph'
+import { NodeProps } from '@astrale/typegraph-client'
 
 type UserProps = NodeProps<typeof schema, 'user'>
 // = {
@@ -433,7 +433,7 @@ type UserProps = NodeProps<typeof schema, 'user'>
 ### Extracting Edge Properties
 
 ```typescript
-import { EdgeProps } from '@astrale/typegraph'
+import { EdgeProps } from '@astrale/typegraph-client'
 
 type AuthoredProps = EdgeProps<typeof schema, 'authored'>
 // = {
@@ -446,7 +446,7 @@ type AuthoredProps = EdgeProps<typeof schema, 'authored'>
 ### Edge Relationship Types
 
 ```typescript
-import { OutgoingEdges, IncomingEdges, EdgeTargetsFrom } from '@astrale/typegraph'
+import { OutgoingEdges, IncomingEdges, EdgeTargetsFrom } from '@astrale/typegraph-client'
 
 // Edges that can leave a user node
 type UserOutgoing = OutgoingEdges<typeof schema, 'user'>
@@ -464,7 +464,7 @@ type AuthoredTargets = EdgeTargetsFrom<typeof schema, 'authored', 'user'>
 ### Cardinality Types
 
 ```typescript
-import { EdgeOutboundCardinality, EdgeInboundCardinality } from '@astrale/typegraph'
+import { EdgeOutboundCardinality, EdgeInboundCardinality } from '@astrale/typegraph-client'
 
 type AuthoredOut = EdgeOutboundCardinality<typeof schema, 'authored'>
 // = 'many'

@@ -6,9 +6,9 @@
  * TypeScript's limitations with complex conditional return types.
  */
 
-import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph-client'
 import { falkordb, clearGraph } from '../src/index'
-import type { NodeProps } from '@astrale/typegraph'
+import type { NodeProps } from '@astrale/typegraph-client'
 import { z } from 'zod'
 
 const schema = defineSchema({

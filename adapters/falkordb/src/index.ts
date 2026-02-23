@@ -3,7 +3,7 @@
  *
  * @example
  * ```typescript
- * import { createGraph, defineSchema, string } from '@astrale/typegraph'
+ * import { createGraph, defineSchema, string } from '@astrale/typegraph-client'
  * import { falkordb } from '@astrale/typegraph-adapter-falkordb'
  *
  * const schema = defineSchema({
@@ -22,7 +22,7 @@
  * ```
  */
 
-import type { GraphAdapter } from '@astrale/typegraph'
+import type { GraphAdapter } from '@astrale/typegraph-client'
 import { FalkorDBAdapter } from './adapter'
 import type { FalkorDBConfig } from './types'
 import { validateGraphName } from './errors'

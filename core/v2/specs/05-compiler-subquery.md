@@ -538,7 +538,7 @@ interface CompilerOptions {
 ```typescript
 // test/compiler/subquery.test.ts
 
-import { CypherCompiler, QueryAST } from '@astrale/typegraph'
+import { CypherCompiler, QueryAST } from '@astrale/typegraph-client'
 
 describe('Subquery Compilation', () => {
   let compiler: CypherCompiler

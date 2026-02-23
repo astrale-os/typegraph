@@ -1,7 +1,7 @@
 # TypeGraph SDK Migration — Handoff Context
 
 > Written 2026-02-14 after completing the core migration.
-> For next Claude to resume work on `@astrale/typegraph`.
+> For next Claude to resume work on `@astrale/typegraph-client`.
 
 ---
 
@@ -104,7 +104,7 @@ Generated TypeScript:
   - Zod validators
   - Method interfaces & config types
     ↓
-SDK (@astrale/typegraph)
+SDK (@astrale/typegraph-client)
   createGraph(schema, { adapter }) → Graph<S>
     graph.node('Customer')          → CollectionBuilder
       .where('tier', 'eq', 'gold') → CollectionBuilder (filtered)

@@ -235,7 +235,7 @@ case 'except':
 ```typescript
 // test/compiler/misc.test.ts
 
-import { CypherCompiler, QueryAST } from '@astrale/typegraph'
+import { CypherCompiler, QueryAST } from '@astrale/typegraph-client'
 
 describe('Unwind Compilation', () => {
   let compiler: CypherCompiler

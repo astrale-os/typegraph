@@ -7,7 +7,7 @@
 
 import { z } from 'zod'
 import { defineSchema, node, edge } from '@astrale/typegraph-core'
-import { createGraph, type Graph, type GraphAdapter } from '@astrale/typegraph'
+import { createGraph, type Graph, type GraphAdapter } from '@astrale/typegraph-client'
 import { falkordb, deleteGraph } from '@astrale/typegraph-adapter-falkordb'
 
 // =============================================================================

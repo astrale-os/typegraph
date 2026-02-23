@@ -32,7 +32,7 @@ export function emitTypemap(model: GraphModel): string {
   lines.push('')
 
   // TypeMap interface
-  lines.push("import type { TypeMap, Graph } from '@astrale/typegraph'")
+  lines.push("import type { TypeMap, Graph } from '@astrale/typegraph-client'")
   lines.push('')
   lines.push('export interface GeneratedTypeMap extends TypeMap {')
   lines.push('  nodes: {')
@@ -67,7 +67,7 @@ export function emitTypemap(model: GraphModel): string {
   lines.push('')
 
   // Typed createGraph wrapper
-  lines.push("import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'")
+  lines.push("import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph-client'")
   lines.push('')
   lines.push("export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {")
   lines.push('  return _createGraph<typeof schema, GeneratedTypeMap>(schema, {')

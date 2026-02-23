@@ -3,7 +3,7 @@
 
 import { schema } from './schema.generated'
 import { core } from './core'
-import { createGraph } from '@astrale/typegraph'
+import { createGraph } from '@astrale/typegraph-client'
 
 // ─── Graph Setup ─────────────────────────────────────────────
 // createGraph wires the schema, adapter, core data, and operation

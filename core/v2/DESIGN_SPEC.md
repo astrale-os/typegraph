@@ -48,7 +48,7 @@ packages/
 │       │   └── serializer.ts     # Schema serialization
 │       └── errors/               # Error types
 │
-└── typegraph/                     # @astrale/typegraph
+└── typegraph/                     # @astrale/typegraph-client
     └── src/
         ├── query/                 # Query builders (17 files)
         │   ├── impl.ts           # GraphQueryImpl entry point

@@ -389,7 +389,7 @@ describe('Pattern Shape Compilation', () => {
 ```typescript
 // test/compiler/pattern.test.ts
 
-import { CypherCompiler, QueryAST, type PatternStep } from '@astrale/typegraph'
+import { CypherCompiler, QueryAST, type PatternStep } from '@astrale/typegraph-client'
 
 describe('Pattern Compilation', () => {
   let compiler: CypherCompiler

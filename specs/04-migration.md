@@ -1,7 +1,7 @@
 # Spec 04: Migration System
 
 > Schema diffing, migration planning, and data transformation.
-> Package: `@astrale/typegraph` (migration component)
+> Package: `@astrale/typegraph-client` (migration component)
 
 **Status: stub — needs full design.**
 

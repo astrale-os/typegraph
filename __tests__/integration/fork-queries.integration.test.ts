@@ -20,7 +20,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
-import { collect, collectDistinct } from '@astrale/typegraph'
+import { collect, collectDistinct } from '@astrale/typegraph-client'
 
 describe('Fork Queries Integration Tests', () => {
   let ctx: TestContext

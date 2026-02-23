@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph-client'
 import { Neo4jAdapter } from '../src'
 import { z } from 'zod'
 

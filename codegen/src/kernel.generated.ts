@@ -58,7 +58,7 @@ export type OperationInput = Operation
 
 // ─── TypeMap ────────────────────────────────────────────────
 
-import type { TypeMap } from '@astrale/typegraph'
+import type { TypeMap } from '@astrale/typegraph-client'
 
 export interface GeneratedTypeMap extends TypeMap {
   nodes: {
@@ -88,7 +88,7 @@ export interface GeneratedTypeMap extends TypeMap {
 
 // ─── Typed Graph Factory ────────────────────────────────────
 
-import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph'
+import { createGraph as _createGraph, type GraphOptions } from '@astrale/typegraph-client'
 
 export function createTypedGraph(options: Omit<GraphOptions, 'schema'>) {
   return _createGraph<typeof schema, GeneratedTypeMap>(schema, {

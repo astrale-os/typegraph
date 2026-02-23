@@ -2,7 +2,7 @@
  * Basic usage example for FalkorDB adapter.
  */
 
-import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph-client'
 import { falkordb } from '../src/index'
 import { z } from 'zod'
 

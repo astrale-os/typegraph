@@ -485,7 +485,7 @@ private validateReturnStepPlacement(): void {
 ```typescript
 // test/compiler/return.test.ts
 
-import { CypherCompiler, QueryAST } from '@astrale/typegraph'
+import { CypherCompiler, QueryAST } from '@astrale/typegraph-client'
 
 describe('ReturnStep Compilation', () => {
   let compiler: CypherCompiler

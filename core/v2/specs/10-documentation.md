@@ -215,7 +215,7 @@ const prolificAuthors = await graph.node('User')
 Return computed values:
 
 ```typescript
-import { concat, coalesce } from '@astrale/typegraph'
+import { concat, coalesce } from '@astrale/typegraph-client'
 
 const users = await graph.node('User')
   .return({
@@ -399,7 +399,7 @@ const tags = await graph.node('Post')
 ```typescript
 // examples/pattern-matching.ts
 
-import { createGraph, defineSchema, string, number } from '@astrale/typegraph'
+import { createGraph, defineSchema, string, number } from '@astrale/typegraph-client'
 
 const schema = defineSchema({
   nodes: {
@@ -513,7 +513,7 @@ async function subqueryExamples(graph) {
 ```typescript
 // examples/computed-projections.ts
 
-import { concat, coalesce, toUpper, caseWhen } from '@astrale/typegraph'
+import { concat, coalesce, toUpper, caseWhen } from '@astrale/typegraph-client'
 
 async function projectionExamples(graph) {
   // Example 1: String Concatenation

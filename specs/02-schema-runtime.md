@@ -1,7 +1,7 @@
 # Spec 02: Schema Runtime
 
 > Installation, constraint enforcement, validation, and method wiring.
-> Internal to `@astrale/typegraph` — not exposed to developers.
+> Internal to `@astrale/typegraph-client` — not exposed to developers.
 > Clean-slate — no backward compat, fail fast on mismatch.
 
 ---

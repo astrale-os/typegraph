@@ -4,7 +4,7 @@
  * Implements the GraphAdapter interface for FalkorDB (Redis-based graph database).
  */
 
-import type { GraphAdapter, TransactionContext, AdapterMetrics } from '@astrale/typegraph'
+import type { GraphAdapter, TransactionContext, AdapterMetrics } from '@astrale/typegraph-client'
 import { FalkorDB } from 'falkordb'
 import type { Graph } from 'falkordb'
 import { transformResults } from './transform'

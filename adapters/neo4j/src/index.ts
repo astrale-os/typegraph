@@ -3,7 +3,7 @@
  *
  * @example
  * ```typescript
- * import { createGraph, defineSchema, string } from '@astrale/typegraph'
+ * import { createGraph, defineSchema, string } from '@astrale/typegraph-client'
  * import { neo4j } from '@astrale/typegraph-adapter-neo4j'
  *
  * const schema = defineSchema({
@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { GraphAdapter } from '@astrale/typegraph'
+import type { GraphAdapter } from '@astrale/typegraph-client'
 import { Neo4jAdapter } from './adapter'
 
 // Types

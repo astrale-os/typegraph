@@ -26,7 +26,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@astrale/typegraph": "workspace:*",
+    "@astrale/typegraph-client": "workspace:*",
     "@astrale/typegraph-adapter-falkordb": "workspace:*",
     "@astrale/typegraph-core": "workspace:*"
   },

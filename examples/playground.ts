@@ -17,7 +17,7 @@ import {
   type OrderNode,
 } from './e-commerce/schema.generated'
 import { core } from './e-commerce/core'
-import { installCore } from '@astrale/typegraph'
+import { installCore } from '@astrale/typegraph-client'
 import { falkordb, clearGraph } from '@astrale/typegraph-adapter-falkordb'
 
 // ─── Config ──────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 # Spec 01: Client SDK
 
 > DX-first specification for the Astrale Typegraph Client SDK.
-> Package: `@astrale/typegraph`
+> Package: `@astrale/typegraph-client`
 
 ---
 

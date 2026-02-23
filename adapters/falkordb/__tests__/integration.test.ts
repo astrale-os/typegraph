@@ -8,10 +8,10 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph-client'
 import { falkordb, clearGraph } from '../src'
 import { z } from 'zod'
-import type { NodeProps } from '@astrale/typegraph'
+import type { NodeProps } from '@astrale/typegraph-client'
 
 describe('FalkorDB Adapter Integration', () => {
   const config = {

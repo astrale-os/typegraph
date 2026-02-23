@@ -22,7 +22,7 @@ pnpm add @astrale/typegraph-adapter-falkordb falkordb
 ## Quick Start
 
 ```typescript
-import { defineSchema, node, edge, createGraph } from '@astrale/typegraph'
+import { defineSchema, node, edge, createGraph } from '@astrale/typegraph-client'
 import { falkordb } from '@astrale/typegraph-adapter-falkordb'
 import { z } from 'zod'
 
