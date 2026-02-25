@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 import { iface, nodeDef, edgeDef, method, ref } from '../builders.js'
-import { defineSchema, defineMethods } from '../schema.js'
+import { defineSchema } from '../schema.js'
+import { edge, node, defineCore } from '../data.js'
 import { SchemaValidationError } from '../types.js'
+import { getDefName } from '../registry.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,7 +17,7 @@ describe('defineSchema', () => {
   // ── 1. Valid schema passes ───────────────────────────────────────────────
 
   it('accepts a valid schema', () => {
-    const s = defineSchema({
+    const s = defineSchema('test', {
       A,
       B,
       ab: edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] }),
@@ -29,7 +31,7 @@ describe('defineSchema', () => {
 
   it('does not throw for distinct names', () => {
     expect(() =>
-      defineSchema({
+      defineSchema('test', {
         I: iface({}),
         N: nodeDef({}),
         e: edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] }),
@@ -45,7 +47,7 @@ describe('defineSchema', () => {
     const Outside = iface({ props: { a: z.string() } })
     const Inside = nodeDef({})
     expect(() =>
-      defineSchema({
+      defineSchema('test', {
         Inside,
         bad: edgeDef({ as: 'src', types: [Outside] }, { as: 'tgt', types: [Inside] }),
       }),
@@ -56,7 +58,7 @@ describe('defineSchema', () => {
     const Outside = nodeDef({})
     const Inside = nodeDef({})
     try {
-      defineSchema({
+      defineSchema('test', {
         Inside,
         bad: edgeDef({ as: 'src', types: [Outside] }, { as: 'tgt', types: [Inside] }),
       })
@@ -71,7 +73,7 @@ describe('defineSchema', () => {
 
   it('throws on invalid cardinality', () => {
     expect(() =>
-      defineSchema({
+      defineSchema('test', {
         A,
         B,
         bad: edgeDef({ as: 'a', types: [A], cardinality: 'many' as any }, { as: 'b', types: [B] }),
@@ -92,7 +94,7 @@ describe('defineSchema', () => {
         }),
       },
     })
-    expect(() => defineSchema({ Bad })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Bad })).toThrow(SchemaValidationError)
   })
 
   it('thunk error includes def and method name', () => {
@@ -107,7 +109,7 @@ describe('defineSchema', () => {
       },
     })
     try {
-      defineSchema({ Bad })
+      defineSchema('test', { Bad })
       expect.unreachable()
     } catch (e) {
       expect(e).toBeInstanceOf(SchemaValidationError)
@@ -122,7 +124,7 @@ describe('defineSchema', () => {
       props: { name: z.string() },
       indexes: [{ property: 'nonexistent', type: 'unique' as const }],
     })
-    expect(() => defineSchema({ Bad })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Bad })).toThrow(SchemaValidationError)
   })
 
   it('index error includes property name and available props', () => {
@@ -131,7 +133,7 @@ describe('defineSchema', () => {
       indexes: ['missing'],
     })
     try {
-      defineSchema({ Bad })
+      defineSchema('test', { Bad })
       expect.unreachable()
     } catch (e) {
       expect(e).toBeInstanceOf(SchemaValidationError)
@@ -148,7 +150,7 @@ describe('defineSchema', () => {
       props: { email: z.string() },
       indexes: [{ property: 'email', type: 'unique' as const }],
     })
-    expect(() => defineSchema({ Good })).not.toThrow()
+    expect(() => defineSchema('test', { Good })).not.toThrow()
   })
 
   it('accepts index on inherited iface prop', () => {
@@ -158,7 +160,7 @@ describe('defineSchema', () => {
       props: { name: z.string() },
       indexes: [{ property: 'slug', type: 'unique' as const }],
     })
-    expect(() => defineSchema({ Base, Child })).not.toThrow()
+    expect(() => defineSchema('test', { Base, Child })).not.toThrow()
   })
 
   it('accepts index on inherited node extends prop', () => {
@@ -168,7 +170,7 @@ describe('defineSchema', () => {
       props: { extra: z.number() },
       indexes: ['sku'],
     })
-    expect(() => defineSchema({ Parent, Child })).not.toThrow()
+    expect(() => defineSchema('test', { Parent, Child })).not.toThrow()
   })
 
   it('accepts index on deeply inherited iface prop', () => {
@@ -178,12 +180,12 @@ describe('defineSchema', () => {
       implements: [ParentIface],
       indexes: [{ property: 'deep', type: 'btree' as const }],
     })
-    expect(() => defineSchema({ GrandParent, ParentIface, Leaf })).not.toThrow()
+    expect(() => defineSchema('test', { GrandParent, ParentIface, Leaf })).not.toThrow()
   })
 
   it('throws for index on iface with no props', () => {
     const Empty = iface({ indexes: ['phantom'] } as any)
-    expect(() => defineSchema({ Empty })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Empty })).toThrow(SchemaValidationError)
   })
 
   // ── 6. Method ref validation ──────────────────────────────────────────
@@ -195,7 +197,7 @@ describe('defineSchema', () => {
         doIt: method({ params: { target: ref(Outside) }, returns: z.void() }),
       },
     })
-    expect(() => defineSchema({ Inside })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
   })
 
   it('throws when method return ref points outside schema', () => {
@@ -205,7 +207,7 @@ describe('defineSchema', () => {
         get: method({ returns: ref(Outside) }),
       },
     })
-    expect(() => defineSchema({ Inside })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
   })
 
   it('throws when method return z.array(ref()) points outside schema', () => {
@@ -215,7 +217,7 @@ describe('defineSchema', () => {
         list: method({ returns: z.array(ref(Outside)) }),
       },
     })
-    expect(() => defineSchema({ Inside })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
   })
 
   it('ref error has correct field', () => {
@@ -226,7 +228,7 @@ describe('defineSchema', () => {
       },
     })
     try {
-      defineSchema({ Inside })
+      defineSchema('test', { Inside })
       expect.unreachable()
     } catch (e) {
       expect(e).toBeInstanceOf(SchemaValidationError)
@@ -241,7 +243,7 @@ describe('defineSchema', () => {
         get: method({ params: { t: ref(Target) }, returns: z.void() }),
       },
     })
-    expect(() => defineSchema({ Target, Source })).not.toThrow()
+    expect(() => defineSchema('test', { Target, Source })).not.toThrow()
   })
 
   it('accepts method return z.array(ref()) pointing to schema def', () => {
@@ -251,7 +253,7 @@ describe('defineSchema', () => {
         all: method({ returns: z.array(ref(Item)) }),
       },
     })
-    expect(() => defineSchema({ Item, List })).not.toThrow()
+    expect(() => defineSchema('test', { Item, List })).not.toThrow()
   })
 
   it('accepts method with thunk params referencing schema defs', () => {
@@ -264,7 +266,7 @@ describe('defineSchema', () => {
         }),
       },
     })
-    expect(() => defineSchema({ Target, Source })).not.toThrow()
+    expect(() => defineSchema('test', { Target, Source })).not.toThrow()
   })
 
   it('throws when thunk-resolved param ref points outside schema', () => {
@@ -277,14 +279,14 @@ describe('defineSchema', () => {
         }),
       },
     })
-    expect(() => defineSchema({ Source })).toThrow(SchemaValidationError)
+    expect(() => defineSchema('test', { Source })).toThrow(SchemaValidationError)
   })
 
   it('validates edge method refs too', () => {
     const Outside = nodeDef({})
     const N = nodeDef({})
     expect(() =>
-      defineSchema({
+      defineSchema('test', {
         N,
         bad: edgeDef(
           { as: 'a', types: [N] },
@@ -294,60 +296,158 @@ describe('defineSchema', () => {
       }),
     ).toThrow(SchemaValidationError)
   })
+
+  // ── 7. Def registry behavior ────────────────────────────────────────
+
+  it('registers def names in the registry', () => {
+    const MyIface = iface({ props: { x: z.string() } })
+    const MyNode = nodeDef({})
+    const myEdge = edgeDef({ as: 'a', types: [MyNode] }, { as: 'b', types: [MyNode] })
+    defineSchema('test', { MyIface, MyNode, myEdge })
+    expect(getDefName(MyIface)).toBe('MyIface')
+    expect(getDefName(MyNode)).toBe('MyNode')
+    expect(getDefName(myEdge)).toBe('myEdge')
+  })
+
+  it('accepts registered external iface in implements', () => {
+    const ExternalIface = iface({ props: { x: z.string() } })
+    defineSchema('test', { ExternalIface }) // registers name
+    const MyNode = nodeDef({ implements: [ExternalIface] })
+    // ExternalIface not in this schema but registered → accepted
+    expect(() => defineSchema('test', { MyNode })).not.toThrow()
+  })
+
+  it('accepts registered external node in edge endpoints', () => {
+    const ExternalNode = nodeDef({})
+    defineSchema('test', { ExternalNode }) // registers name
+    const MyNode = nodeDef({})
+    const myEdge = edgeDef(
+      { as: 'a', types: [MyNode] },
+      { as: 'b', types: [ExternalNode] },
+    )
+    expect(() => defineSchema('test', { MyNode, myEdge })).not.toThrow()
+  })
+
+  it('rejects unregistered external def in edge endpoints', () => {
+    const Unregistered = nodeDef({}) // never passed through defineSchema
+    const MyNode = nodeDef({})
+    const myEdge = edgeDef(
+      { as: 'a', types: [MyNode] },
+      { as: 'b', types: [Unregistered] },
+    )
+    expect(() => defineSchema('test', { MyNode, myEdge })).toThrow(SchemaValidationError)
+  })
+
+  it('accepts registered external ref in method params', () => {
+    const ExternalNode = nodeDef({})
+    defineSchema('test', { ExternalNode }) // registers name
+    const MyNode = nodeDef({
+      methods: {
+        doIt: method({ params: { target: ref(ExternalNode) }, returns: z.void() }),
+      },
+    })
+    expect(() => defineSchema('test', { MyNode })).not.toThrow()
+  })
+
+  it('accepts registered external ref in method return', () => {
+    const ExternalNode = nodeDef({})
+    defineSchema('test', { ExternalNode }) // registers name
+    const MyNode = nodeDef({
+      methods: {
+        get: method({ returns: ref(ExternalNode) }),
+      },
+    })
+    expect(() => defineSchema('test', { MyNode })).not.toThrow()
+  })
+
+  it('rejects unregistered external ref in method params', () => {
+    const Unregistered = nodeDef({}) // never passed through defineSchema
+    const MyNode = nodeDef({
+      methods: {
+        doIt: method({ params: { target: ref(Unregistered) }, returns: z.void() }),
+      },
+    })
+    expect(() => defineSchema('test', { MyNode })).toThrow(SchemaValidationError)
+  })
+
+  it('rejects unregistered external iface in implements', () => {
+    const Unregistered = iface({ props: { x: z.string() } }) // never passed through defineSchema
+    const MyNode = nodeDef({ implements: [Unregistered] })
+    expect(() => defineSchema('test', { MyNode })).toThrow(SchemaValidationError)
+  })
+
+  it('rejects unregistered external node in extends', () => {
+    const Unregistered = nodeDef({}) // never passed through defineSchema
+    const MyNode = nodeDef({ extends: Unregistered })
+    expect(() => defineSchema('test', { MyNode })).toThrow(SchemaValidationError)
+  })
+
+  it('accepts registered external iface in iface extends', () => {
+    const ExternalIface = iface({ props: { x: z.string() } })
+    defineSchema('test', { ExternalIface }) // registers name
+    const MyIface = iface({ extends: [ExternalIface], props: { y: z.number() } })
+    expect(() => defineSchema('test', { MyIface })).not.toThrow()
+  })
+
+  it('rejects unregistered external iface in iface extends', () => {
+    const Unregistered = iface({ props: { x: z.string() } }) // never registered
+    const MyIface = iface({ extends: [Unregistered], props: { y: z.number() } })
+    expect(() => defineSchema('test', { MyIface })).toThrow(SchemaValidationError)
+  })
+
+  it('accepts registered external node in node extends', () => {
+    const ExternalNode = nodeDef({ props: { x: z.string() } })
+    defineSchema('test', { ExternalNode }) // registers name
+    const MyNode = nodeDef({ extends: ExternalNode, props: { y: z.number() } })
+    expect(() => defineSchema('test', { MyNode })).not.toThrow()
+  })
 })
 
-// ── defineMethods ────────────────────────────────────────────────────────────
+// ── edge() with EdgeDef ─────────────────────────────────────────────────────
 
-describe('defineMethods', () => {
-  const Task = nodeDef({
-    props: { title: z.string() },
-    methods: {
-      done: method({ returns: z.boolean() }),
-      count: method({ returns: z.number() }),
-    },
-  })
-
-  const schema = defineSchema({ Task })
-
-  it('accepts complete implementations', () => {
-    expect(() =>
-      defineMethods(schema, {
-        Task: {
-          done: () => true,
-          count: () => 0,
-        },
-      } as any),
-    ).not.toThrow()
-  })
-
-  it('throws when entire def impl is missing', () => {
-    expect(() => defineMethods(schema, {} as any)).toThrow(SchemaValidationError)
-  })
-
-  it('throws when individual method is missing', () => {
-    try {
-      defineMethods(schema, { Task: { done: () => true } } as any)
-      expect.unreachable()
-    } catch (e) {
-      expect(e).toBeInstanceOf(SchemaValidationError)
-      expect((e as SchemaValidationError).field).toBe('methods.Task')
-    }
-  })
-
-  it('throws when method value is not a function', () => {
-    expect(() => defineMethods(schema, { Task: { done: () => true, count: 42 } } as any)).toThrow(
-      SchemaValidationError,
-    )
-  })
-
-  it('validates edge methods too', () => {
+describe('edge() with EdgeDef', () => {
+  it('resolves name from a registered EdgeDef', () => {
     const N = nodeDef({})
-    const e = edgeDef(
-      { as: 'a', types: [N] },
-      { as: 'b', types: [N] },
-      { methods: { calc: method({ returns: z.number() }) } },
-    )
-    const s = defineSchema({ N, e })
-    expect(() => defineMethods(s, {} as any)).toThrow(SchemaValidationError)
+    const myEdge = edgeDef({ as: 'a', types: [N] }, { as: 'b', types: [N] })
+    defineSchema('test', { N, myEdge }) // registers name 'myEdge'
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    const link = edge(n1, myEdge, n2)
+    expect(link.__edge).toBe('myEdge')
+  })
+
+  it('still accepts string edge names', () => {
+    const N = nodeDef({})
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    const link = edge(n1, 'someEdge', n2)
+    expect(link.__edge).toBe('someEdge')
+  })
+
+  it('throws for unregistered EdgeDef', () => {
+    const N = nodeDef({})
+    const myEdge = edgeDef({ as: 'a', types: [N] }, { as: 'b', types: [N] })
+    // Not passed through defineSchema — not registered
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    expect(() => edge(n1, myEdge, n2)).toThrow('registered EdgeDef')
+  })
+})
+
+// ── defineCore without edge validation ──────────────────────────────────────
+
+describe('defineCore edge validation removed', () => {
+  it('accepts links with external edge names', () => {
+    const N = nodeDef({})
+    const schema = defineSchema('test', { N })
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    // 'external_edge' is not in schema.edges — should not throw anymore
+    expect(() =>
+      defineCore(schema, 'test', {
+        nodes: { n1, n2 },
+        links: [edge(n1, 'external_edge', n2)],
+      }),
+    ).not.toThrow()
   })
 })

@@ -1,30 +1,71 @@
 import type {
   Schema,
   NodeDef,
+  EdgeDef,
   Ref,
   CoreDef,
   SeedDef,
   CoreInstance,
   CoreLink,
   RefsFromInstances,
+  ExtractFullProps,
+  ExtractNodeInput,
 } from './types.js'
-import { SchemaValidationError } from './types.js'
+import { getDefName } from './registry.js'
+
+// ── Type-safe input helpers ──────────────────────────────────────────────────
+// Guard against infinite recursion when N/E carries `any` config (e.g. NodeDef<any>).
+// Also short-circuits for empty configs like nodeDef({}) where there are no props to check.
+type IsAny<T> = 0 extends (1 & T) ? true : false
+
+type NodeInputData<N extends NodeDef<any>> =
+  N extends NodeDef<infer C>
+    ? [IsAny<C>] extends [true]
+      ? Record<string, unknown>
+      : [keyof C & ('props' | 'data' | 'implements' | 'extends')] extends [never]
+        ? Record<string, unknown>
+        : Partial<ExtractNodeInput<N>>
+    : Record<string, unknown>
+
+type EdgeInputData<E extends EdgeDef> =
+  E extends EdgeDef<any, any, infer C>
+    ? [IsAny<C>] extends [true]
+      ? Record<string, unknown>
+      : [keyof C & 'props'] extends [never]
+        ? Record<string, unknown>
+        : Partial<ExtractFullProps<E>>
+    : Record<string, unknown>
 
 // ── Builders ────────────────────────────────────────────────────────────────
 
 export function node<N extends NodeDef<any>>(
   def: N,
-  data: Record<string, unknown>,
+  data: NodeInputData<N>,
 ): CoreInstance<N> {
-  return { __kind: 'core-instance', __nodeDef: def, __data: data }
+  return { __kind: 'core-instance', __nodeDef: def, __data: data as Record<string, unknown> }
 }
 
+export function edge<E extends EdgeDef>(
+  from: CoreInstance | Ref,
+  edgeRef: E,
+  to: CoreInstance | Ref,
+  data?: EdgeInputData<E>,
+): CoreLink
 export function edge(
   from: CoreInstance | Ref,
-  edgeName: string,
+  edgeRef: string,
+  to: CoreInstance | Ref,
+  data?: Record<string, unknown>,
+): CoreLink
+export function edge(
+  from: CoreInstance | Ref,
+  edgeRef: string | EdgeDef,
   to: CoreInstance | Ref,
   data?: Record<string, unknown>,
 ): CoreLink {
+  const edgeName = typeof edgeRef === 'string' ? edgeRef : getDefName(edgeRef)
+  if (!edgeName)
+    throw new Error('Edge ref must be a string or a registered EdgeDef (from defineSchema)')
   return { __kind: 'core-link', __from: from, __to: to, __edge: edgeName, __data: data }
 }
 
@@ -71,14 +112,6 @@ export function defineCore<
 
   if (config.links) {
     for (const lnk of config.links) {
-      if (!(lnk.__edge in schema.edges)) {
-        throw new SchemaValidationError(
-          `Edge '${lnk.__edge}' does not exist in schema. Available: ${Object.keys(schema.edges).join(', ')}`,
-          'edges',
-          Object.keys(schema.edges).join(', '),
-          lnk.__edge,
-        )
-      }
       const from = resolveTarget(lnk.__from, instanceToRef)
       const to = resolveTarget(lnk.__to, instanceToRef)
       operations.push({ type: 'link', args: [from, lnk.__edge, to, lnk.__data] })
@@ -121,14 +154,6 @@ export function defineSeed<
 
   if (config.links) {
     for (const lnk of config.links) {
-      if (!(lnk.__edge in schema.edges)) {
-        throw new SchemaValidationError(
-          `Edge '${lnk.__edge}' does not exist in schema. Available: ${Object.keys(schema.edges).join(', ')}`,
-          'edges',
-          Object.keys(schema.edges).join(', '),
-          lnk.__edge,
-        )
-      }
       const from = resolveTarget(lnk.__from, instanceToRef)
       const to = resolveTarget(lnk.__to, instanceToRef)
       operations.push({ type: 'link', args: [from, lnk.__edge, to, lnk.__data] })

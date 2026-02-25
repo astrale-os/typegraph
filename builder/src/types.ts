@@ -99,10 +99,12 @@ export interface BitmaskDef {
 // ── Inference utilities ─────────────────────────────────────────────────────
 
 /** Extract own props from a def's config */
-export type ExtractProps<D> = D extends { config: { props: infer P } } ? P : Record<string, never>
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type ExtractProps<D> = D extends { config: { props: infer P } } ? P : {}
 
 /** Extract own data shape from a def's config */
-export type ExtractData<D> = D extends { config: { data: infer P } } ? P : Record<string, never>
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type ExtractData<D> = D extends { config: { data: infer P } } ? P : {}
 
 /** Extract own methods from a def's config (not inherited) */
 export type ExtractMethods<D> =
@@ -114,19 +116,7 @@ export type InferProps<P> = {
   [K in keyof P]: P[K] extends BitmaskDef ? number : P[K] extends z.ZodType<infer O> ? O : never
 }
 
-/** Collect all iface props via extends chain */
-type CollectIfacePropsFromList<T> = T extends readonly [
-  infer Head extends IfaceDef<any>,
-  ...infer Tail extends readonly IfaceDef<any>[],
-]
-  ? InferProps<ExtractProps<Head>> &
-      (Head extends IfaceDef<infer HC>
-        ? HC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
-          ? CollectIfacePropsFromList<Parents>
-          : unknown
-        : unknown) &
-      CollectIfacePropsFromList<Tail>
-  : unknown
+// ── Shared traversal helpers ────────────────────────────────────────────────
 
 /** Extract implements array from a NodeDef */
 type ExtractImplements<D> =
@@ -143,6 +133,20 @@ type ExtractNodeExtends<D> =
       ? E
       : never
     : never
+
+/** Collect all iface props via extends chain */
+type CollectIfacePropsFromList<T> = T extends readonly [
+  infer Head extends IfaceDef<any>,
+  ...infer Tail extends readonly IfaceDef<any>[],
+]
+  ? InferProps<ExtractProps<Head>> &
+      (Head extends IfaceDef<infer HC>
+        ? HC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
+          ? CollectIfacePropsFromList<Parents>
+          : unknown
+        : unknown) &
+      CollectIfacePropsFromList<Tail>
+  : unknown
 
 /** Full inferred props for a NodeDef: own + inherited from implements + inherited from extends */
 export type ExtractFullProps<D> =
@@ -195,6 +199,42 @@ export type ExtractFullData<D> =
 /** Check if a def has any data (own or inherited) */
 export type HasData<D> = keyof ExtractFullData<D> extends never ? false : true
 
+/** Collect all iface props AND data via extends chain — single traversal */
+type CollectIfaceInputFromList<T> = T extends readonly [
+  infer Head extends IfaceDef<any>,
+  ...infer Tail extends readonly IfaceDef<any>[],
+]
+  ? InferProps<ExtractProps<Head>> &
+      InferProps<ExtractData<Head>> &
+      (Head extends IfaceDef<infer HC>
+        ? HC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
+          ? CollectIfaceInputFromList<Parents>
+          : unknown
+        : unknown) &
+      CollectIfaceInputFromList<Tail>
+  : unknown
+
+/** Full inferred props AND data — single traversal for node() input */
+export type ExtractNodeInput<D> =
+  D extends NodeDef<any>
+    ? InferProps<ExtractProps<D>> &
+        InferProps<ExtractData<D>> &
+        CollectIfaceInputFromList<ExtractImplements<D>> &
+        (ExtractNodeExtends<D> extends never ? unknown : ExtractNodeInput<ExtractNodeExtends<D>>)
+    : D extends IfaceDef<any>
+      ? InferProps<ExtractProps<D>> &
+          InferProps<ExtractData<D>> &
+          (D extends IfaceDef<infer IC>
+            ? IC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
+              ? CollectIfaceInputFromList<Parents>
+              : unknown
+            : unknown)
+      : D extends EdgeDef<any, any, infer EC>
+        ? EC extends { props: infer P extends PropShape }
+          ? InferProps<P>
+          : unknown
+        : unknown
+
 // ── Method inference utilities ──────────────────────────────────────────────
 
 /** Check if a def has own methods */
@@ -246,6 +286,7 @@ type OnlyKind<D extends Record<string, any>, Kind extends string> = {
 }
 
 export interface Schema<D extends Record<string, any> = Record<string, any>> {
+  readonly domain: string
   readonly defs: D
   readonly ifaces: OnlyKind<D, 'iface'>
   readonly nodes: OnlyKind<D, 'node'>
@@ -267,27 +308,10 @@ export class SchemaValidationError extends Error {
   }
 }
 
-// ── Client stub type ────────────────────────────────────────────────────────
+// ── Method self type ────────────────────────────────────────────────────────
 
-interface NodeClient {
-  findById(id: string): Promise<Record<string, unknown> & { readonly id: string }>
-  findMany(opts?: any): Promise<(Record<string, unknown> & { readonly id: string })[]>
-  create(data: Record<string, unknown>): Promise<Record<string, unknown> & { readonly id: string }>
-  update(
-    id: string,
-    data: Record<string, unknown>,
-  ): Promise<Record<string, unknown> & { readonly id: string }>
-  delete(id: string): Promise<{ success: boolean }>
-}
-
-export type Client<S extends Schema> = {
-  [K in keyof S['nodes'] & string]: NodeClient
-}
-
-// ── MethodsImpl type ────────────────────────────────────────────────────────
-
-/** Helper: given a def (node or edge), produce the self type */
-type MethodSelf<D> =
+/** Self type for a node or edge method */
+export type MethodSelf<D> =
   D extends NodeDef<any>
     ? ExtractFullProps<D> & { readonly id: string }
     : D extends EdgeDef<any, any, infer EC>
@@ -298,15 +322,17 @@ type MethodSelf<D> =
         }
       : { readonly id: string }
 
-/** Helper: get the def for a given key from either nodes or edges */
-type DefForKey<S extends Schema, K extends string> = K extends keyof S['nodes']
+// ── Schema-level type helpers for defineMethods/defineOperations ────────────
+
+/** Get the def for a given key from either nodes or edges */
+export type DefForKey<S extends Schema, K extends string> = K extends keyof S['nodes']
   ? S['nodes'][K]
   : K extends keyof S['edges']
     ? S['edges'][K]
     : never
 
 /** All keys (node or edge) that have methods */
-type MethodKeys<S extends Schema> =
+export type MethodKeys<S extends Schema> =
   | {
       [K in keyof S['nodes'] & string]: HasMethods<S['nodes'][K]> extends true ? K : never
     }[keyof S['nodes'] & string]
@@ -314,24 +340,15 @@ type MethodKeys<S extends Schema> =
       [K in keyof S['edges'] & string]: HasMethods<S['edges'][K]> extends true ? K : never
     }[keyof S['edges'] & string]
 
-type MethodFn<S extends Schema, D, M extends string> = (ctx: {
-  self: MethodSelf<D>
-  args: InferProps<ExtractMethodParams<D, M>>
-  graph: Client<S>
-  data: {
-    (): D extends NodeDef<any> | IfaceDef<any> ? ExtractFullData<D> : never
-    <T extends NodeDef<any> | IfaceDef<any>>(
-      target: Ref<T> | (ExtractFullProps<T> & { readonly id: string }),
-    ): ExtractFullData<T>
-    (nodeId: string): unknown
-  }
-}) => ExtractMethodReturnValue<D, M> | Promise<ExtractMethodReturnValue<D, M>>
+/** Infer params from a builder OpDef */
+export type InferOpParams<D> = D extends OpDef<infer C>
+  ? C extends { params: infer P extends ParamShape } ? InferProps<P> : Record<string, never>
+  : Record<string, never>
 
-export type MethodsImpl<S extends Schema> = {
-  [K in MethodKeys<S> & string]: {
-    [M in ExtractMethodNames<DefForKey<S, K>>]: MethodFn<S, DefForKey<S, K>, M>
-  }
-}
+/** Infer return type from a builder OpDef */
+export type InferOpReturn<D> = D extends OpDef<infer C>
+  ? C extends { returns: z.ZodType<infer R> } ? R : unknown
+  : unknown
 
 // ── Data types ──────────────────────────────────────────────────────────────
 

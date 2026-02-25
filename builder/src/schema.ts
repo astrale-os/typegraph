@@ -7,9 +7,9 @@ import type {
   Cardinality,
   IndexDef,
   Schema,
-  MethodsImpl,
 } from './types.js'
 import { SchemaValidationError } from './types.js'
+import { registerDef, hasDefName } from './registry.js'
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
@@ -47,15 +47,19 @@ function extractRefTargets(schema: unknown): object[] {
 
 // ── defineSchema ────────────────────────────────────────────────────────────
 
-export function defineSchema<const D extends Record<string, any>>(defs: D): Schema<D> {
+export function defineSchema<const D extends Record<string, any>>(
+  domain: string,
+  defs: D,
+): Schema<D> {
   const ifaces: Record<string, IfaceDef> = {}
   const nodes: Record<string, NodeDef> = {}
   const edges: Record<string, EdgeDef> = {}
   const operations: Record<string, OpDef> = {}
 
-  // 1. Auto-categorise by __kind, silently ignore non-defs
+  // 1. Auto-categorise by __kind, register names, silently ignore non-defs
   for (const [name, def] of Object.entries(defs)) {
     if (def === null || typeof def !== 'object' || !('__kind' in def)) continue
+    registerDef(def as object, domain, name)
     switch ((def as { __kind: string }).__kind) {
       case 'iface':
         ifaces[name] = def as IfaceDef
@@ -111,14 +115,59 @@ export function defineSchema<const D extends Record<string, any>>(defs: D): Sche
     }
   }
 
-  // 4. Edge endpoint resolution + cardinality validation
+  // 4. Validate implements/extends references
   const allDefValues = new Set<object>([...Object.values(ifaces), ...Object.values(nodes)])
+
+  const isKnownDef = (target: object): boolean => allDefValues.has(target) || hasDefName(target)
+
+  for (const [name, def] of Object.entries(ifaces)) {
+    const exts = (def.config as any).extends as IfaceDef[] | undefined
+    if (exts) {
+      for (const parent of exts) {
+        if (!isKnownDef(parent)) {
+          throw new SchemaValidationError(
+            `Interface '${name}' extends an unknown type`,
+            `${name}.extends`,
+            'a def in this schema or registered in another schema',
+            'unknown reference',
+          )
+        }
+      }
+    }
+  }
+
+  for (const [name, def] of Object.entries(nodes)) {
+    const config = def.config as Record<string, any>
+    if (config.extends && !isKnownDef(config.extends)) {
+      throw new SchemaValidationError(
+        `Node '${name}' extends an unknown type`,
+        `${name}.extends`,
+        'a def in this schema or registered in another schema',
+        'unknown reference',
+      )
+    }
+    const impls = config.implements as IfaceDef[] | undefined
+    if (impls) {
+      for (const iface of impls) {
+        if (!isKnownDef(iface)) {
+          throw new SchemaValidationError(
+            `Node '${name}' implements an unknown type`,
+            `${name}.implements`,
+            'a def in this schema or registered in another schema',
+            'unknown reference',
+          )
+        }
+      }
+    }
+  }
+
+  // 5. Edge endpoint resolution + cardinality validation
   const validCardinalities: Cardinality[] = ['0..1', '1', '0..*', '1..*']
 
   for (const [edgeName, edgeDef] of Object.entries(edges)) {
     for (const endpoint of [edgeDef.from, edgeDef.to] as EndpointCfg[]) {
       for (const type of endpoint.types) {
-        if (!allDefValues.has(type as object)) {
+        if (!isKnownDef(type as object)) {
           throw new SchemaValidationError(
             `Edge '${edgeName}' references an unknown type in endpoint '${endpoint.as}'`,
             `edges.${edgeName}.${endpoint.as}`,
@@ -141,44 +190,15 @@ export function defineSchema<const D extends Record<string, any>>(defs: D): Sche
     }
   }
 
-  // 5. Eagerly resolve method param thunks
-  const resolveThunks = (
-    defName: string,
-    def: { config?: { methods?: Record<string, OpDef> } },
-  ) => {
-    const methods = def.config?.methods
-    if (!methods) return
-    for (const [methodName, methodDef] of Object.entries(methods)) {
-      if (typeof methodDef.config.params === 'function') {
-        try {
-          const resolved = (methodDef.config.params as () => Record<string, unknown>)()
-          ;(methodDef.config as any).params = resolved
-        } catch (e) {
-          throw new SchemaValidationError(
-            `Failed to resolve param thunk for '${defName}.${methodName}': ${String(e)}`,
-            `${defName}.${methodName}.params`,
-            'resolvable thunk',
-            'unresolvable',
-          )
-        }
-      }
-    }
-  }
-
-  for (const [name, def] of Object.entries(ifaces)) resolveThunks(name, def)
-  for (const [name, def] of Object.entries(nodes)) resolveThunks(name, def)
-  for (const [name, def] of Object.entries(edges)) resolveThunks(name, def)
-
-  // 5b. Resolve top-level operation param thunks
-  for (const [opName, opDef] of Object.entries(operations)) {
+  // 6. Eagerly resolve param thunks (methods + top-level operations)
+  const resolveParamThunk = (path: string, opDef: OpDef) => {
     if (typeof opDef.config.params === 'function') {
       try {
-        const resolved = (opDef.config.params as () => Record<string, unknown>)()
-        ;(opDef.config as any).params = resolved
+        ;(opDef.config as any).params = (opDef.config.params as () => Record<string, unknown>)()
       } catch (e) {
         throw new SchemaValidationError(
-          `Failed to resolve param thunk for operation '${opName}': ${String(e)}`,
-          `${opName}.params`,
+          `Failed to resolve param thunk for '${path}': ${String(e)}`,
+          `${path}.params`,
           'resolvable thunk',
           'unresolvable',
         )
@@ -186,7 +206,23 @@ export function defineSchema<const D extends Record<string, any>>(defs: D): Sche
     }
   }
 
-  // 6. Index property validation
+  for (const [name, def] of [
+    ...Object.entries(ifaces),
+    ...Object.entries(nodes),
+    ...Object.entries(edges),
+  ] as [string, IfaceDef | NodeDef | EdgeDef][]) {
+    const methods = (def.config as any)?.methods as Record<string, OpDef> | undefined
+    if (methods) {
+      for (const [methodName, methodDef] of Object.entries(methods)) {
+        resolveParamThunk(`${name}.${methodName}`, methodDef)
+      }
+    }
+  }
+  for (const [opName, opDef] of Object.entries(operations)) {
+    resolveParamThunk(opName, opDef)
+  }
+
+  // 7. Index property validation
   for (const [name, def] of [...Object.entries(ifaces), ...Object.entries(nodes)] as [
     string,
     IfaceDef | NodeDef,
@@ -207,56 +243,17 @@ export function defineSchema<const D extends Record<string, any>>(defs: D): Sche
     }
   }
 
-  // 7. Validate method param/return refs point to schema defs
-  const validateMethodRefs = (defName: string, methods: Record<string, OpDef> | undefined) => {
-    if (!methods) return
-    for (const [methodName, methodDef] of Object.entries(methods)) {
-      const params = methodDef.config.params
-      if (params && typeof params === 'object' && typeof params !== 'function') {
-        for (const [paramName, paramSchema] of Object.entries(params as Record<string, unknown>)) {
-          for (const target of extractRefTargets(paramSchema)) {
-            if (!allDefValues.has(target)) {
-              throw new SchemaValidationError(
-                `Method '${defName}.${methodName}' param '${paramName}' references a def not in this schema`,
-                `${defName}.${methodName}.params.${paramName}`,
-                'a def in this schema',
-                'unknown reference',
-              )
-            }
-          }
-        }
-      }
-      for (const target of extractRefTargets(methodDef.config.returns)) {
-        if (!allDefValues.has(target)) {
-          throw new SchemaValidationError(
-            `Method '${defName}.${methodName}' return type references a def not in this schema`,
-            `${defName}.${methodName}.returns`,
-            'a def in this schema',
-            'unknown reference',
-          )
-        }
-      }
-    }
-  }
-
-  for (const [name, def] of Object.entries(ifaces))
-    validateMethodRefs(name, (def.config as any).methods)
-  for (const [name, def] of Object.entries(nodes))
-    validateMethodRefs(name, (def.config as any).methods)
-  for (const [name, def] of Object.entries(edges))
-    validateMethodRefs(name, (def.config as any).methods)
-
-  // 7b. Validate top-level operation refs
-  for (const [opName, opDef] of Object.entries(operations)) {
+  // 8. Validate ref targets in method params/returns and top-level operations
+  const validateOpRefs = (path: string, opDef: OpDef) => {
     const params = opDef.config.params
     if (params && typeof params === 'object' && typeof params !== 'function') {
       for (const [paramName, paramSchema] of Object.entries(params as Record<string, unknown>)) {
         for (const target of extractRefTargets(paramSchema)) {
-          if (!allDefValues.has(target)) {
+          if (!isKnownDef(target)) {
             throw new SchemaValidationError(
-              `Operation '${opName}' param '${paramName}' references a def not in this schema`,
-              `${opName}.params.${paramName}`,
-              'a def in this schema',
+              `'${path}' param '${paramName}' references an unknown def`,
+              `${path}.params.${paramName}`,
+              'a def in this schema or registered in another schema',
               'unknown reference',
             )
           }
@@ -264,64 +261,32 @@ export function defineSchema<const D extends Record<string, any>>(defs: D): Sche
       }
     }
     for (const target of extractRefTargets(opDef.config.returns)) {
-      if (!allDefValues.has(target)) {
+      if (!isKnownDef(target)) {
         throw new SchemaValidationError(
-          `Operation '${opName}' return type references a def not in this schema`,
-          `${opName}.returns`,
-          'a def in this schema',
+          `'${path}' return type references an unknown def`,
+          `${path}.returns`,
+          'a def in this schema or registered in another schema',
           'unknown reference',
         )
       }
     }
   }
 
-  return { defs, ifaces, nodes, edges, operations } as unknown as Schema<D>
-}
-
-// ── defineMethods ───────────────────────────────────────────────────────────
-
-function extractMethodNames(def: { config?: { methods?: Record<string, unknown> } }): string[] {
-  const methods = def.config?.methods
-  if (methods && typeof methods === 'object') {
-    return Object.keys(methods)
-  }
-  return []
-}
-
-export function defineMethods<S extends Schema>(
-  schema: S,
-  methods: MethodsImpl<S>,
-): MethodsImpl<S> {
-  // Runtime completeness check
-  const defsWithMethods: [string, any][] = [
-    ...Object.entries(schema.nodes),
-    ...Object.entries(schema.edges),
-  ]
-
-  for (const [name, def] of defsWithMethods) {
-    const declared = extractMethodNames(def)
-    if (declared.length === 0) continue
-
-    const impl = (methods as Record<string, Record<string, unknown>>)[name]
-    if (!impl) {
-      throw new SchemaValidationError(
-        `Missing method implementations for '${name}'. Expected: ${declared.join(', ')}`,
-        `methods.${name}`,
-        declared.join(', '),
-        'undefined',
-      )
-    }
-
-    const missing = declared.filter((m) => typeof impl[m] !== 'function')
-    if (missing.length > 0) {
-      throw new SchemaValidationError(
-        `'${name}' is missing methods: ${missing.join(', ')}`,
-        `methods.${name}`,
-        declared.join(', '),
-        Object.keys(impl).join(', '),
-      )
+  for (const [name, def] of [
+    ...Object.entries(ifaces),
+    ...Object.entries(nodes),
+    ...Object.entries(edges),
+  ] as [string, IfaceDef | NodeDef | EdgeDef][]) {
+    const methods = (def.config as any)?.methods as Record<string, OpDef> | undefined
+    if (methods) {
+      for (const [methodName, methodDef] of Object.entries(methods)) {
+        validateOpRefs(`${name}.${methodName}`, methodDef)
+      }
     }
   }
+  for (const [opName, opDef] of Object.entries(operations)) {
+    validateOpRefs(opName, opDef)
+  }
 
-  return methods
+  return { domain, defs, ifaces, nodes, edges, operations } as unknown as Schema<D>
 }

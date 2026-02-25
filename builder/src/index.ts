@@ -14,8 +14,11 @@ export {
   type DataGrantToken,
 } from './builders.js'
 
-// Schema & Methods
-export { defineSchema, defineMethods } from './schema.js'
+// Schema
+export { defineSchema } from './schema.js'
+
+// Def registry
+export { registerDef, getDefName, getDefRegistration, hasDefName } from './registry.js'
 
 // Serialization
 export { serialize, fn, type SerializeOptions } from './serialize.js'
@@ -52,9 +55,13 @@ export type {
   ExtractMethodNames,
   ExtractMethodParams,
   ExtractMethodReturns,
+  ExtractMethodReturnValue,
   Schema,
-  Client,
-  MethodsImpl,
+  MethodSelf,
+  DefForKey,
+  MethodKeys,
+  InferOpParams,
+  InferOpReturn,
   Ref,
   CoreInstance,
   CoreLink,

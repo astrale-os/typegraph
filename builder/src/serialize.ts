@@ -9,6 +9,7 @@ import type {
   BitmaskDef,
   Cardinality as BuilderCardinality,
 } from './types.js'
+import { getDefRegistration } from './registry.js'
 import type {
   SchemaIR,
   ClassDecl,
@@ -220,6 +221,9 @@ class SerializeContext {
   /** Computed defaults collected during serialization. */
   private defaults: Record<string, ComputedDefault> = {}
 
+  /** Cross-domain imports collected during serialization: name → domain. */
+  private imports: Record<string, string> = {}
+
   constructor(
     private schema: Schema,
     options?: SerializeOptions,
@@ -258,7 +262,16 @@ class SerializeContext {
       operations[name] = this.serializeOp(name, def)
     }
 
-    const result: SchemaIR = { version: '1.0', types: this.types, classes, operations }
+    const result: SchemaIR = {
+      version: '1.0',
+      domain: this.schema.domain,
+      types: this.types,
+      classes,
+      operations,
+    }
+    if (Object.keys(this.imports).length > 0) {
+      result.imports = this.imports
+    }
     if (Object.keys(this.defaults).length > 0) {
       result.defaults = this.defaults
     }
@@ -492,9 +505,7 @@ class SerializeContext {
         if (nullable) refSchema = foldNullable(refSchema)
         if (hasDefault) {
           if (isFnDefault(defaultValue)) {
-            const key = className
-              ? `${className}.${methodName}.${name}`
-              : `${methodName}.${name}`
+            const key = className ? `${className}.${methodName}.${name}` : `${methodName}.${name}`
             this.defaults[key] = toComputedDefault(defaultValue)
           } else {
             refSchema = { ...refSchema, default: defaultValue }
@@ -508,9 +519,7 @@ class SerializeContext {
       if (nullable) jsonSchema = foldNullable(jsonSchema)
       if (hasDefault) {
         if (isFnDefault(defaultValue)) {
-          const key = className
-            ? `${className}.${methodName}.${name}`
-            : `${methodName}.${name}`
+          const key = className ? `${className}.${methodName}.${name}` : `${methodName}.${name}`
           this.defaults[key] = toComputedDefault(defaultValue)
         } else {
           jsonSchema = { ...jsonSchema, default: defaultValue }
@@ -595,14 +604,22 @@ class SerializeContext {
   // ── Lookup ────────────────────────────────────────────────────────────
 
   private getDefName(def: object): string {
-    const name = this.defToName.get(def)
-    if (!name) {
-      throw new Error(
-        `Serialization error: referenced def not found in schema. ` +
-          `Ensure all defs passed to defineSchema() are included.`,
-      )
+    // Local def — in this schema
+    const local = this.defToName.get(def)
+    if (local) return local
+
+    // External def — registered by another defineSchema call
+    const reg = getDefRegistration(def)
+    if (reg) {
+      if (reg.domain && reg.domain !== this.schema.domain) {
+        this.imports[reg.name] = reg.domain
+      }
+      return reg.name
     }
-    return name
+
+    throw new Error(
+      `Serialization error: referenced def not found in schema and not registered in any schema.`,
+    )
   }
 }
 
