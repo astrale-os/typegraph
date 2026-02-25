@@ -12,8 +12,8 @@ import { pascalCase } from './utils'
 export function emitCore(model: GraphModel): string {
   const lines: string[] = []
 
-  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract && !n.origin)
-  const edges = [...model.edgeDefs.values()].filter((e) => !e.origin)
+  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
+  const edges = [...model.edgeDefs.values()]
   const edgesWithPayload = edges.filter((e) => e.allAttributes.length > 0)
 
   if (concreteNodes.length === 0 && edges.length === 0) return ''

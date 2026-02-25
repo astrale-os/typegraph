@@ -306,7 +306,7 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any> 
   }
 
   /**
-   * Used by kernel-boot to wire kernel.call after kernel creation.
+   * Used by kernel-runtime to wire kernel.call after kernel creation.
    */
   setDispatch(dispatch: MethodDispatchFn): void {
     this._dispatch = dispatch

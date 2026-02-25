@@ -12,7 +12,7 @@ import type { GraphModel } from '../model'
  * ids.types.ts, so generated IDs are assignable to kernel NodeId.
  */
 export function emitBrandedIds(model: GraphModel): string {
-  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract && !n.origin)
+  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
   if (concreteNodes.length === 0) return ''
 
   const lines: string[] = []

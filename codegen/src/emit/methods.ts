@@ -12,7 +12,7 @@ import { pascalCase } from './utils'
 export function emitMethods(model: GraphModel): string {
   const nodesWithMethods = [...model.nodeDefs.values()].filter((n) => n.allMethods.length > 0)
   const edgesWithMethods = [...model.edgeDefs.values()].filter((e) => e.allMethods.length > 0)
-  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract && !n.origin)
+  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
 
   const hasAnyMethods = nodesWithMethods.length > 0 || edgesWithMethods.length > 0
   if (!hasAnyMethods && concreteNodes.length === 0) return ''
@@ -132,7 +132,7 @@ function formatMethodParams(model: GraphModel, m: MethodDef): string {
 
 function emitEnrichedTypes(model: GraphModel): string {
   const lines: string[] = []
-  const concretes = [...model.nodeDefs.values()].filter((n) => !n.abstract && !n.origin)
+  const concretes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
 
   for (const node of concretes) {
     const methodIntersections = collectMethodInterfaces(model, node.name)

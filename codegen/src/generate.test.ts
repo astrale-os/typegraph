@@ -63,7 +63,6 @@ describe('load', () => {
     const identity = model.nodeDefs.get('Identity')
     expect(identity).toBeDefined()
     expect(identity!.abstract).toBe(true)
-    expect(identity!.origin).toBe('https://kernel.astrale.ai/v1')
   })
 
   it('identifies enum aliases', () => {

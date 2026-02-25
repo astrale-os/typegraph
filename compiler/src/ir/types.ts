@@ -78,7 +78,6 @@ export interface NodeDef {
   attributes: IRAttribute[]
   methods: MethodDef[]
   data_ref?: string
-  origin?: string
 }
 
 export interface EdgeDef {
@@ -89,7 +88,6 @@ export interface EdgeDef {
   methods: MethodDef[]
   constraints: EdgeConstraints
   data_ref?: string
-  origin?: string
 }
 
 export interface Endpoint {

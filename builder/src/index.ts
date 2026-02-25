@@ -1,0 +1,79 @@
+// Builders
+export {
+  iface,
+  nodeDef,
+  edgeDef,
+  op,
+  method,
+  bitmask,
+  ref,
+  data,
+  type RefSchema,
+  type DataSelfSchema,
+  type DataGrantSchema,
+  type DataGrantToken,
+} from './builders.js'
+
+// Schema & Methods
+export { defineSchema, defineMethods } from './schema.js'
+
+// Serialization
+export { serialize, fn, type SerializeOptions } from './serialize.js'
+
+// Data
+export { node, edge, kernelRefs, defineCore, defineSeed } from './data.js'
+
+// Types
+export type {
+  PropShape,
+  DataShape,
+  ParamShape,
+  IndexDef,
+  Cardinality,
+  Access,
+  EndpointCfg,
+  IfaceConfig,
+  NodeConfig,
+  EdgeConfig,
+  OpConfig,
+  IfaceDef,
+  NodeDef,
+  EdgeDef,
+  OpDef,
+  BitmaskDef,
+  ExtractProps,
+  ExtractData,
+  ExtractMethods,
+  ExtractFullProps,
+  ExtractFullData,
+  HasData,
+  InferProps,
+  HasMethods,
+  ExtractMethodNames,
+  ExtractMethodParams,
+  ExtractMethodReturns,
+  Schema,
+  Client,
+  MethodsImpl,
+  Ref,
+  CoreInstance,
+  CoreLink,
+  RefsFromInstances,
+  CoreDef,
+  SeedDef,
+} from './types.js'
+
+export { SchemaValidationError } from './types.js'
+
+// Re-export IR types for convenience
+export type {
+  SchemaIR,
+  ClassDecl,
+  NodeDecl,
+  EdgeDecl,
+  ComputedDefault,
+  OperationDecl,
+  JsonSchema,
+  Endpoint,
+  EdgeConstraints,
+} from '@astrale/typegraph-schema'

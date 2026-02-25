@@ -14,7 +14,6 @@ describe('kernel types — extend integration', () => {
 
     const identity = model.nodeDefs.get('Identity')!
     expect(identity.abstract).toBe(true)
-    expect(identity.origin).toBe('https://kernel.astrale.ai/v1')
   })
 
   it('kernel Node type as base allows creating edges', () => {
@@ -38,8 +37,6 @@ describe('kernel types — extend integration', () => {
       class Admin: Identity { level: Int }
       class Resource: Node { name: String }
     `)
-    expect(model.nodeDefs.get('Identity')!.origin).toBe('https://kernel.astrale.ai/v1')
-
     const nodeType = model.nodeDefs.get('Node')
     expect(nodeType).toBeDefined()
     expect(nodeType!.abstract).toBe(true)

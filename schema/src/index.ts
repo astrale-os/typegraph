@@ -1,0 +1,6 @@
+export type { SchemaIR } from './ir.js'
+export type { ClassDecl, NodeDecl, EdgeDecl } from './classes.js'
+export type { JsonSchema, JsonValue } from './json-schema.js'
+export type { ComputedDefault } from './defaults.js'
+export type { OperationDecl } from './operations.js'
+export type { Endpoint, Cardinality, EdgeConstraints } from './endpoints.js'

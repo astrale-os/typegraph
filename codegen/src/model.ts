@@ -86,7 +86,6 @@ export interface ResolvedNode {
   ownMethods: MethodDef[]
   allMethods: MethodDef[]
   dataRef?: string
-  origin?: string
 }
 
 export interface ResolvedEdge {
@@ -98,5 +97,4 @@ export interface ResolvedEdge {
   allMethods: MethodDef[]
   constraints: EdgeConstraints
   dataRef?: string
-  origin?: string
 }

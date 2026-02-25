@@ -174,7 +174,6 @@ function registerNode(model: GraphModel, node: NodeDef, strict: boolean): void {
     ownMethods: node.methods ?? [],
     allMethods: [], // populated by resolveInheritance
     dataRef: node.data_ref,
-    origin: node.origin,
   })
 }
 
@@ -194,7 +193,6 @@ function registerEdge(model: GraphModel, edge: EdgeDef, strict: boolean): void {
     allMethods: [], // edges don't inherit; set to ownMethods below
     constraints: edge.constraints,
     dataRef: edge.data_ref,
-    origin: edge.origin,
   })
 }
 
@@ -266,7 +264,6 @@ function createImportStubs(model: GraphModel): void {
   for (const [, node] of model.nodeDefs) {
     for (const parent of node.implements) {
       if (!model.nodeDefs.has(parent)) {
-        const origin = model.extensions.find((e) => e.importedTypes.includes(parent))?.uri
         model.nodeDefs.set(parent, {
           name: parent,
           abstract: true,
@@ -275,7 +272,6 @@ function createImportStubs(model: GraphModel): void {
           allAttributes: [],
           ownMethods: [],
           allMethods: [],
-          origin,
         })
       }
     }

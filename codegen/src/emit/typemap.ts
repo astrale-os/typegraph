@@ -8,7 +8,7 @@ import { pascalCase } from './utils'
  *             methods emitter (enriched *Node types).
  */
 export function emitTypemap(model: GraphModel): string {
-  const concretes = [...model.nodeDefs.values()].filter((n) => !n.abstract && !n.origin)
+  const concretes = [...model.nodeDefs.values()].filter((n) => !n.abstract)
   const allEdges = [...model.edgeDefs.values()]
 
   if (concretes.length === 0) return ''
@@ -63,6 +63,30 @@ export function emitTypemap(model: GraphModel): string {
     lines.push('  }')
   }
 
+  lines.push('}')
+  lines.push('')
+
+  // GraphTypes interface (for GraphPort<T> usage — no typegraph-client dependency)
+  lines.push("import type { GraphTypes } from '@astrale-os/kernel-ports'")
+  lines.push('')
+  lines.push('export interface GeneratedGraphTypes extends GraphTypes {')
+  lines.push('  nodes: {')
+  for (const node of concretes) {
+    lines.push(`    ${node.name}: ${node.name}Node`)
+  }
+  lines.push('  }')
+  lines.push('  links: {')
+  for (const edge of allEdges) {
+    const payloadType =
+      edge.ownAttributes.length > 0 ? `${pascalCase(edge.name)}Payload` : 'Record<string, never>'
+    lines.push(`    ${edge.name}: ${payloadType}`)
+  }
+  lines.push('  }')
+  lines.push('  nodeInputs: {')
+  for (const node of concretes) {
+    lines.push(`    ${node.name}: ${node.name}Input`)
+  }
+  lines.push('  }')
   lines.push('}')
   lines.push('')
 

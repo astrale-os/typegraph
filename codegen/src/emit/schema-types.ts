@@ -9,10 +9,10 @@ export function emitSchemaTypes(model: GraphModel): string {
   const lines: string[] = []
 
   const concreteNodes = [...model.nodeDefs.values()]
-    .filter((n) => !n.abstract && !n.origin)
+    .filter((n) => !n.abstract)
     .map((n) => n.name)
 
-  const edges = [...model.edgeDefs.values()].filter((e) => !e.origin).map((e) => e.name)
+  const edges = [...model.edgeDefs.values()].map((e) => e.name)
 
   if (concreteNodes.length > 0) {
     lines.push(`export type SchemaNodeType = ${concreteNodes.map((n) => `'${n}'`).join(' | ')}`)

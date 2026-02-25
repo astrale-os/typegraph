@@ -1,5 +1,8 @@
 packages:
   - 'core'
+  - 'schema'
+  - 'builder'
+  - 'builder/examples'
   - 'typegraph'
   - 'typegraph/__tests__/app'
   - 'adapters/*'

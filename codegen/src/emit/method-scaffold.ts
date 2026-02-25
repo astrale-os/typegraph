@@ -20,7 +20,7 @@ export function emitMethodScaffold(model: GraphModel): string {
   const groups: { typeName: string; isEdge: boolean; methods: MethodDef[] }[] = []
 
   for (const [, node] of model.nodeDefs) {
-    if (node.abstract || node.origin) continue
+    if (node.abstract) continue
     if (node.allMethods.length > 0) {
       groups.push({ typeName: node.name, isEdge: false, methods: node.allMethods })
     }
