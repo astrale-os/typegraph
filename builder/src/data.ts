@@ -16,7 +16,7 @@ import { getDefName } from './registry.js'
 // ── Type-safe input helpers ──────────────────────────────────────────────────
 // Guard against infinite recursion when N/E carries `any` config (e.g. NodeDef<any>).
 // Also short-circuits for empty configs like nodeDef({}) where there are no props to check.
-type IsAny<T> = 0 extends (1 & T) ? true : false
+type IsAny<T> = 0 extends 1 & T ? true : false
 
 type NodeInputData<N extends NodeDef<any>> =
   N extends NodeDef<infer C>
@@ -38,10 +38,7 @@ type EdgeInputData<E extends EdgeDef> =
 
 // ── Builders ────────────────────────────────────────────────────────────────
 
-export function node<N extends NodeDef<any>>(
-  def: N,
-  data: NodeInputData<N>,
-): CoreInstance<N> {
+export function node<N extends NodeDef<any>>(def: N, data: NodeInputData<N>): CoreInstance<N> {
   return { __kind: 'core-instance', __nodeDef: def, __data: data as Record<string, unknown> }
 }
 

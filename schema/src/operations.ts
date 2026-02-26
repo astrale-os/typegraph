@@ -16,4 +16,7 @@ export interface OperationDecl {
 
   /** Whether the return value can be null. Default: false (omitted). */
   returnsNullable?: boolean
+
+  /** Whether this is a static (class-level) method with no `self`. Default: false (omitted). */
+  static?: boolean
 }

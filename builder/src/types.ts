@@ -17,6 +17,7 @@ export interface OpConfig {
   readonly params?: ParamShape | (() => ParamShape)
   readonly returns: z.ZodType
   readonly access?: Access
+  readonly static?: boolean
 }
 
 export interface OpDef<out C extends OpConfig = OpConfig> {
@@ -250,6 +251,10 @@ type GetMethodConfig<D, M extends string> = M extends keyof ExtractMethods<D>
     : never
   : never
 
+/** Check if a specific method on a def is static */
+export type IsStaticMethod<D, M extends string> =
+  GetMethodConfig<D, M> extends { static: true } ? true : false
+
 /** Extract resolved params (handles thunks at type level) */
 export type ExtractMethodParams<D, M extends string> =
   GetMethodConfig<D, M> extends { params: infer P }
@@ -322,7 +327,7 @@ export type MethodSelf<D> =
         }
       : { readonly id: string }
 
-// ── Schema-level type helpers for defineMethods/defineOperations ────────────
+// ── Schema-level type helpers (consumed by kernel-runtime) ─────────────────
 
 /** Get the def for a given key from either nodes or edges */
 export type DefForKey<S extends Schema, K extends string> = K extends keyof S['nodes']
@@ -340,9 +345,15 @@ export type MethodKeys<S extends Schema> =
       [K in keyof S['edges'] & string]: HasMethods<S['edges'][K]> extends true ? K : never
     }[keyof S['edges'] & string]
 
-/** Infer params from a builder OpDef */
+/** Infer params from a builder OpDef (handles thunk params) */
 export type InferOpParams<D> = D extends OpDef<infer C>
-  ? C extends { params: infer P extends ParamShape } ? InferProps<P> : Record<string, never>
+  ? C extends { params: infer P }
+    ? P extends (() => infer R extends ParamShape)
+      ? InferProps<R>
+      : P extends ParamShape
+        ? InferProps<P>
+        : Record<string, never>
+    : Record<string, never>
   : Record<string, never>
 
 /** Infer return type from a builder OpDef */

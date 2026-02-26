@@ -15,42 +15,12 @@ import type {
   ClassDecl,
   NodeDecl,
   EdgeDecl,
-  ComputedDefault,
   OperationDecl,
   Endpoint,
   Cardinality,
   EdgeConstraints,
   JsonSchema,
-  JsonValue,
 } from '@astrale/typegraph-schema'
-
-// ── FnDefault sentinel ──────────────────────────────────────────────────────
-
-const FN_SENTINEL = Symbol.for('astrale:fn-default')
-
-interface FnDefaultValue {
-  [FN_SENTINEL]: true
-  name: string
-  args: unknown[]
-}
-
-/**
- * Creates a computed default value sentinel for use in Zod `.default()`.
- *
- * @example
- * ```ts
- * const Timestamped = iface({
- *   props: { createdAt: z.string().datetime().default(fn('now')) }
- * })
- * ```
- */
-export function fn(name: string, ...args: unknown[]): unknown {
-  return { [FN_SENTINEL]: true, name, args }
-}
-
-function isFnDefault(value: unknown): value is FnDefaultValue {
-  return typeof value === 'object' && value !== null && (value as any)[FN_SENTINEL] === true
-}
 
 // ── Serialize options ───────────────────────────────────────────────────────
 
@@ -179,33 +149,6 @@ function foldNullable(schema: JsonSchema): JsonSchema {
   return { anyOf: [schema, { type: 'null' }] }
 }
 
-/**
- * Converts an fn() sentinel default into a ComputedDefault.
- * Returns null if the value is not an fn sentinel.
- */
-function toComputedDefault(value: FnDefaultValue): ComputedDefault {
-  const result: ComputedDefault = { fn: value.name }
-  if (value.args.length > 0) {
-    result.args = value.args.map(toJsonValue)
-  }
-  return result
-}
-
-/** Converts an unknown value to a JSON-safe JsonValue. */
-function toJsonValue(value: unknown): JsonValue {
-  if (value === null) return null
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return value
-  if (typeof value === 'boolean') return value
-  if (Array.isArray(value)) return value.map(toJsonValue)
-  if (typeof value === 'object') {
-    const obj: Record<string, JsonValue> = {}
-    for (const [k, v] of Object.entries(value!)) obj[k] = toJsonValue(v)
-    return obj
-  }
-  return null
-}
-
 // ── Implementation ──────────────────────────────────────────────────────────
 
 class SerializeContext {
@@ -217,9 +160,6 @@ class SerializeContext {
 
   /** The accumulated `types` record for the IR. */
   private types: Record<string, JsonSchema> = {}
-
-  /** Computed defaults collected during serialization. */
-  private defaults: Record<string, ComputedDefault> = {}
 
   /** Cross-domain imports collected during serialization: name → domain. */
   private imports: Record<string, string> = {}
@@ -271,9 +211,6 @@ class SerializeContext {
     }
     if (Object.keys(this.imports).length > 0) {
       result.imports = this.imports
-    }
-    if (Object.keys(this.defaults).length > 0) {
-      result.defaults = this.defaults
     }
     return result
   }
@@ -410,9 +347,9 @@ class SerializeContext {
   }
 
   private serializeProperty(
-    name: string,
+    _name: string,
     schema: z.ZodType | BitmaskDef,
-    className: string,
+    _className: string,
   ): JsonSchema {
     // Bitmask → special integer type
     if (isBitmask(schema)) {
@@ -434,13 +371,7 @@ class SerializeContext {
 
     // Handle defaults
     if (hasDefault) {
-      if (isFnDefault(defaultValue)) {
-        // Computed default → store separately
-        this.defaults[`${className}.${name}`] = toComputedDefault(defaultValue)
-      } else {
-        // Primitive default → fold into schema
-        jsonSchema = { ...jsonSchema, default: defaultValue }
-      }
+      jsonSchema = { ...jsonSchema, default: defaultValue }
     }
 
     return jsonSchema
@@ -474,13 +405,14 @@ class SerializeContext {
       returns: this.convertZodSchema(returnInner),
     }
     if (returnNullable) op.returnsNullable = true
+    if (config.static) op.static = true
     return op
   }
 
   private serializeParams(
     params: Record<string, z.ZodType> | (() => Record<string, z.ZodType>) | undefined,
-    className: string | undefined,
-    methodName: string,
+    _className: string | undefined,
+    _methodName: string,
   ): Record<string, JsonSchema> {
     if (!params) return {}
     // Thunks should already be resolved by defineSchema()
@@ -504,12 +436,7 @@ class SerializeContext {
         let refSchema: JsonSchema = this.buildNodeRef(inner)
         if (nullable) refSchema = foldNullable(refSchema)
         if (hasDefault) {
-          if (isFnDefault(defaultValue)) {
-            const key = className ? `${className}.${methodName}.${name}` : `${methodName}.${name}`
-            this.defaults[key] = toComputedDefault(defaultValue)
-          } else {
-            refSchema = { ...refSchema, default: defaultValue }
-          }
+          refSchema = { ...refSchema, default: defaultValue }
         }
         result[name] = refSchema
         continue
@@ -518,12 +445,7 @@ class SerializeContext {
       let jsonSchema = this.convertZodSchema(inner)
       if (nullable) jsonSchema = foldNullable(jsonSchema)
       if (hasDefault) {
-        if (isFnDefault(defaultValue)) {
-          const key = className ? `${className}.${methodName}.${name}` : `${methodName}.${name}`
-          this.defaults[key] = toComputedDefault(defaultValue)
-        } else {
-          jsonSchema = { ...jsonSchema, default: defaultValue }
-        }
+        jsonSchema = { ...jsonSchema, default: defaultValue }
       }
       result[name] = jsonSchema
     }

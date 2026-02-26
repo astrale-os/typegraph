@@ -1,7 +1,6 @@
 import type { Domain } from './domain.js'
 import type { ClassDecl } from './classes.js'
 import type { JsonSchema } from './json-schema.js'
-import type { ComputedDefault } from './defaults.js'
 import type { OperationDecl } from './operations.js'
 
 /**
@@ -57,11 +56,4 @@ export interface SchemaIR {
   /** Top-level operations not bound to any class. */
   operations: Record<string, OperationDecl>
 
-  /**
-   * Computed defaults separated from property schemas.
-   * Keyed by `"ClassName.propName"` or `"ClassName.methodName.paramName"`.
-   *
-   * @example { "TodoItem.createdAt": { "fn": "now" } }
-   */
-  defaults?: Record<string, ComputedDefault>
 }

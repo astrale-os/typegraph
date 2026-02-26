@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 import { iface, rawNodeDef as nodeDef, edgeDef, op, bitmask, ref, data } from './builders.js'
 import { defineSchema } from './schema.js'
-import { serialize, fn } from './serialize.js'
+import { serialize } from './serialize.js'
 import type { SchemaIR, NodeDecl, EdgeDecl, JsonSchema } from '@astrale/typegraph-schema'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -237,35 +237,6 @@ describe('serialize', () => {
       expect(p.default).toBe(false)
     })
 
-    it('moves fn() computed default to ir.defaults', () => {
-      const A = nodeDef({
-        props: {
-          createdAt: z
-            .string()
-            .datetime()
-            .default(fn('now') as string),
-        },
-      })
-      const schema = defineSchema('test', { A })
-      const ir = serialize(schema)
-      const p = prop(findNode(ir, 'A'), 'createdAt')
-      expect(p.default).toBeUndefined()
-      expect(ir.defaults).toBeDefined()
-      expect(ir.defaults!['A.createdAt']).toEqual({ fn: 'now' })
-    })
-
-    it('moves fn() with args to ir.defaults', () => {
-      const A = nodeDef({
-        props: { seq: z.string().default(fn('seq', 'order_number') as string) },
-      })
-      const schema = defineSchema('test', { A })
-      const ir = serialize(schema)
-      expect(ir.defaults!['A.seq']).toEqual({
-        fn: 'seq',
-        args: ['order_number'],
-      })
-    })
-
     it('omits default when not present', () => {
       const A = nodeDef({ props: { name: z.string() } })
       const schema = defineSchema('test', { A })
@@ -425,6 +396,47 @@ describe('serialize', () => {
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
       expect(Object.keys(decl.methods)).toEqual(['alpha', 'beta', 'gamma'])
+    })
+
+    it('serializes static method with static: true', () => {
+      const A = nodeDef({
+        methods: {
+          create: op({ static: true, params: { name: z.string() }, returns: z.string() }),
+        },
+      })
+      const schema = defineSchema('test', { A })
+      const ir = serialize(schema)
+      const m = findMethod(findNode(ir, 'A'), 'create')!
+      expect(m.static).toBe(true)
+      expect(m.access).toBe('public')
+      expect(m.params['name']).toEqual({ type: 'string' })
+    })
+
+    it('omits static field for non-static methods', () => {
+      const A = nodeDef({
+        methods: {
+          greet: op({ returns: z.string() }),
+        },
+      })
+      const schema = defineSchema('test', { A })
+      const ir = serialize(schema)
+      const m = findMethod(findNode(ir, 'A'), 'greet')!
+      expect(m.static).toBeUndefined()
+    })
+
+    it('serializes mixed static and instance methods', () => {
+      const A = nodeDef({
+        methods: {
+          init: op({ static: true, params: { title: z.string() }, returns: z.string() }),
+          rename: op({ params: { newTitle: z.string() }, returns: z.boolean() }),
+        },
+      })
+      const schema = defineSchema('test', { A })
+      const ir = serialize(schema)
+      const initM = findMethod(findNode(ir, 'A'), 'init')!
+      const renameM = findMethod(findNode(ir, 'A'), 'rename')!
+      expect(initM.static).toBe(true)
+      expect(renameM.static).toBeUndefined()
     })
   })
 
@@ -904,10 +916,7 @@ describe('serialize', () => {
     it('serializes distribution schema referencing kernel defs via registry', () => {
       const Timestamped = iface({
         props: {
-          createdAt: z
-            .string()
-            .datetime()
-            .default(fn('now') as string),
+          createdAt: z.string().datetime().optional(),
           updatedAt: z.string().datetime().optional(),
         },
       })
@@ -968,10 +977,7 @@ describe('serialize', () => {
 
       const Timestamped = iface({
         props: {
-          createdAt: z
-            .string()
-            .datetime()
-            .default(fn('now') as string),
+          createdAt: z.string().datetime().optional(),
           updatedAt: z.string().datetime().optional(),
         },
       })
@@ -1063,8 +1069,6 @@ describe('serialize', () => {
       const ts = findNode(ir, 'Timestamped')
       expect(ts.abstract).toBe(true)
       expect(Object.keys(ts.properties).length).toBe(2)
-      // fn default moved to ir.defaults
-      expect(ir.defaults!['Timestamped.createdAt']).toEqual({ fn: 'now' })
       // nullable folded into schema
       expect(ts.properties['updatedAt'].type).toEqual(['string', 'null'])
 
@@ -1936,7 +1940,7 @@ describe('serialize', () => {
       const OrderStatus = z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'])
 
       const Timestamped = iface({
-        props: { createdAt: z.string().default(fn('now') as string) },
+        props: { createdAt: z.string().optional() },
       })
 
       const Priceable = iface({
@@ -2047,9 +2051,6 @@ describe('serialize', () => {
       expect(recentOrders.access).toBe('private')
       expect(recentOrders.params['limit'].default).toBe(10)
       expect(recentOrders.returns).toEqual({ type: 'array', items: { $nodeRef: 'Order' } })
-
-      // fn defaults in ir.defaults
-      expect(ir.defaults!['Timestamped.createdAt']).toEqual({ fn: 'now' })
 
       // JSON round-trip
       const json = JSON.stringify(ir)

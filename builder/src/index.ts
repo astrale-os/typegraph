@@ -22,7 +22,7 @@ export { defineSchema } from './schema.js'
 export { registerDef, getDefName, getDefRegistration, hasDefName } from './registry.js'
 
 // Serialization
-export { serialize, fn, type SerializeOptions } from './serialize.js'
+export { serialize, type SerializeOptions } from './serialize.js'
 
 // Data
 export { node, edge, kernelRefs, defineCore, defineSeed } from './data.js'
@@ -57,6 +57,7 @@ export type {
   ExtractMethodParams,
   ExtractMethodReturns,
   ExtractMethodReturnValue,
+  IsStaticMethod,
   Schema,
   MethodSelf,
   DefForKey,
@@ -79,7 +80,6 @@ export type {
   ClassDecl,
   NodeDecl,
   EdgeDecl,
-  ComputedDefault,
   OperationDecl,
   JsonSchema,
   Endpoint,
