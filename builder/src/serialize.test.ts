@@ -1860,21 +1860,19 @@ describe('serialize', () => {
     })
 
     it('resolves thunk for circular ref between two nodes', () => {
-      let BRef: any
-      const A = nodeDef({
+      const A: any = nodeDef(() => ({
         methods: {
           getB: op({
-            params: () => ({ b: ref(BRef) }),
+            params: () => ({ b: ref(B) }),
             returns: z.boolean(),
           }),
         },
-      })
+      }))
       const B = nodeDef({
         methods: {
           getA: op({ returns: ref(A) }),
         },
       })
-      BRef = B
       const schema = defineSchema('test', { A, B })
       const ir = serialize(schema)
       const mA = findMethod(findNode(ir, 'A'), 'getB')!
