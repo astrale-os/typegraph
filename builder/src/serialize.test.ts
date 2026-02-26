@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, nodeDef, edgeDef, op, bitmask, ref, data } from './builders.js'
+import { iface, rawNodeDef as nodeDef, edgeDef, op, bitmask, ref, data } from './builders.js'
 import { defineSchema } from './schema.js'
 import { serialize, fn } from './serialize.js'
 import type { SchemaIR, NodeDecl, EdgeDecl, JsonSchema } from '@astrale/typegraph-schema'

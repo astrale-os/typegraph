@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, nodeDef, edgeDef, method, ref } from '../builders.js'
+import { iface, rawNodeDef as nodeDef, edgeDef, method, ref } from '../builders.js'
 import { defineSchema } from '../schema.js'
 import { edge, node, defineCore } from '../data.js'
 import { SchemaValidationError } from '../types.js'

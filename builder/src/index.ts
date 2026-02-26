@@ -1,7 +1,8 @@
 // Builders
 export {
   iface,
-  nodeDef,
+  rawNodeDef,
+  rawNodeDef as nodeDef,
   edgeDef,
   op,
   method,

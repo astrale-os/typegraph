@@ -21,7 +21,7 @@ export function iface<const C extends IfaceConfig>(config: C | (() => C)): Iface
   return { __kind: 'iface', config } as IfaceDef<C>
 }
 
-export function nodeDef<const C extends NodeConfig>(config: C | (() => C)): NodeDef<C> {
+export function rawNodeDef<const C extends NodeConfig>(config: C | (() => C)): NodeDef<C> {
   if (typeof config === 'function') {
     return { __kind: 'node', config: undefined, __configThunk: config } as unknown as NodeDef<C>
   }
