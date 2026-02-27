@@ -236,17 +236,48 @@ export type ExtractNodeInput<D> =
           : unknown
         : unknown
 
+// ── Inherited method collection ─────────────────────────────────────────────
+
+/** Collect methods from an interface list (own + parent extends chain) */
+type CollectIfaceMethodsFromList<T> = T extends readonly [
+  infer Head extends IfaceDef<any>,
+  ...infer Tail extends readonly IfaceDef<any>[],
+]
+  ? ExtractMethods<Head> &
+      (Head extends IfaceDef<infer HC>
+        ? HC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
+          ? CollectIfaceMethodsFromList<Parents>
+          : unknown
+        : unknown) &
+      CollectIfaceMethodsFromList<Tail>
+  : unknown
+
+/** All methods for a def: own + inherited from implements/extends */
+export type AllMethods<D> =
+  D extends NodeDef<any>
+    ? ExtractMethods<D> &
+        CollectIfaceMethodsFromList<ExtractImplements<D>> &
+        (ExtractNodeExtends<D> extends never ? unknown : AllMethods<ExtractNodeExtends<D>>)
+    : D extends IfaceDef<any>
+      ? ExtractMethods<D> &
+          (D extends IfaceDef<infer IC>
+            ? IC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
+              ? CollectIfaceMethodsFromList<Parents>
+              : unknown
+            : unknown)
+      : ExtractMethods<D>
+
 // ── Method inference utilities ──────────────────────────────────────────────
 
-/** Check if a def has own methods */
-export type HasMethods<D> = keyof ExtractMethods<D> extends never ? false : true
+/** Check if a def has methods (own or inherited) */
+export type HasMethods<D> = keyof AllMethods<D> extends never ? false : true
 
-/** Get method names from a def */
-export type ExtractMethodNames<D> = keyof ExtractMethods<D> & string
+/** Get method names from a def (own + inherited) */
+export type ExtractMethodNames<D> = keyof AllMethods<D> & string
 
-/** Get the config of a specific method */
-type GetMethodConfig<D, M extends string> = M extends keyof ExtractMethods<D>
-  ? ExtractMethods<D>[M] extends OpDef<infer MC>
+/** Get the config of a specific method (own or inherited) */
+type GetMethodConfig<D, M extends string> = M extends keyof AllMethods<D>
+  ? AllMethods<D>[M] extends OpDef<infer MC>
     ? MC
     : never
   : never

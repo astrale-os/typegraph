@@ -13,7 +13,7 @@ import { pascalCase } from './utils'
 export function emitMethodFactory(model: GraphModel): string {
   const lines: string[] = []
 
-  lines.push('export const defineMethods = createMethodFactory<GeneratedGraphTypes>()')
+  lines.push('export const defineMethods = createMethodFactory()')
   lines.push('')
 
   // Nodes with methods → self = <Name>Node

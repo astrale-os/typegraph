@@ -48,6 +48,7 @@ export type {
   ExtractProps,
   ExtractData,
   ExtractMethods,
+  AllMethods,
   ExtractFullProps,
   ExtractFullData,
   HasData,

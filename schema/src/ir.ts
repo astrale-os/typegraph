@@ -55,5 +55,4 @@ export interface SchemaIR {
 
   /** Top-level operations not bound to any class. */
   operations: Record<string, OperationDecl>
-
 }
