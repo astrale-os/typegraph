@@ -9,4 +9,4 @@
  * @example 'acme.billing'     — third-party distribution
  * @example 'acme.todo'        — application domain
  */
-export type Domain = string
+export type DomainUrl = string

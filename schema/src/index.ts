@@ -1,5 +1,5 @@
 export type { SchemaIR } from './ir.js'
-export type { Domain } from './domain.js'
+export type { DomainUrl as Domain } from './domain.js'
 export type { ClassDecl, NodeDecl, EdgeDecl } from './classes.js'
 export type { JsonSchema, JsonValue } from './json-schema.js'
 export type { OperationDecl } from './operations.js'

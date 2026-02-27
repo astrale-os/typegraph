@@ -1,4 +1,4 @@
-import type { Domain } from './domain.js'
+import type { DomainUrl } from './domain.js'
 import type { ClassDecl } from './classes.js'
 import type { JsonSchema } from './json-schema.js'
 import type { OperationDecl } from './operations.js'
@@ -28,7 +28,7 @@ export interface SchemaIR {
    * Authoritative domain this schema belongs to (FQDN).
    * @example 'astrale.core', 'acme.billing'
    */
-  domain: Domain
+  domain: DomainUrl
 
   /**
    * Cross-domain dependency manifest.
@@ -37,7 +37,7 @@ export interface SchemaIR {
    *
    * @example { "Node": "astrale.core", "Identity": "astrale.core" }
    */
-  imports?: Record<string, Domain>
+  imports?: Record<string, DomainUrl>
 
   /**
    * Shared type definitions (JSON Schema).

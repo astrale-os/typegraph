@@ -57,6 +57,7 @@ export function bitmask(): BitmaskDef {
  * z.infer<RefSchema<D>> resolves to the full props of D (+ data when IncludeData is true). */
 export interface RefSchema<D, IncludeData extends boolean = false> extends z.ZodType<{
   readonly id: string
+  readonly classId: string
 }> {
   readonly __ref_target: D
   readonly _output: IncludeData extends true
