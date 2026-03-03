@@ -391,6 +391,38 @@ export type InferOpParams<D> =
 export type InferOpReturn<D> =
   D extends OpDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
 
+// ── Schema definition references ───────────────────────────────────────────
+
+/**
+ * All addressable definitions in a schema: top-level defs + qualified operations.
+ * Used for total mappings (e.g., ID assignment) where every definition must be covered.
+ */
+export type SchemaDefs<S extends Schema> =
+  | SchemaClassDefs<S>
+  | SchemaOpDefs<S>
+
+/** Top-level definition names only (interfaces, nodes, edges). */
+export type SchemaClassDefs<S extends Schema> = keyof S['defs'] & string
+
+/** Qualified operation refs: "ClassName.methodName" for all defs with methods. */
+export type SchemaOpDefs<S extends Schema> = {
+  [K in MethodKeys<S> & string]: `${K}.${ExtractMethodNames<DefForKey<S, K>>}`
+}[MethodKeys<S> & string]
+
+/**
+ * Flat typed map of all schema defs and operations.
+ * Every key is a SchemaDefs<S> string, every value is the same string (identity).
+ *
+ * - `refs.Author` → `'Author'`
+ * - `refs['Author.deactivate']` → `'Author.deactivate'`
+ * - `refs.wrote` → `'wrote'`
+ *
+ * All values are plain strings — usable directly as computed keys and index values.
+ */
+export type SchemaDefsMap<S extends Schema> = {
+  readonly [K in SchemaDefs<S>]: K
+}
+
 // ── Data types ──────────────────────────────────────────────────────────────
 
 export interface Ref<D = unknown> {

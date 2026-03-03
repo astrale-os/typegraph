@@ -24,6 +24,9 @@ export { registerDef, getDefName, getDefRegistration, hasDefName } from './regis
 // Serialization
 export { serialize, type SerializeOptions } from './serialize.js'
 
+// Defs
+export { schemaDefs } from './defs.js'
+
 // Data
 export { node, edge, kernelRefs, defineCore, defineSeed } from './data.js'
 
@@ -65,6 +68,10 @@ export type {
   MethodKeys,
   InferOpParams,
   InferOpReturn,
+  SchemaDefs,
+  SchemaClassDefs,
+  SchemaOpDefs,
+  SchemaDefsMap,
   Ref,
   CoreInstance,
   CoreLink,
