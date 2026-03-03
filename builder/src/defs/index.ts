@@ -9,3 +9,9 @@ export type { EndpointCfg, EdgeConfig, EdgeDef } from './edge.js'
 export { edgeDef } from './edge.js'
 export type { RefSchema, DataSelfSchema, DataGrantSchema, DataGrantToken } from './ref.js'
 export { ref, data } from './ref.js'
+
+/** Union of all top-level def types. */
+export type AnyDef =
+  | import('./iface.js').IfaceDef<any>
+  | import('./node.js').NodeDef<any>
+  | import('./edge.js').EdgeDef<any>

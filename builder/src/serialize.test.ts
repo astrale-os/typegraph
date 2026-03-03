@@ -1255,8 +1255,8 @@ describe('serialize', () => {
         params: { title: z.string() },
         returns: z.boolean(),
       })
-      expect(() => defineSchema('test', { createTask })).toThrow(
-        /Standalone operations are not supported/,
+      expect(() => defineSchema('test', { createTask } as any)).toThrow(
+        /Unsupported def type/,
       )
     })
   })

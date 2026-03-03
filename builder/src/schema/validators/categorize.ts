@@ -1,38 +1,38 @@
 import type { IfaceDef } from '../../defs/iface.js'
 import type { NodeDef } from '../../defs/node.js'
 import type { EdgeDef } from '../../defs/edge.js'
+import type { AnyDef } from '../../defs/index.js'
 import type { OpDef } from '../../defs/op.js'
 import { registerDef } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'
 
 /** Resolve all thunks (config + param) and partition defs by type. */
-export function categorize(domain: string, defs: Record<string, any>): SchemaContext {
+export function categorize(domain: string, defs: Record<string, AnyDef>): SchemaContext {
   const ifaces: Record<string, IfaceDef> = {}
   const nodes: Record<string, NodeDef> = {}
   const edges: Record<string, EdgeDef> = {}
 
   for (const [name, def] of Object.entries(defs)) {
-    if (def === null || typeof def !== 'object' || !('type' in def)) continue
     resolveThunks(name, def)
-    registerDef(def as object, domain, name)
+    registerDef(def, domain, name)
     Object.defineProperty(def, 'name', { value: name, enumerable: true, writable: false, configurable: false })
-    switch ((def as { type: string }).type) {
+    switch (def.type) {
       case 'iface':
-        ifaces[name] = def as IfaceDef
+        ifaces[name] = def
         break
       case 'node':
-        nodes[name] = def as NodeDef
+        nodes[name] = def
         break
       case 'edge':
-        edges[name] = def as EdgeDef
+        edges[name] = def
         break
-      case 'op':
+      default:
         throw new SchemaValidationError(
-          `Standalone operations are not supported. Define '${name}' as a static method on a node/edge.`,
+          `Unsupported def type '${(def as any).type}' for '${name}'. Expected iface, node, or edge.`,
           `defs.${name}`,
-          'a static method on a node/edge',
-          'standalone operation',
+          'iface | node | edge',
+          (def as any).type,
         )
     }
   }
@@ -41,10 +41,10 @@ export function categorize(domain: string, defs: Record<string, any>): SchemaCon
   return { domain, defs, ifaces, nodes, edges, allDefValues }
 }
 
-function resolveThunks(name: string, def: Record<string, any>): void {
+function resolveThunks(name: string, def: AnyDef): void {
   if (typeof def.config === 'function') {
     try {
-      def.config = def.config()
+      ;(def as any).config = (def.config as () => unknown)()
     } catch (e) {
       throw new SchemaValidationError(
         `Failed to resolve config thunk for '${name}': ${String(e)}`,
@@ -54,7 +54,7 @@ function resolveThunks(name: string, def: Record<string, any>): void {
       )
     }
   }
-  const methods = def.config?.methods as Record<string, OpDef> | undefined
+  const methods = def.config.methods as Record<string, OpDef> | undefined
   if (methods) {
     for (const [methodName, opDef] of Object.entries(methods)) {
       if (typeof opDef.config.params === 'function') {

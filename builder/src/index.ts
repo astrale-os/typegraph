@@ -54,6 +54,7 @@ export type {
   EdgeDef,
   OpDef,
   EndpointCfg,
+  AnyDef,
 } from './defs/index.js'
 
 export type {

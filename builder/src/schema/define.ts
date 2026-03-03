@@ -1,4 +1,5 @@
 import type { OpDef } from '../defs/op.js'
+import type { AnyDef } from '../defs/index.js'
 import { collectAllMethodDefs } from '../helpers/methods.js'
 import type { Schema } from './schema.js'
 import {
@@ -22,7 +23,7 @@ function buildOpsMap(ctx: SchemaContext): Record<string, OpDef> {
   return ops
 }
 
-export function defineSchema<const D extends Record<string, any>>(
+export function defineSchema<const D extends Record<string, AnyDef>>(
   domain: string,
   defs: D,
 ): Schema<D> {

@@ -1,9 +1,6 @@
 export type {
   ExtractProps,
   InferProps,
-  ExtractImplements,
-  ExtractNodeExtends,
-  CollectIfacePropsFromList,
   ExtractFullProps,
 } from './props.js'
 
