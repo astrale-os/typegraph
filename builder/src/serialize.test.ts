@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, rawNodeDef as nodeDef, edgeDef, op, bitmask, ref, data } from './builders.js'
-import { defineSchema } from './schema.js'
-import { serialize } from './serialize.js'
+import { iface, rawNodeDef as nodeDef, edgeDef, op, ref, data } from './defs/index.js'
+import { defineSchema } from './schema/define.js'
+import { serialize } from './serializer/serialize.js'
 import type { SchemaIR, NodeDecl, EdgeDecl, JsonSchema } from '@astrale/typegraph-schema'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -240,18 +240,6 @@ describe('serialize', () => {
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
       expect(p.default).toBeUndefined()
-    })
-  })
-
-  // ── Bitmask ──────────────────────────────────────────────────────────────
-
-  describe('bitmask', () => {
-    it('serializes bitmask prop', () => {
-      const A = nodeDef({ props: { perm: bitmask() } })
-      const schema = defineSchema('test', { A })
-      const ir = serialize(schema)
-      const p = prop(findNode(ir, 'A'), 'perm')
-      expect(p).toEqual({ type: 'integer', 'x-bitmask': true })
     })
   })
 
@@ -772,18 +760,6 @@ describe('serialize', () => {
       expect(e.properties['label'].type).toEqual(['string', 'null'])
     })
 
-    it('serializes edge with bitmask prop', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        { props: { perm: bitmask() } },
-      )
-      const schema = defineSchema('test', { A, e1 })
-      const ir = serialize(schema)
-      const e = findEdge(ir, 'e1')
-      expect(e.properties['perm']).toEqual({ type: 'integer', 'x-bitmask': true })
-    })
   })
 
   // ── Thunks (lazy config) ──────────────────────────────────────────────

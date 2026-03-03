@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, rawNodeDef as nodeDef, edgeDef, method, ref } from '../builders.js'
-import { defineSchema } from '../schema.js'
-import { edge, node, defineCore } from '../data.js'
-import { SchemaValidationError } from '../types.js'
+import { iface, rawNodeDef as nodeDef, edgeDef, method, ref } from '../defs/index.js'
+import { defineSchema } from '../schema/define.js'
+import { edge, node, defineCore } from '../core/index.js'
+import { SchemaValidationError } from '../schema/schema.js'
 import { getDefName } from '../registry.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

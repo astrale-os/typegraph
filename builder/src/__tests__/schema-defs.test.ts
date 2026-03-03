@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, rawNodeDef as nodeDef, edgeDef, op } from '../builders.js'
-import { defineSchema } from '../schema.js'
-import type { SchemaDefs, SchemaClassDefs, SchemaOpDefs, SchemaDefsMap } from '../types.js'
-import { schemaDefs } from '../defs.js'
+import { iface, rawNodeDef as nodeDef, edgeDef, op } from '../defs/index.js'
+import { defineSchema } from '../schema/define.js'
+import type { SchemaDefs, SchemaClassDefs, SchemaOpDefs, SchemaRefsMap } from '../schema/refs.js'
+import { schemaRefs } from '../schema/refs.js'
 
 // ── Type-level helpers ─────────────────────────────────────────────────────
 
@@ -325,117 +325,140 @@ describe('SchemaDefs', () => {
   })
 })
 
-// ── schemaDefs() runtime function ──────────────────────────────────────────
+// ── schemaRefs() runtime function ──────────────────────────────────────────
 
-describe('schemaDefs()', () => {
-  const refs = schemaDefs(BlogSchema)
+describe('schemaRefs()', () => {
+  const refs = schemaRefs(BlogSchema)
 
-  describe('string coercion', () => {
-    it('coerces to class name via template literal', () => {
-      expect(`${refs.Author}`).toBe('Author')
-      expect(`${refs.Article}`).toBe('Article')
-      expect(`${refs.FeaturedArticle}`).toBe('FeaturedArticle')
-      expect(`${refs.Category}`).toBe('Category')
+  describe('top-level class refs', () => {
+    it('nodes are plain strings', () => {
+      expect(refs.Author).toBe('Author')
+      expect(refs.Article).toBe('Article')
+      expect(refs.FeaturedArticle).toBe('FeaturedArticle')
+      expect(refs.Category).toBe('Category')
     })
 
-    it('coerces interfaces to name', () => {
-      expect(`${refs.Publishable}`).toBe('Publishable')
-      expect(`${refs.Commentable}`).toBe('Commentable')
+    it('interfaces are plain strings', () => {
+      expect(refs.Publishable).toBe('Publishable')
+      expect(refs.Commentable).toBe('Commentable')
     })
 
-    it('coerces edges to name', () => {
-      expect(`${refs.wrote}`).toBe('wrote')
-      expect(`${refs.categorized_as}`).toBe('categorized_as')
-    })
-
-    it('coerces via String()', () => {
-      expect(String(refs.Author)).toBe('Author')
+    it('edges are plain strings', () => {
+      expect(refs.wrote).toBe('wrote')
+      expect(refs.categorized_as).toBe('categorized_as')
     })
   })
 
-  describe('own method refs', () => {
-    it('Author has own methods', () => {
-      expect(refs.Author.updateProfile).toBe('Author.updateProfile')
-      expect(refs.Author.deactivate).toBe('Author.deactivate')
+  describe('own operation refs', () => {
+    it('Author has own operations', () => {
+      expect(refs['Author.updateProfile']).toBe('Author.updateProfile')
+      expect(refs['Author.deactivate']).toBe('Author.deactivate')
     })
 
-    it('Article has own methods', () => {
-      expect(refs.Article.archive).toBe('Article.archive')
+    it('Article has own operations', () => {
+      expect(refs['Article.archive']).toBe('Article.archive')
     })
 
-    it('FeaturedArticle has own methods', () => {
-      expect(refs.FeaturedArticle.promote).toBe('FeaturedArticle.promote')
+    it('FeaturedArticle has own operations', () => {
+      expect(refs['FeaturedArticle.promote']).toBe('FeaturedArticle.promote')
     })
 
-    it('edge wrote has own methods', () => {
-      expect(refs.wrote.setPublishedAt).toBe('wrote.setPublishedAt')
+    it('edge wrote has own operations', () => {
+      expect(refs['wrote.setPublishedAt']).toBe('wrote.setPublishedAt')
     })
   })
 
-  describe('inherited method refs', () => {
+  describe('inherited operation refs', () => {
     it('Article inherits from Commentable (extends Publishable)', () => {
-      expect(refs.Article.publish).toBe('Article.publish')
-      expect(refs.Article.unpublish).toBe('Article.unpublish')
-      expect(refs.Article.addComment).toBe('Article.addComment')
+      expect(refs['Article.publish']).toBe('Article.publish')
+      expect(refs['Article.unpublish']).toBe('Article.unpublish')
+      expect(refs['Article.addComment']).toBe('Article.addComment')
     })
 
     it('FeaturedArticle inherits full chain (Article + Commentable + Publishable)', () => {
-      expect(refs.FeaturedArticle.archive).toBe('FeaturedArticle.archive')
-      expect(refs.FeaturedArticle.publish).toBe('FeaturedArticle.publish')
-      expect(refs.FeaturedArticle.unpublish).toBe('FeaturedArticle.unpublish')
-      expect(refs.FeaturedArticle.addComment).toBe('FeaturedArticle.addComment')
+      expect(refs['FeaturedArticle.archive']).toBe('FeaturedArticle.archive')
+      expect(refs['FeaturedArticle.publish']).toBe('FeaturedArticle.publish')
+      expect(refs['FeaturedArticle.unpublish']).toBe('FeaturedArticle.unpublish')
+      expect(refs['FeaturedArticle.addComment']).toBe('FeaturedArticle.addComment')
     })
   })
 
-  describe('interfaces have no method refs', () => {
-    it('Publishable has no method properties', () => {
-      const keys = Object.keys(refs.Publishable).filter((k) => k !== 'toString' && k !== 'valueOf')
-      expect(keys).toEqual([])
+  describe('defs without methods have no operation entries', () => {
+    it('no Category.* keys exist', () => {
+      const categoryOps = Object.keys(refs).filter((k) => k.startsWith('Category.'))
+      expect(categoryOps).toEqual([])
     })
 
-    it('Commentable has no method properties', () => {
-      const keys = Object.keys(refs.Commentable).filter((k) => k !== 'toString' && k !== 'valueOf')
-      expect(keys).toEqual([])
-    })
-  })
-
-  describe('defs without methods have no method properties', () => {
-    it('Category has no methods', () => {
-      const keys = Object.keys(refs.Category).filter((k) => k !== 'toString' && k !== 'valueOf')
-      expect(keys).toEqual([])
+    it('no categorized_as.* keys exist', () => {
+      const edgeOps = Object.keys(refs).filter((k) => k.startsWith('categorized_as.'))
+      expect(edgeOps).toEqual([])
     })
 
-    it('categorized_as has no methods', () => {
-      const keys = Object.keys(refs.categorized_as).filter(
-        (k) => k !== 'toString' && k !== 'valueOf',
+    it('no Publishable.* or Commentable.* keys exist (interfaces skipped)', () => {
+      const ifaceOps = Object.keys(refs).filter(
+        (k) => k.startsWith('Publishable.') || k.startsWith('Commentable.'),
       )
-      expect(keys).toEqual([])
+      expect(ifaceOps).toEqual([])
+    })
+  })
+
+  describe('completeness', () => {
+    it('contains all expected keys', () => {
+      const keys = Object.keys(refs).sort()
+      expect(keys).toEqual([
+        'Article',
+        'Article.addComment',
+        'Article.archive',
+        'Article.publish',
+        'Article.unpublish',
+        'Author',
+        'Author.deactivate',
+        'Author.updateProfile',
+        'Category',
+        'Commentable',
+        'FeaturedArticle',
+        'FeaturedArticle.addComment',
+        'FeaturedArticle.archive',
+        'FeaturedArticle.promote',
+        'FeaturedArticle.publish',
+        'FeaturedArticle.unpublish',
+        'Publishable',
+        'categorized_as',
+        'wrote',
+        'wrote.setPublishedAt',
+      ])
+    })
+
+    it('every value is an identity (key === value)', () => {
+      for (const [key, value] of Object.entries(refs)) {
+        expect(value).toBe(key)
+      }
     })
   })
 
   describe('type safety', () => {
-    it('refs type matches SchemaDefsMap', () => {
-      const _typed: SchemaDefsMap<typeof BlogSchema> = refs
+    it('refs type matches SchemaRefsMap', () => {
+      const _typed: SchemaRefsMap<typeof BlogSchema> = refs
       void _typed
     })
 
-    it('ref is typed as its literal string type', () => {
+    it('class ref is typed as its literal string', () => {
       const authorRef: 'Author' = refs.Author
       const wroteRef: 'wrote' = refs.wrote
       void [authorRef, wroteRef]
     })
 
-    it('method property has qualified literal type', () => {
-      const opRef: 'Author.deactivate' = refs.Author.deactivate
-      const edgeOpRef: 'wrote.setPublishedAt' = refs.wrote.setPublishedAt
+    it('operation ref is typed as its qualified literal string', () => {
+      const opRef: 'Author.deactivate' = refs['Author.deactivate']
+      const edgeOpRef: 'wrote.setPublishedAt' = refs['wrote.setPublishedAt']
       void [opRef, edgeOpRef]
     })
 
-    it('rejects nonexistent properties at compile time', () => {
+    it('rejects nonexistent keys at compile time', () => {
       // @ts-expect-error — no such def in schema
       void refs.Nonexistent
-      // @ts-expect-error — no such method on Author
-      void refs.Author.nonexistent
+      // @ts-expect-error — no such qualified operation
+      void refs['Author.nonexistent']
     })
   })
 
@@ -445,28 +468,14 @@ describe('schemaDefs()', () => {
       expect(obj.Author).toBe('value')
     })
 
-    it('method ref as computed key', () => {
-      const obj = { [refs.Author.deactivate]: 'value' } as Record<string, string>
+    it('operation ref as computed key', () => {
+      const obj = { [refs['Author.deactivate']]: 'value' } as Record<string, string>
       expect(obj['Author.deactivate']).toBe('value')
     })
   })
 
-  describe('usable in ID mapping', () => {
-    it('operation refs work directly as computed keys (plain strings)', () => {
-      const opIds = {
-        [refs.Author.deactivate]: 'id-1',
-        [refs.Author.updateProfile]: 'id-2',
-        [refs.Article.publish]: 'id-3',
-        [refs.wrote.setPublishedAt]: 'id-4',
-      }
-
-      expect(opIds['Author.deactivate']).toBe('id-1')
-      expect(opIds['Author.updateProfile']).toBe('id-2')
-      expect(opIds['Article.publish']).toBe('id-3')
-      expect(opIds['wrote.setPublishedAt']).toBe('id-4')
-    })
-
-    it('class refs coerce via template literal for indexing', () => {
+  describe('usable for indexing ID mappings', () => {
+    it('refs index directly into a total ID map', () => {
       type IdMap = { [K in SchemaDefs<typeof BlogSchema>]: string }
 
       const ids: IdMap = {
@@ -492,13 +501,14 @@ describe('schemaDefs()', () => {
         'wrote.setPublishedAt': 'id:wrote-set-published',
       }
 
-      // Operation refs index directly (plain strings)
-      expect(ids[refs.Author.deactivate]).toBe('id:author-deactivate')
-      expect(ids[refs.Article.publish]).toBe('id:article-publish')
+      // Class refs index directly — plain strings
+      expect(ids[refs.Author]).toBe('id:author')
+      expect(ids[refs.wrote]).toBe('id:wrote')
 
-      // Class refs coerce to string via template literal
-      expect(ids[`${refs.Author}`]).toBe('id:author')
-      expect(ids[`${refs.wrote}`]).toBe('id:wrote')
+      // Operation refs index directly — plain strings
+      expect(ids[refs['Author.deactivate']]).toBe('id:author-deactivate')
+      expect(ids[refs['Article.publish']]).toBe('id:article-publish')
+      expect(ids[refs['wrote.setPublishedAt']]).toBe('id:wrote-set-published')
     })
   })
 })

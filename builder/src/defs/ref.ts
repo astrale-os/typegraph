@@ -1,56 +1,7 @@
 import { z } from 'zod'
-import type {
-  IfaceConfig,
-  IfaceDef,
-  NodeConfig,
-  NodeDef,
-  EdgeConfig,
-  EdgeDef,
-  EndpointCfg,
-  OpConfig,
-  OpDef,
-  BitmaskDef,
-  ExtractFullProps,
-  ExtractFullData,
-} from './types.js'
-
-export function iface<const C extends IfaceConfig>(config: C | (() => C)): IfaceDef<C> {
-  if (typeof config === 'function') {
-    return { __kind: 'iface', config: undefined, __configThunk: config } as unknown as IfaceDef<C>
-  }
-  return { __kind: 'iface', config } as IfaceDef<C>
-}
-
-export function rawNodeDef<const C extends NodeConfig>(config: C | (() => C)): NodeDef<C> {
-  if (typeof config === 'function') {
-    return { __kind: 'node', config: undefined, __configThunk: config } as unknown as NodeDef<C>
-  }
-  return { __kind: 'node', config } as NodeDef<C>
-}
-
-export function edgeDef<
-  const From extends EndpointCfg,
-  const To extends EndpointCfg,
-  const C extends EdgeConfig = Record<string, never> & EdgeConfig,
->(from: From, to: To, opts?: C): EdgeDef<From, To, C> {
-  return {
-    __kind: 'edge',
-    from,
-    to,
-    config: (opts ?? {}) as C,
-  } as EdgeDef<From, To, C>
-}
-
-export function op<const C extends OpConfig>(config: C): OpDef<C> {
-  return { __kind: 'op', config } as OpDef<C>
-}
-
-/** @deprecated Use `op()` instead. */
-export const method = op
-
-export function bitmask(): BitmaskDef {
-  return { __kind: 'bitmask' }
-}
+import type { NodeDef } from './node.js'
+import type { IfaceDef } from './iface.js'
+import type { ExtractFullProps, ExtractFullData } from '../inference/index.js'
 
 /** Branded Zod schema wrapping a graph def reference.
  * Extends z.ZodType<{id, classId}> for compatibility; _output is overridden so

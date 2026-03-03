@@ -1,0 +1,7 @@
+export type { SchemaContext } from './context.js'
+export { categorize } from './categorize.js'
+export { validateUniqueNames } from './names.js'
+export { validateInheritance } from './inheritance.js'
+export { validateEndpoints } from './endpoints.js'
+export { validateIndexes } from './indexes.js'
+export { validateRefTargets } from './ref-targets.js'
