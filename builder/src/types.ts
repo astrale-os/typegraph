@@ -327,7 +327,6 @@ export interface Schema<D extends Record<string, any> = Record<string, any>> {
   readonly ifaces: OnlyKind<D, 'iface'>
   readonly nodes: OnlyKind<D, 'node'>
   readonly edges: OnlyKind<D, 'edge'>
-  readonly operations: OnlyKind<D, 'op'>
 }
 
 // ── SchemaValidationError ───────────────────────────────────────────────────
@@ -377,20 +376,20 @@ export type MethodKeys<S extends Schema> =
     }[keyof S['edges'] & string]
 
 /** Infer params from a builder OpDef (handles thunk params) */
-export type InferOpParams<D> = D extends OpDef<infer C>
-  ? C extends { params: infer P }
-    ? P extends (() => infer R extends ParamShape)
-      ? InferProps<R>
-      : P extends ParamShape
-        ? InferProps<P>
-        : Record<string, never>
+export type InferOpParams<D> =
+  D extends OpDef<infer C>
+    ? C extends { params: infer P }
+      ? P extends (() => infer R extends ParamShape)
+        ? InferProps<R>
+        : P extends ParamShape
+          ? InferProps<P>
+          : Record<string, never>
+      : Record<string, never>
     : Record<string, never>
-  : Record<string, never>
 
 /** Infer return type from a builder OpDef */
-export type InferOpReturn<D> = D extends OpDef<infer C>
-  ? C extends { returns: z.ZodType<infer R> } ? R : unknown
-  : unknown
+export type InferOpReturn<D> =
+  D extends OpDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
 
 // ── Data types ──────────────────────────────────────────────────────────────
 

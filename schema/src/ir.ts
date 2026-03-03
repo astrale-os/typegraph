@@ -1,7 +1,6 @@
-import type { DomainUrl } from './domain.js'
+import type { DomainOrigin } from './domain.js'
 import type { ClassDecl } from './classes.js'
 import type { JsonSchema } from './json-schema.js'
-import type { OperationDecl } from './operations.js'
 
 /**
  * TypeGraph Schema IR.
@@ -28,7 +27,7 @@ export interface SchemaIR {
    * Authoritative domain this schema belongs to (FQDN).
    * @example 'astrale.core', 'acme.billing'
    */
-  domain: DomainUrl
+  domain: DomainOrigin
 
   /**
    * Cross-domain dependency manifest.
@@ -37,7 +36,7 @@ export interface SchemaIR {
    *
    * @example { "Node": "astrale.core", "Identity": "astrale.core" }
    */
-  imports?: Record<string, DomainUrl>
+  imports?: Record<string, DomainOrigin>
 
   /**
    * Shared type definitions (JSON Schema).
@@ -52,7 +51,4 @@ export interface SchemaIR {
    * Discriminated on `type: 'node' | 'edge'`. Interfaces are nodes with `abstract: true`.
    */
   classes: Record<string, ClassDecl>
-
-  /** Top-level operations not bound to any class. */
-  operations: Record<string, OperationDecl>
 }

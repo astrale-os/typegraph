@@ -38,8 +38,6 @@ describe('serialize', () => {
     expect(ir.types).toBeDefined()
     expect(ir.classes).toBeDefined()
     expect(typeof ir.classes).toBe('object')
-    expect(ir.operations).toBeDefined()
-    expect(typeof ir.operations).toBe('object')
   })
 
   it('produces an empty schema when given no defs', () => {
@@ -48,7 +46,6 @@ describe('serialize', () => {
     expect(ir.version).toBe('1.0')
     expect(ir.types).toEqual({})
     expect(ir.classes).toEqual({})
-    expect(ir.operations).toEqual({})
   })
 
   it('is JSON-serializable', () => {
@@ -1274,142 +1271,17 @@ describe('serialize', () => {
     })
   })
 
-  // ── Top-level operations ─────────────────────────────────────────────
+  // ── Standalone operations rejected ──────────────────────────────────
 
-  describe('top-level operations', () => {
-    it('serializes a simple top-level operation', () => {
+  describe('standalone operations rejected', () => {
+    it('throws when a standalone op is passed to defineSchema', () => {
       const createTask = op({
         params: { title: z.string() },
         returns: z.boolean(),
       })
-      const schema = defineSchema('test', { createTask })
-      const ir = serialize(schema)
-      expect(Object.keys(ir.operations).length).toBe(1)
-      const createTaskOp = ir.operations['createTask']
-      expect(createTaskOp).toBeDefined()
-      expect(createTaskOp.name).toBe('createTask')
-      expect(createTaskOp.access).toBe('public')
-      expect(Object.keys(createTaskOp.params).length).toBe(1)
-      expect(createTaskOp.params['title']).toEqual({ type: 'string' })
-      expect(createTaskOp.returns).toEqual({ type: 'boolean' })
-    })
-
-    it('serializes private top-level operation', () => {
-      const internal = op({ returns: z.void(), access: 'private' })
-      const schema = defineSchema('test', { internal })
-      const ir = serialize(schema)
-      expect(ir.operations['internal'].access).toBe('private')
-    })
-
-    it('serializes operation with ref param', () => {
-      const Task = nodeDef({})
-      const completeTask = op({
-        params: { task: ref(Task) },
-        returns: z.boolean(),
-      })
-      const schema = defineSchema('test', { Task, completeTask })
-      const ir = serialize(schema)
-      expect(ir.operations['completeTask'].params['task']).toEqual({ $nodeRef: 'Task' })
-    })
-
-    it('serializes operation with ref return', () => {
-      const Task = nodeDef({})
-      const createTask = op({
-        params: { title: z.string() },
-        returns: ref(Task),
-      })
-      const schema = defineSchema('test', { Task, createTask })
-      const ir = serialize(schema)
-      expect(ir.operations['createTask'].returns).toEqual({ $nodeRef: 'Task' })
-    })
-
-    it('serializes operation with array of refs return', () => {
-      const Task = nodeDef({})
-      const listTasks = op({ returns: z.array(ref(Task)) })
-      const schema = defineSchema('test', { Task, listTasks })
-      const ir = serialize(schema)
-      expect(ir.operations['listTasks'].returns).toEqual({
-        type: 'array',
-        items: { $nodeRef: 'Task' },
-      })
-    })
-
-    it('serializes operation with nullable return', () => {
-      const findUser = op({ returns: z.string().optional() })
-      const schema = defineSchema('test', { findUser })
-      const ir = serialize(schema)
-      expect(ir.operations['findUser'].returnsNullable).toBe(true)
-      expect(ir.operations['findUser'].returns).toEqual({ type: 'string' })
-    })
-
-    it('folds operation param defaults into schema', () => {
-      const search = op({
-        params: { query: z.string(), limit: z.number().default(10) },
-        returns: z.boolean(),
-      })
-      const schema = defineSchema('test', { search })
-      const ir = serialize(schema)
-      expect(ir.operations['search'].params['limit'].default).toBe(10)
-    })
-
-    it('serializes multiple operations preserving order', () => {
-      const alpha = op({ returns: z.string() })
-      const beta = op({ returns: z.number() })
-      const gamma = op({ returns: z.boolean() })
-      const schema = defineSchema('test', { alpha, beta, gamma })
-      const ir = serialize(schema)
-      expect(Object.keys(ir.operations)).toEqual(['alpha', 'beta', 'gamma'])
-    })
-
-    it('operations do not appear in classes', () => {
-      const Task = nodeDef({})
-      const createTask = op({ returns: ref(Task) })
-      const schema = defineSchema('test', { Task, createTask })
-      const ir = serialize(schema)
-      expect(Object.keys(ir.classes).length).toBe(1) // only Task
-      expect(ir.classes['Task']).toBeDefined()
-      expect(Object.keys(ir.operations).length).toBe(1)
-    })
-
-    it('coexists with class methods', () => {
-      const Task = nodeDef({
-        methods: {
-          complete: op({ returns: z.boolean() }),
-        },
-      })
-      const createTask = op({
-        params: { title: z.string() },
-        returns: ref(Task),
-      })
-      const schema = defineSchema('test', { Task, createTask })
-      const ir = serialize(schema)
-      // Class method
-      const taskDecl = findNode(ir, 'Task')
-      expect(Object.keys(taskDecl.methods).length).toBe(1)
-      expect(taskDecl.methods['complete']).toBeDefined()
-      // Top-level operation
-      expect(Object.keys(ir.operations).length).toBe(1)
-      expect(ir.operations['createTask']).toBeDefined()
-    })
-
-    it('validates operation ref params against schema', () => {
-      const Missing = nodeDef({})
-      const badOp = op({ params: { target: ref(Missing) }, returns: z.boolean() })
-      expect(() => defineSchema('test', { badOp })).toThrow()
-    })
-
-    it('validates operation ref return against schema', () => {
-      const Missing = nodeDef({})
-      const badOp = op({ returns: ref(Missing) })
-      expect(() => defineSchema('test', { badOp })).toThrow()
-    })
-
-    it('uses $ref for named types in operation params', () => {
-      const Priority = z.enum(['low', 'medium', 'high'])
-      const setPriority = op({ params: { p: Priority }, returns: z.boolean() })
-      const schema = defineSchema('test', { setPriority })
-      const ir = serialize(schema, { types: { Priority } })
-      expect(ir.operations['setPriority'].params['p']).toEqual({ $ref: '#/types/Priority' })
+      expect(() => defineSchema('test', { createTask })).toThrow(
+        /Standalone operations are not supported/,
+      )
     })
   })
 
@@ -1760,88 +1632,6 @@ describe('serialize', () => {
       expect(e.properties['score'].default).toBe(0)
       expect(Object.keys(e.methods).length).toBe(1)
       expect(e.constraints).toEqual({ unique: true, noSelf: true })
-    })
-  })
-
-  // ── Top-level operations with data() ──────────────────────────────────
-
-  describe('top-level operations with data', () => {
-    it('operation returning data(self) is not meaningful but serializes', () => {
-      const getContent = op({ returns: data() })
-      const schema = defineSchema('test', { getContent })
-      const ir = serialize(schema)
-      expect(ir.operations['getContent'].returns).toEqual({ $dataRef: 'self' })
-    })
-
-    it('operation returning data(target)', () => {
-      const Doc = nodeDef({
-        data: { body: z.string(), html: z.string() },
-      })
-      const fetchDoc = op({
-        params: { id: z.string() },
-        returns: data(Doc),
-      })
-      const schema = defineSchema('test', { Doc, fetchDoc })
-      const ir = serialize(schema)
-      expect(ir.operations['fetchDoc'].returns).toEqual({ $dataRef: 'Doc' })
-    })
-
-    it('operation with void return', () => {
-      const doNothing = op({ returns: z.void() })
-      const schema = defineSchema('test', { doNothing })
-      const ir = serialize(schema)
-      expect(Object.keys(ir.operations).length).toBe(1)
-      expect(ir.operations['doNothing']).toBeDefined()
-    })
-
-    it('operation with object param', () => {
-      const createItem = op({
-        params: {
-          input: z.object({ name: z.string(), count: z.number().int() }),
-        },
-        returns: z.boolean(),
-      })
-      const schema = defineSchema('test', { createItem })
-      const ir = serialize(schema)
-      const p = ir.operations['createItem'].params['input']
-      expect(p.type).toBe('object')
-      expect((p.properties as any).name.type).toBe('string')
-    })
-
-    it('operation with optional ref param uses anyOf nullable', () => {
-      const Task = nodeDef({})
-      const maybeComplete = op({
-        params: { task: ref(Task).optional() },
-        returns: z.boolean(),
-      })
-      const schema = defineSchema('test', { Task, maybeComplete })
-      const ir = serialize(schema)
-      const p = ir.operations['maybeComplete'].params['task']
-      expect(p).toEqual({
-        anyOf: [{ $nodeRef: 'Task' }, { type: 'null' }],
-      })
-    })
-
-    it('operation returning array of data', () => {
-      const Doc = nodeDef({ data: { body: z.string() } })
-      const listDocs = op({ returns: z.array(data(Doc)) })
-      const schema = defineSchema('test', { Doc, listDocs })
-      const ir = serialize(schema)
-      expect(ir.operations['listDocs'].returns).toEqual({
-        type: 'array',
-        items: { $dataRef: 'Doc' },
-      })
-    })
-
-    it('operation with enum param using $ref', () => {
-      const Status = z.enum(['active', 'archived'])
-      const filter = op({
-        params: { status: Status },
-        returns: z.boolean(),
-      })
-      const schema = defineSchema('test', { filter })
-      const ir = serialize(schema, { types: { Status } })
-      expect(ir.operations['filter'].params['status']).toEqual({ $ref: '#/types/Status' })
     })
   })
 

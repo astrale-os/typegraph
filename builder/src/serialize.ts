@@ -197,17 +197,11 @@ class SerializeContext {
       classes[name] = this.serializeEdge(name, def)
     }
 
-    const operations: Record<string, OperationDecl> = {}
-    for (const [name, def] of Object.entries(this.schema.operations)) {
-      operations[name] = this.serializeOp(name, def)
-    }
-
     const result: SchemaIR = {
       version: '1.0',
       domain: this.schema.domain,
       types: this.types,
       classes,
-      operations,
     }
     if (Object.keys(this.imports).length > 0) {
       result.imports = this.imports

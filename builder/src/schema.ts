@@ -54,7 +54,6 @@ export function defineSchema<const D extends Record<string, any>>(
   const ifaces: Record<string, IfaceDef> = {}
   const nodes: Record<string, NodeDef> = {}
   const edges: Record<string, EdgeDef> = {}
-  const operations: Record<string, OpDef> = {}
 
   // 1. Auto-categorise by __kind, register names, silently ignore non-defs
   for (const [name, def] of Object.entries(defs)) {
@@ -71,8 +70,12 @@ export function defineSchema<const D extends Record<string, any>>(
         edges[name] = def as EdgeDef
         break
       case 'op':
-        operations[name] = def as OpDef
-        break
+        throw new SchemaValidationError(
+          `Standalone operations are not supported. Define '${name}' as a static method on a node/edge.`,
+          `defs.${name}`,
+          'a static method on a node/edge',
+          'standalone operation',
+        )
     }
   }
 
@@ -82,7 +85,6 @@ export function defineSchema<const D extends Record<string, any>>(
     ...Object.keys(ifaces),
     ...Object.keys(nodes),
     ...Object.keys(edges),
-    ...Object.keys(operations),
   ]) {
     if (allNames.has(name)) {
       throw new SchemaValidationError(
@@ -218,10 +220,6 @@ export function defineSchema<const D extends Record<string, any>>(
       }
     }
   }
-  for (const [opName, opDef] of Object.entries(operations)) {
-    resolveParamThunk(opName, opDef)
-  }
-
   // 7. Index property validation
   for (const [name, def] of [...Object.entries(ifaces), ...Object.entries(nodes)] as [
     string,
@@ -284,9 +282,5 @@ export function defineSchema<const D extends Record<string, any>>(
       }
     }
   }
-  for (const [opName, opDef] of Object.entries(operations)) {
-    validateOpRefs(opName, opDef)
-  }
-
-  return { domain, defs, ifaces, nodes, edges, operations } as unknown as Schema<D>
+  return { domain, defs, ifaces, nodes, edges } as unknown as Schema<D>
 }
