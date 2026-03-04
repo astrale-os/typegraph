@@ -83,9 +83,9 @@ export type {
   MethodKeys,
   InferOpParams,
   InferOpReturn,
-  SchemaDefs,
-  SchemaClassDefs,
-  SchemaOpDefs,
+  SchemaRefs,
+  SchemaClassRefs,
+  SchemaOpRefs,
   SchemaRefsMap,
 } from './schema/refs.js'
 

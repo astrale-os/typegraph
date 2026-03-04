@@ -44,24 +44,24 @@ export type InferOpReturn<D> =
  * All addressable definitions in a schema: top-level defs + qualified operations.
  * Used for total mappings (e.g., ID assignment) where every definition must be covered.
  */
-export type SchemaDefs<S extends Schema> =
-  | SchemaClassDefs<S>
-  | SchemaOpDefs<S>
+export type SchemaRefs<S extends Schema> =
+  | SchemaClassRefs<S>
+  | SchemaOpRefs<S>
 
 /** Top-level definition names only (interfaces, nodes, edges). */
-export type SchemaClassDefs<S extends Schema> = keyof S['defs'] & string
+export type SchemaClassRefs<S extends Schema> = keyof S['defs'] & string
 
 /** Qualified operation refs: "ClassName.methodName" for all defs with methods. */
-export type SchemaOpDefs<S extends Schema> = {
+export type SchemaOpRefs<S extends Schema> = {
   [K in MethodKeys<S> & string]: `${K}.${ExtractMethodNames<DefForKey<S, K>>}`
 }[MethodKeys<S> & string]
 
 /**
- * Flat typed map of all schema defs and operations.
- * Every key is a SchemaDefs<S> string, every value is the same string (identity).
+ * Flat typed map of all schema refs (class names + qualified operations).
+ * Every key is a SchemaRefs<S> string, every value is the same string (identity).
  */
 export type SchemaRefsMap<S extends Schema> = {
-  readonly [K in SchemaDefs<S>]: K
+  readonly [K in SchemaRefs<S>]: K
 }
 
 // ── Runtime function ───────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ export type SchemaRefsMap<S extends Schema> = {
 /**
  * Build a flat typed reference map from a schema.
  *
- * Every `SchemaDefs<S>` key maps to itself — plain strings with full auto-complete.
+ * Every `SchemaRefs<S>` key maps to itself — plain strings with full auto-complete.
  *
  * @example
  * ```ts

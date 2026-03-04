@@ -3,9 +3,9 @@ export type { Schema, Named } from './schema.js'
 export { defineSchema } from './define.js'
 export {
   schemaRefs,
-  type SchemaDefs,
-  type SchemaClassDefs,
-  type SchemaOpDefs,
+  type SchemaRefs,
+  type SchemaClassRefs,
+  type SchemaOpRefs,
   type SchemaRefsMap,
   type DefForKey,
   type MethodKeys,

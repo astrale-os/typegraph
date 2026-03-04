@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 import { iface, rawNodeDef as nodeDef, edgeDef, op } from '../defs/index.js'
 import { defineSchema } from '../schema/define.js'
-import type { SchemaDefs, SchemaClassDefs, SchemaOpDefs, SchemaRefsMap } from '../schema/refs.js'
+import type { SchemaRefs, SchemaClassRefs, SchemaOpRefs, SchemaRefsMap } from '../schema/refs.js'
 import { schemaRefs } from '../schema/refs.js'
 
 // ── Type-level helpers ─────────────────────────────────────────────────────
@@ -90,9 +90,9 @@ type Blog = typeof BlogSchema
 
 // ── Type-level assertions ──────────────────────────────────────────────────
 
-describe('SchemaDefs', () => {
-  describe('SchemaClassDefs', () => {
-    type Classes = SchemaClassDefs<Blog>
+describe('SchemaRefs (type-level)', () => {
+  describe('SchemaClassRefs', () => {
+    type Classes = SchemaClassRefs<Blog>
 
     it('includes all top-level defs (interfaces, nodes, edges)', () => {
       // These all compile — they are valid class refs
@@ -122,8 +122,8 @@ describe('SchemaDefs', () => {
     })
   })
 
-  describe('SchemaOpDefs', () => {
-    type Ops = SchemaOpDefs<Blog>
+  describe('SchemaOpRefs', () => {
+    type Ops = SchemaOpRefs<Blog>
 
     it('includes own methods on concrete nodes', () => {
       const _: Ops = 'Author.updateProfile'
@@ -182,26 +182,26 @@ describe('SchemaDefs', () => {
     })
   })
 
-  describe('SchemaDefs (union)', () => {
-    type Defs = SchemaDefs<Blog>
+  describe('SchemaRefs (union of class + op refs)', () => {
+    type Refs = SchemaRefs<Blog>
 
     it('includes both class refs and operation refs', () => {
-      const _class: Defs = 'Author'
-      const _iface: Defs = 'Publishable'
-      const _edge: Defs = 'wrote'
-      const _op: Defs = 'Author.deactivate'
-      const _inheritedOp: Defs = 'Article.publish'
-      const _edgeOp: Defs = 'wrote.setPublishedAt'
+      const _class: Refs = 'Author'
+      const _iface: Refs = 'Publishable'
+      const _edge: Refs = 'wrote'
+      const _op: Refs = 'Author.deactivate'
+      const _inheritedOp: Refs = 'Article.publish'
+      const _edgeOp: Refs = 'wrote.setPublishedAt'
       void [_class, _iface, _edge, _op, _inheritedOp, _edgeOp]
     })
 
     it('rejects invalid refs', () => {
       // @ts-expect-error
-      const _bad1: Defs = 'Nonexistent'
+      const _bad1: Refs = 'Nonexistent'
       // @ts-expect-error
-      const _bad2: Defs = 'Author.nonexistent'
+      const _bad2: Refs = 'Author.nonexistent'
       // @ts-expect-error
-      const _bad3: Defs = ''
+      const _bad3: Refs = ''
       void [_bad1, _bad2, _bad3]
     })
   })
@@ -209,8 +209,8 @@ describe('SchemaDefs', () => {
   // ── Target DX: total ID mapping ─────────────────────────────────────────
 
   describe('total ID mapping DX', () => {
-    type Defs = SchemaDefs<Blog>
-    type IdMapping = { [K in Defs]: string }
+    type Refs = SchemaRefs<Blog>
+    type IdMapping = { [K in Refs]: string }
 
     it('enforces completeness — every def and operation must be mapped', () => {
       const ids: IdMapping = {
@@ -263,7 +263,7 @@ describe('SchemaDefs', () => {
   // ── Target DX: partial config ───────────────────────────────────────────
 
   describe('partial config DX', () => {
-    type Classes = SchemaClassDefs<Blog>
+    type Classes = SchemaClassRefs<Blog>
 
     it('allows partial mappings with Partial<>', () => {
       const onConflict: Partial<{ [K in Classes]: 'merge' | 'skip' }> = {
@@ -281,19 +281,19 @@ describe('SchemaDefs', () => {
   // ── Target DX: type narrowing ───────────────────────────────────────────
 
   describe('type narrowing DX', () => {
-    it('SchemaClassDefs excludes operations', () => {
-      assert<Equal<Includes<SchemaClassDefs<Blog>, 'Author.deactivate'>, false>>()
+    it('SchemaClassRefs excludes operations', () => {
+      assert<Equal<Includes<SchemaClassRefs<Blog>, 'Author.deactivate'>, false>>()
     })
 
-    it('SchemaOpDefs excludes bare class names', () => {
-      assert<Equal<Includes<SchemaOpDefs<Blog>, 'Author'>, false>>()
+    it('SchemaOpRefs excludes bare class names', () => {
+      assert<Equal<Includes<SchemaOpRefs<Blog>, 'Author'>, false>>()
     })
 
-    it('SchemaDefs is the union of both', () => {
+    it('SchemaRefs is the union of class + op refs', () => {
       // Every class ref is in Defs
-      assert<Includes<SchemaDefs<Blog>, SchemaClassDefs<Blog>>>()
+      assert<Includes<SchemaRefs<Blog>, SchemaClassRefs<Blog>>>()
       // Every op ref is in Defs
-      assert<Includes<SchemaDefs<Blog>, SchemaOpDefs<Blog>>>()
+      assert<Includes<SchemaRefs<Blog>, SchemaOpRefs<Blog>>>()
     })
   })
 
@@ -307,20 +307,20 @@ describe('SchemaDefs', () => {
     const NoMethodsSchema = defineSchema('no-methods.test', { A, B, a_b })
     type S = typeof NoMethodsSchema
 
-    it('SchemaClassDefs still includes all defs', () => {
-      type Classes = SchemaClassDefs<S>
+    it('SchemaClassRefs still includes all defs', () => {
+      type Classes = SchemaClassRefs<S>
       const _a: Classes = 'A'
       const _b: Classes = 'B'
       const _ab: Classes = 'a_b'
       void [_a, _b, _ab]
     })
 
-    it('SchemaOpDefs is never when no defs have methods', () => {
-      assert<Equal<SchemaOpDefs<S>, never>>()
+    it('SchemaOpRefs is never when no defs have methods', () => {
+      assert<Equal<SchemaOpRefs<S>, never>>()
     })
 
-    it('SchemaDefs equals SchemaClassDefs when no methods exist', () => {
-      assert<Equal<SchemaDefs<S>, SchemaClassDefs<S>>>()
+    it('SchemaRefs equals SchemaClassRefs when no methods', () => {
+      assert<Equal<SchemaRefs<S>, SchemaClassRefs<S>>>()
     })
   })
 })
@@ -476,7 +476,7 @@ describe('schemaRefs()', () => {
 
   describe('usable for indexing ID mappings', () => {
     it('refs index directly into a total ID map', () => {
-      type IdMap = { [K in SchemaDefs<typeof BlogSchema>]: string }
+      type IdMap = { [K in SchemaRefs<typeof BlogSchema>]: string }
 
       const ids: IdMap = {
         Author: 'id:author',
