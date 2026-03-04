@@ -10,6 +10,7 @@ export interface EndpointCfg {
 }
 
 export interface EdgeConfig {
+  readonly implements?: readonly IfaceDef<any>[]
   readonly noSelf?: boolean
   readonly acyclic?: boolean
   readonly unique?: boolean

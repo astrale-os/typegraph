@@ -39,7 +39,10 @@ export type AllMethods<D> =
               ? CollectIfaceMethodsFromList<Parents>
               : unknown
             : unknown)
-      : ExtractMethods<D>
+      : D extends EdgeDef<any, any, any>
+        ? ExtractMethods<D> &
+            CollectIfaceMethodsFromList<ExtractImplements<D>>
+        : ExtractMethods<D>
 
 /** Check if a def has methods (own or inherited) */
 export type HasMethods<D> = keyof AllMethods<D> extends never ? false : true

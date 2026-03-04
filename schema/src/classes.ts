@@ -2,11 +2,37 @@ import type { JsonSchema } from './json-schema.js'
 import type { OperationDecl } from './operations.js'
 import type { Endpoint, EdgeConstraints } from './endpoints.js'
 
-/** A graph class declaration: either a node or an edge. */
+/** An interface declaration. Cannot be instantiated directly. */
+export interface InterfaceDecl {
+  type: 'interface'
+
+  /** Unique name within the schema. */
+  name: string
+
+  /** Parent interfaces this interface extends. */
+  extends: string[]
+
+  /** Own properties as a map: key = property name, value = JSON Schema. */
+  properties: Record<string, JsonSchema>
+
+  /** Own methods keyed by name (NOT inherited). */
+  methods: Record<string, OperationDecl>
+
+  /**
+   * Optional datastore content schema (JSON Schema of type object).
+   * Separate from graph properties — opaque content storage.
+   */
+  data?: JsonSchema
+}
+
+/** Concrete class declarations: nodes + edges. */
 export type ClassDecl = NodeDecl | EdgeDecl
 
+/** Every declaration kind. */
+export type AnyDecl = InterfaceDecl | NodeDecl | EdgeDecl
+
 /**
- * A node declaration. Interfaces are nodes with `abstract: true`.
+ * A concrete node declaration.
  * Own properties and methods only — consumer resolves inheritance via `implements`.
  */
 export interface NodeDecl {
@@ -14,9 +40,6 @@ export interface NodeDecl {
 
   /** Unique name within the schema. */
   name: string
-
-  /** If true, this is an interface (cannot be instantiated directly). */
-  abstract: boolean
 
   /**
    * Parent type names (interfaces or concrete nodes).
@@ -46,6 +69,9 @@ export interface EdgeDecl {
 
   /** Unique name within the schema. */
   name: string
+
+  /** Parent type names (interfaces). Consumer resolves by lookup. */
+  implements: string[]
 
   /** Exactly two endpoints defining the relationship. */
   endpoints: [Endpoint, Endpoint]

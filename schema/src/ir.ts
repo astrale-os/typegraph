@@ -1,5 +1,5 @@
 import type { DomainOrigin } from './domain.js'
-import type { ClassDecl } from './classes.js'
+import type { ClassDecl, InterfaceDecl, AnyDecl } from './classes.js'
 import type { JsonSchema } from './json-schema.js'
 
 /**
@@ -14,8 +14,8 @@ import type { JsonSchema } from './json-schema.js'
  *   "version": "1.0",
  *   "domain": "acme.todo",
  *   "imports": { "Identity": "astrale.core" },
- *   "classes": { "TodoItem": { "type": "node", ... } },
- *   "operations": {}
+ *   "interfaces": { "Trackable": { "type": "interface", ... } },
+ *   "classes": { "TodoItem": { "type": "node", ... } }
  * }
  * ```
  */
@@ -46,9 +46,14 @@ export interface SchemaIR {
    */
   types: Record<string, JsonSchema>
 
-  /**
-   * Graph class declarations: nodes and edges.
-   * Discriminated on `type: 'node' | 'edge'`. Interfaces are nodes with `abstract: true`.
-   */
+  /** Interface declarations (abstract types). */
+  interfaces: Record<string, InterfaceDecl>
+
+  /** Concrete class declarations (nodes + edges). */
   classes: Record<string, ClassDecl>
+}
+
+/** Merge interfaces + classes for lookups that need all declarations. */
+export function allDeclarations(schema: SchemaIR): Record<string, AnyDecl> {
+  return { ...schema.interfaces, ...schema.classes }
 }

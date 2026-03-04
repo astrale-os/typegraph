@@ -15,13 +15,17 @@ export type InferProps<P> = {
 
 // ── Shared traversal helpers ────────────────────────────────────────────────
 
-/** Extract implements array from a NodeDef */
+/** Extract implements array from a NodeDef or EdgeDef */
 export type ExtractImplements<D> =
   D extends NodeDef<infer C>
     ? C extends { implements: infer I extends readonly IfaceDef<any>[] }
       ? I
       : readonly []
-    : readonly []
+    : D extends EdgeDef<any, any, infer EC>
+      ? EC extends { implements: infer I extends readonly IfaceDef<any>[] }
+        ? I
+        : readonly []
+      : readonly []
 
 /** Extract extends NodeDef from a NodeDef */
 export type ExtractNodeExtends<D> =
@@ -59,7 +63,8 @@ export type ExtractFullProps<D> =
               : unknown
             : unknown)
       : D extends EdgeDef<any, any, infer EC>
-        ? EC extends { props: infer P extends PropShape }
-          ? InferProps<P>
-          : unknown
+        ? (EC extends { props: infer P extends PropShape }
+            ? InferProps<P>
+            : unknown) &
+            CollectIfacePropsFromList<ExtractImplements<D>>
         : unknown

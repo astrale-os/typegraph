@@ -1,6 +1,7 @@
 export type { SchemaIR } from './ir.js'
+export { allDeclarations } from './ir.js'
 export type { DomainOrigin as Domain } from './domain.js'
-export type { ClassDecl, NodeDecl, EdgeDecl } from './classes.js'
+export type { InterfaceDecl, ClassDecl, AnyDecl, NodeDecl, EdgeDecl } from './classes.js'
 export type { JsonSchema, JsonValue } from './json-schema.js'
 export type { OperationDecl } from './operations.js'
 export type { Endpoint, Cardinality, EdgeConstraints } from './endpoints.js'

@@ -46,4 +46,20 @@ export function validateInheritance(ctx: SchemaContext): void {
       }
     }
   }
+
+  for (const [name, def] of Object.entries(ctx.edges)) {
+    const impls = def.config.implements as IfaceDef[] | undefined
+    if (impls) {
+      for (const iface of impls) {
+        if (!isKnownDef(iface)) {
+          throw new SchemaValidationError(
+            `Edge '${name}' implements an unknown type`,
+            `${name}.implements`,
+            'a def in this schema or registered in another schema',
+            'unknown reference',
+          )
+        }
+      }
+    }
+  }
 }
