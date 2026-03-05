@@ -1,44 +1,27 @@
-import type { IfaceDef } from '../../defs/iface.js'
-import type { NodeDef } from '../../defs/node.js'
-import type { EdgeDef } from '../../defs/edge.js'
 import type { AnyDef } from '../../defs/index.js'
 import type { OpDef } from '../../defs/op.js'
 import { registerDef } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'
 
-/** Resolve all thunks (config + param) and partition defs by type. */
+/** Resolve all thunks (config + param) and collect defs. */
 export function categorize(domain: string, defs: Record<string, AnyDef>): SchemaContext {
-  const ifaces: Record<string, IfaceDef> = {}
-  const nodes: Record<string, NodeDef> = {}
-  const edges: Record<string, EdgeDef> = {}
-
   for (const [name, def] of Object.entries(defs)) {
     resolveThunks(name, def)
     registerDef(def, domain, name)
     Object.defineProperty(def, 'name', { value: name, enumerable: true, writable: false, configurable: false })
-    switch (def.type) {
-      case 'iface':
-        ifaces[name] = def
-        break
-      case 'node':
-        nodes[name] = def
-        break
-      case 'edge':
-        edges[name] = def
-        break
-      default:
-        throw new SchemaValidationError(
-          `Unsupported def type '${(def as any).type}' for '${name}'. Expected iface, node, or edge.`,
-          `defs.${name}`,
-          'iface | node | edge',
-          (def as any).type,
-        )
+    if (def.type !== 'def') {
+      throw new SchemaValidationError(
+        `Unsupported def type '${(def as any).type}' for '${name}'. Expected def.`,
+        `defs.${name}`,
+        'def',
+        (def as any).type,
+      )
     }
   }
 
-  const allDefValues = new Set<object>([...Object.values(ifaces), ...Object.values(nodes)])
-  return { domain, defs, ifaces, nodes, edges, allDefValues }
+  const allDefValues = new Set<object>(Object.values(defs))
+  return { domain, defs, allDefValues }
 }
 
 function resolveThunks(name: string, def: AnyDef): void {

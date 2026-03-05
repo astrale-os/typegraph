@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, rawNodeDef as nodeDef, edgeDef, op } from '../defs/index.js'
+import { interfaceDef, classDef, op } from '../defs/index.js'
 import { defineSchema } from '../schema/define.js'
 import type { SchemaRefs, SchemaClassRefs, SchemaOpRefs, SchemaRefsMap } from '../schema/refs.js'
 import { schemaRefs } from '../schema/refs.js'
@@ -15,21 +15,21 @@ type Includes<U, T> = T extends U ? true : false
 
 // ── Test schema ────────────────────────────────────────────────────────────
 
-const Publishable = iface({
+const Publishable = interfaceDef({
   methods: {
     publish: op({ returns: z.boolean() }),
     unpublish: op({ returns: z.boolean() }),
   },
 })
 
-const Commentable = iface({
+const Commentable = interfaceDef({
   extends: [Publishable],
   methods: {
     addComment: op({ params: { body: z.string() }, returns: z.string() }),
   },
 })
 
-const Author = nodeDef({
+const Author = classDef({
   props: { name: z.string() },
   methods: {
     updateProfile: op({ params: { name: z.string() }, returns: z.boolean() }),
@@ -37,43 +37,44 @@ const Author = nodeDef({
   },
 })
 
-const Article = nodeDef({
-  implements: [Commentable],
+const Article = classDef({
+  inherits: [Commentable],
   props: { title: z.string() },
   methods: {
     archive: op({ returns: z.void() }),
   },
 })
 
-const FeaturedArticle = nodeDef({
-  extends: Article,
-  implements: [],
+const FeaturedArticle = classDef({
+  inherits: [Article],
   props: { priority: z.number() },
   methods: {
     promote: op({ returns: z.void() }),
   },
 })
 
-const Category = nodeDef({
+const Category = classDef({
   props: { name: z.string() },
   // no methods
 })
 
-const wrote = edgeDef(
-  { as: 'author', types: [Author] },
-  { as: 'article', types: [Article] },
-  {
-    methods: {
-      setPublishedAt: op({ params: { date: z.string() }, returns: z.boolean() }),
-    },
+const wrote = classDef({
+  endpoints: [
+    { as: 'author', types: [Author] },
+    { as: 'article', types: [Article] },
+  ],
+  methods: {
+    setPublishedAt: op({ params: { date: z.string() }, returns: z.boolean() }),
   },
-)
+})
 
-const categorized_as = edgeDef(
-  { as: 'article', types: [Article] },
-  { as: 'category', types: [Category] },
+const categorized_as = classDef({
+  endpoints: [
+    { as: 'article', types: [Article] },
+    { as: 'category', types: [Category] },
+  ],
   // no methods
-)
+})
 
 const BlogSchema = defineSchema('blog.example.com', {
   Publishable,
@@ -134,12 +135,12 @@ describe('SchemaRefs (type-level)', () => {
     })
 
     it('includes inherited methods on concrete nodes', () => {
-      // Article implements Commentable (extends Publishable)
+      // Article extends Commentable (extends Publishable)
       const _publish: Ops = 'Article.publish'
       const _unpublish: Ops = 'Article.unpublish'
       const _addComment: Ops = 'Article.addComment'
 
-      // FeaturedArticle extends Article (which implements Commentable)
+      // FeaturedArticle extends Article (which extends Commentable)
       const _fpublish: Ops = 'FeaturedArticle.publish'
       const _funpublish: Ops = 'FeaturedArticle.unpublish'
       const _faddComment: Ops = 'FeaturedArticle.addComment'
@@ -300,9 +301,14 @@ describe('SchemaRefs (type-level)', () => {
   // ── Edge case: schema with no methods ───────────────────────────────────
 
   describe('schema with no methods', () => {
-    const A = nodeDef({ props: { x: z.string() } })
-    const B = nodeDef({})
-    const a_b = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] })
+    const A = classDef({ props: { x: z.string() } })
+    const B = classDef({})
+    const a_b = classDef({
+      endpoints: [
+        { as: 'a', types: [A] },
+        { as: 'b', types: [B] },
+      ],
+    })
 
     const NoMethodsSchema = defineSchema('no-methods.test', { A, B, a_b })
     type S = typeof NoMethodsSchema

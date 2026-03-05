@@ -1,4 +1,5 @@
 import type { Schema } from './schema.js'
+import type { Def } from '../defs/def.js'
 import type { OpDef } from '../defs/op.js'
 import type { ParamShape } from '../defs/common.js'
 import type { HasMethods, ExtractMethodNames } from '../inference/methods.js'
@@ -6,21 +7,22 @@ import type { InferProps } from '../inference/props.js'
 
 // ── Schema-level type helpers ─────────────────────────────────────────────
 
-/** Get the def for a given key from either nodes or edges */
-export type DefForKey<S extends Schema, K extends string> = K extends keyof S['nodes']
-  ? S['nodes'][K]
-  : K extends keyof S['edges']
-    ? S['edges'][K]
-    : never
+/** Get the def for a given key from defs */
+export type DefForKey<S extends Schema, K extends string> = K extends keyof S['defs']
+  ? S['defs'][K]
+  : never
 
-/** All keys (node or edge) that have methods */
-export type MethodKeys<S extends Schema> =
-  | {
-      [K in keyof S['nodes'] & string]: HasMethods<S['nodes'][K]> extends true ? K : never
-    }[keyof S['nodes'] & string]
-  | {
-      [K in keyof S['edges'] & string]: HasMethods<S['edges'][K]> extends true ? K : never
-    }[keyof S['edges'] & string]
+/** Check if a def is abstract (interface) at the type level */
+type IsAbstract<D> = D extends Def<infer C> ? (C extends { abstract: true } ? true : false) : false
+
+/** All concrete def keys that have methods (excludes abstract/interface defs) */
+export type MethodKeys<S extends Schema> = {
+  [K in keyof S['defs'] & string]: IsAbstract<S['defs'][K]> extends true
+    ? never
+    : HasMethods<S['defs'][K]> extends true
+      ? K
+      : never
+}[keyof S['defs'] & string]
 
 /** Infer params from a builder OpDef (handles thunk params) */
 export type InferOpParams<D> =
@@ -48,7 +50,7 @@ export type SchemaRefs<S extends Schema> =
   | SchemaClassRefs<S>
   | SchemaOpRefs<S>
 
-/** Top-level definition names only (interfaces, nodes, edges). */
+/** Top-level definition names. */
 export type SchemaClassRefs<S extends Schema> = keyof S['defs'] & string
 
 /** Qualified operation refs: "ClassName.methodName" for all defs with methods. */

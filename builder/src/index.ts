@@ -1,9 +1,8 @@
 // Builders
 export {
-  iface,
-  rawNodeDef,
-  rawNodeDef as nodeDef,
-  edgeDef,
+  def,
+  classDef,
+  interfaceDef,
   op,
   method,
   ref,
@@ -45,15 +44,12 @@ export type {
   Cardinality,
   Access,
   DefType,
-  IfaceConfig,
-  NodeConfig,
-  EdgeConfig,
-  OpConfig,
-  IfaceDef,
-  NodeDef,
-  EdgeDef,
-  OpDef,
+  DefConfig,
+  Def,
   EndpointCfg,
+  DefConstraints,
+  OpConfig,
+  OpDef,
   AnyDef,
 } from './defs/index.js'
 

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { iface, rawNodeDef as nodeDef, edgeDef, op, ref, data } from './defs/index.js'
+import { interfaceDef, classDef, op, ref, data } from './defs/index.js'
 import { defineSchema } from './schema/define.js'
 import { serialize } from './serializer/serialize.js'
-import type { SchemaIR, NodeDecl, EdgeDecl, JsonSchema } from '@astrale/typegraph-schema'
+import type { SchemaIR, InterfaceDecl, NodeDecl, EdgeDecl, AnyDecl, JsonSchema } from '@astrale/typegraph-schema'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -13,17 +13,23 @@ function findNode(ir: SchemaIR, name: string): NodeDecl {
   return c
 }
 
+function findIface(ir: SchemaIR, name: string): InterfaceDecl {
+  const c = ir.interfaces[name]
+  if (!c || c.type !== 'interface') throw new Error(`Interface '${name}' not found`)
+  return c
+}
+
 function findEdge(ir: SchemaIR, name: string): EdgeDecl {
   const c = ir.classes[name]
   if (!c || c.type !== 'edge') throw new Error(`Edge '${name}' not found`)
   return c
 }
 
-function prop(decl: NodeDecl | EdgeDecl, name: string): JsonSchema {
+function prop(decl: AnyDecl, name: string): JsonSchema {
   return decl.properties[name]
 }
 
-function findMethod(decl: NodeDecl | EdgeDecl, name: string) {
+function findMethod(decl: AnyDecl, name: string) {
   return decl.methods[name]
 }
 
@@ -31,7 +37,7 @@ function findMethod(decl: NodeDecl | EdgeDecl, name: string) {
 
 describe('serialize', () => {
   it('produces a valid SchemaIR with version 2.0', () => {
-    const A = nodeDef({})
+    const A = classDef({})
     const schema = defineSchema('test', { A })
     const ir = serialize(schema)
     expect(ir.version).toBe('1.0')
@@ -45,14 +51,15 @@ describe('serialize', () => {
     const ir = serialize(schema)
     expect(ir.version).toBe('1.0')
     expect(ir.types).toEqual({})
+    expect(ir.interfaces).toEqual({})
     expect(ir.classes).toEqual({})
   })
 
   it('is JSON-serializable', () => {
-    const Iface = iface({ props: { name: z.string() } })
-    const A = nodeDef({ implements: [Iface], props: { x: z.number().int() } })
-    const B = nodeDef({})
-    const aToB = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] })
+    const Iface = interfaceDef({ props: { name: z.string() } })
+    const A = classDef({ inherits: [Iface], props: { x: z.number().int() } })
+    const B = classDef({})
+    const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
     const schema = defineSchema('test', { Iface, A, B, aToB })
     const ir = serialize(schema)
     const json = JSON.stringify(ir)
@@ -64,20 +71,19 @@ describe('serialize', () => {
   // ── Nodes ──────────────────────────────────────────────────────────────────
 
   describe('nodes', () => {
-    it('serializes a simple node with type=node and abstract=false', () => {
-      const A = nodeDef({})
+    it('serializes a simple node with type=node', () => {
+      const A = classDef({})
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
       expect(decl.type).toBe('node')
-      expect(decl.abstract).toBe(false)
       expect(decl.implements).toEqual([])
       expect(decl.properties).toEqual({})
       expect(decl.methods).toEqual({})
     })
 
     it('serializes node with string prop', () => {
-      const A = nodeDef({ props: { name: z.string() } })
+      const A = classDef({ props: { name: z.string() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -85,7 +91,7 @@ describe('serialize', () => {
     })
 
     it('serializes node with integer prop', () => {
-      const A = nodeDef({ props: { count: z.number().int() } })
+      const A = classDef({ props: { count: z.number().int() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'count')
@@ -93,7 +99,7 @@ describe('serialize', () => {
     })
 
     it('serializes node with boolean prop', () => {
-      const A = nodeDef({ props: { active: z.boolean() } })
+      const A = classDef({ props: { active: z.boolean() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'active')
@@ -101,7 +107,7 @@ describe('serialize', () => {
     })
 
     it('serializes node with float prop', () => {
-      const A = nodeDef({ props: { score: z.number() } })
+      const A = classDef({ props: { score: z.number() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'score')
@@ -109,7 +115,7 @@ describe('serialize', () => {
     })
 
     it('serializes node with datetime prop', () => {
-      const A = nodeDef({ props: { ts: z.string().datetime() } })
+      const A = classDef({ props: { ts: z.string().datetime() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'ts')
@@ -118,7 +124,7 @@ describe('serialize', () => {
     })
 
     it('serializes node with multiple props preserving order', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: {
           alpha: z.string(),
           beta: z.number(),
@@ -135,43 +141,42 @@ describe('serialize', () => {
   // ── Interfaces ───────────────────────────────────────────────────────────
 
   describe('interfaces', () => {
-    it('serializes an interface as abstract node', () => {
-      const I = iface({ props: { name: z.string() } })
+    it('serializes an interface with type=interface', () => {
+      const I = interfaceDef({ props: { name: z.string() } })
       const schema = defineSchema('test', { I })
       const ir = serialize(schema)
-      const decl = findNode(ir, 'I')
-      expect(decl.abstract).toBe(true)
+      const decl = findIface(ir, 'I')
+      expect(decl.type).toBe('interface')
       expect(Object.keys(decl.properties).length).toBe(1)
     })
 
-    it('serializes iface extends as implements', () => {
-      const Base = iface({ props: { x: z.string() } })
-      const Child = iface({ extends: [Base], props: { y: z.number() } })
+    it('serializes iface extends', () => {
+      const Base = interfaceDef({ props: { x: z.string() } })
+      const Child = interfaceDef({ extends: [Base], props: { y: z.number() } })
       const schema = defineSchema('test', { Base, Child })
       const ir = serialize(schema)
-      const decl = findNode(ir, 'Child')
-      expect(decl.abstract).toBe(true)
-      expect(decl.implements).toEqual(['Base'])
+      const decl = findIface(ir, 'Child')
+      expect(decl.type).toBe('interface')
+      expect(decl.extends).toEqual(['Base'])
       expect(Object.keys(decl.properties).length).toBe(1) // own only
       expect(decl.properties['y']).toBeDefined()
     })
 
     it('serializes node implements', () => {
-      const I = iface({ props: { name: z.string() } })
-      const A = nodeDef({ implements: [I], props: { extra: z.boolean() } })
+      const I = interfaceDef({ props: { name: z.string() } })
+      const A = classDef({ inherits: [I], props: { extra: z.boolean() } })
       const schema = defineSchema('test', { I, A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
-      expect(decl.abstract).toBe(false)
       expect(decl.implements).toEqual(['I'])
       expect(Object.keys(decl.properties).length).toBe(1) // own only
       expect(decl.properties['extra']).toBeDefined()
     })
 
     it('serializes node with multiple interface implementations', () => {
-      const I1 = iface({ props: { a: z.string() } })
-      const I2 = iface({ props: { b: z.number() } })
-      const A = nodeDef({ implements: [I1, I2] })
+      const I1 = interfaceDef({ props: { a: z.string() } })
+      const I2 = interfaceDef({ props: { b: z.number() } })
+      const A = classDef({ inherits: [I1, I2] })
       const schema = defineSchema('test', { I1, I2, A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
@@ -183,7 +188,7 @@ describe('serialize', () => {
 
   describe('nullable / optional', () => {
     it('folds optional prop into type array with null', () => {
-      const A = nodeDef({ props: { name: z.string().optional() } })
+      const A = classDef({ props: { name: z.string().optional() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -191,7 +196,7 @@ describe('serialize', () => {
     })
 
     it('folds nullable prop into type array with null', () => {
-      const A = nodeDef({ props: { name: z.string().nullable() } })
+      const A = classDef({ props: { name: z.string().nullable() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -199,7 +204,7 @@ describe('serialize', () => {
     })
 
     it('required props have no null in type', () => {
-      const A = nodeDef({ props: { name: z.string() } })
+      const A = classDef({ props: { name: z.string() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -211,7 +216,7 @@ describe('serialize', () => {
 
   describe('defaults', () => {
     it('folds string default into schema', () => {
-      const A = nodeDef({ props: { status: z.string().default('active') } })
+      const A = classDef({ props: { status: z.string().default('active') } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'status')
@@ -219,7 +224,7 @@ describe('serialize', () => {
     })
 
     it('folds number default into schema', () => {
-      const A = nodeDef({ props: { count: z.number().default(0) } })
+      const A = classDef({ props: { count: z.number().default(0) } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'count')
@@ -227,7 +232,7 @@ describe('serialize', () => {
     })
 
     it('folds boolean default into schema', () => {
-      const A = nodeDef({ props: { active: z.boolean().default(false) } })
+      const A = classDef({ props: { active: z.boolean().default(false) } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'active')
@@ -235,7 +240,7 @@ describe('serialize', () => {
     })
 
     it('omits default when not present', () => {
-      const A = nodeDef({ props: { name: z.string() } })
+      const A = classDef({ props: { name: z.string() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -248,7 +253,7 @@ describe('serialize', () => {
   describe('shared types', () => {
     it('hoists named types from options.types', () => {
       const Priority = z.enum(['low', 'medium', 'high'])
-      const A = nodeDef({ props: { priority: Priority } })
+      const A = classDef({ props: { priority: Priority } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema, { types: { Priority } })
       expect(ir.types).toHaveProperty('Priority')
@@ -260,7 +265,7 @@ describe('serialize', () => {
 
     it('uses $ref for named types in method params', () => {
       const Priority = z.enum(['low', 'medium', 'high'])
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           setPriority: op({ params: { p: Priority }, returns: z.boolean() }),
         },
@@ -274,7 +279,7 @@ describe('serialize', () => {
     it('works with multiple named types', () => {
       const Priority = z.enum(['low', 'medium', 'high'])
       const Status = z.enum(['active', 'archived'])
-      const A = nodeDef({
+      const A = classDef({
         props: { priority: Priority, status: Status },
       })
       const schema = defineSchema('test', { A })
@@ -284,7 +289,7 @@ describe('serialize', () => {
     })
 
     it('inlines enum when not explicitly hoisted', () => {
-      const A = nodeDef({ props: { priority: z.enum(['low', 'high']) } })
+      const A = classDef({ props: { priority: z.enum(['low', 'high']) } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       // Should be inlined, not $ref
@@ -298,7 +303,7 @@ describe('serialize', () => {
 
   describe('methods', () => {
     it('serializes a simple method', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           greet: op({ returns: z.string() }),
         },
@@ -313,7 +318,7 @@ describe('serialize', () => {
     })
 
     it('serializes private method', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           internal: op({ returns: z.boolean(), access: 'private' }),
         },
@@ -325,7 +330,7 @@ describe('serialize', () => {
     })
 
     it('serializes method params', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           setName: op({
             params: { name: z.string(), age: z.number().int() },
@@ -342,7 +347,7 @@ describe('serialize', () => {
     })
 
     it('folds method param default into schema', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           setCount: op({
             params: { count: z.number().default(10) },
@@ -357,7 +362,7 @@ describe('serialize', () => {
     })
 
     it('serializes method with nullable return', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           findName: op({ returns: z.string().optional() }),
         },
@@ -370,7 +375,7 @@ describe('serialize', () => {
     })
 
     it('serializes multiple methods preserving order', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           alpha: op({ returns: z.string() }),
           beta: op({ returns: z.number() }),
@@ -384,7 +389,7 @@ describe('serialize', () => {
     })
 
     it('serializes static method with static: true', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           create: op({ static: true, params: { name: z.string() }, returns: z.string() }),
         },
@@ -398,7 +403,7 @@ describe('serialize', () => {
     })
 
     it('omits static field for non-static methods', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           greet: op({ returns: z.string() }),
         },
@@ -410,7 +415,7 @@ describe('serialize', () => {
     })
 
     it('serializes mixed static and instance methods', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           init: op({ static: true, params: { title: z.string() }, returns: z.string() }),
           rename: op({ params: { newTitle: z.string() }, returns: z.boolean() }),
@@ -429,8 +434,8 @@ describe('serialize', () => {
 
   describe('$nodeRef', () => {
     it('serializes ref() in method params', () => {
-      const A = nodeDef({})
-      const B = nodeDef({
+      const A = classDef({})
+      const B = classDef({
         methods: {
           linkTo: op({ params: { target: ref(A) }, returns: z.boolean() }),
         },
@@ -442,8 +447,8 @@ describe('serialize', () => {
     })
 
     it('serializes ref() in method return', () => {
-      const A = nodeDef({})
-      const B = nodeDef({
+      const A = classDef({})
+      const B = classDef({
         methods: {
           getA: op({ returns: ref(A) }),
         },
@@ -455,9 +460,9 @@ describe('serialize', () => {
     })
 
     it('serializes ref() to interface', () => {
-      const I = iface({ props: { name: z.string() } })
-      const A = nodeDef({
-        implements: [I],
+      const I = interfaceDef({ props: { name: z.string() } })
+      const A = classDef({
+        inherits: [I],
         methods: {
           getI: op({ returns: ref(I) }),
         },
@@ -469,8 +474,8 @@ describe('serialize', () => {
     })
 
     it('serializes array of refs', () => {
-      const A = nodeDef({})
-      const B = nodeDef({
+      const A = classDef({})
+      const B = classDef({
         methods: {
           getMany: op({ returns: z.array(ref(A)) }),
         },
@@ -485,8 +490,8 @@ describe('serialize', () => {
     })
 
     it('serializes ref(A, { data: true }) in method return', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           getFull: op({ returns: ref(A, { data: true }) }),
         },
@@ -498,8 +503,8 @@ describe('serialize', () => {
     })
 
     it('serializes ref(A, { data: true }) in method param', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           process: op({ params: { item: ref(A, { data: true }) }, returns: z.boolean() }),
         },
@@ -511,8 +516,8 @@ describe('serialize', () => {
     })
 
     it('serializes ref(A, { data: true }).optional() with anyOf nullable', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           maybe: op({ params: { item: ref(A, { data: true }).optional() }, returns: z.boolean() }),
         },
@@ -526,8 +531,8 @@ describe('serialize', () => {
     })
 
     it('serializes z.array(ref(A, { data: true }))', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           listFull: op({ returns: z.array(ref(A, { data: true })) }),
         },
@@ -542,8 +547,8 @@ describe('serialize', () => {
     })
 
     it('ref(A) without data option has no includeData key', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           getA: op({ returns: ref(A) }),
         },
@@ -560,7 +565,7 @@ describe('serialize', () => {
 
   describe('$dataRef', () => {
     it('serializes data() self as $dataRef self', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: { body: z.string() },
         methods: {
           content: op({ returns: data() }),
@@ -573,8 +578,8 @@ describe('serialize', () => {
     })
 
     it('serializes data(target) as $dataRef with name', () => {
-      const A = nodeDef({ data: { body: z.string() } })
-      const B = nodeDef({
+      const A = classDef({ data: { body: z.string() } })
+      const B = classDef({
         methods: {
           getAData: op({ returns: data(A) }),
         },
@@ -590,7 +595,7 @@ describe('serialize', () => {
 
   describe('data schema', () => {
     it('serializes data as JSON Schema object', () => {
-      const A = nodeDef({ data: { body: z.string(), count: z.number() } })
+      const A = classDef({ data: { body: z.string(), count: z.number() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
@@ -600,7 +605,7 @@ describe('serialize', () => {
     })
 
     it('omits data when not defined', () => {
-      const A = nodeDef({})
+      const A = classDef({})
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
@@ -612,9 +617,9 @@ describe('serialize', () => {
 
   describe('edges', () => {
     it('serializes a simple edge', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -627,9 +632,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with cardinality 0..1', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B], cardinality: '0..1' })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B], cardinality: '0..1' }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -637,9 +642,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with cardinality 1', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A], cardinality: '1' }, { as: 'b', types: [B] })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '1' }, { as: 'b', types: [B] }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -647,9 +652,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with cardinality 1..*', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A], cardinality: '1..*' }, { as: 'b', types: [B] })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '1..*' }, { as: 'b', types: [B] }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -657,9 +662,9 @@ describe('serialize', () => {
     })
 
     it('omits cardinality when not set (defaults to 0..*)', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [B] })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -668,10 +673,10 @@ describe('serialize', () => {
     })
 
     it('serializes edge with multi-type endpoints', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const C = nodeDef({})
-      const mixed = edgeDef({ as: 'source', types: [A, B] }, { as: 'target', types: [C] })
+      const A = classDef({})
+      const B = classDef({})
+      const C = classDef({})
+      const mixed = classDef({ endpoints: [{ as: 'source', types: [A, B] }, { as: 'target', types: [C] }] })
       const schema = defineSchema('test', { A, B, C, mixed })
       const ir = serialize(schema)
       const e = findEdge(ir, 'mixed')
@@ -679,9 +684,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with interface endpoint', () => {
-      const I = iface({})
-      const A = nodeDef({ implements: [I] })
-      const e1 = edgeDef({ as: 'source', types: [I] }, { as: 'target', types: [A] })
+      const I = interfaceDef({})
+      const A = classDef({ inherits: [I] })
+      const e1 = classDef({ endpoints: [{ as: 'source', types: [I] }, { as: 'target', types: [A] }] })
       const schema = defineSchema('test', { I, A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -693,8 +698,8 @@ describe('serialize', () => {
 
   describe('edge constraints', () => {
     it('serializes unique constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, { unique: true })
+      const A = classDef({})
+      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { unique: true } })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -702,8 +707,8 @@ describe('serialize', () => {
     })
 
     it('serializes noSelf constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, { noSelf: true })
+      const A = classDef({})
+      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { noSelf: true } })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -711,8 +716,8 @@ describe('serialize', () => {
     })
 
     it('serializes acyclic constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, { acyclic: true })
+      const A = classDef({})
+      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { acyclic: true } })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -720,12 +725,11 @@ describe('serialize', () => {
     })
 
     it('serializes multiple constraints', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        { noSelf: true, acyclic: true },
-      )
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        constraints: { noSelf: true, acyclic: true },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -733,8 +737,8 @@ describe('serialize', () => {
     })
 
     it('omits constraints when none set', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] })
+      const A = classDef({})
+      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }] })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -746,12 +750,11 @@ describe('serialize', () => {
 
   describe('edge properties', () => {
     it('serializes edge with props', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        { props: { weight: z.number(), label: z.string().optional() } },
-      )
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        props: { weight: z.number(), label: z.string().optional() },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -766,14 +769,14 @@ describe('serialize', () => {
 
   describe('thunks', () => {
     it('handles iface with thunk config (circular refs)', () => {
-      const I: any = iface(() => ({
+      const I: any = interfaceDef(() => ({
         methods: {
           getParent: op({ params: { child: ref(I) }, returns: ref(I) }),
         },
       }))
       const schema = defineSchema('test', { I })
       const ir = serialize(schema)
-      const m = findMethod(findNode(ir, 'I'), 'getParent')!
+      const m = findMethod(findIface(ir, 'I'), 'getParent')!
       expect(m.params['child']).toEqual({ $nodeRef: 'I' })
       expect(m.returns).toEqual({ $nodeRef: 'I' })
     })
@@ -783,7 +786,7 @@ describe('serialize', () => {
 
   describe('zod edge cases', () => {
     it('serializes z.object as JSON Schema', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           create: op({
             params: { input: z.object({ x: z.string(), y: z.number() }) },
@@ -799,7 +802,7 @@ describe('serialize', () => {
     })
 
     it('serializes z.array with standard items', () => {
-      const A = nodeDef({
+      const A = classDef({
         methods: {
           getTags: op({ returns: z.array(z.string()) }),
         },
@@ -812,7 +815,7 @@ describe('serialize', () => {
     })
 
     it('serializes enum as inline when not hoisted', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { status: z.enum(['a', 'b', 'c']) },
       })
       const schema = defineSchema('test', { A })
@@ -822,7 +825,7 @@ describe('serialize', () => {
     })
 
     it('handles constrained strings', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { email: z.string().email() },
       })
       const schema = defineSchema('test', { A })
@@ -833,7 +836,7 @@ describe('serialize', () => {
     })
 
     it('handles bounded numbers', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { score: z.number().min(0).max(100) },
       })
       const schema = defineSchema('test', { A })
@@ -845,7 +848,7 @@ describe('serialize', () => {
     })
 
     it('handles bounded strings', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { name: z.string().min(1).max(255) },
       })
       const schema = defineSchema('test', { A })
@@ -861,14 +864,13 @@ describe('serialize', () => {
 
   describe('kernel schema integration', () => {
     // Simulate a kernel schema — defineSchema registers each def in the registry
-    const Node = iface({})
-    const Identity = iface({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
-    const Root = nodeDef({ implements: [Identity] })
-    const hasParent = edgeDef(
-      { as: 'child', types: [Node], cardinality: '0..1' },
-      { as: 'parent', types: [Node] },
-      { noSelf: true, acyclic: true },
-    )
+    const Node = interfaceDef({})
+    const Identity = interfaceDef({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
+    const Root = classDef({ inherits: [Identity] })
+    const hasParent = classDef({
+      endpoints: [{ as: 'child', types: [Node], cardinality: '0..1' }, { as: 'parent', types: [Node] }],
+      constraints: { noSelf: true, acyclic: true },
+    })
     // This registers all defs under the 'astrale.core' domain
     const kernelSchema = defineSchema('astrale.core', { Node, Identity, Root, hasParent })
 
@@ -878,24 +880,25 @@ describe('serialize', () => {
       expect(ir.version).toBe('1.0')
       expect(ir.domain).toBe('astrale.core')
       expect(ir.imports).toBeUndefined()
-      expect(Object.keys(ir.classes).length).toBe(4)
+      expect(Object.keys(ir.interfaces).length).toBe(2)
+      expect(Object.keys(ir.classes).length).toBe(2)
 
-      expect(ir.classes['Node']).toBeDefined()
-      expect(ir.classes['Identity']).toBeDefined()
+      expect(ir.interfaces['Node']).toBeDefined()
+      expect(ir.interfaces['Identity']).toBeDefined()
       expect(ir.classes['Root']).toBeDefined()
       expect(ir.classes['hasParent']).toBeDefined()
     })
 
     it('serializes distribution schema referencing kernel defs via registry', () => {
-      const Timestamped = iface({
+      const Timestamped = interfaceDef({
         props: {
           createdAt: z.string().datetime().optional(),
           updatedAt: z.string().datetime().optional(),
         },
       })
       // Task implements Identity from kernel — no spread needed
-      const Task = nodeDef({
-        implements: [Identity, Timestamped],
+      const Task = classDef({
+        inherits: [Identity, Timestamped],
         props: {
           title: z.string(),
           done: z.boolean().default(false),
@@ -905,10 +908,11 @@ describe('serialize', () => {
       const distSchema = defineSchema('acme.todo', { Timestamped, Task })
       const ir = serialize(distSchema)
 
-      // Only distribution classes in the IR
+      // Only distribution defs in the IR
       expect(ir.domain).toBe('acme.todo')
-      expect(Object.keys(ir.classes).length).toBe(2)
-      expect(ir.classes['Timestamped']).toBeDefined()
+      expect(Object.keys(ir.interfaces).length).toBe(1)
+      expect(Object.keys(ir.classes).length).toBe(1)
+      expect(ir.interfaces['Timestamped']).toBeDefined()
       expect(ir.classes['Task']).toBeDefined()
 
       // Identity resolved via registry — appears in imports
@@ -921,11 +925,10 @@ describe('serialize', () => {
     })
 
     it('serializes edge endpoints referencing registered external defs', () => {
-      const Widget = nodeDef({ implements: [Node] })
-      const widgetLink = edgeDef(
-        { as: 'widget', types: [Widget] },
-        { as: 'parent', types: [Node] }, // Node from kernel, registered
-      )
+      const Widget = classDef({ inherits: [Node] })
+      const widgetLink = classDef({
+        endpoints: [{ as: 'widget', types: [Widget] }, { as: 'parent', types: [Node] }], // Node from kernel, registered
+      })
       const distSchema = defineSchema('acme.widgets', { Widget, widgetLink })
       const ir = serialize(distSchema)
 
@@ -941,22 +944,22 @@ describe('serialize', () => {
   describe('todo app integration', () => {
     it('serializes a complete app schema matching spec §7', () => {
       // Simulate kernel schema (registers defs in the registry)
-      const Node = iface({})
-      const Identity = iface({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
+      const Node = interfaceDef({})
+      const Identity = interfaceDef({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
       void defineSchema('astrale.core', { Node, Identity }) // registers Node and Identity
 
       const Priority = z.enum(['low', 'medium', 'high', 'urgent'])
       const TaskStatus = z.enum(['todo', 'in_progress', 'done', 'cancelled'])
 
-      const Timestamped = iface({
+      const Timestamped = interfaceDef({
         props: {
           createdAt: z.string().datetime().optional(),
           updatedAt: z.string().datetime().optional(),
         },
       })
 
-      const Project = nodeDef({
-        implements: [Identity, Timestamped],
+      const Project = classDef({
+        inherits: [Identity, Timestamped],
         props: {
           name: z.string(),
           description: z.string().optional(),
@@ -972,8 +975,8 @@ describe('serialize', () => {
         },
       })
 
-      const Task = nodeDef({
-        implements: [Timestamped],
+      const Task = classDef({
+        inherits: [Timestamped],
         props: {
           title: z.string(),
           description: z.string().optional(),
@@ -988,31 +991,28 @@ describe('serialize', () => {
         },
       })
 
-      const Tag = nodeDef({
-        implements: [Timestamped],
+      const Tag = classDef({
+        inherits: [Timestamped],
         props: {
           name: z.string(),
           color: z.string().optional(),
         },
       })
 
-      const belongsTo = edgeDef(
-        { as: 'task', types: [Task] },
-        { as: 'project', types: [Project], cardinality: '0..1' },
-        { unique: true },
-      )
+      const belongsTo = classDef({
+        endpoints: [{ as: 'task', types: [Task] }, { as: 'project', types: [Project], cardinality: '0..1' }],
+        constraints: { unique: true },
+      })
 
-      const taggedWith = edgeDef(
-        { as: 'task', types: [Task] },
-        { as: 'tag', types: [Tag] },
-        { unique: true },
-      )
+      const taggedWith = classDef({
+        endpoints: [{ as: 'task', types: [Task] }, { as: 'tag', types: [Tag] }],
+        constraints: { unique: true },
+      })
 
-      const dependsOn = edgeDef(
-        { as: 'blocker', types: [Task] },
-        { as: 'blocked', types: [Task] },
-        { noSelf: true, acyclic: true },
-      )
+      const dependsOn = classDef({
+        endpoints: [{ as: 'blocker', types: [Task] }, { as: 'blocked', types: [Task] }],
+        constraints: { noSelf: true, acyclic: true },
+      })
 
       // Distribution schema — only own defs, kernel refs via registry
       const schema = defineSchema('acme.todo', {
@@ -1039,15 +1039,14 @@ describe('serialize', () => {
       expect(ir.types.TaskStatus.enum).toEqual(['todo', 'in_progress', 'done', 'cancelled'])
 
       // ── Timestamped (interface) ──
-      const ts = findNode(ir, 'Timestamped')
-      expect(ts.abstract).toBe(true)
+      const ts = findIface(ir, 'Timestamped')
+      expect(ts.type).toBe('interface')
       expect(Object.keys(ts.properties).length).toBe(2)
       // nullable folded into schema
       expect(ts.properties['updatedAt'].type).toEqual(['string', 'null'])
 
       // ── Project ──
       const proj = findNode(ir, 'Project')
-      expect(proj.abstract).toBe(false)
       expect(proj.implements).toContain('Identity')
       expect(proj.implements).toContain('Timestamped')
       expect(Object.keys(proj.properties)).toEqual(['name', 'description', 'archived'])
@@ -1085,8 +1084,8 @@ describe('serialize', () => {
 
   describe('extended edge constraints', () => {
     it('serializes symmetric constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, { symmetric: true })
+      const A = classDef({})
+      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { symmetric: true } })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -1094,12 +1093,11 @@ describe('serialize', () => {
     })
 
     it('serializes onDeleteSource constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        { onDeleteSource: 'cascade' },
-      )
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        onDeleteSource: 'cascade',
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -1107,12 +1105,11 @@ describe('serialize', () => {
     })
 
     it('serializes onDeleteTarget constraint', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        { onDeleteTarget: 'prevent' },
-      )
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        onDeleteTarget: 'prevent',
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -1120,19 +1117,13 @@ describe('serialize', () => {
     })
 
     it('serializes all constraints together', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef(
-        { as: 'a', types: [A] },
-        { as: 'b', types: [A] },
-        {
-          noSelf: true,
-          acyclic: true,
-          unique: true,
-          symmetric: true,
-          onDeleteSource: 'cascade',
-          onDeleteTarget: 'unlink',
-        },
-      )
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        constraints: { noSelf: true, acyclic: true, unique: true, symmetric: true },
+        onDeleteSource: 'cascade',
+        onDeleteTarget: 'unlink',
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -1151,9 +1142,9 @@ describe('serialize', () => {
 
   describe('cardinality 0..* omission', () => {
     it('omits cardinality when explicitly set to 0..*', () => {
-      const A = nodeDef({})
-      const B = nodeDef({})
-      const aToB = edgeDef({ as: 'a', types: [A], cardinality: '0..*' }, { as: 'b', types: [B] })
+      const A = classDef({})
+      const B = classDef({})
+      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '0..*' }, { as: 'b', types: [B] }] })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -1166,8 +1157,9 @@ describe('serialize', () => {
 
   describe('edge methods', () => {
     it('serializes methods on edges', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, {
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
         methods: {
           weight: op({ returns: z.number() }),
         },
@@ -1184,7 +1176,7 @@ describe('serialize', () => {
 
   describe('deeply nested optionals', () => {
     it('handles z.string().optional().nullable()', () => {
-      const A = nodeDef({ props: { name: z.string().optional().nullable() } })
+      const A = classDef({ props: { name: z.string().optional().nullable() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -1192,7 +1184,7 @@ describe('serialize', () => {
     })
 
     it('handles z.string().nullable().default(null)', () => {
-      const A = nodeDef({ props: { name: z.string().nullable().default(null) } })
+      const A = classDef({ props: { name: z.string().nullable().default(null) } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
@@ -1205,10 +1197,10 @@ describe('serialize', () => {
 
   describe('interface with data', () => {
     it('serializes data on an interface', () => {
-      const I = iface({ data: { content: z.string() } })
+      const I = interfaceDef({ data: { content: z.string() } })
       const schema = defineSchema('test', { I })
       const ir = serialize(schema)
-      const decl = findNode(ir, 'I')
+      const decl = findIface(ir, 'I')
       expect(decl.data).toBeDefined()
       expect(decl.data!.type).toBe('object')
     })
@@ -1218,8 +1210,8 @@ describe('serialize', () => {
 
   describe('optional ref in params', () => {
     it('handles ref().optional() as a param with anyOf nullable', () => {
-      const A = nodeDef({})
-      const B = nodeDef({
+      const A = classDef({})
+      const B = classDef({
         methods: {
           maybe: op({ params: { target: ref(A).optional() }, returns: z.boolean() }),
         },
@@ -1237,7 +1229,7 @@ describe('serialize', () => {
 
   describe('complex object defaults', () => {
     it('folds complex object default into schema.default', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { config: z.object({ x: z.string() }).default({ x: 'hi' }) },
       })
       const schema = defineSchema('test', { A })
@@ -1265,7 +1257,7 @@ describe('serialize', () => {
 
   describe('data declarations', () => {
     it('serializes data with multiple field types', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           title: z.string(),
           views: z.number().int(),
@@ -1286,7 +1278,7 @@ describe('serialize', () => {
     })
 
     it('serializes data with optional fields', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           body: z.string(),
           summary: z.string().optional(),
@@ -1302,7 +1294,7 @@ describe('serialize', () => {
     })
 
     it('serializes data with array fields', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           tags: z.array(z.string()),
           images: z.array(z.string().url()),
@@ -1318,7 +1310,7 @@ describe('serialize', () => {
     })
 
     it('serializes data with record/map fields', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           metadata: z.record(z.string(), z.string()),
         },
@@ -1332,7 +1324,7 @@ describe('serialize', () => {
     })
 
     it('serializes data with nested object fields', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           content: z.object({
             html: z.string(),
@@ -1351,13 +1343,13 @@ describe('serialize', () => {
     })
 
     it('data on iface serializes correctly', () => {
-      const ContentIface = iface({
+      const ContentIface = interfaceDef({
         data: { body: z.string(), format: z.enum(['md', 'html']) },
       })
       const schema = defineSchema('test', { ContentIface })
       const ir = serialize(schema)
-      const decl = findNode(ir, 'ContentIface')
-      expect(decl.abstract).toBe(true)
+      const decl = findIface(ir, 'ContentIface')
+      expect(decl.type).toBe('interface')
       expect(decl.data).toBeDefined()
       expect(decl.data!.type).toBe('object')
       const props = decl.data!.properties as Record<string, any>
@@ -1366,7 +1358,7 @@ describe('serialize', () => {
     })
 
     it('node with data and props keeps them separate', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { title: z.string(), status: z.enum(['draft', 'published']) },
         data: { body: z.string(), images: z.array(z.string().url()) },
       })
@@ -1386,7 +1378,7 @@ describe('serialize', () => {
     })
 
     it('node with empty data object omits data', () => {
-      const A = nodeDef({ data: {} })
+      const A = classDef({ data: {} })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const decl = findNode(ir, 'A')
@@ -1394,7 +1386,7 @@ describe('serialize', () => {
     })
 
     it('data() self return in method with data on same node', () => {
-      const A = nodeDef({
+      const A = classDef({
         data: {
           body: z.string(),
           specs: z.record(z.string(), z.string()).optional(),
@@ -1412,10 +1404,10 @@ describe('serialize', () => {
     })
 
     it('data(target) cross-node return', () => {
-      const Article = nodeDef({
+      const Article = classDef({
         data: { body: z.string(), html: z.string() },
       })
-      const Reader = nodeDef({
+      const Reader = classDef({
         methods: {
           readArticle: op({
             params: { article: ref(Article) },
@@ -1435,11 +1427,11 @@ describe('serialize', () => {
 
   describe('node extends (concrete inheritance)', () => {
     it('serializes extended node with parent in implements', () => {
-      const Base = nodeDef({
+      const Base = classDef({
         props: { name: z.string() },
       })
-      const Child = nodeDef({
-        extends: Base,
+      const Child = classDef({
+        inherits: [Base],
         props: { extra: z.boolean() },
       })
       const schema = defineSchema('test', { Base, Child })
@@ -1451,9 +1443,9 @@ describe('serialize', () => {
     })
 
     it('serializes two-level node extends chain', () => {
-      const Base = nodeDef({ props: { a: z.string() } })
-      const Mid = nodeDef({ extends: Base, props: { b: z.number() } })
-      const Leaf = nodeDef({ extends: Mid, props: { c: z.boolean() } })
+      const Base = classDef({ props: { a: z.string() } })
+      const Mid = classDef({ inherits: [Base], props: { b: z.number() } })
+      const Leaf = classDef({ inherits: [Mid], props: { c: z.boolean() } })
       const schema = defineSchema('test', { Base, Mid, Leaf })
       const ir = serialize(schema)
       const leaf = findNode(ir, 'Leaf')
@@ -1463,11 +1455,10 @@ describe('serialize', () => {
     })
 
     it('node extends + implements combined', () => {
-      const I = iface({ props: { tag: z.string() } })
-      const Base = nodeDef({ props: { name: z.string() } })
-      const Child = nodeDef({
-        extends: Base,
-        implements: [I],
+      const I = interfaceDef({ props: { tag: z.string() } })
+      const Base = classDef({ props: { name: z.string() } })
+      const Child = classDef({
+        inherits: [Base, I],
         props: { extra: z.number() },
       })
       const schema = defineSchema('test', { I, Base, Child })
@@ -1479,11 +1470,11 @@ describe('serialize', () => {
     })
 
     it('extended node inherits methods conceptually but only emits own', () => {
-      const Base = nodeDef({
+      const Base = classDef({
         methods: { greet: op({ returns: z.string() }) },
       })
-      const Child = nodeDef({
-        extends: Base,
+      const Child = classDef({
+        inherits: [Base],
         methods: { farewell: op({ returns: z.string() }) },
       })
       const schema = defineSchema('test', { Base, Child })
@@ -1498,37 +1489,37 @@ describe('serialize', () => {
 
   describe('interface extends chains', () => {
     it('serializes multi-level iface extends', () => {
-      const L0 = iface({ props: { a: z.string() } })
-      const L1 = iface({ extends: [L0], props: { b: z.number() } })
-      const L2 = iface({ extends: [L1], props: { c: z.boolean() } })
+      const L0 = interfaceDef({ props: { a: z.string() } })
+      const L1 = interfaceDef({ extends: [L0], props: { b: z.number() } })
+      const L2 = interfaceDef({ extends: [L1], props: { c: z.boolean() } })
       const schema = defineSchema('test', { L0, L1, L2 })
       const ir = serialize(schema)
 
-      const l2 = findNode(ir, 'L2')
-      expect(l2.abstract).toBe(true)
-      expect(l2.implements).toEqual(['L1'])
+      const l2 = findIface(ir, 'L2')
+      expect(l2.type).toBe('interface')
+      expect(l2.extends).toEqual(['L1'])
       expect(Object.keys(l2.properties).length).toBe(1) // own only
       expect(l2.properties['c']).toBeDefined()
     })
 
     it('serializes diamond iface extends', () => {
-      const Base = iface({ props: { id: z.string() } })
-      const Left = iface({ extends: [Base], props: { l: z.number() } })
-      const Right = iface({ extends: [Base], props: { r: z.number() } })
-      const Diamond = iface({ extends: [Left, Right], props: { d: z.boolean() } })
+      const Base = interfaceDef({ props: { id: z.string() } })
+      const Left = interfaceDef({ extends: [Base], props: { l: z.number() } })
+      const Right = interfaceDef({ extends: [Base], props: { r: z.number() } })
+      const Diamond = interfaceDef({ extends: [Left, Right], props: { d: z.boolean() } })
       const schema = defineSchema('test', { Base, Left, Right, Diamond })
       const ir = serialize(schema)
 
-      const d = findNode(ir, 'Diamond')
-      expect(d.implements).toEqual(['Left', 'Right'])
+      const d = findIface(ir, 'Diamond')
+      expect(d.extends).toEqual(['Left', 'Right'])
       expect(Object.keys(d.properties).length).toBe(1)
     })
 
     it('node implementing deep iface chain', () => {
-      const L0 = iface({ props: { ts: z.string() } })
-      const L1 = iface({ extends: [L0], props: { v: z.number().int() } })
-      const L2 = iface({ extends: [L1], props: { status: z.string() } })
-      const A = nodeDef({ implements: [L2], props: { name: z.string() } })
+      const L0 = interfaceDef({ props: { ts: z.string() } })
+      const L1 = interfaceDef({ extends: [L0], props: { v: z.number().int() } })
+      const L2 = interfaceDef({ extends: [L1], props: { status: z.string() } })
+      const A = classDef({ inherits: [L2], props: { name: z.string() } })
       const schema = defineSchema('test', { L0, L1, L2, A })
       const ir = serialize(schema)
 
@@ -1543,8 +1534,9 @@ describe('serialize', () => {
 
   describe('edge methods (comprehensive)', () => {
     it('serializes edge with method and params', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, {
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
         props: { weight: z.number() },
         methods: {
           adjustWeight: op({
@@ -1564,8 +1556,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with multiple methods', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, {
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
         methods: {
           alpha: op({ returns: z.string() }),
           beta: op({ returns: z.number() }),
@@ -1579,8 +1572,9 @@ describe('serialize', () => {
     })
 
     it('serializes edge with private method', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, {
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
         methods: {
           internal: op({ returns: z.boolean(), access: 'private' }),
         },
@@ -1592,10 +1586,10 @@ describe('serialize', () => {
     })
 
     it('serializes edge with props, methods, and constraints together', () => {
-      const A = nodeDef({})
-      const e1 = edgeDef({ as: 'a', types: [A] }, { as: 'b', types: [A] }, {
-        unique: true,
-        noSelf: true,
+      const A = classDef({})
+      const e1 = classDef({
+        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        constraints: { unique: true, noSelf: true },
         props: { score: z.number().default(0) },
         methods: {
           normalize: op({ returns: z.number() }),
@@ -1615,7 +1609,7 @@ describe('serialize', () => {
 
   describe('method thunks', () => {
     it('resolves thunk params for method on node', () => {
-      const A: any = nodeDef(() => ({
+      const A: any = classDef(() => ({
         methods: {
           link: op({
             params: () => ({ target: ref(A) }),
@@ -1630,7 +1624,7 @@ describe('serialize', () => {
     })
 
     it('resolves thunk for circular ref between two nodes', () => {
-      const A: any = nodeDef(() => ({
+      const A: any = classDef(() => ({
         methods: {
           getB: op({
             params: () => ({ b: ref(B) }),
@@ -1638,7 +1632,7 @@ describe('serialize', () => {
           }),
         },
       }))
-      const B = nodeDef({
+      const B = classDef({
         methods: {
           getA: op({ returns: ref(A) }),
         },
@@ -1656,7 +1650,7 @@ describe('serialize', () => {
 
   describe('complex property scenarios', () => {
     it('serializes enum with default', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { status: z.enum(['a', 'b', 'c']).default('b') },
       })
       const schema = defineSchema('test', { A })
@@ -1667,7 +1661,7 @@ describe('serialize', () => {
     })
 
     it('serializes url string format', () => {
-      const A = nodeDef({ props: { website: z.string().url() } })
+      const A = classDef({ props: { website: z.string().url() } })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'website')
@@ -1676,7 +1670,7 @@ describe('serialize', () => {
     })
 
     it('serializes nullable with default null', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { deletedAt: z.string().nullable().default(null) },
       })
       const schema = defineSchema('test', { A })
@@ -1687,7 +1681,7 @@ describe('serialize', () => {
     })
 
     it('serializes string default without nullable', () => {
-      const A = nodeDef({
+      const A = classDef({
         props: { role: z.string().default('user') },
       })
       const schema = defineSchema('test', { A })
@@ -1705,16 +1699,16 @@ describe('serialize', () => {
       const Currency = z.enum(['USD', 'EUR', 'GBP'])
       const OrderStatus = z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'])
 
-      const Timestamped = iface({
+      const Timestamped = interfaceDef({
         props: { createdAt: z.string().optional() },
       })
 
-      const Priceable = iface({
+      const Priceable = interfaceDef({
         props: { priceCents: z.number().int(), currency: Currency.default('USD') },
       })
 
-      const Order = nodeDef({
-        implements: [Timestamped],
+      const Order = classDef({
+        inherits: [Timestamped],
         props: {
           status: OrderStatus.default('pending'),
           totalCents: z.number().int(),
@@ -1724,8 +1718,8 @@ describe('serialize', () => {
         },
       })
 
-      const Product = nodeDef({
-        implements: [Timestamped, Priceable],
+      const Product = classDef({
+        inherits: [Timestamped, Priceable],
         props: {
           title: z.string(),
           sku: z.string().min(3).max(20),
@@ -1741,8 +1735,8 @@ describe('serialize', () => {
         },
       })
 
-      const Customer = nodeDef({
-        implements: [Timestamped],
+      const Customer = classDef({
+        inherits: [Timestamped],
         props: { email: z.string().email(), name: z.string() },
         methods: {
           recentOrders: op({
@@ -1753,14 +1747,11 @@ describe('serialize', () => {
         },
       })
 
-      const orderItem = edgeDef(
-        { as: 'order', types: [Order] },
-        { as: 'product', types: [Product] },
-        {
-          props: { quantity: z.number().int().default(1), unitPriceCents: z.number().int() },
-          methods: { subtotal: op({ returns: z.number().int(), access: 'private' }) },
-        },
-      )
+      const orderItem = classDef({
+        endpoints: [{ as: 'order', types: [Order] }, { as: 'product', types: [Product] }],
+        props: { quantity: z.number().int().default(1), unitPriceCents: z.number().int() },
+        methods: { subtotal: op({ returns: z.number().int(), access: 'private' }) },
+      })
 
       const schema = defineSchema('test', {
         Timestamped,
@@ -1830,8 +1821,8 @@ describe('serialize', () => {
 
   describe('errors', () => {
     it('throws when a ref target is not in the schema', () => {
-      const Missing = nodeDef({})
-      const A = nodeDef({
+      const Missing = classDef({})
+      const A = classDef({
         methods: {
           get: op({ returns: ref(Missing) }),
         },

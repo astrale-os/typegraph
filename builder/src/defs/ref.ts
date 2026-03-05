@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import type { NodeDef } from './node.js'
-import type { IfaceDef } from './iface.js'
+import type { Def } from './def.js'
 import type { ExtractFullProps, ExtractFullData } from '../inference/index.js'
 
 /** Branded Zod schema wrapping a graph def reference.
@@ -16,12 +15,12 @@ export interface RefSchema<D, IncludeData extends boolean = false> extends z.Zod
     : ExtractFullProps<D> & { readonly id: string; readonly classId: string }
 }
 
-export function ref<D extends NodeDef<any> | IfaceDef<any>>(target: D): RefSchema<D, false>
-export function ref<D extends NodeDef<any> | IfaceDef<any>>(
+export function ref<D extends Def<any>>(target: D): RefSchema<D, false>
+export function ref<D extends Def<any>>(
   target: D,
   opts: { data: true },
 ): RefSchema<D, true>
-export function ref<D extends NodeDef<any> | IfaceDef<any>>(
+export function ref<D extends Def<any>>(
   target: D,
   opts?: { data?: boolean },
 ): RefSchema<D> {
@@ -49,8 +48,8 @@ export interface DataGrantSchema<D> extends z.ZodType<unknown> {
 }
 
 export function data(): DataSelfSchema
-export function data<D extends NodeDef<any> | IfaceDef<any>>(target: D): DataGrantSchema<D>
-export function data(target?: NodeDef<any> | IfaceDef<any>): DataSelfSchema | DataGrantSchema<any> {
+export function data<D extends Def<any>>(target: D): DataGrantSchema<D>
+export function data(target?: Def<any>): DataSelfSchema | DataGrantSchema<any> {
   const schema = z.custom<DataGrantToken>(() => true)
   if (target === undefined) {
     ;(schema as any).__data_self = true

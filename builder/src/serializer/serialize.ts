@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { type z } from 'zod'
 import type { Schema } from '../schema/schema.js'
 import type { SchemaIR } from '@astrale/typegraph-schema'
 import { SerializeContext } from './context.js'

@@ -9,4 +9,4 @@ export type IndexDef = string | { property: string; type?: 'btree' | 'fulltext' 
 export type Cardinality = '0..1' | '1' | '0..*' | '1..*'
 export type Access = 'private' | 'internal'
 
-export type DefType = 'iface' | 'node' | 'edge' | 'op'
+export type DefType = 'def' | 'op'

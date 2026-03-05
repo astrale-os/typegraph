@@ -1,10 +1,7 @@
 import { z } from 'zod'
 import type { Schema } from '../schema/schema.js'
-import type { IfaceDef } from '../defs/iface.js'
-import type { NodeDef } from '../defs/node.js'
-import type { EdgeDef } from '../defs/edge.js'
+import type { Def, EndpointCfg, DefConstraints } from '../defs/def.js'
 import type { OpDef } from '../defs/op.js'
-import type { EndpointCfg } from '../defs/edge.js'
 import { getDefRegistration } from '../registry.js'
 import type {
   SchemaIR,
@@ -54,14 +51,14 @@ export class SerializeContext {
     const interfaces: Record<string, InterfaceDecl> = {}
     const classes: Record<string, ClassDecl> = {}
 
-    for (const [name, def] of Object.entries(this.schema.ifaces)) {
-      interfaces[name] = this.serializeIface(name, def)
-    }
-    for (const [name, def] of Object.entries(this.schema.nodes)) {
-      classes[name] = this.serializeNode(name, def)
-    }
-    for (const [name, def] of Object.entries(this.schema.edges)) {
-      classes[name] = this.serializeEdge(name, def)
+    for (const [name, def] of Object.entries(this.schema.defs)) {
+      if (def.config.abstract) {
+        interfaces[name] = this.serializeInterface(name, def)
+      } else if (def.config.endpoints) {
+        classes[name] = this.serializeEdge(name, def)
+      } else {
+        classes[name] = this.serializeNode(name, def)
+      }
     }
 
     const result: SchemaIR = {
@@ -77,12 +74,12 @@ export class SerializeContext {
     return result
   }
 
-  private serializeIface(name: string, def: IfaceDef): InterfaceDecl {
+  private serializeInterface(name: string, def: Def): InterfaceDecl {
     const config = def.config as Record<string, any>
     const result: InterfaceDecl = {
       type: 'interface',
       name,
-      extends: this.resolveIfaceParents(config),
+      extends: this.resolveInherits(config),
       properties: this.serializeProperties(config.props, name),
       methods: this.serializeMethods(config.methods, name),
     }
@@ -91,12 +88,12 @@ export class SerializeContext {
     return result
   }
 
-  private serializeNode(name: string, def: NodeDef): NodeDecl {
+  private serializeNode(name: string, def: Def): NodeDecl {
     const config = def.config as Record<string, any>
     const result: NodeDecl = {
       type: 'node',
       name,
-      implements: this.resolveNodeParents(config),
+      implements: this.resolveInherits(config),
       properties: this.serializeProperties(config.props, name),
       methods: this.serializeMethods(config.methods, name),
     }
@@ -105,16 +102,15 @@ export class SerializeContext {
     return result
   }
 
-  private serializeEdge(name: string, def: EdgeDef): EdgeDecl {
+  private serializeEdge(name: string, def: Def): EdgeDecl {
     const config = def.config as Record<string, any>
-    const from = def.from as EndpointCfg
-    const to = def.to as EndpointCfg
+    const endpoints = config.endpoints as [EndpointCfg, EndpointCfg]
 
     const result: EdgeDecl = {
       type: 'edge',
       name,
-      implements: this.resolveEdgeParents(config),
-      endpoints: [this.serializeEndpoint(from), this.serializeEndpoint(to)],
+      implements: this.resolveInherits(config),
+      endpoints: [this.serializeEndpoint(endpoints[0]), this.serializeEndpoint(endpoints[1])],
       properties: this.serializeProperties(config.props, name),
       methods: this.serializeMethods(config.methods, name),
     }
@@ -124,29 +120,10 @@ export class SerializeContext {
     return result
   }
 
-  private resolveIfaceParents(config: Record<string, any>): string[] {
-    const exts = config.extends as IfaceDef[] | undefined
+  private resolveInherits(config: Record<string, any>): string[] {
+    const exts = config.inherits as Def[] | undefined
     if (!exts) return []
     return exts.map((e) => this.getDefName(e))
-  }
-
-  private resolveEdgeParents(config: Record<string, any>): string[] {
-    const impls = config.implements as IfaceDef[] | undefined
-    if (!impls) return []
-    return impls.map((iface) => this.getDefName(iface))
-  }
-
-  private resolveNodeParents(config: Record<string, any>): string[] {
-    const result: string[] = []
-    if (config.extends) {
-      result.push(this.getDefName(config.extends))
-    }
-    if (config.implements) {
-      for (const iface of config.implements as IfaceDef[]) {
-        result.push(this.getDefName(iface))
-      }
-    }
-    return result
   }
 
   private serializeEndpoint(endpoint: EndpointCfg): Endpoint {
@@ -164,10 +141,11 @@ export class SerializeContext {
   private serializeConstraints(config: Record<string, any>): EdgeConstraints | undefined {
     const c: EdgeConstraints = {}
     let has = false
-    if (config.unique) { c.unique = true; has = true }
-    if (config.noSelf) { c.noSelf = true; has = true }
-    if (config.acyclic) { c.acyclic = true; has = true }
-    if (config.symmetric) { c.symmetric = true; has = true }
+    const constraints = config.constraints as DefConstraints | undefined
+    if (constraints?.unique) { c.unique = true; has = true }
+    if (constraints?.noSelf) { c.noSelf = true; has = true }
+    if (constraints?.acyclic) { c.acyclic = true; has = true }
+    if (constraints?.symmetric) { c.symmetric = true; has = true }
     if (config.onDeleteSource) { c.onDeleteSource = config.onDeleteSource; has = true }
     if (config.onDeleteTarget) { c.onDeleteTarget = config.onDeleteTarget; has = true }
     return has ? c : undefined

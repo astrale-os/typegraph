@@ -1,4 +1,4 @@
-import type { NodeDef } from '../defs/node.js'
+import type { Def } from '../defs/def.js'
 import type { Schema } from '../schema/schema.js'
 
 export interface Ref<D = unknown> {
@@ -7,7 +7,7 @@ export interface Ref<D = unknown> {
   readonly __id: string
 }
 
-export interface CoreInstance<N extends NodeDef = NodeDef> {
+export interface CoreInstance<N extends Def = Def> {
   readonly type: 'core-instance'
   readonly __nodeDef: N
   readonly __data: Record<string, unknown>

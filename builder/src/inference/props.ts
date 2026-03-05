@@ -1,8 +1,5 @@
 import type { z } from 'zod'
-import type { IfaceDef } from '../defs/iface.js'
-import type { NodeDef } from '../defs/node.js'
-import type { EdgeDef } from '../defs/edge.js'
-import type { PropShape } from '../defs/common.js'
+import type { Def } from '../defs/def.js'
 
 /** Extract own props from a def's config */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -13,58 +10,28 @@ export type InferProps<P> = {
   [K in keyof P]: P[K] extends z.ZodType<infer O> ? O : never
 }
 
-// ── Shared traversal helpers ────────────────────────────────────────────────
+// ── Traversal helpers ────────────────────────────────────────────────
 
-/** Extract implements array from a NodeDef or EdgeDef */
-export type ExtractImplements<D> =
-  D extends NodeDef<infer C>
-    ? C extends { implements: infer I extends readonly IfaceDef<any>[] }
+/** Extract inherits array from a Def */
+export type ExtractInherits<D> =
+  D extends Def<infer C>
+    ? C extends { inherits: infer I extends readonly Def<any>[] }
       ? I
       : readonly []
-    : D extends EdgeDef<any, any, infer EC>
-      ? EC extends { implements: infer I extends readonly IfaceDef<any>[] }
-        ? I
-        : readonly []
-      : readonly []
+    : readonly []
 
-/** Extract extends NodeDef from a NodeDef */
-export type ExtractNodeExtends<D> =
-  D extends NodeDef<infer C>
-    ? C extends { extends: infer E extends NodeDef<any> }
-      ? E
-      : never
-    : never
-
-/** Collect all iface props via extends chain */
-export type CollectIfacePropsFromList<T> = T extends readonly [
-  infer Head extends IfaceDef<any>,
-  ...infer Tail extends readonly IfaceDef<any>[],
+/** Collect props from an inherits list (own + recursive parents) */
+export type CollectPropsFromInherits<T> = T extends readonly [
+  infer Head extends Def<any>,
+  ...infer Tail extends readonly Def<any>[],
 ]
   ? InferProps<ExtractProps<Head>> &
-      (Head extends IfaceDef<infer HC>
-        ? HC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
-          ? CollectIfacePropsFromList<Parents>
-          : unknown
-        : unknown) &
-      CollectIfacePropsFromList<Tail>
+      CollectPropsFromInherits<ExtractInherits<Head>> &
+      CollectPropsFromInherits<Tail>
   : unknown
 
-/** Full inferred props for a NodeDef: own + inherited from implements + inherited from extends */
+/** Full inferred props: own + inherited from inherits chain */
 export type ExtractFullProps<D> =
-  D extends NodeDef<any>
-    ? InferProps<ExtractProps<D>> &
-        CollectIfacePropsFromList<ExtractImplements<D>> &
-        (ExtractNodeExtends<D> extends never ? unknown : ExtractFullProps<ExtractNodeExtends<D>>)
-    : D extends IfaceDef<any>
-      ? InferProps<ExtractProps<D>> &
-          (D extends IfaceDef<infer IC>
-            ? IC extends { extends: infer Parents extends readonly IfaceDef<any>[] }
-              ? CollectIfacePropsFromList<Parents>
-              : unknown
-            : unknown)
-      : D extends EdgeDef<any, any, infer EC>
-        ? (EC extends { props: infer P extends PropShape }
-            ? InferProps<P>
-            : unknown) &
-            CollectIfacePropsFromList<ExtractImplements<D>>
-        : unknown
+  D extends Def<any>
+    ? InferProps<ExtractProps<D>> & CollectPropsFromInherits<ExtractInherits<D>>
+    : unknown

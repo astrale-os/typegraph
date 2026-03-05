@@ -1,6 +1,3 @@
-import type { IfaceDef } from '../../defs/iface.js'
-import type { NodeDef } from '../../defs/node.js'
-import type { EdgeDef } from '../../defs/edge.js'
 import type { OpDef } from '../../defs/op.js'
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
@@ -51,12 +48,8 @@ export function validateRefTargets(ctx: SchemaContext): void {
     }
   }
 
-  for (const [name, def] of [
-    ...Object.entries(ctx.ifaces),
-    ...Object.entries(ctx.nodes),
-    ...Object.entries(ctx.edges),
-  ] as [string, IfaceDef | NodeDef | EdgeDef][]) {
-    const methods = (def.config as any)?.methods as Record<string, OpDef> | undefined
+  for (const [name, def] of Object.entries(ctx.defs)) {
+    const methods = def.config.methods as Record<string, OpDef> | undefined
     if (methods) {
       for (const [methodName, methodDef] of Object.entries(methods)) {
         validateOpRefs(`${name}.${methodName}`, methodDef)

@@ -14,7 +14,9 @@ import {
 
 function buildOpsMap(ctx: SchemaContext): Record<string, OpDef> {
   const ops: Record<string, OpDef> = {}
-  for (const [name, def] of [...Object.entries(ctx.nodes), ...Object.entries(ctx.edges)]) {
+  for (const [name, def] of Object.entries(ctx.defs)) {
+    // Only collect methods from concrete (non-abstract) defs
+    if (def.config.abstract) continue
     const allMethods = collectAllMethodDefs(def)
     for (const [methodName, opDef] of Object.entries(allMethods)) {
       ops[`${name}.${methodName}`] = opDef
@@ -37,9 +39,6 @@ export function defineSchema<const D extends Record<string, AnyDef>>(
   return {
     domain,
     defs,
-    ifaces: ctx.ifaces,
-    nodes: ctx.nodes,
-    edges: ctx.edges,
     ops,
   } as unknown as Schema<D>
 }
