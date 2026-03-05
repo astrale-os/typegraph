@@ -1,5 +1,8 @@
-import type { ParamShape, Access } from './common.js'
 import type { z } from 'zod'
+
+export type ParamShape = Record<string, z.ZodType>
+
+export type Access = 'private' | 'internal'
 
 export interface OpConfig {
   readonly params?: ParamShape | (() => ParamShape)

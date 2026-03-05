@@ -1,4 +1,4 @@
-import type { OpDef } from '../defs/op.js'
+import type { OpDef } from '../defs/operation.js'
 import type { AnyDef } from '../defs/index.js'
 import { collectAllMethodDefs } from '../helpers/methods.js'
 import type { Schema } from './schema.js'

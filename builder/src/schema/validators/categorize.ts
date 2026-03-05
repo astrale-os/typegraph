@@ -1,5 +1,5 @@
 import type { AnyDef } from '../../defs/index.js'
-import type { OpDef } from '../../defs/op.js'
+import type { OpDef } from '../../defs/operation.js'
 import { registerDef } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'

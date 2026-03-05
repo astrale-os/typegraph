@@ -1,4 +1,4 @@
-import type { Def } from '../defs/def.js'
+import type { Def } from '../defs/definition.js'
 import type { CoreInstance, CoreLink, Ref } from './types.js'
 import type { EdgeInputData } from './node.js'
 import { getDefName } from '../registry.js'

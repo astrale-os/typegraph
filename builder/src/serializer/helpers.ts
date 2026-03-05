@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Cardinality as BuilderCardinality } from '../defs/common.js'
+import type { Cardinality as BuilderCardinality } from '../defs/endpoint.js'
 import type { Cardinality, JsonSchema } from '@astrale/typegraph-schema'
 
 // ── Zod introspection helpers ───────────────────────────────────────────────

@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { z } from 'zod'
-import type { OpDef } from '../defs/op.js'
-import type { ParamShape } from '../defs/common.js'
-import type { Def } from '../defs/def.js'
+import type { OpDef } from '../defs/operation.js'
+import type { ParamShape } from '../defs/operation.js'
+import type { Def } from '../defs/definition.js'
 import type { ExtractInherits, ExtractFullProps } from './props.js'
 import type { ExtractFullData } from './data.js'
 
@@ -23,8 +24,7 @@ type CollectMethodsFromInherits<T> = T extends readonly [
 /** All methods for a def: own + inherited from inherits chain */
 export type AllMethods<D> =
   D extends Def<any>
-    ? ExtractMethods<D> &
-        CollectMethodsFromInherits<ExtractInherits<D>>
+    ? ExtractMethods<D> & CollectMethodsFromInherits<ExtractInherits<D>>
     : ExtractMethods<D>
 
 /** Check if a def has methods (own or inherited) */

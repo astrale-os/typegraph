@@ -1,4 +1,4 @@
-import type { OpDef } from '../../defs/op.js'
+import type { OpDef } from '../../defs/operation.js'
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'

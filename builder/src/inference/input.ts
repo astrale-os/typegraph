@@ -1,4 +1,5 @@
-import type { Def } from '../defs/def.js'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Def } from '../defs/definition.js'
 import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
 import type { ExtractData } from './data.js'
 

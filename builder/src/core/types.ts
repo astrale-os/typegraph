@@ -1,4 +1,4 @@
-import type { Def } from '../defs/def.js'
+import type { Def } from '../defs/definition.js'
 import type { Schema } from '../schema/schema.js'
 
 export interface Ref<D = unknown> {

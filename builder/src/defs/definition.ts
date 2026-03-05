@@ -1,18 +1,12 @@
-import type { PropShape, DataShape, IndexDef, Cardinality } from './common.js'
-import type { OpDef } from './op.js'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { PropShape } from './property.js'
+import type { DataShape } from './data.js'
+import type { IndexDef } from './indexing.js'
+import type { OpDef } from './operation.js'
+import type { EndpointCfg } from './endpoint.js'
+import type { DefConstraints } from './constraints.js'
 
-export interface EndpointCfg {
-  readonly as: string
-  readonly types: readonly Def<any>[]
-  readonly cardinality?: Cardinality
-}
-
-export interface DefConstraints {
-  readonly noSelf?: boolean
-  readonly acyclic?: boolean
-  readonly unique?: boolean
-  readonly symmetric?: boolean
-}
+export type DefType = 'def' | 'op'
 
 export interface DefConfig {
   readonly abstract?: boolean
@@ -60,7 +54,7 @@ export type InterfaceConfig = Omit<DefConfig, 'abstract' | 'inherits'> & {
 }
 
 type MapExtendsToInherits<C> = Omit<C, 'extends'> &
-  (C extends { extends: infer E } ? { readonly inherits: E } : {})
+  (C extends { extends: infer E } ? { readonly inherits: E } : Record<string, never>)
 
 export function interfaceDef<const C extends InterfaceConfig>(
   config: C | (() => C),

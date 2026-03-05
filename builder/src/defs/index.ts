@@ -1,10 +1,16 @@
-export type { PropShape, DataShape, ParamShape, IndexDef, Cardinality, Access, DefType } from './common.js'
-export type { OpConfig, OpDef } from './op.js'
-export { op, method } from './op.js'
-export type { DefConfig, Def, EndpointCfg, DefConstraints } from './def.js'
-export { def, classDef, interfaceDef } from './def.js'
-export type { RefSchema, DataSelfSchema, DataGrantSchema, DataGrantToken } from './ref.js'
-export { ref, data } from './ref.js'
+export type { Property, PropShape } from './property.js'
+export type { DataShape } from './data.js'
+export type { IndexDef } from './indexing.js'
+export type { DefConstraints } from './constraints.js'
+export type { Cardinality, EndpointCfg } from './endpoint.js'
+export type { Access, ParamShape, OpConfig, OpDef } from './operation.js'
+export { op, method } from './operation.js'
+export type { DefType, DefConfig, Def, InterfaceConfig } from './definition.js'
+export { def, classDef, interfaceDef } from './definition.js'
+export type { RefSchema } from './ref.js'
+export { ref } from './ref.js'
+export type { DataSelfSchema, DataGrantSchema, DataGrantToken } from './data.js'
+export { data } from './data.js'
 
 /** Union of all top-level def types. */
-export type AnyDef = import('./def.js').Def<any>
+export type AnyDef = import('./definition.js').Def<any>

@@ -1,4 +1,4 @@
-import type { Def } from '../../defs/def.js'
+import type { Def } from '../../defs/definition.js'
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'

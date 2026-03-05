@@ -1,4 +1,4 @@
-import type { IndexDef } from '../../defs/common.js'
+import type { IndexDef } from '../../defs/indexing.js'
 import { collectAvailableProps } from '../../helpers/props.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'

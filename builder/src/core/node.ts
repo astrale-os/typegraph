@@ -1,4 +1,4 @@
-import type { Def } from '../defs/def.js'
+import type { Def } from '../defs/definition.js'
 import type { ExtractFullProps } from '../inference/props.js'
 import type { ExtractNodeInput } from '../inference/input.js'
 import type { CoreInstance } from './types.js'

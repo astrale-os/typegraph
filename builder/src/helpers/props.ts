@@ -1,4 +1,4 @@
-import type { Def } from '../defs/def.js'
+import type { Def } from '../defs/definition.js'
 
 /** Collect all reachable property names (own + inherited). */
 export function collectAvailableProps(def: Def): Set<string> {

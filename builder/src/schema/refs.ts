@@ -1,7 +1,7 @@
 import type { Schema } from './schema.js'
-import type { Def } from '../defs/def.js'
-import type { OpDef } from '../defs/op.js'
-import type { ParamShape } from '../defs/common.js'
+import type { Def } from '../defs/definition.js'
+import type { OpDef } from '../defs/operation.js'
+import type { ParamShape } from '../defs/operation.js'
 import type { HasMethods, ExtractMethodNames } from '../inference/methods.js'
 import type { InferProps } from '../inference/props.js'
 

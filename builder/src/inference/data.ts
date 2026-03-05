@@ -1,4 +1,5 @@
-import type { Def } from '../defs/def.js'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Def } from '../defs/definition.js'
 import type { ExtractInherits, InferProps } from './props.js'
 
 /** Extract own data shape from a def's config */
@@ -18,8 +19,7 @@ type CollectDataFromInherits<T> = T extends readonly [
 /** Full inferred data: own + inherited from inherits chain */
 export type ExtractFullData<D> =
   D extends Def<any>
-    ? InferProps<ExtractData<D>> &
-        CollectDataFromInherits<ExtractInherits<D>>
+    ? InferProps<ExtractData<D>> & CollectDataFromInherits<ExtractInherits<D>>
     : unknown
 
 /** Check if a def has any data (own or inherited) */

@@ -1,5 +1,5 @@
-import type { Def } from '../defs/def.js'
-import type { OpDef } from '../defs/op.js'
+import type { Def } from '../defs/definition.js'
+import type { OpDef } from '../defs/operation.js'
 
 /** Collect all method OpDef objects (own + inherited) from a def. */
 export function collectAllMethodDefs(def: Def): Record<string, OpDef> {

@@ -1,5 +1,4 @@
-import type { EndpointCfg } from '../../defs/def.js'
-import type { Cardinality } from '../../defs/common.js'
+import type { EndpointCfg, Cardinality } from '../../defs/endpoint.js'
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'

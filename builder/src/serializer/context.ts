@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import type { Schema } from '../schema/schema.js'
-import type { Def, EndpointCfg, DefConstraints } from '../defs/def.js'
-import type { OpDef } from '../defs/op.js'
+import type { Def } from '../defs/definition.js'
+import type { EndpointCfg } from '../defs/endpoint.js'
+import type { DefConstraints } from '../defs/constraints.js'
+import type { OpDef } from '../defs/operation.js'
 import { getDefRegistration } from '../registry.js'
 import type {
   SchemaIR,
