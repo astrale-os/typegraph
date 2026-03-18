@@ -7,3 +7,4 @@ packages:
   - 'typegraph/__tests__/app'
   - 'adapters/*'
   - 'examples'
+link-workspace-packages: true
