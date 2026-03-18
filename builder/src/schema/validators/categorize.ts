@@ -1,5 +1,6 @@
 import type { AnyDef } from '../../defs/index.js'
 import type { OpDef } from '../../defs/operation.js'
+import { SELF } from '../../defs/ref.js'
 import { registerDef } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'
@@ -8,8 +9,14 @@ import type { SchemaContext } from './context.js'
 export function categorize(domain: string, defs: Record<string, AnyDef>): SchemaContext {
   for (const [name, def] of Object.entries(defs)) {
     resolveThunks(name, def)
+    resolveSelfRefs(def.config, def)
     registerDef(def, domain, name)
-    Object.defineProperty(def, 'name', { value: name, enumerable: true, writable: false, configurable: false })
+    Object.defineProperty(def, 'name', {
+      value: name,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    })
     if (def.type !== 'def') {
       throw new SchemaValidationError(
         `Unsupported def type '${(def as any).type}' for '${name}'. Expected def.`,
@@ -53,5 +60,18 @@ function resolveThunks(name: string, def: AnyDef): void {
         }
       }
     }
+  }
+}
+
+/** Replace any ref(SELF) targets with the actual def object. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveSelfRefs(obj: any, actualDef: AnyDef, visited = new WeakSet<object>()): void {
+  if (!obj || typeof obj !== 'object' || visited.has(obj)) return
+  visited.add(obj)
+  if (obj.__ref_target === SELF) {
+    obj.__ref_target = actualDef
+  }
+  for (const value of Object.values(obj)) {
+    resolveSelfRefs(value, actualDef, visited)
   }
 }
