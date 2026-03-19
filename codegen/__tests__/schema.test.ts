@@ -16,6 +16,7 @@ describe('schema types', () => {
 
   it('includes all edges in SchemaEdgeType', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class edge_one(x: A, y: A) []
       class edge_two(x: A, y: A) []
@@ -25,6 +26,7 @@ describe('schema types', () => {
 
   it('emits SchemaType as union of both', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class Foo: Node {}
       class link(a: Foo, b: Foo) []
     `)

@@ -15,7 +15,7 @@ async function isContainerRunning(): Promise<boolean> {
       cwd: process.cwd(),
     })
     if (!stdout.trim()) return false
-    return stdout.includes('falkordb-test') && stdout.includes('running')
+    return stdout.includes('falkordb') && stdout.includes('running')
   } catch {
     return false
   }

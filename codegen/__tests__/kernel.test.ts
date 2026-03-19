@@ -18,6 +18,7 @@ describe('kernel types — extend integration', () => {
 
   it('kernel Node type as base allows creating edges', () => {
     const { source, model } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class B: Node {}
       class rel(x: A, y: B) []
@@ -33,7 +34,7 @@ describe('kernel types — extend integration', () => {
 
   it('multiple kernel imports', () => {
     const { source, model } = compileAndGenerate(`
-      extend "https://kernel.astrale.ai/v1" { Identity }
+      extend "https://kernel.astrale.ai/v1" { Identity, Node }
       class Admin: Identity { level: Int }
       class Resource: Node { name: String }
     `)
@@ -47,6 +48,7 @@ describe('kernel types — extend integration', () => {
 
   it('kernel prelude edge types are usable', () => {
     const { model } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class App: Node { name: String }
       class Module: Node { name: String }
     `)

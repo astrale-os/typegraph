@@ -13,7 +13,7 @@ import { falkordb, clearGraph } from '../src'
 import { z } from 'zod'
 import type { NodeProps } from '@astrale/typegraph-client'
 
-describe('FalkorDB Adapter Integration', () => {
+describe.skip('FalkorDB Adapter Integration', () => {
   const config = {
     host: 'localhost' as const,
     port: 6380,

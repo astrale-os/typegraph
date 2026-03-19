@@ -59,6 +59,7 @@ describe('validation — codegen responsibilities', () => {
 
   it('edge constraints are fully captured in schema value for runtime enforcement', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class guarded(x: A, y: A) [no_self, acyclic, unique, x -> 1..5, on_kill_target: cascade]
     `)
@@ -72,6 +73,7 @@ describe('validation — codegen responsibilities', () => {
 
   it('symmetric constraint is captured', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class friends(a: A, b: A) [symmetric, unique, no_self]
     `)
@@ -83,6 +85,7 @@ describe('validation — codegen responsibilities', () => {
 
   it('on_kill_source lifecycle action is captured', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class Parent: Node {}
       class Child: Node {}
       class parent_of(parent: Parent, child: Child) [on_kill_source: cascade]

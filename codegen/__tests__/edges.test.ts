@@ -4,6 +4,7 @@ import { compileAndGenerate, extractSchemaEdgeBlock } from './helpers.js'
 describe('edges', () => {
   it('generates edge with two endpoints', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class B: Node {}
       class connects(from: A, to: B) []
@@ -13,6 +14,7 @@ describe('edges', () => {
 
   it('generates edge with union type endpoints', () => {
     const { source, model } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class X: Node {}
       class Y: Node {}
       class Z: Node {}
@@ -25,6 +27,7 @@ describe('edges', () => {
 
   it('generates edge with single endpoint (higher-order)', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class B: Node {}
       class base_edge(x: A, y: B) []
@@ -37,6 +40,7 @@ describe('edges', () => {
 
   it('generates edge payload with multiple attributes and defaults', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       type Role = String [in: ["viewer", "editor", "admin"]]
       class U: Node {}
       class G: Node {}
@@ -56,6 +60,7 @@ describe('edges', () => {
 
   it('generates edge constraints in schema value', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class self_ref(x: A, y: A) [no_self, acyclic, unique, on_kill_target: cascade]
     `)
@@ -67,6 +72,7 @@ describe('edges', () => {
 
   it('generates cardinality in schema value', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class limited(src: A, tgt: A) [src -> 0..10, tgt -> 1]
     `)
@@ -76,6 +82,7 @@ describe('edges', () => {
 
   it('edge without payload does NOT get a payload interface', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class simple(x: A, y: A) []
     `)
@@ -86,6 +93,7 @@ describe('edges', () => {
 describe('edge inheritance — polymorphic endpoints', () => {
   it('edge between interfaces records interface types in schema value', () => {
     const { source, model } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       interface Connectable: Node { label: String }
       class Alpha: Connectable { a: Int }
       class Beta: Connectable { b: Int }
@@ -119,6 +127,7 @@ describe('edge inheritance — polymorphic endpoints', () => {
 
   it('edge with union of concrete + interface endpoints', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       interface Taggable: Node {}
       class Post: Taggable { title: String }
       class Comment: Node { body: String }
@@ -131,6 +140,7 @@ describe('edge inheritance — polymorphic endpoints', () => {
 
   it('concrete class satisfying interface endpoint appears with correct implements', () => {
     const { model } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       interface Ownable: Node {}
       interface Shareable: Node {}
       class Document: Ownable, Shareable { title: String }

@@ -1,5 +1,5 @@
 services:
-  falkordb-test:
+  falkordb:
     image: falkordb/falkordb:latest
     ports:
       - '6380:6379'

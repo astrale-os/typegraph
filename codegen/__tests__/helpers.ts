@@ -1,13 +1,20 @@
-import { compile, KERNEL_PRELUDE, type SchemaIR } from '@astrale/kernel-compiler'
+import {
+  compile,
+  KERNEL_PRELUDE,
+  buildKernelRegistry,
+  type SchemaIR,
+} from '@astrale/kernel-compiler'
 import { generate, type GenerateResult } from '../src/generate.js'
 import { normalizeIR, load, type GraphModel } from '../src/index.js'
 
+const kernelRegistry = buildKernelRegistry()
+
 /**
- * Compile a KRL source string using the kernel prelude.
+ * Compile a KRL source string using the kernel prelude and registry.
  * Throws if compilation produces errors.
  */
 export function compileKRL(source: string): SchemaIR {
-  const { ir, diagnostics } = compile(source, { prelude: KERNEL_PRELUDE })
+  const { ir, diagnostics } = compile(source, { prelude: KERNEL_PRELUDE, registry: kernelRegistry })
   const errors = diagnostics.getErrors()
   if (errors.length > 0) {
     const msg = errors.map((e) => `[${e.code}] ${e.message}`).join('\n')

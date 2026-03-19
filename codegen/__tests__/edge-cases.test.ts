@@ -17,6 +17,7 @@ describe('edge cases', () => {
   })
 
   it('many nodes and edges stress test', () => {
+    const extend = 'extend "https://kernel.astrale.ai/v1" { Node }'
     const nodes = Array.from(
       { length: 10 },
       (_, i) => `class N${i}: Node { val${i}: String }`,
@@ -25,7 +26,7 @@ describe('edge cases', () => {
       { length: 5 },
       (_, i) => `class e${i}(a: N${i * 2}, b: N${i * 2 + 1}) []`,
     ).join('\n')
-    const { source, model } = compileAndGenerate(`${nodes}\n${edges}`)
+    const { source, model } = compileAndGenerate(`${extend}\n${nodes}\n${edges}`)
     expect(model.nodeDefs.size).toBeGreaterThanOrEqual(10)
     expect(model.edgeDefs.size).toBe(5)
     for (let i = 0; i < 10; i++) {

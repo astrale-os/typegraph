@@ -23,6 +23,7 @@ describe('core DSL', () => {
 
   it('generates CoreEdgeEndpoints with all param names', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class B: Node {}
       class C: Node {}
@@ -33,6 +34,7 @@ describe('core DSL', () => {
 
   it('generates CoreEdgeProps only for edges with attributes', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class X: Node {}
       class with_payload(a: X, b: X) [] { weight: Float }
       class without_payload(a: X, b: X) []
@@ -54,6 +56,7 @@ describe('core DSL', () => {
 
   it('generates edge() with conditional props', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class rel(x: A, y: A) [] { note: String }
     `)
@@ -86,7 +89,7 @@ describe('core DSL', () => {
 describe('core types — runtime usage', () => {
   it('generated node() + edge() + defineCore() produce valid structures', () => {
     const { source } = compileAndGenerate(`
-      extend "https://kernel.astrale.ai/v1" { Identity }
+      extend "https://kernel.astrale.ai/v1" { Identity, Node }
       class Application: Identity { name: String }
       class Module: Node { name: String }
       class manages(app: Application, mod: Module) []
@@ -105,6 +108,7 @@ describe('core types — runtime usage', () => {
 
   it('edge without payload generates edge() without props parameter', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class simple(x: A, y: A) []
     `)
@@ -114,6 +118,7 @@ describe('core types — runtime usage', () => {
 
   it('edge with payload generates edge() with conditional props', () => {
     const { source } = compileAndGenerate(`
+      extend "https://kernel.astrale.ai/v1" { Node }
       class A: Node {}
       class weighted(x: A, y: A) [] { weight: Float }
       class plain(x: A, y: A) []
