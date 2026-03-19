@@ -100,6 +100,7 @@ function lowerFlagModifier(name: string, span: Span): FlagModifier {
     return { kind: 'FlagModifier', flag: name as FlagName, span }
   }
   // Unknown flag — still emit, validator will catch it
+  // oxlint-disable-next-line no-explicit-any
   return { kind: 'FlagModifier', flag: name as any, span }
 }
 

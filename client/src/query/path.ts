@@ -5,11 +5,12 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST } from './ast'
+import type { QueryAST, ComparisonOperator } from './ast'
 import type { CompiledQuery } from './compiler'
 import { getCompiler } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { NodeLabels, EdgeTypes, NodeProps } from '../inference'
+import type { NodeLabels, EdgeTypes } from '../inference'
+import type { ResolveNode } from '../resolve'
 
 /**
  * A single node in a path.
@@ -65,7 +66,7 @@ export class PathBuilder<
 
   whereEdge<K extends string>(
     _field: K,
-    _operator: import('./ast').ComparisonOperator,
+    _operator: ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
@@ -73,7 +74,7 @@ export class PathBuilder<
 
   whereIntermediateNode<K extends string>(
     _field: K,
-    _operator: import('./ast').ComparisonOperator,
+    _operator: ComparisonOperator,
     _value: unknown,
   ): PathBuilder<S, NStart, NEnd, T> {
     throw new Error('Not implemented')
@@ -91,7 +92,7 @@ export class PathBuilder<
     throw new Error('Not implemented')
   }
 
-  async endNodes(): Promise<import('../resolve').ResolveNode<T, NEnd & string>[]> {
+  async endNodes(): Promise<ResolveNode<T, NEnd & string>[]> {
     throw new Error('Not implemented')
   }
 

@@ -78,6 +78,7 @@ export class TypedReturningBuilder<T> implements TypedReturnQuery<T> {
       compiled.cypher,
       compiled.params,
       // AST is internal to the inner builder
+      // oxlint-disable-next-line no-explicit-any
       (this._innerBuilder as any)._ast,
     )
 

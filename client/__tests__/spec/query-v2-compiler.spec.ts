@@ -1033,7 +1033,7 @@ describe('Return Step Compilation', () => {
                     value: 90,
                     target: 'n0',
                   },
-                  then: { type: 'literal', value: 'A' },
+                  then: { type: 'literal', value: 'A' }, // oxlint-disable-line no-thenable
                 },
                 {
                   when: {
@@ -1043,7 +1043,7 @@ describe('Return Step Compilation', () => {
                     value: 80,
                     target: 'n0',
                   },
-                  then: { type: 'literal', value: 'B' },
+                  then: { type: 'literal', value: 'B' }, // oxlint-disable-line no-thenable
                 },
               ],
               else: { type: 'literal', value: 'C' },

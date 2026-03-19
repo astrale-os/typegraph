@@ -91,18 +91,19 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
   const { beforeCreate, beforeLink, onNode, onEdge } = options
   // Flat map — internal only, used for edge resolution
   const flatRefs: Record<string, string> = {}
-  const coreRefs: Record<string, any> = {}
+  const coreRefs: Record<string, NodeId | CoreRefs> = {}
   let nodeCount = 0
   let edgeCount = 0
 
   async function createNodes(
     nodes: Record<string, CoreNodeDef>,
-    parent: Record<string, any> = coreRefs,
+    parent: Record<string, NodeId | CoreRefs> = coreRefs,
   ): Promise<void> {
     for (const [ref, def] of Object.entries(nodes)) {
       const props = beforeCreate ? beforeCreate(def.__type, { ...def.props }) : def.props
 
       // Cast through any — the core DSL already validates types at definition time.
+      // oxlint-disable-next-line no-explicit-any
       const result = await (graph.mutate as any).create(def.__type, props)
       const nodeId = result.id
 
@@ -111,7 +112,7 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
       onNode?.(ref, def.__type, nodeId)
 
       if (def.children) {
-        const children: Record<string, any> = {}
+        const children: Record<string, NodeId | CoreRefs> = {}
         parent[ref] = children
         await createNodes(def.children, children)
       } else {
@@ -135,6 +136,7 @@ export async function installCore<S extends SchemaShape, T extends TypeMap = Unt
         ? beforeLink(edgeDef.__type, edgeDef.props ? { ...edgeDef.props } : undefined)
         : edgeDef.props
 
+      // oxlint-disable-next-line no-explicit-any
       await (graph.mutate as any).link(edgeDef.__type, fromId, toId, edgeProps)
       edgeCount++
       onEdge?.(edgeDef.__type, fromRef, toRef)

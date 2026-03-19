@@ -1,17 +1,21 @@
-import { z } from 'zod'
+import type { z } from 'zod'
 import type { Cardinality as BuilderCardinality } from '../defs/endpoint.js'
 import type { Cardinality, JsonSchema } from '@astrale/typegraph-schema'
 
 // ── Zod introspection helpers ───────────────────────────────────────────────
 
+// oxlint-disable-next-line no-explicit-any
 export function getZodDef(schema: z.ZodType): Record<string, any> | null {
+  // oxlint-disable-next-line no-explicit-any
   return (schema as any)?._zod?.def ?? (schema as any)?._def ?? null
 }
 
+// oxlint-disable-next-line no-explicit-any
 export function getZodTypeName(def: Record<string, any>): string | undefined {
   return def.typeName ?? def.type
 }
 
+// oxlint-disable-next-line no-explicit-any
 export function getZodInner(def: Record<string, any>): z.ZodType | null {
   return def.innerType ?? def.inner ?? null
 }
@@ -102,7 +106,7 @@ export function mapCardinality(c: BuilderCardinality): Cardinality | undefined {
 }
 
 export function hasRefTarget(schema: z.ZodType): boolean {
-  return schema != null && typeof schema === 'object' && '__ref_target' in schema
+  return schema !== null && typeof schema === 'object' && '__ref_target' in schema
 }
 
 export function cleanJsonSchema(schema: Record<string, unknown>): JsonSchema {

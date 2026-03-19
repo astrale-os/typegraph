@@ -25,6 +25,14 @@ import {
   cleanJsonSchema,
 } from './helpers.js'
 
+interface ZodRefMeta {
+  __ref_target?: object
+  __ref_data?: boolean
+  __data_self?: boolean
+  __data_grant?: boolean
+  __data_target?: object
+}
+
 export class SerializeContext {
   private defToName = new Map<object, string>()
   private zodToTypeName = new WeakMap<z.ZodType, string>()
@@ -77,6 +85,7 @@ export class SerializeContext {
   }
 
   private serializeInterface(name: string, def: Def): InterfaceDecl {
+    // oxlint-disable-next-line no-explicit-any
     const config = def.config as Record<string, any>
     const result: InterfaceDecl = {
       type: 'interface',
@@ -91,6 +100,7 @@ export class SerializeContext {
   }
 
   private serializeNode(name: string, def: Def): NodeDecl {
+    // oxlint-disable-next-line no-explicit-any
     const config = def.config as Record<string, any>
     const result: NodeDecl = {
       type: 'node',
@@ -105,6 +115,7 @@ export class SerializeContext {
   }
 
   private serializeEdge(name: string, def: Def): EdgeDecl {
+    // oxlint-disable-next-line no-explicit-any
     const config = def.config as Record<string, any>
     const endpoints = config.endpoints as [EndpointCfg, EndpointCfg]
 
@@ -122,6 +133,7 @@ export class SerializeContext {
     return result
   }
 
+  // oxlint-disable-next-line no-explicit-any
   private resolveInherits(config: Record<string, any>): string[] {
     const exts = config.inherits as Def[] | undefined
     if (!exts) return []
@@ -140,6 +152,7 @@ export class SerializeContext {
     return result
   }
 
+  // oxlint-disable-next-line no-explicit-any
   private serializeConstraints(config: Record<string, any>): EdgeConstraints | undefined {
     const c: EdgeConstraints = {}
     let has = false
@@ -190,6 +203,7 @@ export class SerializeContext {
   }
 
   private serializeOp(name: string, def: OpDef, _className?: string): OperationDecl {
+    // oxlint-disable-next-line no-explicit-any
     const config = def.config as Record<string, any>
     const returnSchema = config.returns as z.ZodType
     const { inner: returnInner, nullable: returnNullable } = unwrapZod(returnSchema)
@@ -242,8 +256,8 @@ export class SerializeContext {
 
   private convertZodSchema(schema: z.ZodType): JsonSchema {
     if (hasRefTarget(schema)) return this.buildNodeRef(schema)
-    if ((schema as any).__data_self) return { $dataRef: 'self' }
-    if ((schema as any).__data_grant) return { $dataRef: this.getDefName((schema as any).__data_target) }
+    if ((schema as unknown as ZodRefMeta).__data_self) return { $dataRef: 'self' }
+    if ((schema as unknown as ZodRefMeta).__data_grant) return { $dataRef: this.getDefName((schema as unknown as ZodRefMeta).__data_target!) }
 
     const typeName = this.zodToTypeName.get(schema)
     if (typeName) return { $ref: `#/types/${typeName}` }
@@ -276,8 +290,8 @@ export class SerializeContext {
   }
 
   private buildNodeRef(schema: z.ZodType): JsonSchema {
-    const result: JsonSchema = { $nodeRef: this.getDefName((schema as any).__ref_target) }
-    if ((schema as any).__ref_data) result.includeData = true
+    const result: JsonSchema = { $nodeRef: this.getDefName((schema as unknown as ZodRefMeta).__ref_target!) }
+    if ((schema as unknown as ZodRefMeta).__ref_data) result.includeData = true
     return result
   }
 
@@ -294,6 +308,7 @@ export class SerializeContext {
     }
 
     throw new Error(
+      // oxlint-disable-next-line no-explicit-any
       `Serialization error: referenced def not found in schema and not registered in any schema.`,
     )
   }

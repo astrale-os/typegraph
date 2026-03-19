@@ -19,10 +19,7 @@ import {
   type Method,
   type Projection,
   type TypeExpr,
-  NamedType,
-  NullableType,
-  UnionType,
-  EdgeRefType,
+  type Name,
 } from '../ast/index'
 
 export function provideDocumentSymbols(state: DocumentState): DocumentSymbol[] {
@@ -185,7 +182,7 @@ function taggedUnionSymbol(decl: TaggedUnionDecl, state: DocumentState): Documen
 
 function dataChildSymbols(
   dataDecl: DataDecl | null,
-  dataRef: import('../ast/index').Name | null,
+  dataRef: Name | null,
   state: DocumentState,
 ): DocumentSymbol[] {
   const children: DocumentSymbol[] = []

@@ -13,4 +13,5 @@ export type { DataSelfSchema, DataGrantSchema, DataGrantToken } from './data.js'
 export { data } from './data.js'
 
 /** Union of all top-level def types. */
+// oxlint-disable-next-line no-explicit-any, consistent-type-imports
 export type AnyDef = import('./definition.js').Def<any>

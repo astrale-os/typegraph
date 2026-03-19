@@ -9,6 +9,7 @@ import { compileGsl } from './compile-gsl'
 const args = process.argv.slice(2)
 
 if (args.length === 0 || args.includes('--help')) {
+  // oxlint-disable-next-line no-console
   console.log(`Usage: typegraph-codegen <file...> [--out <path>] [--scaffold <path>]
 
 Arguments:
@@ -33,6 +34,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (inputPaths.length === 0) {
+  // oxlint-disable-next-line no-console
   console.error('Error: at least one input file is required')
   process.exit(1)
 }
@@ -42,6 +44,7 @@ const isGsl = inputPaths.every((p) => p.endsWith('.gsl'))
 const isJson = inputPaths.every((p) => p.endsWith('.json'))
 
 if (!isGsl && !isJson) {
+  // oxlint-disable-next-line no-console
   console.error('Error: all inputs must be the same type (.gsl or .json)')
   process.exit(1)
 }
@@ -51,6 +54,7 @@ let scaffold: string
 
 if (isGsl) {
   if (inputPaths.length > 1) {
+    // oxlint-disable-next-line no-console
     console.error('Error: only one .gsl file is supported at a time')
     process.exit(1)
   }
@@ -72,14 +76,17 @@ if (isGsl) {
 
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, source, 'utf-8')
+// oxlint-disable-next-line no-console
 console.log(`✓ Generated ${outPath}`)
 
 if (scaffoldPath && scaffold) {
   if (existsSync(scaffoldPath)) {
+    // oxlint-disable-next-line no-console
     console.log(`⏭ Scaffold skipped (file exists): ${scaffoldPath}`)
   } else {
     mkdirSync(dirname(scaffoldPath), { recursive: true })
     writeFileSync(scaffoldPath, scaffold, 'utf-8')
+    // oxlint-disable-next-line no-console
     console.log(`✓ Scaffold written: ${scaffoldPath}`)
   }
 }

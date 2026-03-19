@@ -3,16 +3,23 @@ import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'
 
+interface ZodInternals {
+  element?: unknown
+  innerType?: unknown
+  _def?: { innerType?: unknown; type?: unknown }
+}
+
 function extractRefTargets(schema: unknown): object[] {
   if (schema === null || typeof schema !== 'object') return []
   const targets: object[] = []
   const s = schema as Record<string, unknown>
   if ('__ref_target' in s) targets.push(s.__ref_target as object)
+  const zs = s as ZodInternals
   const inner =
-    (s as any).element ??
-    (s as any).innerType ??
-    (s as any)._def?.innerType ??
-    (s as any)._def?.type
+    zs.element ??
+    zs.innerType ??
+    zs._def?.innerType ??
+    zs._def?.type
   if (inner && typeof inner === 'object') targets.push(...extractRefTargets(inner))
   return targets
 }

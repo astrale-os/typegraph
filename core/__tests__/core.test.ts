@@ -500,7 +500,7 @@ describe('toCoreSnapshot', () => {
     const snapshot = toCoreSnapshot(core)
 
     expect(snapshot.edges[0].properties?.since).toBeInstanceOf(Date)
-    expect((snapshot.edges[0].properties?.since as Date).getTime()).toBe(date.getTime())
+    expect((snapshot.edges[0].properties!.since as Date).getTime()).toBe(date.getTime())
   })
 
   it('deep copy: array mutation does not affect snapshot', () => {

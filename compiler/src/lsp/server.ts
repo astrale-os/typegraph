@@ -92,7 +92,7 @@ export function startServer(prelude?: Prelude, registry?: SchemaRegistry): void 
   connection.onDidChangeTextDocument((params) => {
     const { uri, version } = params.textDocument
     const text = params.contentChanges[0]?.text ?? workspace.get(uri)?.document.getText()
-    if (text == null) return
+    if (text === null || text === undefined) return
     scheduleRecompile(uri, text, version)
   })
 

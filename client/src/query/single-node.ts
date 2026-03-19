@@ -13,6 +13,7 @@ import { buildOutTraversal, buildInTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
 import * as hierarchy from './hierarchy'
 import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveNode } from '../resolve'
 import type {
@@ -443,6 +444,6 @@ export interface SingleNodeSelector<
 > {
   execute(): Promise<Pick<NodeProps<S, N>, K>>
   executeOrNull(): Promise<Pick<NodeProps<S, N>, K> | null>
-  compile(): import('./compiler').CompiledQuery
+  compile(): CompiledQuery
   toCypher(): string
 }

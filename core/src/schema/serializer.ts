@@ -8,6 +8,7 @@ import { z } from 'zod'
 import type { SchemaDefinition, NodeDefinition, EdgeDefinition } from './types'
 
 // Use any for JSONSchema to avoid type issues with Zod v4's return type
+// oxlint-disable-next-line no-explicit-any
 type JSONSchema = any
 
 /**

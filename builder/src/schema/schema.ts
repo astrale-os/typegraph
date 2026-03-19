@@ -9,6 +9,7 @@ type Definitions<D extends Record<string, AnyDef>> = {
   readonly [K in keyof D & string]: Named<D[K], K>
 }
 
+// oxlint-disable-next-line no-explicit-any
 export interface Schema<D extends Record<string, AnyDef> = Record<string, any>> {
   readonly domain: Domain
   readonly defs: Definitions<D>

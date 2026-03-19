@@ -69,8 +69,10 @@ export interface BaseEdgeInputProps<TId extends string = string> {
  * This is a known limitation of TypeScript's structural type system.
  */
 type FindNodeKey<
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TNodes extends Record<string, NodeDefinition<any>>,
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   NDef extends NodeDefinition<any>,
 > = {
@@ -81,10 +83,12 @@ type FindNodeKey<
  * Extract the extends ref types from a node's _extendsRefs field.
  * Returns never if no refs.
  */
+// oxlint-disable-next-line no-explicit-any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExtractExtendsRefs<N extends NodeDefinition<any>> = N extends {
   _extendsRefs: readonly (infer R)[]
 }
+  // oxlint-disable-next-line no-explicit-any
   ? R extends NodeDefinition<any>
     ? R
     : never
@@ -95,8 +99,10 @@ type ExtractExtendsRefs<N extends NodeDefinition<any>> = N extends {
  * Maps each NodeDefinition reference back to its key in TNodes.
  */
 type ResolveNodeExtends<
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TNodes extends Record<string, NodeDefinition<any>>,
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   N extends NodeDefinition<any>,
 > =
@@ -111,6 +117,7 @@ type ResolveNodeExtends<
  * Transforms _extendsRefs (NodeDefinition references) into extends (string keys)
  * at the type level, so NodeLabelRefs/InheritedLabels/etc. can read them.
  */
+// oxlint-disable-next-line no-explicit-any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ResolvedNodes<TNodes extends Record<string, NodeDefinition<any>>> = {
   [K in keyof TNodes]: TNodes[K] extends NodeDefinition<infer P>
@@ -184,6 +191,7 @@ type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) exten
  * NodeLabelRefs<Schema, 'user'> // 'entity'
  */
 export type NodeLabelRefs<S extends AnySchema, N extends NodeLabels<S>> =
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['nodes'][N] extends NodeDefinition<any, infer TLabels>
     ? TLabels extends readonly (infer L)[]
@@ -332,6 +340,7 @@ export type NodeInputProps<
  * EdgeProps<typeof schema, 'friendOf'> // { id: string; kind: 'friendOf'; since: Date; closeness: 'close' | 'acquaintance'; }
  */
 export type EdgeProps<S extends AnySchema, E extends EdgeTypes<S>, TId extends string = string> =
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? BaseEdgeProps<E, TId> & z.infer<z.ZodObject<TProps>>
@@ -346,6 +355,7 @@ export type EdgeInputProps<
   E extends EdgeTypes<S>,
   TId extends string = string,
 > =
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? BaseEdgeInputProps<TId> & z.input<z.ZodObject<TProps>>
@@ -361,6 +371,7 @@ export type NodeUserProps<S extends AnySchema, N extends NodeLabels<S>> = Merged
  * Extract only the user-defined edge properties (excluding implicit `id`).
  */
 export type EdgeUserProps<S extends AnySchema, E extends EdgeTypes<S>> =
+  // oxlint-disable-next-line no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   S['edges'][E] extends EdgeDefinition<any, any, infer TProps>
     ? z.infer<z.ZodObject<TProps>>

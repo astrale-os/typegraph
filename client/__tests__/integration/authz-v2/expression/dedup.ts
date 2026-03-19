@@ -157,7 +157,7 @@ function countSubtrees(
   const existing = counts.get(hash)
 
   // Collect child hashes by recursing first
-  let childHashes = new Set<string>()
+  const childHashes = new Set<string>()
   const children = collectChildHashes(expr)
 
   for (const child of children) {

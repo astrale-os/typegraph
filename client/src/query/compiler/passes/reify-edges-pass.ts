@@ -23,6 +23,7 @@ import type {
   SubqueryCondition,
   AliasInfo,
   AliasRegistry,
+  Projection,
 } from '../../ast'
 import type { SchemaShape } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
@@ -551,9 +552,9 @@ export class ReifyEdgesPass implements CompilationPass {
   // ---------------------------------------------------------------------------
 
   private rewriteProjection(
-    projection: import('../../ast').Projection,
+    projection: Projection,
     edgeAliasToLinkAlias: Map<string, string>,
-  ): import('../../ast').Projection {
+  ): Projection {
     if (edgeAliasToLinkAlias.size === 0) return projection
 
     // Move edge aliases that map to link nodes into node aliases

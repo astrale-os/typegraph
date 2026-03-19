@@ -7,6 +7,7 @@
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { ResolveNode, ResolveEdge } from '../resolve'
 import type {
   NodeInput,
   EdgeInput,
@@ -107,7 +108,7 @@ export class DryRunBuilder<S extends SchemaShape, T extends TypeMap = UntypedMap
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as any,
+        data: { id, ...data } as unknown as ResolveNode<T, N & string>,
       },
     }
   }
@@ -123,7 +124,7 @@ export class DryRunBuilder<S extends SchemaShape, T extends TypeMap = UntypedMap
       params: { id, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as any,
+        data: { id, ...data } as unknown as ResolveNode<T, N & string>,
       },
     }
   }
@@ -152,7 +153,7 @@ export class DryRunBuilder<S extends SchemaShape, T extends TypeMap = UntypedMap
         id: edgeId,
         from,
         to,
-        data: { id: edgeId, ...data } as any,
+        data: { id: edgeId, ...data } as unknown as ResolveEdge<T, E & string>,
       },
     }
   }
@@ -179,7 +180,7 @@ export class DryRunBuilder<S extends SchemaShape, T extends TypeMap = UntypedMap
       params: { id, parentId, props: data },
       simulatedResult: {
         id,
-        data: { id, ...data } as any,
+        data: { id, ...data } as unknown as ResolveNode<T, N & string>,
       },
     }
   }

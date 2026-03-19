@@ -11,6 +11,7 @@ import { NodeQueryBuilder } from './node-query-builder'
 import { buildOutTraversal, buildInTraversal } from './traversal'
 import type { TraversalOptions } from './traits'
 import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveNode } from '../resolve'
 import type {
@@ -250,6 +251,6 @@ export interface OptionalNodeSelector<
 > {
   execute(): Promise<Pick<NodeProps<S, N>, K> | null>
   exists(): Promise<boolean>
-  compile(): import('./compiler').CompiledQuery
+  compile(): CompiledQuery
   toCypher(): string
 }

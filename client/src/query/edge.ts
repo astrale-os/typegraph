@@ -6,11 +6,11 @@
 
 import { type CollectionBuilder } from './collection'
 import { type QueryAST } from './ast'
-import { getCompiler } from './compiler'
+import { getCompiler, type CompiledQuery } from './compiler'
 import type { ComparisonOperator, WhereCondition } from './ast'
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { ResolveEdge } from '../resolve'
-import type { EdgeTypes, EdgeProps, EdgeSource, EdgeTarget } from '../inference'
+import type { EdgeTypes, EdgeProps, EdgeSource, EdgeTarget, NodeProps } from '../inference'
 import type { AliasMap, EdgeAliasMap } from '../inference'
 import type { QueryExecutor } from './types'
 
@@ -228,7 +228,7 @@ export class EdgeBuilder<
   // COMPILATION
   // ===========================================================================
 
-  compile(): import('./compiler').CompiledQuery {
+  compile(): CompiledQuery {
     return getCompiler(this._schema).compile(this._ast)
   }
 
@@ -324,10 +324,10 @@ export class EdgeWithEndpointsBuilder<
    */
   async execute(): Promise<
     Array<{
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      source: import('../inference').NodeProps<S, any>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      target: import('../inference').NodeProps<S, any>
+      // oxlint-disable-next-line no-explicit-any
+      source: NodeProps<S, any>
+      // oxlint-disable-next-line no-explicit-any
+      target: NodeProps<S, any>
       edge: EdgeProps<S, E>
     }>
   > {

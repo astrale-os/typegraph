@@ -115,6 +115,7 @@ export interface GraphQuery<S extends SchemaShape, T extends TypeMap = UntypedMa
    */
 
   intersect<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
@@ -131,6 +132,7 @@ export interface GraphQuery<S extends SchemaShape, T extends TypeMap = UntypedMa
    */
 
   union<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 
@@ -144,6 +146,7 @@ export interface GraphQuery<S extends SchemaShape, T extends TypeMap = UntypedMa
    */
 
   unionAll<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T>
 

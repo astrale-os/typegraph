@@ -680,8 +680,8 @@ export function extendSchema<
     hierarchy?: HierarchyConfig<keyof (TBaseEdges & TExtEdges) & string>
   },
 ): SchemaDefinition<ResolvedNodes<TBaseNodes & TExtNodes>, TBaseEdges & TExtEdges> {
-  const mergedNodes = { ...base.nodes, ...(extension.nodes ?? {}) }
-  const mergedEdges = { ...base.edges, ...(extension.edges ?? {}) }
+  const mergedNodes = { ...base.nodes, ...extension.nodes }
+  const mergedEdges = { ...base.edges, ...extension.edges }
 
   // Validate extension extends refs reference valid nodes (base or extension)
   for (const [name, nodeDef] of Object.entries(extension.nodes ?? {})) {

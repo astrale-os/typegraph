@@ -8,9 +8,9 @@
 // ============================================================
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { resolve, basename, dirname } from 'path'
+import { resolve } from 'path'
 import { compile } from './compile'
-import { type DiagnosticBag, Diagnostic } from './diagnostics'
+import { type DiagnosticBag } from './diagnostics'
 import { LineMap } from './linemap'
 import { createHash } from 'crypto'
 import { DEFAULT_PRELUDE, KERNEL_PRELUDE, type Prelude } from './prelude'

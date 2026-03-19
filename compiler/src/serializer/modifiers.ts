@@ -74,6 +74,7 @@ export function extractValueConstraints(modifiers: Modifier[]): ValueConstraints
   for (const mod of modifiers) {
     switch (mod.kind) {
       case 'FormatModifier':
+        // oxlint-disable-next-line no-explicit-any
         result.format = (mod as FormatModifier).format as any
         hasAny = true
         break

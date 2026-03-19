@@ -2,6 +2,7 @@ import type { Schema } from './schema.js'
 import type { Def } from '../defs/definition.js'
 import type { OpDef } from '../defs/operation.js'
 import type { ParamShape } from '../defs/operation.js'
+import type { z } from 'zod'
 import type { HasMethods, ExtractMethodNames } from '../inference/methods.js'
 import type { InferProps } from '../inference/props.js'
 
@@ -38,7 +39,7 @@ export type InferOpParams<D> =
 
 /** Infer return type from a builder OpDef */
 export type InferOpReturn<D> =
-  D extends OpDef<infer C> ? (C extends { returns: import('zod').ZodType<infer R> } ? R : unknown) : unknown
+  D extends OpDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
 
 // ── Schema definition references ───────────────────────────────────────────
 

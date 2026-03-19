@@ -8,7 +8,7 @@
  * This is not declared in properties but is always present and indexed.
  */
 
-import { type z } from 'zod'
+import type { z } from 'zod'
 
 // =============================================================================
 // PROPERTY TYPES
@@ -156,6 +156,7 @@ export interface NodeDefinition<
    * Raw NodeDefinition references before resolution by defineSchema().
    * @internal
    */
+  // oxlint-disable-next-line no-explicit-any
   readonly _extendsRefs?: readonly NodeDefinition<any, any>[]
 }
 
@@ -318,14 +319,14 @@ export interface SchemaDefinition<
     EdgeDefinition<
       string | readonly string[],
       string | readonly string[],
-      import('zod').ZodRawShape
+      z.ZodRawShape
     >
   > = Record<
     string,
     EdgeDefinition<
       string | readonly string[],
       string | readonly string[],
-      import('zod').ZodRawShape
+      z.ZodRawShape
     >
   >,
 > {

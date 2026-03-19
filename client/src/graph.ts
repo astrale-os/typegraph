@@ -95,6 +95,7 @@ export interface TransactionScope<S extends SchemaShape, T extends TypeMap = Unt
 export interface Graph<
   S extends SchemaShape,
   T extends TypeMap = UntypedMap,
+  // oxlint-disable-next-line no-explicit-any
   C = any,
 > extends GraphQuery<S, T> {
   // ---------------------------------------------------------------------------
@@ -260,6 +261,7 @@ function createMutationExecutorBridge(adapter: GraphAdapter): MutationExecutor {
  *
  * Thin orchestrator that delegates to GraphQueryImpl and GraphMutationsImpl.
  */
+// oxlint-disable-next-line no-explicit-any
 class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any> implements Graph<
   S,
   T,
@@ -414,18 +416,21 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any> 
   }
 
   intersect<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.intersect(...queries)
   }
 
   union<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.union(...queries)
   }
 
   unionAll<N extends NodeLabels<S>>(
+    // oxlint-disable-next-line no-explicit-any
     ...queries: CollectionBuilder<S, N, any, any, T>[]
   ): CollectionBuilder<S, N, Record<string, never>, Record<string, never>, T> {
     return this._query.unionAll(...queries)
@@ -596,6 +601,7 @@ class GraphImpl<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any> 
 // =============================================================================
 
 /** Create a graph instance. Connects eagerly (fail-fast). */
+// oxlint-disable-next-line no-explicit-any
 export async function createGraph<S extends SchemaShape, T extends TypeMap = UntypedMap, C = any>(
   schema: S,
   options: GraphOptions<S>,

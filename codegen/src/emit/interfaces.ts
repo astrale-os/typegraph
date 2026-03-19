@@ -164,6 +164,7 @@ function formatField(model: GraphModel, attr: IRAttribute): string {
   return `  ${attr.name}${optional}: ${tsType}${nullUnion}`
 }
 
+// oxlint-disable-next-line only-used-in-recursion
 export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
   switch (ref.kind) {
     case 'Scalar':
@@ -194,6 +195,7 @@ export function resolveTypeRef(model: GraphModel, ref: TypeRef): string {
  * Node refs resolve to the interface name (e.g. `Order`),
  * since method returns deal with actual objects.
  */
+// oxlint-disable-next-line only-used-in-recursion
 export function resolveMethodReturnTypeRef(model: GraphModel, ref: TypeRef): string {
   switch (ref.kind) {
     case 'Scalar':
@@ -224,6 +226,7 @@ export function resolveMethodReturnTypeRef(model: GraphModel, ref: TypeRef): str
  * Node refs resolve to branded IDs (e.g. `UserId`),
  * since callers pass node references by ID.
  */
+// oxlint-disable-next-line only-used-in-recursion
 export function resolveMethodParamTypeRef(model: GraphModel, ref: TypeRef): string {
   switch (ref.kind) {
     case 'Scalar':

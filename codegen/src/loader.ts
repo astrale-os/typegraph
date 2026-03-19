@@ -128,18 +128,18 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
  * - Legacy format: `{ nodes: [...], edges: [...] }`
  */
 export function normalizeIR(raw: Record<string, unknown>): SchemaIR {
-  if (Array.isArray((raw as any).classes)) return raw as unknown as SchemaIR
+  if ('classes' in raw && Array.isArray(raw.classes)) return raw as unknown as SchemaIR
 
   // Legacy format: separate nodes/edges arrays without `type` discriminator
   const classes: ClassDef[] = []
-  if (Array.isArray((raw as any).nodes)) {
-    for (const n of (raw as any).nodes) {
-      classes.push({ ...n, type: 'node' as const })
+  if ('nodes' in raw && Array.isArray(raw.nodes)) {
+    for (const n of raw.nodes as Record<string, unknown>[]) {
+      classes.push({ ...n, type: 'node' as const } as ClassDef)
     }
   }
-  if (Array.isArray((raw as any).edges)) {
-    for (const e of (raw as any).edges) {
-      classes.push({ ...e, type: 'edge' as const })
+  if ('edges' in raw && Array.isArray(raw.edges)) {
+    for (const e of raw.edges as Record<string, unknown>[]) {
+      classes.push({ ...e, type: 'edge' as const } as ClassDef)
     }
   }
 

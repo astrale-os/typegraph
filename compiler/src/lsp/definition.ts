@@ -3,8 +3,8 @@
 // Go-to-Definition — Navigate to declaration site
 // ============================================================
 
-import { Location, Range } from "vscode-languageserver-types";
-import { Workspace, DocumentState } from "./workspace";
+import type { Location } from "vscode-languageserver-types";
+import type { Workspace, DocumentState } from "./workspace";
 
 export function provideDefinition(
   workspace: Workspace,

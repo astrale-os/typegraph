@@ -41,6 +41,7 @@ export interface CompileOptions extends SerializeOptions {
   /** Schema registry for resolving extend declarations. */
   registry?: SchemaRegistry
   /** Pre-built base scope (scalar symbols). For LSP caching. */
+  // oxlint-disable-next-line no-explicit-any
   baseScope?: Map<string, any>
   /** Skip IR serialization (used by LSP — only needs artifacts). */
   skipSerialization?: boolean
@@ -95,6 +96,7 @@ export function compile(source: string, options?: CompileOptions): CompileResult
 /** Run lex → parse → lower → resolve. */
 function compilePhases(
   source: string,
+  // oxlint-disable-next-line no-explicit-any
   baseScope: Map<string, any>,
   diagnostics: DiagnosticBag,
   registry: SchemaRegistry,

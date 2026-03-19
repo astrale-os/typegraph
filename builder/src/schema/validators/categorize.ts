@@ -19,10 +19,10 @@ export function categorize(domain: string, defs: Record<string, AnyDef>): Schema
     })
     if (def.type !== 'def') {
       throw new SchemaValidationError(
-        `Unsupported def type '${(def as any).type}' for '${name}'. Expected def.`,
+        `Unsupported def type '${(def as { type: string }).type}' for '${name}'. Expected def.`,
         `defs.${name}`,
         'def',
-        (def as any).type,
+        (def as { type: string }).type,
       )
     }
   }
@@ -34,7 +34,7 @@ export function categorize(domain: string, defs: Record<string, AnyDef>): Schema
 function resolveThunks(name: string, def: AnyDef): void {
   if (typeof def.config === 'function') {
     try {
-      ;(def as any).config = (def.config as () => unknown)()
+      ;(def as { config: unknown }).config = (def.config as () => unknown)()
     } catch (e) {
       throw new SchemaValidationError(
         `Failed to resolve config thunk for '${name}': ${String(e)}`,
@@ -49,7 +49,7 @@ function resolveThunks(name: string, def: AnyDef): void {
     for (const [methodName, opDef] of Object.entries(methods)) {
       if (typeof opDef.config.params === 'function') {
         try {
-          ;(opDef.config as any).params = (opDef.config.params as () => unknown)()
+          ;(opDef.config as { params: unknown }).params = (opDef.config.params as () => unknown)()
         } catch (e) {
           throw new SchemaValidationError(
             `Failed to resolve param thunk for '${name}.${methodName}': ${String(e)}`,
@@ -64,14 +64,14 @@ function resolveThunks(name: string, def: AnyDef): void {
 }
 
 /** Replace any ref(SELF) targets with the actual def object. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function resolveSelfRefs(obj: any, actualDef: AnyDef, visited = new WeakSet<object>()): void {
+function resolveSelfRefs(obj: unknown, actualDef: AnyDef, visited = new WeakSet<object>()): void {
   if (!obj || typeof obj !== 'object' || visited.has(obj)) return
   visited.add(obj)
-  if (obj.__ref_target === SELF) {
-    obj.__ref_target = actualDef
+  const record = obj as Record<string, unknown>
+  if (record.__ref_target === SELF) {
+    record.__ref_target = actualDef
   }
-  for (const value of Object.values(obj)) {
+  for (const value of Object.values(record)) {
     resolveSelfRefs(value, actualDef, visited)
   }
 }

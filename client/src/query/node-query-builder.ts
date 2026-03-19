@@ -69,6 +69,7 @@ export function _registerCollectionBuilder(ctor: any) {
   _CollectionBuilderCtor = ctor
 }
 
+// oxlint-disable-next-line consistent-type-imports
 function getCollectionBuilder(): typeof import('./collection').CollectionBuilder {
   if (!_CollectionBuilderCtor) {
     throw new Error('CollectionBuilder not registered. This is an internal initialization error.')

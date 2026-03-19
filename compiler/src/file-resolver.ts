@@ -10,7 +10,7 @@
 import { readFileSync } from 'fs'
 import { compile } from './compile'
 import { type Prelude, DEFAULT_PRELUDE } from './prelude'
-import { LazyFileRegistry, MapSchemaRegistry, resolveExtendUri } from './registry'
+import { LazyFileRegistry, type MapSchemaRegistry } from './registry'
 
 export function createLazyFileRegistry(
   base?: MapSchemaRegistry,

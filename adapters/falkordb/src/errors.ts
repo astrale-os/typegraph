@@ -64,6 +64,7 @@ export function createConnectionError(config: FalkorDBConfig, originalError: Err
   ].join('\n')
 
   const error = new Error(message)
+  // oxlint-disable-next-line no-explicit-any
   ;(error as any).cause = originalError
   return error
 }

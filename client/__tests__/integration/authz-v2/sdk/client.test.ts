@@ -21,6 +21,7 @@ import { IssuerKeyStore } from '../authentication/issuer-key-store'
 import { KERNEL_ISSUER } from '../authentication/token-verifier'
 import { unresolvedJwt } from '../authentication/grant-encoding'
 import { expectGranted, expectDeniedByResource, READ, EDIT, USE } from '../testing/helpers'
+import type { IdentityExpr } from '../types'
 
 describe('AUTH_V2: SDK RequestContext', () => {
   let testCtx: AuthzTestContext
@@ -313,7 +314,7 @@ describe('AUTH_V2: SDK RequestContext', () => {
     // Relay tokens default forType to the user's identity, but the SDK
     // wraps relay tokens in app JWTs where forType defaults to APP1.
     // Use APP1 for forType to match the SDK's checkAccess behavior.
-    function appGrant(authCtx: { grant: { forResource: import('../types').IdentityExpr } }) {
+    function appGrant(authCtx: { grant: { forResource: IdentityExpr } }) {
       return {
         forType: { kind: 'identity' as const, id: 'APP1' },
         forResource: authCtx.grant.forResource,

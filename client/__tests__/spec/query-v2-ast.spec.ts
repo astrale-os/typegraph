@@ -1373,7 +1373,7 @@ describe('ASTVisitor v2', () => {
         branches: [
           {
             when: { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
-            then: { type: 'literal', value: 'yes' },
+            then: { type: 'literal', value: 'yes' }, // oxlint-disable-line no-thenable
           },
         ],
         else: { type: 'literal', value: 'no' },

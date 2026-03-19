@@ -6,6 +6,7 @@
  */
 
 import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { ResolveNode, ResolveEdge } from '../resolve'
 import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
 import { resolveNodeLabels } from '../helpers'
 import type {
@@ -41,7 +42,7 @@ import {
 } from './errors'
 import { deserializeDateFields } from '../utils/dates'
 import * as ops from './ast/builder'
-import type { MutationOp } from './ast/types'
+import type { MutationOp, MoveNodeOp, CloneNodeOp } from './ast/types'
 import { MutationCompilationPipeline } from './ast/pipeline'
 import type { MutationCompilationPass } from './ast/pipeline'
 import { MutationCypherCompiler } from './cypher/compiler'
@@ -66,7 +67,7 @@ export interface TransactionRunner {
 
 import type { MutationHooks } from './hooks'
 import { HooksRunner } from './hooks'
-import type { ValidationOptions } from './validation'
+import type { ValidationOptions, ValidatorMap } from './validation'
 import {
   MutationValidator,
   defaultValidationOptions,
@@ -184,10 +185,10 @@ export class GraphMutationsImpl<
 
     const nodeResult: NodeResult<S, N, T> = {
       id,
-      data: this.deserializeDates(label, result.n) as any,
+      data: this.deserializeDates(label, result.n) as unknown as ResolveNode<T, N & string>,
     }
 
-    await this.hooksRunner.runAfterCreate(nodeResult as any)
+    await this.hooksRunner.runAfterCreate(nodeResult as unknown as NodeResult<S, N>)
     return nodeResult
   }
 
@@ -231,10 +232,10 @@ export class GraphMutationsImpl<
 
     const nodeResult: NodeResult<S, N, T> = {
       id,
-      data: this.deserializeDates(label, result.n) as any,
+      data: this.deserializeDates(label, result.n) as unknown as ResolveNode<T, N & string>,
     }
 
-    await this.hooksRunner.runAfterUpdate(nodeResult as any)
+    await this.hooksRunner.runAfterUpdate(nodeResult as unknown as NodeResult<S, N>)
     return nodeResult
   }
 
@@ -312,7 +313,7 @@ export class GraphMutationsImpl<
 
     return {
       id,
-      data: this.deserializeDates(label, result.n) as any,
+      data: this.deserializeDates(label, result.n) as unknown as ResolveNode<T, N & string>,
       created: result.created,
     }
   }
@@ -373,10 +374,10 @@ export class GraphMutationsImpl<
       id: edgeId,
       from: result.fromId,
       to: result.toId,
-      data: result.r as any,
+      data: result.r as unknown as ResolveEdge<T, E & string>,
     }
 
-    await this.hooksRunner.runAfterLink(edgeResult as any)
+    await this.hooksRunner.runAfterLink(edgeResult as unknown as EdgeResult<S, E>)
     return edgeResult
   }
 
@@ -407,7 +408,7 @@ export class GraphMutationsImpl<
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
+    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
   }
 
   async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
@@ -460,7 +461,7 @@ export class GraphMutationsImpl<
       throw new Error(`Edge not found: ${edge} with id ${edgeId}`)
     }
 
-    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as any }
+    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
   }
 
   // ---------------------------------------------------------------------------
@@ -488,7 +489,7 @@ export class GraphMutationsImpl<
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.n as any }
+    return { id, data: result.n as unknown as ResolveNode<T, N & string> }
   }
 
   async move(
@@ -501,7 +502,7 @@ export class GraphMutationsImpl<
     // Build op and run through pipeline (pass may rewrite edge type)
     const op = ops.moveNode(nodeId, newParentId, edgeType)
     const transformedOps = this.pipeline.run(op, this.schema)
-    const moveOp = transformedOps[0]! as import('./ast/types').MoveNodeOp
+    const moveOp = transformedOps[0]! as MoveNodeOp
 
     // Cycle check
     const cycleCheck = this.compiler.compileCycleCheck(moveOp)
@@ -569,7 +570,7 @@ export class GraphMutationsImpl<
   ): Promise<NodeResult<S, N, T>> {
     const newId = this.idGenerator.generate(label as string) as string
 
-    let parent: import('./ast/types').CloneNodeOp['parent']
+    let parent: CloneNodeOp['parent']
     if (options?.parentId) {
       parent = { parentId: options.parentId, edgeType: this.resolveHierarchyEdge(options.edge) }
     } else if (options?.preserveParent) {
@@ -595,7 +596,7 @@ export class GraphMutationsImpl<
       throw new SourceNotFoundError(label as string, sourceId)
     }
 
-    return { id: newId, data: result.clone as any }
+    return { id: newId, data: result.clone as unknown as ResolveNode<T, N & string> }
   }
 
   async cloneSubtree(
@@ -639,7 +640,7 @@ export class GraphMutationsImpl<
 
         let finalData = nodeData as NodeInput<S, NodeLabels<S>>
         if (options?.transform) {
-          const transformed = options.transform(node as any, depth)
+          const transformed = options.transform(node as unknown as ResolveNode<T, NodeLabels<S> & string>, depth)
           finalData = { ...finalData, ...transformed }
         }
 
@@ -660,7 +661,7 @@ export class GraphMutationsImpl<
         const result = results[0]
 
         if (result && depth === 0) {
-          clonedRoot = { id: newId, data: result.n as any }
+          clonedRoot = { id: newId, data: result.n as unknown as ResolveNode<T, NodeLabels<S> & string> }
         }
 
         // Re-create parent edge within the clone tree
@@ -774,7 +775,7 @@ export class GraphMutationsImpl<
 
     return results.map((r, i) => ({
       id: itemsWithIds[i]!.id,
-      data: this.deserializeDates(label, r.n) as any,
+      data: this.deserializeDates(label, r.n) as unknown as ResolveNode<T, N & string>,
     }))
   }
 
@@ -811,7 +812,7 @@ export class GraphMutationsImpl<
 
     return results.map((r) => ({
       id: r.n.id as string,
-      data: r.n as any,
+      data: r.n as unknown as ResolveNode<T, N & string>,
     }))
   }
 
@@ -863,7 +864,7 @@ export class GraphMutationsImpl<
       id: linksWithIds[i]?.edgeId ?? '',
       from: r.fromId,
       to: r.toId,
-      data: r.r as any,
+      data: r.r as unknown as ResolveEdge<T, E & string>,
     }))
   }
 
@@ -946,7 +947,7 @@ export class GraphMutationsImpl<
    * Extend the validator map with additional Zod validators for new types.
    * Called by GraphImpl.extendSchema().
    */
-  extendValidators(newValidators: import('./validation').ValidatorMap): void {
+  extendValidators(newValidators: ValidatorMap): void {
     this.validator.extendValidators(newValidators)
   }
 
@@ -1062,7 +1063,7 @@ class MutationTransactionImpl<
       throw new Error(`Failed to create node: ${label}`)
     }
 
-    return { id, data: result.n as any }
+    return { id, data: result.n as unknown as ResolveNode<T, N & string> }
   }
 
   async update<N extends NodeLabels<S>>(
@@ -1088,7 +1089,7 @@ class MutationTransactionImpl<
       throw new NodeNotFoundError(label as string, id)
     }
 
-    return { id, data: result.n as any }
+    return { id, data: result.n as unknown as ResolveNode<T, N & string> }
   }
 
   async delete<N extends NodeLabels<S>>(
@@ -1131,7 +1132,7 @@ class MutationTransactionImpl<
       throw new Error(`Failed to upsert node: ${label}`)
     }
 
-    return { id, data: result.n as any, created: result.created }
+    return { id, data: result.n as unknown as ResolveNode<T, N & string>, created: result.created }
   }
 
   async link<E extends EdgeTypes<S>>(
@@ -1164,7 +1165,7 @@ class MutationTransactionImpl<
       throw new Error(`Failed to create edge: ${edge} from ${from} to ${to}`)
     }
 
-    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as any }
+    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
   }
 
   async patchLink<E extends EdgeTypes<S>>(
@@ -1194,7 +1195,7 @@ class MutationTransactionImpl<
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as any }
+    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
   }
 
   async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
@@ -1251,7 +1252,7 @@ class MutationTransactionImpl<
       id: batchLinks[i]?.edgeId ?? '',
       from: r.fromId,
       to: r.toId,
-      data: r.r as any,
+      data: r.r as unknown as ResolveEdge<T, E & string>,
     }))
   }
 
@@ -1298,7 +1299,7 @@ class MutationTransactionImpl<
       throw new ParentNotFoundError(parentId)
     }
 
-    return { id, data: result.n as any }
+    return { id, data: result.n as unknown as ResolveNode<T, N & string> }
   }
 
   async move(
@@ -1310,7 +1311,7 @@ class MutationTransactionImpl<
 
     const op = ops.moveNode(nodeId, newParentId, edgeType)
     const transformedOps = this.pipeline.run(op, this.schema)
-    const moveOp = transformedOps[0]! as import('./ast/types').MoveNodeOp
+    const moveOp = transformedOps[0]! as MoveNodeOp
 
     const moveCompiled = this.compiler.compileMove(moveOp)
     let results = await this.runner.run<{

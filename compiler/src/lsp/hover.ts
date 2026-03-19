@@ -3,10 +3,9 @@
 // Hover Provider — Rich type signatures on hover
 // ============================================================
 
-import { type Hover, MarkupContent, MarkupKind } from 'vscode-languageserver-types'
+import { type Hover, MarkupKind } from 'vscode-languageserver-types'
 import { type Workspace, type DocumentState } from './workspace'
 import {
-  Declaration,
   type TypeAliasDecl,
   type ValueTypeDecl,
   type TaggedUnionDecl,
@@ -32,6 +31,7 @@ import {
   type LifecycleModifier,
   type RangeModifier,
   type MatchModifier,
+  type Name,
 } from '../ast/index'
 import { type Symbol } from '../resolver/index'
 
@@ -196,7 +196,7 @@ function renderBody(
   attributes: Attribute[],
   methods: Method[],
   dataDecl?: DataDecl | null,
-  dataRef?: import('../ast/index').Name | null,
+  dataRef?: Name | null,
 ): string {
   const lines: string[] = [...attributes.map(renderAttribute), ...methods.map(renderMethod)]
   if (dataDecl) {

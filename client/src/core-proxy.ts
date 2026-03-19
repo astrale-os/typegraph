@@ -29,9 +29,12 @@ import type { CoreRefs } from './core'
  * proxy.admin               // → 'node-id-789'
  * ```
  */
+// oxlint-disable-next-line no-explicit-any
 export function createCoreProxy(refs: CoreRefs): any {
+  // oxlint-disable-next-line no-explicit-any
   return new Proxy({} as any, {
     get(_, prop: string) {
+      // oxlint-disable-next-line no-explicit-any
       const value = (refs as any)[prop]
       if (typeof value === 'string') return value // Leaf: return ID
       if (typeof value === 'object' && value !== null) {

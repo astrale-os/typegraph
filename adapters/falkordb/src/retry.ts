@@ -52,6 +52,7 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, options: RetryOp
   }
 
   const error = new Error(`Failed after ${maxRetries + 1} attempts: ${lastError?.message}`)
+  // oxlint-disable-next-line no-explicit-any
   ;(error as any).cause = lastError
   throw error
 }

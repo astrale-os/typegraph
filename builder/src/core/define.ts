@@ -4,6 +4,7 @@ import type { CoreInstance, CoreLink, Ref, CoreDef, RefsFromInstances } from './
 let refCounter = 0
 
 function resolveTarget(target: CoreInstance | Ref, instanceToRef: Map<CoreInstance, Ref>): Ref {
+  // oxlint-disable-next-line no-explicit-any
   if ('type' in target && (target as any).type === 'core-instance') {
     const resolved = instanceToRef.get(target as CoreInstance)
     if (!resolved) throw new Error('CoreInstance not found in this core/seed definition')

@@ -20,6 +20,7 @@ import {
   type Modifier,
   type FlagModifier,
   type CardinalityModifier,
+  type Name,
 } from '../ast/index'
 import { DiagnosticCodes } from '../diagnostics'
 import {
@@ -295,7 +296,7 @@ function validateDataAttachment(
   ctx: ValidatorContext,
   typeName: string,
   dataDecl: DataDecl | null,
-  dataRef: import('../ast/index').Name | null,
+  dataRef: Name | null,
 ): void {
   if (dataDecl && dataRef) {
     ctx.diagnostics.error(

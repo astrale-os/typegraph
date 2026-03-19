@@ -219,6 +219,7 @@ export abstract class ASTVisitor<TContext = void, TResult = void>
       default: {
         // Exhaustiveness check
         const _exhaustive: never = node
+        // oxlint-disable-next-line no-explicit-any
         throw new Error(`Unknown AST node type: ${(node as any).type}`)
       }
     }

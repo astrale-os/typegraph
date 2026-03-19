@@ -16,6 +16,7 @@ export class Neo4jAdapter implements GraphAdapter {
 
   private readonly config: Neo4jConfig
   private driver: Driver | null = null
+  // oxlint-disable-next-line consistent-type-imports
   private neo4jModule: typeof import('neo4j-driver') | null = null
 
   // Metrics
