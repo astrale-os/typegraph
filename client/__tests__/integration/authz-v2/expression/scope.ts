@@ -5,7 +5,14 @@
  * Scopes can only be made MORE restrictive, never less.
  */
 
-import type { IdentityExpr, Scope, IdentityId, Permission, PermissionMask, FilterDetail } from '../types'
+import type {
+  IdentityExpr,
+  Scope,
+  IdentityId,
+  Permission,
+  PermissionMask,
+  FilterDetail,
+} from '../types'
 
 // =============================================================================
 // SCOPE INTERSECTION
@@ -131,10 +138,13 @@ export function scopePasses(
   principal: IdentityId | undefined,
   perm: Permission,
 ): { passes: boolean; failedCheck?: 'principal' | 'perm' } {
-  if (scope.principals !== undefined && (scope.principals.length === 0 || !principal || !scope.principals.includes(principal))) {
+  if (
+    scope.principals !== undefined &&
+    (scope.principals.length === 0 || !principal || !scope.principals.includes(principal))
+  ) {
     return { passes: false, failedCheck: 'principal' }
   }
-  if (scope.perms !== undefined && ((scope.perms & perm) === 0)) {
+  if (scope.perms !== undefined && (scope.perms & perm) === 0) {
     return { passes: false, failedCheck: 'perm' }
   }
   return { passes: true }

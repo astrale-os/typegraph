@@ -70,7 +70,9 @@ export class SingleNodeBuilder<
   // ALIASING
   // ===========================================================================
 
-  as<A extends string>(alias: A): SingleNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, T> {
+  as<A extends string>(
+    alias: A,
+  ): SingleNodeBuilder<S, N, Aliases & { [K in A]: N }, EdgeAliases, T> {
     const { ast, aliases } = this._addAlias(alias)
     return new SingleNodeBuilder(ast, this._schema, aliases, this._edgeAliases, this._executor)
   }

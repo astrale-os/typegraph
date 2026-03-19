@@ -4,20 +4,14 @@ import { load, ConflictError, normalizeIR } from '../src/loader.js'
 
 describe('schema merging', () => {
   it('merges two schemas with distinct definitions', () => {
-    const { source } = mergeAndGenerate(
-      `class Alpha { name: String }`,
-      `class Beta { count: Int }`,
-    )
+    const { source } = mergeAndGenerate(`class Alpha { name: String }`, `class Beta { count: Int }`)
     expect(source).toContain('export interface Alpha {')
     expect(source).toContain('export interface Beta {')
     expect(source).toContain("'Alpha' | 'Beta'")
   })
 
   it('deduplicates identical definitions silently', () => {
-    const { source } = mergeAndGenerate(
-      `class Same { x: String }`,
-      `class Same { x: String }`,
-    )
+    const { source } = mergeAndGenerate(`class Same { x: String }`, `class Same { x: String }`)
     expect(source).toContain('export interface Same {')
     const matches = source.match(/export interface Same/g)
     expect(matches).toHaveLength(1)
@@ -26,10 +20,12 @@ describe('schema merging', () => {
   it('throws on conflicting definitions in strict mode', () => {
     const ir1 = compileKRL(`class Conflict { x: String }`)
     const ir2 = compileKRL(`class Conflict { x: Int }`)
-    expect(() => load([
-      normalizeIR(ir1 as unknown as Record<string, unknown>),
-      normalizeIR(ir2 as unknown as Record<string, unknown>),
-    ])).toThrow(ConflictError)
+    expect(() =>
+      load([
+        normalizeIR(ir1 as unknown as Record<string, unknown>),
+        normalizeIR(ir2 as unknown as Record<string, unknown>),
+      ]),
+    ).toThrow(ConflictError)
   })
 
   it('merges shared type aliases (identical = dedup)', () => {

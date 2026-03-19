@@ -14,7 +14,12 @@ import { type ResolvedSchema, type Symbol } from './resolver/index'
 
 /** Returns true if the URI is a local filesystem path (relative, absolute, or file:// URI). */
 export function isLocalPath(uri: string): boolean {
-  if (uri.startsWith('./') || uri.startsWith('../') || uri.startsWith('file://') || uri.startsWith('/')) {
+  if (
+    uri.startsWith('./') ||
+    uri.startsWith('../') ||
+    uri.startsWith('file://') ||
+    uri.startsWith('/')
+  ) {
     return true
   }
   // Windows absolute path (e.g. C:\foo\bar.gsl)

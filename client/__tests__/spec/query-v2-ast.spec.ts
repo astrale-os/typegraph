@@ -52,9 +52,7 @@ describe('addPattern', () => {
         { alias: 'a', labels: ['User'] },
         { alias: 'b', labels: ['Post'] },
       ],
-      edges: [
-        { from: 'a', to: 'b', types: ['AUTHORED'], direction: 'out', optional: false },
-      ],
+      edges: [{ from: 'a', to: 'b', types: ['AUTHORED'], direction: 'out', optional: false }],
     })
 
     const step = lastStep(ast) as PatternStep
@@ -235,7 +233,9 @@ describe('addPattern', () => {
         {
           alias: 'a',
           labels: ['User'],
-          where: [{ type: 'comparison', field: 'active', operator: 'eq', value: true, target: 'a' }],
+          where: [
+            { type: 'comparison', field: 'active', operator: 'eq', value: true, target: 'a' },
+          ],
         },
       ],
       edges: [],
@@ -269,9 +269,7 @@ describe('addSubqueryStep', () => {
     const base = seeded()
     const ast = base.addSubqueryStep({
       correlatedAliases: ['n0'],
-      steps: [
-        { type: 'match', label: 'Post', alias: 'sq0' },
-      ],
+      steps: [{ type: 'match', label: 'Post', alias: 'sq0' }],
       exportedAliases: ['postCount'],
     })
 
@@ -303,7 +301,10 @@ describe('addSubqueryStep', () => {
   it('inner steps are stored correctly', () => {
     const innerSteps: ASTNode[] = [
       { type: 'match', label: 'Comment', alias: 'c' },
-      { type: 'where', conditions: [{ type: 'comparison', field: 'score', operator: 'gt', value: 5, target: 'c' }] },
+      {
+        type: 'where',
+        conditions: [{ type: 'comparison', field: 'score', operator: 'gt', value: 5, target: 'c' }],
+      },
     ]
 
     const ast = seeded().addSubqueryStep({
@@ -416,9 +417,11 @@ describe('addWhereExists', () => {
     const ast = base.addWhereExists({
       fromAlias: 'n0',
       subquery: (inner) =>
-        inner.addMatch('Post').addWhere([
-          { type: 'comparison', field: 'published', operator: 'eq', value: true, target: 'n0' },
-        ]),
+        inner
+          .addMatch('Post')
+          .addWhere([
+            { type: 'comparison', field: 'published', operator: 'eq', value: true, target: 'n0' },
+          ]),
     })
 
     const step = lastStep(ast) as { type: 'where'; conditions: WhereCondition[] }
@@ -794,14 +797,12 @@ describe('addReturn', () => {
     const base = seeded()
     // First add a path so the alias exists
     // After addMatch counter=1, addUserAlias doesn't increment, addPath uses nextAlias('p') -> p1
-    const withPath = base
-      .addUserAlias('target')
-      .addPath({
-        algorithm: 'shortestPath',
-        toAlias: 'n0',
-        edge: 'KNOWS',
-        direction: 'out',
-      })
+    const withPath = base.addUserAlias('target').addPath({
+      algorithm: 'shortestPath',
+      toAlias: 'n0',
+      edge: 'KNOWS',
+      direction: 'out',
+    })
 
     const ast = withPath.addReturn({
       returns: [{ kind: 'path', pathAlias: 'p1', resultAlias: 'shortestRoute' }],
@@ -1263,9 +1264,7 @@ describe('ASTVisitor v2', () => {
     const condition: SubqueryExistsCondition = {
       type: 'subquery',
       mode: 'exists',
-      query: [
-        { type: 'match', label: 'Comment', alias: 'sq0' },
-      ],
+      query: [{ type: 'match', label: 'Comment', alias: 'sq0' }],
       correlatedAliases: ['n0'],
     }
 
@@ -1372,7 +1371,13 @@ describe('ASTVisitor v2', () => {
         type: 'case',
         branches: [
           {
-            when: { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
+            when: {
+              type: 'comparison',
+              field: 'status',
+              operator: 'eq',
+              value: 'active',
+              target: 'n0',
+            },
             then: { type: 'literal', value: 'yes' }, // oxlint-disable-line no-thenable
           },
         ],
@@ -1424,9 +1429,7 @@ describe('v2 method chaining integration', () => {
           { alias: 'u', labels: ['User'] },
           { alias: 'p', labels: ['Project'] },
         ],
-        edges: [
-          { from: 'u', to: 'p', types: ['OWNS'], direction: 'out', optional: false },
-        ],
+        edges: [{ from: 'u', to: 'p', types: ['OWNS'], direction: 'out', optional: false }],
       })
       .addWhereExists({
         fromAlias: 'u',
@@ -1451,9 +1454,7 @@ describe('v2 method chaining integration', () => {
     const ast = base
       .addSubqueryStep({
         correlatedAliases: ['n0'],
-        steps: [
-          { type: 'match', label: 'Tag', alias: 'sq0' },
-        ],
+        steps: [{ type: 'match', label: 'Tag', alias: 'sq0' }],
         exportedAliases: ['tagList'],
       })
       .addUnwind({
@@ -1462,9 +1463,7 @@ describe('v2 method chaining integration', () => {
         itemAlias: 'singleTag',
       })
       .addReturn({
-        returns: [
-          { kind: 'alias', alias: 'n0' },
-        ],
+        returns: [{ kind: 'alias', alias: 'n0' }],
       })
 
     expect(ast.steps).toHaveLength(4) // match + subquery + unwind + return
@@ -1509,12 +1508,30 @@ describe('v2 method chaining integration', () => {
     class FullTracker extends ASTVisitor<void, string> {
       types: string[] = []
 
-      visitMatch() { this.types.push('match'); return 'match' }
-      visitPattern() { this.types.push('pattern'); return 'pattern' }
-      visitSubqueryStep() { this.types.push('subquery'); return 'subquery' }
-      visitWhere() { this.types.push('where'); return 'where' }
-      visitUnwind() { this.types.push('unwind'); return 'unwind' }
-      visitReturn() { this.types.push('return'); return 'return' }
+      visitMatch() {
+        this.types.push('match')
+        return 'match'
+      }
+      visitPattern() {
+        this.types.push('pattern')
+        return 'pattern'
+      }
+      visitSubqueryStep() {
+        this.types.push('subquery')
+        return 'subquery'
+      }
+      visitWhere() {
+        this.types.push('where')
+        return 'where'
+      }
+      visitUnwind() {
+        this.types.push('unwind')
+        return 'unwind'
+      }
+      visitReturn() {
+        this.types.push('return')
+        return 'return'
+      }
     }
 
     const ast = seeded()
@@ -1527,22 +1544,13 @@ describe('v2 method chaining integration', () => {
         steps: [],
         exportedAliases: ['res'],
       })
-      .addWhere([
-        { type: 'comparison', field: 'a', operator: 'eq', value: 1, target: 'n0' },
-      ])
+      .addWhere([{ type: 'comparison', field: 'a', operator: 'eq', value: 1, target: 'n0' }])
       .addUnwind({ sourceAlias: 'res', field: 'items', itemAlias: 'item' })
       .addReturn({ returns: [{ kind: 'alias', alias: 'n0' }] })
 
     const visitor = new FullTracker()
     visitor.visitAll(ast, undefined as void)
 
-    expect(visitor.types).toEqual([
-      'match',
-      'pattern',
-      'subquery',
-      'where',
-      'unwind',
-      'return',
-    ])
+    expect(visitor.types).toEqual(['match', 'pattern', 'subquery', 'where', 'unwind', 'return'])
   })
 })

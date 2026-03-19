@@ -23,7 +23,9 @@ export class MockAdapter implements GraphAdapter {
   }
 
   async transaction<T>(work: (tx: TransactionContext) => Promise<T>): Promise<T> {
-    return work({ run: (cypher: string, params?: Record<string, unknown>) => this.query(cypher, params) })
+    return work({
+      run: (cypher: string, params?: Record<string, unknown>) => this.query(cypher, params),
+    })
   }
 
   async query<T>(cypher: string, params?: Record<string, unknown>): Promise<T[]> {

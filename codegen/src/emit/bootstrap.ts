@@ -38,9 +38,7 @@ export function emitBootstrap(model: GraphModel): string {
   for (const [, node] of model.nodeDefs) {
     if (node.abstract) continue
     for (const iface of node.implements) {
-      implementsEntries.push(
-        `    { classKey: '${node.name}', interfaceKey: '${iface}' },`,
-      )
+      implementsEntries.push(`    { classKey: '${node.name}', interfaceKey: '${iface}' },`)
     }
   }
 
@@ -50,9 +48,7 @@ export function emitBootstrap(model: GraphModel): string {
   for (const [, node] of model.nodeDefs) {
     if (!node.abstract) continue
     for (const parent of node.implements) {
-      extendsEntries.push(
-        `    { childKey: '${node.name}', parentKey: '${parent}' },`,
-      )
+      extendsEntries.push(`    { childKey: '${node.name}', parentKey: '${parent}' },`)
     }
   }
 

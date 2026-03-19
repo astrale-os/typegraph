@@ -212,7 +212,12 @@ describe('Index Validation', () => {
     expect(() =>
       node({
         properties: { firstName: z.string(), lastName: z.string() },
-        indexes: [{ properties: ['firstName', 'middleName'] as readonly ('firstName' | 'lastName')[], type: 'btree' }],
+        indexes: [
+          {
+            properties: ['firstName', 'middleName'] as readonly ('firstName' | 'lastName')[],
+            type: 'btree',
+          },
+        ],
       }),
     ).toThrow(/Composite index property 'middleName' not found/)
   })
@@ -274,7 +279,13 @@ describe('Label Resolution', () => {
   it('resolves full inheritance chain in depth-first order', () => {
     expect(resolveNodeLabels(complexSchema, 'entity')).toEqual(['Entity'])
     expect(resolveNodeLabels(complexSchema, 'user')).toEqual(['User', 'Actor', 'Entity'])
-    expect(resolveNodeLabels(complexSchema, 'superAdmin')).toEqual(['SuperAdmin', 'Admin', 'User', 'Actor', 'Entity'])
+    expect(resolveNodeLabels(complexSchema, 'superAdmin')).toEqual([
+      'SuperAdmin',
+      'Admin',
+      'User',
+      'Actor',
+      'Entity',
+    ])
   })
 
   it('deduplicates labels in diamond inheritance correctly', () => {
@@ -374,10 +385,14 @@ describe('Index Compilation', () => {
 
     // Fulltext with custom name
     const bioIdx = indexes.find((i) => i.name === 'user_bio_search')
-    expect(bioIdx?.cypher).toBe('CREATE FULLTEXT INDEX user_bio_search FOR (n:User) ON EACH [n.bio]')
+    expect(bioIdx?.cypher).toBe(
+      'CREATE FULLTEXT INDEX user_bio_search FOR (n:User) ON EACH [n.bio]',
+    )
 
     // Unique constraint
-    const tenantIdx = indexes.find((i) => i.name === 'idx_user_tenantId' && i.properties.length === 1)
+    const tenantIdx = indexes.find(
+      (i) => i.name === 'idx_user_tenantId' && i.properties.length === 1,
+    )
     expect(tenantIdx?.cypher).toBe('CREATE CONSTRAINT FOR (n:User) REQUIRE n.tenantId IS UNIQUE')
 
     // Composite btree
@@ -386,7 +401,9 @@ describe('Index Compilation', () => {
 
     // Composite unique (NODE KEY)
     const compositeUnique = indexes.find((i) => i.name === 'idx_user_tenantId_email')
-    expect(compositeUnique?.cypher).toBe('CREATE CONSTRAINT FOR (n:User) REQUIRE (n.tenantId, n.email) IS NODE KEY')
+    expect(compositeUnique?.cypher).toBe(
+      'CREATE CONSTRAINT FOR (n:User) REQUIRE (n.tenantId, n.email) IS NODE KEY',
+    )
 
     // Relationship index
     const sinceIdx = indexes.find((i) => i.name === 'idx_rel_follows_since')
@@ -421,7 +438,10 @@ describe('Real-World Schema Integration', () => {
     const entityNode = node({ properties: {} })
     const userNode = node({
       properties: { email: z.string(), displayName: z.string() },
-      indexes: [{ property: 'email', type: 'unique' }, { property: 'displayName', type: 'fulltext' }],
+      indexes: [
+        { property: 'email', type: 'unique' },
+        { property: 'displayName', type: 'fulltext' },
+      ],
       extends: [entityNode],
     })
     const postNode = node({
@@ -439,9 +459,21 @@ describe('Real-World Schema Integration', () => {
         comment: commentNode,
       },
       edges: {
-        authored: edge({ from: 'user', to: ['post', 'comment'] as const, cardinality: { outbound: 'many', inbound: 'one' } }),
-        likes: edge({ from: 'user', to: ['post', 'comment'] as const, cardinality: { outbound: 'many', inbound: 'many' } }),
-        hasParent: edge({ from: ['post', 'comment'] as const, to: ['post', 'comment'] as const, cardinality: { outbound: 'optional', inbound: 'many' } }),
+        authored: edge({
+          from: 'user',
+          to: ['post', 'comment'] as const,
+          cardinality: { outbound: 'many', inbound: 'one' },
+        }),
+        likes: edge({
+          from: 'user',
+          to: ['post', 'comment'] as const,
+          cardinality: { outbound: 'many', inbound: 'many' },
+        }),
+        hasParent: edge({
+          from: ['post', 'comment'] as const,
+          to: ['post', 'comment'] as const,
+          cardinality: { outbound: 'optional', inbound: 'many' },
+        }),
       },
       hierarchy: { defaultEdge: 'hasParent', direction: 'up' },
     })
@@ -466,14 +498,21 @@ describe('Real-World Schema Integration', () => {
   it('Multi-tenant SaaS: composite unique constraints', () => {
     const schema = defineSchema({
       nodes: {
-        tenant: node({ properties: { slug: z.string() }, indexes: [{ property: 'slug', type: 'unique' }] }),
+        tenant: node({
+          properties: { slug: z.string() },
+          indexes: [{ property: 'slug', type: 'unique' }],
+        }),
         user: node({
           properties: { tenantId: z.string(), email: z.string() },
           indexes: [{ properties: ['tenantId', 'email'], type: 'unique' }],
         }),
       },
       edges: {
-        belongsTo: edge({ from: 'user', to: 'tenant', cardinality: { outbound: 'one', inbound: 'many' } }),
+        belongsTo: edge({
+          from: 'user',
+          to: 'tenant',
+          cardinality: { outbound: 'one', inbound: 'many' },
+        }),
       },
     })
 
@@ -488,7 +527,10 @@ describe('Real-World Schema Integration', () => {
   it('File System: tree hierarchy with down direction', () => {
     const fsNodeDef = node({ properties: {} })
     const folderNode = node({ properties: { name: z.string() }, extends: [fsNodeDef] })
-    const fileNode = node({ properties: { name: z.string(), size: z.number() }, extends: [fsNodeDef] })
+    const fileNode = node({
+      properties: { name: z.string(), size: z.number() },
+      extends: [fsNodeDef],
+    })
 
     const schema = defineSchema({
       nodes: {
@@ -497,7 +539,11 @@ describe('Real-World Schema Integration', () => {
         file: fileNode,
       },
       edges: {
-        contains: edge({ from: 'folder', to: ['folder', 'file'] as const, cardinality: { outbound: 'many', inbound: 'one' } }),
+        contains: edge({
+          from: 'folder',
+          to: ['folder', 'file'] as const,
+          cardinality: { outbound: 'many', inbound: 'one' },
+        }),
       },
       hierarchy: { defaultEdge: 'contains', direction: 'down' },
     })

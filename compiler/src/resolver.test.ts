@@ -209,7 +209,9 @@ describe('Resolver', () => {
       // Interfaces
       expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Node')!.symbolKind).toBe('Interface')
       expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Link')!.symbolKind).toBe('Interface')
-      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Identity')!.symbolKind).toBe('Interface')
+      expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Identity')!.symbolKind).toBe(
+        'Interface',
+      )
 
       // Classes
       expect(kernelRegistry.lookupSymbol(KERNEL_SCHEMA_URI, 'Class')!.symbolKind).toBe('Class')

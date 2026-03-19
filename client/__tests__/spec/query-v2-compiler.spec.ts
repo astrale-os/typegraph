@@ -37,9 +37,7 @@ describe('Pattern Compilation', () => {
         { alias: 'a', labels: ['User'] },
         { alias: 'b', labels: ['Post'] },
       ],
-      edges: [
-        { types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false },
-      ],
+      edges: [{ types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false }],
     })
 
     const result = compile(ast)
@@ -79,9 +77,7 @@ describe('Pattern Compilation', () => {
 
   it('compiles standalone node with no edges', () => {
     const ast = new QueryAST().addPattern({
-      nodes: [
-        { alias: 'a', labels: ['User'] },
-      ],
+      nodes: [{ alias: 'a', labels: ['User'] }],
       edges: [],
     })
 
@@ -96,9 +92,7 @@ describe('Pattern Compilation', () => {
         { alias: 'a', labels: ['User'] },
         { alias: 'b', labels: ['Post'] },
       ],
-      edges: [
-        { types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: true },
-      ],
+      edges: [{ types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: true }],
     })
 
     const result = compile(ast)
@@ -145,9 +139,7 @@ describe('Pattern Compilation', () => {
         },
         { alias: 'b', labels: ['Post'] },
       ],
-      edges: [
-        { types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false },
-      ],
+      edges: [{ types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false }],
     })
 
     const result = compile(ast)
@@ -211,9 +203,7 @@ describe('Pattern Compilation', () => {
         { alias: 'a', labels: ['User'], id: 'user_123' },
         { alias: 'b', labels: ['Post'] },
       ],
-      edges: [
-        { types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false },
-      ],
+      edges: [{ types: ['authored'], direction: 'out', from: 'a', to: 'b', optional: false }],
     })
 
     const result = compile(ast)
@@ -224,9 +214,7 @@ describe('Pattern Compilation', () => {
 
   it('compiles multiple labels per node (no schema)', () => {
     const ast = new QueryAST().addPattern({
-      nodes: [
-        { alias: 'a', labels: ['User', 'Admin'] },
-      ],
+      nodes: [{ alias: 'a', labels: ['User', 'Admin'] }],
       edges: [],
     })
 
@@ -266,24 +254,22 @@ describe('Pattern Compilation', () => {
 
 describe('Subquery Step Compilation', () => {
   it('compiles basic CALL {} with correlated alias', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: [
-          {
-            type: 'traversal',
-            edges: ['authored'],
-            direction: 'out',
-            fromAlias: 'n0',
-            toAlias: 'sq0',
-            toLabels: [],
-            optional: false,
-            cardinality: 'many',
-          },
-        ],
-        exportedAliases: ['sq0'],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: [
+        {
+          type: 'traversal',
+          edges: ['authored'],
+          direction: 'out',
+          fromAlias: 'n0',
+          toAlias: 'sq0',
+          toLabels: [],
+          optional: false,
+          cardinality: 'many',
+        },
+      ],
+      exportedAliases: ['sq0'],
+    })
 
     const result = compile(ast)
     const cypher = normalizeCypher(result.cypher)
@@ -295,19 +281,17 @@ describe('Subquery Step Compilation', () => {
   })
 
   it('omits WITH line when no correlated aliases', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: [],
-        steps: [
-          {
-            type: 'match',
-            label: 'Post',
-            alias: 'sq0',
-          },
-        ],
-        exportedAliases: ['sq0'],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: [],
+      steps: [
+        {
+          type: 'match',
+          label: 'Post',
+          alias: 'sq0',
+        },
+      ],
+      exportedAliases: ['sq0'],
+    })
 
     const result = compile(ast)
 
@@ -349,30 +333,26 @@ describe('Subquery Step Compilation', () => {
   })
 
   it('does not auto-generate RETURN when subquery has ReturnStep', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: [
-          {
-            type: 'traversal',
-            edges: ['authored'],
-            direction: 'out',
-            fromAlias: 'n0',
-            toAlias: 'sq0',
-            toLabels: [],
-            optional: false,
-            cardinality: 'many',
-          },
-          {
-            type: 'return',
-            returns: [
-              { kind: 'alias', alias: 'sq0', resultAlias: 'posts' },
-            ],
-          },
-        ],
-        exportedAliases: [],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: [
+        {
+          type: 'traversal',
+          edges: ['authored'],
+          direction: 'out',
+          fromAlias: 'n0',
+          toAlias: 'sq0',
+          toLabels: [],
+          optional: false,
+          cardinality: 'many',
+        },
+        {
+          type: 'return',
+          returns: [{ kind: 'alias', alias: 'sq0', resultAlias: 'posts' }],
+        },
+      ],
+      exportedAliases: [],
+    })
 
     const result = compile(ast)
 
@@ -384,24 +364,22 @@ describe('Subquery Step Compilation', () => {
   })
 
   it('auto-generates RETURN when subquery has no ReturnStep but has exported aliases', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: [
-          {
-            type: 'traversal',
-            edges: ['authored'],
-            direction: 'out',
-            fromAlias: 'n0',
-            toAlias: 'sq0',
-            toLabels: [],
-            optional: false,
-            cardinality: 'many',
-          },
-        ],
-        exportedAliases: ['sq0'],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: [
+        {
+          type: 'traversal',
+          edges: ['authored'],
+          direction: 'out',
+          fromAlias: 'n0',
+          toAlias: 'sq0',
+          toLabels: [],
+          optional: false,
+          cardinality: 'many',
+        },
+      ],
+      exportedAliases: ['sq0'],
+    })
 
     const result = compile(ast)
 
@@ -410,41 +388,39 @@ describe('Subquery Step Compilation', () => {
   })
 
   it('compiles nested subqueries (subquery inside subquery)', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: [
-          {
-            type: 'traversal',
-            edges: ['authored'],
-            direction: 'out',
-            fromAlias: 'n0',
-            toAlias: 'sq0',
-            toLabels: [],
-            optional: false,
-            cardinality: 'many',
-          },
-          {
-            type: 'subquery',
-            correlatedAliases: ['sq0'],
-            steps: [
-              {
-                type: 'traversal',
-                edges: ['likes'],
-                direction: 'in',
-                fromAlias: 'sq0',
-                toAlias: 'sq1',
-                toLabels: [],
-                optional: false,
-                cardinality: 'many',
-              },
-            ],
-            exportedAliases: ['sq1'],
-          },
-        ],
-        exportedAliases: ['sq0'],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: [
+        {
+          type: 'traversal',
+          edges: ['authored'],
+          direction: 'out',
+          fromAlias: 'n0',
+          toAlias: 'sq0',
+          toLabels: [],
+          optional: false,
+          cardinality: 'many',
+        },
+        {
+          type: 'subquery',
+          correlatedAliases: ['sq0'],
+          steps: [
+            {
+              type: 'traversal',
+              edges: ['likes'],
+              direction: 'in',
+              fromAlias: 'sq0',
+              toAlias: 'sq1',
+              toLabels: [],
+              optional: false,
+              cardinality: 'many',
+            },
+          ],
+          exportedAliases: ['sq1'],
+        },
+      ],
+      exportedAliases: ['sq0'],
+    })
 
     const result = compile(ast)
 
@@ -454,30 +430,34 @@ describe('Subquery Step Compilation', () => {
   })
 
   it('compiles subquery with inner WHERE + traversal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: [
-          {
-            type: 'traversal',
-            edges: ['authored'],
-            direction: 'out',
-            fromAlias: 'n0',
-            toAlias: 'sq0',
-            toLabels: ['Post'],
-            optional: false,
-            cardinality: 'many',
-          },
-          {
-            type: 'where',
-            conditions: [
-              { type: 'comparison', field: 'status', operator: 'eq', value: 'published', target: 'sq0' },
-            ],
-          },
-        ],
-        exportedAliases: ['sq0'],
-      })
+    const ast = new QueryAST().addMatch('User').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: [
+        {
+          type: 'traversal',
+          edges: ['authored'],
+          direction: 'out',
+          fromAlias: 'n0',
+          toAlias: 'sq0',
+          toLabels: ['Post'],
+          optional: false,
+          cardinality: 'many',
+        },
+        {
+          type: 'where',
+          conditions: [
+            {
+              type: 'comparison',
+              field: 'status',
+              operator: 'eq',
+              value: 'published',
+              target: 'sq0',
+            },
+          ],
+        },
+      ],
+      exportedAliases: ['sq0'],
+    })
 
     const result = compile(ast)
 
@@ -795,11 +775,9 @@ describe('Subquery Condition Compilation', () => {
 
 describe('Return Step Compilation', () => {
   it('returns single alias', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0' }],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0' }],
+    })
 
     const result = compile(ast)
 
@@ -807,11 +785,9 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns alias with resultAlias (AS)', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0', resultAlias: 'user' }],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0', resultAlias: 'user' }],
+    })
 
     const result = compile(ast)
 
@@ -819,11 +795,9 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns alias with field selection', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0', fields: ['name', 'email'] }],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0', fields: ['name', 'email'] }],
+    })
 
     const result = compile(ast)
 
@@ -832,17 +806,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with field ref', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'field', alias: 'n0', field: 'name' },
-            resultAlias: 'userName',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'field', alias: 'n0', field: 'name' },
+          resultAlias: 'userName',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -850,17 +822,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with string literal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'literal', value: 'hello' },
-            resultAlias: 'greeting',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'literal', value: 'hello' },
+          resultAlias: 'greeting',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -868,17 +838,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with number literal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'literal', value: 42 },
-            resultAlias: 'answer',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'literal', value: 42 },
+          resultAlias: 'answer',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -886,17 +854,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with boolean literal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'literal', value: true },
-            resultAlias: 'flag',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'literal', value: true },
+          resultAlias: 'flag',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -904,17 +870,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with null literal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'literal', value: null },
-            resultAlias: 'nothing',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'literal', value: null },
+          resultAlias: 'nothing',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -922,17 +886,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with array literal', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'literal', value: [1, 2, 3] },
-            resultAlias: 'nums',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'literal', value: [1, 2, 3] },
+          resultAlias: 'nums',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -940,24 +902,22 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with computed add', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: {
-              type: 'computed',
-              operator: 'add',
-              operands: [
-                { type: 'field', alias: 'n0', field: 'score' },
-                { type: 'literal', value: 10 },
-              ],
-            },
-            resultAlias: 'boosted',
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: {
+            type: 'computed',
+            operator: 'add',
+            operands: [
+              { type: 'field', alias: 'n0', field: 'score' },
+              { type: 'literal', value: 10 },
+            ],
           },
-        ],
-      })
+          resultAlias: 'boosted',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -965,24 +925,22 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with computed subtract', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: {
-              type: 'computed',
-              operator: 'subtract',
-              operands: [
-                { type: 'field', alias: 'n0', field: 'score' },
-                { type: 'literal', value: 5 },
-              ],
-            },
-            resultAlias: 'reduced',
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: {
+            type: 'computed',
+            operator: 'subtract',
+            operands: [
+              { type: 'field', alias: 'n0', field: 'score' },
+              { type: 'literal', value: 5 },
+            ],
           },
-        ],
-      })
+          resultAlias: 'reduced',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -990,24 +948,22 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with computed concat', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: {
-              type: 'computed',
-              operator: 'concat',
-              operands: [
-                { type: 'field', alias: 'n0', field: 'name' },
-                { type: 'literal', value: '@example.com' },
-              ],
-            },
-            resultAlias: 'email',
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: {
+            type: 'computed',
+            operator: 'concat',
+            operands: [
+              { type: 'field', alias: 'n0', field: 'name' },
+              { type: 'literal', value: '@example.com' },
+            ],
           },
-        ],
-      })
+          resultAlias: 'email',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -1016,42 +972,40 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with CASE WHEN', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: {
-              type: 'case',
-              branches: [
-                {
-                  when: {
-                    type: 'comparison',
-                    field: 'score',
-                    operator: 'gte',
-                    value: 90,
-                    target: 'n0',
-                  },
-                  then: { type: 'literal', value: 'A' }, // oxlint-disable-line no-thenable
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: {
+            type: 'case',
+            branches: [
+              {
+                when: {
+                  type: 'comparison',
+                  field: 'score',
+                  operator: 'gte',
+                  value: 90,
+                  target: 'n0',
                 },
-                {
-                  when: {
-                    type: 'comparison',
-                    field: 'score',
-                    operator: 'gte',
-                    value: 80,
-                    target: 'n0',
-                  },
-                  then: { type: 'literal', value: 'B' }, // oxlint-disable-line no-thenable
+                then: { type: 'literal', value: 'A' }, // oxlint-disable-line no-thenable
+              },
+              {
+                when: {
+                  type: 'comparison',
+                  field: 'score',
+                  operator: 'gte',
+                  value: 80,
+                  target: 'n0',
                 },
-              ],
-              else: { type: 'literal', value: 'C' },
-            },
-            resultAlias: 'grade',
+                then: { type: 'literal', value: 'B' }, // oxlint-disable-line no-thenable
+              },
+            ],
+            else: { type: 'literal', value: 'C' },
           },
-        ],
-      })
+          resultAlias: 'grade',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -1066,21 +1020,19 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with function call', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: {
-              type: 'function',
-              name: 'toUpper',
-              args: [{ type: 'field', alias: 'n0', field: 'name' }],
-            },
-            resultAlias: 'upperName',
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: {
+            type: 'function',
+            name: 'toUpper',
+            args: [{ type: 'field', alias: 'n0', field: 'name' }],
           },
-        ],
-      })
+          resultAlias: 'upperName',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -1097,9 +1049,7 @@ describe('Return Step Compilation', () => {
         cardinality: 'many',
       })
       .addReturn({
-        returns: [
-          { kind: 'collect', sourceAlias: 'n1', resultAlias: 'posts' },
-        ],
+        returns: [{ kind: 'collect', sourceAlias: 'n1', resultAlias: 'posts' }],
       })
 
     const result = compile(ast)
@@ -1148,9 +1098,7 @@ describe('Return Step Compilation', () => {
     // Get the actual path alias from projection
     const pathAlias = base.projection.pathAlias!
     const ast = base.addReturn({
-      returns: [
-        { kind: 'path', pathAlias, resultAlias: 'shortPath' },
-      ],
+      returns: [{ kind: 'path', pathAlias, resultAlias: 'shortPath' }],
     })
 
     const result = compile(ast)
@@ -1159,12 +1107,10 @@ describe('Return Step Compilation', () => {
   })
 
   it('compiles countOnly mode', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0' }],
-        countOnly: true,
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0' }],
+      countOnly: true,
+    })
 
     const result = compile(ast)
 
@@ -1172,12 +1118,10 @@ describe('Return Step Compilation', () => {
   })
 
   it('compiles existsOnly mode', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0' }],
-        existsOnly: true,
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0' }],
+      existsOnly: true,
+    })
 
     const result = compile(ast)
 
@@ -1226,11 +1170,9 @@ describe('Return Step Compilation', () => {
   })
 
   it('does not emit alias AS alias when resultAlias matches alias', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [{ kind: 'alias', alias: 'n0', resultAlias: 'n0' }],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [{ kind: 'alias', alias: 'n0', resultAlias: 'n0' }],
+    })
 
     const result = compile(ast)
 
@@ -1240,17 +1182,15 @@ describe('Return Step Compilation', () => {
   })
 
   it('returns expression with param reference', () => {
-    const ast = new QueryAST()
-      .addMatch('User')
-      .addReturn({
-        returns: [
-          {
-            kind: 'expression',
-            expression: { type: 'param', name: 'myParam' },
-            resultAlias: 'val',
-          },
-        ],
-      })
+    const ast = new QueryAST().addMatch('User').addReturn({
+      returns: [
+        {
+          kind: 'expression',
+          expression: { type: 'param', name: 'myParam' },
+          resultAlias: 'val',
+        },
+      ],
+    })
 
     const result = compile(ast)
 
@@ -1514,12 +1454,16 @@ describe('AliasComparison Condition', () => {
 
 describe('Except Branch Compilation', () => {
   it('compiles EXCEPT (distinct=true)', () => {
-    const branch1 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
-    ])
-    const branch2 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
-    ])
+    const branch1 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
+      ])
+    const branch2 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
+      ])
 
     const ast = new QueryAST().addBranch({
       operator: 'except',
@@ -1538,12 +1482,16 @@ describe('Except Branch Compilation', () => {
   })
 
   it('compiles EXCEPT ALL (distinct=false)', () => {
-    const branch1 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
-    ])
-    const branch2 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
-    ])
+    const branch1 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
+      ])
+    const branch2 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
+      ])
 
     const ast = new QueryAST().addBranch({
       operator: 'except',
@@ -1557,15 +1505,21 @@ describe('Except Branch Compilation', () => {
   })
 
   it('compiles EXCEPT with 3+ branches', () => {
-    const branch1 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
-    ])
-    const branch2 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
-    ])
-    const branch3 = new QueryAST().addMatch('User').addWhere([
-      { type: 'comparison', field: 'role', operator: 'eq', value: 'suspended', target: 'n0' },
-    ])
+    const branch1 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'status', operator: 'eq', value: 'active', target: 'n0' },
+      ])
+    const branch2 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'role', operator: 'eq', value: 'banned', target: 'n0' },
+      ])
+    const branch3 = new QueryAST()
+      .addMatch('User')
+      .addWhere([
+        { type: 'comparison', field: 'role', operator: 'eq', value: 'suspended', target: 'n0' },
+      ])
 
     const ast = new QueryAST().addBranch({
       operator: 'except',
@@ -1596,9 +1550,7 @@ describe('Combined V2 Features', () => {
           { alias: 'u', labels: ['User'] },
           { alias: 'p', labels: ['Post'] },
         ],
-        edges: [
-          { types: ['authored'], direction: 'out', from: 'u', to: 'p', optional: false },
-        ],
+        edges: [{ types: ['authored'], direction: 'out', from: 'u', to: 'p', optional: false }],
       })
       .addSubqueryStep({
         correlatedAliases: ['p'],

@@ -4,7 +4,13 @@
  * Type definitions and utilities shared across builder types.
  */
 
-import type { ComparisonOperator, WhereCondition, EdgeWhereCondition, ComparisonCondition, LogicalCondition } from './ast'
+import type {
+  ComparisonOperator,
+  WhereCondition,
+  EdgeWhereCondition,
+  ComparisonCondition,
+  LogicalCondition,
+} from './ast'
 import type { SchemaShape } from '../schema'
 import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
 

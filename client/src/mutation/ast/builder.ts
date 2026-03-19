@@ -51,11 +51,7 @@ export function createNode(
   }
 }
 
-export function updateNode(
-  label: string,
-  id: string,
-  data: Record<string, unknown>,
-): UpdateNodeOp {
+export function updateNode(label: string, id: string, data: Record<string, unknown>): UpdateNodeOp {
   return { type: 'updateNode', label, id, data }
 }
 

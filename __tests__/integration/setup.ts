@@ -231,18 +231,21 @@ export async function seedTestData(
   )
 
   // Create folders (hierarchy)
-  await write(
-    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    { id: 'folder-root', name: 'Root', path: '/' },
-  )
-  await write(
-    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    { id: 'folder-docs', name: 'Documents', path: '/documents' },
-  )
-  await write(
-    `CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`,
-    { id: 'folder-work', name: 'Work', path: '/documents/work' },
-  )
+  await write(`CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
+    id: 'folder-root',
+    name: 'Root',
+    path: '/',
+  })
+  await write(`CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
+    id: 'folder-docs',
+    name: 'Documents',
+    path: '/documents',
+  })
+  await write(`CREATE (f:Folder {id: $id, name: $name, path: $path}) RETURN f.id as id`, {
+    id: 'folder-work',
+    name: 'Work',
+    path: '/documents/work',
+  })
 
   // Create relationships
   // User -> authored -> Post
@@ -260,28 +263,28 @@ export async function seedTestData(
   )
 
   // User -> likes -> Post
-  await write(
-    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    { userId: 'user-2', postId: 'post-1' },
-  )
-  await write(
-    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    { userId: 'user-3', postId: 'post-1' },
-  )
-  await write(
-    `MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`,
-    { userId: 'user-1', postId: 'post-2' },
-  )
+  await write(`MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`, {
+    userId: 'user-2',
+    postId: 'post-1',
+  })
+  await write(`MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`, {
+    userId: 'user-3',
+    postId: 'post-1',
+  })
+  await write(`MATCH (u:User {id: $userId}), (p:Post {id: $postId}) CREATE (u)-[:likes]->(p)`, {
+    userId: 'user-1',
+    postId: 'post-2',
+  })
 
   // User -> follows -> User
-  await write(
-    `MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
-    { fromId: 'user-2', toId: 'user-1' },
-  )
-  await write(
-    `MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`,
-    { fromId: 'user-3', toId: 'user-1' },
-  )
+  await write(`MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`, {
+    fromId: 'user-2',
+    toId: 'user-1',
+  })
+  await write(`MATCH (u1:User {id: $fromId}), (u2:User {id: $toId}) CREATE (u1)-[:follows]->(u2)`, {
+    fromId: 'user-3',
+    toId: 'user-1',
+  })
 
   // Post -> hasComment -> Comment
   await write(
@@ -304,18 +307,18 @@ export async function seedTestData(
   )
 
   // Post -> tagged -> Tag
-  await write(
-    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`,
-    { postId: 'post-1', tagId: 'tag-1' },
-  )
-  await write(
-    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`,
-    { postId: 'post-2', tagId: 'tag-1' },
-  )
-  await write(
-    `MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`,
-    { postId: 'post-2', tagId: 'tag-2' },
-  )
+  await write(`MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`, {
+    postId: 'post-1',
+    tagId: 'tag-1',
+  })
+  await write(`MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`, {
+    postId: 'post-2',
+    tagId: 'tag-1',
+  })
+  await write(`MATCH (p:Post {id: $postId}), (t:Tag {id: $tagId}) CREATE (p)-[:Tagged]->(t)`, {
+    postId: 'post-2',
+    tagId: 'tag-2',
+  })
 
   // Folder hierarchy
   await write(

@@ -18,18 +18,21 @@ describe('Grouped Aggregations', () => {
 
     // Create additional posts with varying view counts for aggregation testing
     // Use raw adapter to add more test data beyond the seed data
-    await ctx.adapter.mutate(
-      `CREATE (p:Post {id: $id, title: $title, views: $views})`,
-      { id: 'post-agg-1', title: 'Aggregation Post A', views: 500 },
-    )
-    await ctx.adapter.mutate(
-      `CREATE (p:Post {id: $id, title: $title, views: $views})`,
-      { id: 'post-agg-2', title: 'Aggregation Post B', views: 750 },
-    )
-    await ctx.adapter.mutate(
-      `CREATE (p:Post {id: $id, title: $title, views: $views})`,
-      { id: 'post-agg-3', title: 'Aggregation Post C', views: 300 },
-    )
+    await ctx.adapter.mutate(`CREATE (p:Post {id: $id, title: $title, views: $views})`, {
+      id: 'post-agg-1',
+      title: 'Aggregation Post A',
+      views: 500,
+    })
+    await ctx.adapter.mutate(`CREATE (p:Post {id: $id, title: $title, views: $views})`, {
+      id: 'post-agg-2',
+      title: 'Aggregation Post B',
+      views: 750,
+    })
+    await ctx.adapter.mutate(`CREATE (p:Post {id: $id, title: $title, views: $views})`, {
+      id: 'post-agg-3',
+      title: 'Aggregation Post C',
+      views: 300,
+    })
 
     // Create additional users with different statuses and ages for groupBy testing
     await ctx.adapter.mutate(
@@ -221,10 +224,7 @@ describe('Grouped Aggregations', () => {
         .execute()
 
       // Get total collected emails across all groups
-      const totalEmails = results.reduce(
-        (sum, r) => sum + (r.emails as string[]).length,
-        0,
-      )
+      const totalEmails = results.reduce((sum, r) => sum + (r.emails as string[]).length, 0)
 
       // Should match total user count
       const allUsers = await ctx.graph.node('user').execute()
@@ -358,9 +358,7 @@ describe('Grouped Aggregations', () => {
 
       // Verify counts are in descending order
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1]!.cnt as number).toBeGreaterThanOrEqual(
-          results[i]!.cnt as number,
-        )
+        expect(results[i - 1]!.cnt as number).toBeGreaterThanOrEqual(results[i]!.cnt as number)
       }
     })
 
@@ -374,9 +372,7 @@ describe('Grouped Aggregations', () => {
 
       // Verify counts are in ascending order
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1]!.cnt as number).toBeLessThanOrEqual(
-          results[i]!.cnt as number,
-        )
+        expect(results[i - 1]!.cnt as number).toBeLessThanOrEqual(results[i]!.cnt as number)
       }
     })
 
@@ -605,11 +601,7 @@ describe('Grouped Aggregations', () => {
 
   describe('Cypher Compilation Verification', () => {
     it('produces valid Cypher with GROUP BY semantics', () => {
-      const cypher = ctx.graph
-        .node('user')
-        .groupBy('status')
-        .count({ alias: 'cnt' })
-        .toCypher()
+      const cypher = ctx.graph.node('user').groupBy('status').count({ alias: 'cnt' }).toCypher()
 
       expect(cypher).toContain('MATCH')
       expect(cypher).toContain(':User')
@@ -632,13 +624,7 @@ describe('Grouped Aggregations', () => {
     })
 
     it('includes SKIP and LIMIT in Cypher when specified', () => {
-      const cypher = ctx.graph
-        .node('user')
-        .groupBy('status')
-        .count()
-        .skip(5)
-        .limit(10)
-        .toCypher()
+      const cypher = ctx.graph.node('user').groupBy('status').count().skip(5).limit(10).toCypher()
 
       expect(cypher).toContain('SKIP 5')
       expect(cypher).toContain('LIMIT 10')

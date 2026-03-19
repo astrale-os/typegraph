@@ -306,7 +306,12 @@ describe('Lowering', () => {
       const nodes = decls.filter((d) => d.kind === 'NodeDecl') as NodeDecl[]
       const edges = decls.filter((d) => d.kind === 'EdgeDecl') as EdgeDecl[]
 
-      expect(nodes.map((n) => n.name.value).sort()).toEqual(['Class', 'Interface', 'Operation', 'Root'])
+      expect(nodes.map((n) => n.name.value).sort()).toEqual([
+        'Class',
+        'Interface',
+        'Operation',
+        'Root',
+      ])
 
       const edgeNames = edges.map((e) => e.name.value).sort()
       expect(edgeNames).toContain('has_parent')

@@ -22,7 +22,15 @@ import { type SchemaRegistry, EMPTY_REGISTRY, resolveExtendUri } from '../regist
 
 // ─── Resolved Schema Types ──────────────────────────────────
 
-export type SymbolKind = 'Scalar' | 'TypeAlias' | 'ValueType' | 'TaggedUnion' | 'Interface' | 'Class' | 'Edge' | 'Data'
+export type SymbolKind =
+  | 'Scalar'
+  | 'TypeAlias'
+  | 'ValueType'
+  | 'TaggedUnion'
+  | 'Interface'
+  | 'Class'
+  | 'Edge'
+  | 'Data'
 
 export interface Symbol {
   name: string
@@ -89,7 +97,12 @@ class Resolver {
   private registry: SchemaRegistry
   private sourceUri: string | undefined
 
-  constructor(diagnostics: DiagnosticBag, baseScope?: Map<string, Symbol>, registry?: SchemaRegistry, sourceUri?: string) {
+  constructor(
+    diagnostics: DiagnosticBag,
+    baseScope?: Map<string, Symbol>,
+    registry?: SchemaRegistry,
+    sourceUri?: string,
+  ) {
     this.diagnostics = diagnostics
     // Clone base scope so we don't mutate it
     this.symbols = new Map(baseScope ?? [])
@@ -305,7 +318,15 @@ class Resolver {
   private resolveTypeExpr(expr: TypeExpr): void {
     switch (expr.kind) {
       case 'NamedType':
-        this.resolveNameAs(expr.name, ['Scalar', 'TypeAlias', 'ValueType', 'TaggedUnion', 'Interface', 'Class', 'Data'])
+        this.resolveNameAs(expr.name, [
+          'Scalar',
+          'TypeAlias',
+          'ValueType',
+          'TaggedUnion',
+          'Interface',
+          'Class',
+          'Data',
+        ])
         break
 
       case 'NullableType':

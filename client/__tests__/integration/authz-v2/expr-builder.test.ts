@@ -138,9 +138,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
     })
 
     it('flattens chained .exclude() into single exclude with multiple excluded', () => {
-      const expr = identity('A')
-        .exclude(identity('B'))
-        .exclude(identity('C'))
+      const expr = identity('A').exclude(identity('B')).exclude(identity('C'))
 
       expect(expr.build()).toEqual({
         kind: 'exclude',
@@ -293,10 +291,7 @@ describe('AUTH_V2: Expression Builder SDK', () => {
 
       expect(composed.build()).toEqual({
         kind: 'intersect',
-        operands: [
-          rawExpr,
-          { kind: 'identity', id: 'C' },
-        ],
+        operands: [rawExpr, { kind: 'identity', id: 'C' }],
       })
     })
 

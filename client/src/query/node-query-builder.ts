@@ -190,9 +190,7 @@ export abstract class NodeQueryBuilder<
    *   .whereExists(q => q.to('AUTHORED', 'Post'))
    *   .execute()
    */
-  whereExists(
-    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
-  ): this {
+  whereExists(buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>): this {
     const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
     const condition: SubqueryExistsCondition = {
       type: 'subquery',
@@ -211,9 +209,7 @@ export abstract class NodeQueryBuilder<
    *   .whereNotExists(q => q.to('AUTHORED', 'Post'))
    *   .execute()
    */
-  whereNotExists(
-    buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>,
-  ): this {
+  whereNotExists(buildSubquery: (q: SubqueryBuilder<S, N>) => SubqueryBuilder<S, any>): this {
     const subBuilder = buildSubquery(new SubqueryBuilder(this._schema, this._ast.currentAlias))
     const condition: SubqueryNotExistsCondition = {
       type: 'subquery',
@@ -297,7 +293,7 @@ export abstract class NodeQueryBuilder<
     edge: E,
     direction: 'out' | 'in' | 'both' = 'out',
   ): this {
-    return this.whereExists(q => {
+    return this.whereExists((q) => {
       if (direction === 'out') return q.to(edge as any)
       if (direction === 'in') return q.from(edge as any)
       return q.related(edge as string)
@@ -312,7 +308,7 @@ export abstract class NodeQueryBuilder<
     edge: E,
     direction: 'out' | 'in' | 'both' = 'out',
   ): this {
-    return this.whereNotExists(q => {
+    return this.whereNotExists((q) => {
       if (direction === 'out') return q.to(edge as any)
       if (direction === 'in') return q.from(edge as any)
       return q.related(edge as string)
@@ -324,9 +320,7 @@ export abstract class NodeQueryBuilder<
    * Internally uses SubqueryCondition (EXISTS with ID predicate).
    */
   whereConnectedTo<E extends OutgoingEdges<S, N>>(edge: E, targetId: string): this {
-    return this.whereExists(q =>
-      q.to(edge as any).where('id' as any, 'eq', targetId),
-    )
+    return this.whereExists((q) => q.to(edge as any).where('id' as any, 'eq', targetId))
   }
 
   /**
@@ -334,9 +328,7 @@ export abstract class NodeQueryBuilder<
    * Internally uses SubqueryCondition (EXISTS with ID predicate).
    */
   whereConnectedFrom<E extends IncomingEdges<S, N>>(edge: E, sourceId: string): this {
-    return this.whereExists(q =>
-      q.from(edge as any).where('id' as any, 'eq', sourceId),
-    )
+    return this.whereExists((q) => q.from(edge as any).where('id' as any, 'eq', sourceId))
   }
 
   // ===========================================================================

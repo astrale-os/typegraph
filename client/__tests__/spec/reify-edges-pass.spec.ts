@@ -271,14 +271,16 @@ describe('ReifyEdgesPass — PatternStep', () => {
           { alias: 'o', labels: ['order'] },
           { alias: 'p', labels: ['product'] },
         ],
-        edges: [{
-          from: 'o',
-          to: 'p',
-          types: ['orderItem'],
-          direction: 'out',
-          optional: false,
-          variableLength: { min: 1, max: 3, uniqueness: 'nodes' as const },
-        }],
+        edges: [
+          {
+            from: 'o',
+            to: 'p',
+            types: ['orderItem'],
+            direction: 'out',
+            optional: false,
+            variableLength: { min: 1, max: 3, uniqueness: 'nodes' as const },
+          },
+        ],
       })
 
       expect(() => pass.transform(ast, reifiedSchema)).toThrow(
@@ -292,14 +294,16 @@ describe('ReifyEdgesPass — PatternStep', () => {
           { alias: 'o', labels: ['order'] },
           { alias: 'p', labels: ['product'] },
         ],
-        edges: [{
-          from: 'o',
-          to: 'p',
-          types: ['orderItem'],
-          direction: 'out',
-          optional: false,
-          where: [{ field: 'quantity', operator: 'gt', value: 5 }],
-        }],
+        edges: [
+          {
+            from: 'o',
+            to: 'p',
+            types: ['orderItem'],
+            direction: 'out',
+            optional: false,
+            where: [{ field: 'quantity', operator: 'gt', value: 5 }],
+          },
+        ],
       })
       const transformed = pass.transform(ast, reifiedSchema)
       const result = compile(transformed, reifiedSchema)
@@ -419,13 +423,11 @@ describe('ReifyEdgesPass — SubqueryStep & SubqueryCondition', () => {
       },
     ]
 
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: innerSteps,
-        exportedAliases: [],
-      })
+    const ast = new QueryAST().addMatch('order').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: innerSteps,
+      exportedAliases: [],
+    })
 
     const transformed = pass.transform(ast, reifiedSchema)
 
@@ -457,14 +459,14 @@ describe('ReifyEdgesPass — SubqueryStep & SubqueryCondition', () => {
       cardinality: 'many' as const,
     }
 
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addWhere([{
+    const ast = new QueryAST().addMatch('order').addWhere([
+      {
         type: 'subquery',
         mode: 'exists',
         query: [innerTraversalStep],
         correlatedAliases: ['n0'],
-      }])
+      },
+    ])
 
     const transformed = pass.transform(ast, reifiedSchema)
 
@@ -491,16 +493,21 @@ describe('ReifyEdgesPass — SubqueryStep & SubqueryCondition', () => {
       cardinality: 'many' as const,
     }
 
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addWhere([{
+    const ast = new QueryAST().addMatch('order').addWhere([
+      {
         type: 'logical',
         operator: 'OR',
         conditions: [
           { type: 'comparison', target: 'n0', field: 'status', operator: 'eq', value: 'pending' },
-          { type: 'subquery', mode: 'exists', query: [innerTraversalStep], correlatedAliases: ['n0'] },
+          {
+            type: 'subquery',
+            mode: 'exists',
+            query: [innerTraversalStep],
+            correlatedAliases: ['n0'],
+          },
         ],
-      }])
+      },
+    ])
 
     const transformed = pass.transform(ast, reifiedSchema)
 

@@ -12,10 +12,7 @@ import { KERNEL_PRELUDE } from './prelude'
 import { buildKernelRegistry } from './kernel-prelude'
 
 const kernelRegistry = buildKernelRegistry()
-import {
-  type ClassDeclNode,
-  type DataDeclNode,
-} from './cst/index'
+import { type ClassDeclNode, type DataDeclNode } from './cst/index'
 import {
   type NodeDecl,
   type EdgeDecl,
@@ -23,7 +20,13 @@ import {
   type DataDecl,
   type Declaration,
 } from './ast/index'
-import { type SchemaIR, type NodeDef, type EdgeDef, type MethodDef, type DataTypeDef } from './ir/index'
+import {
+  type SchemaIR,
+  type NodeDef,
+  type EdgeDef,
+  type MethodDef,
+  type DataTypeDef,
+} from './ir/index'
 import { DiagnosticBag, DiagnosticCodes } from './diagnostics'
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -375,7 +378,9 @@ describe('Lowering — Data Declarations', () => {
   })
 
   it('edge with inline data declaration', () => {
-    const declarations = ast(`class Follows(source: User, target: User) { data FollowMeta = { reason: String } }`)
+    const declarations = ast(
+      `class Follows(source: User, target: User) { data FollowMeta = { reason: String } }`,
+    )
     expect(declarations).toHaveLength(1)
     const edge = declarations[0] as EdgeDecl
     expect(edge.kind).toBe('EdgeDecl')
@@ -406,7 +411,9 @@ describe('Resolver — Data Declarations', () => {
   })
 
   it('inline data from class body creates Data symbol', () => {
-    const result = compile(`class Op { data OpData = { code: String } }`, { prelude: KERNEL_PRELUDE })
+    const result = compile(`class Op { data OpData = { code: String } }`, {
+      prelude: KERNEL_PRELUDE,
+    })
     expect(result.diagnostics.hasErrors()).toBe(false)
     const sym = result.artifacts!.resolved.symbols.get('OpData')
     expect(sym).toBeDefined()
@@ -414,7 +421,9 @@ describe('Resolver — Data Declarations', () => {
   })
 
   it('data reference resolves to Data symbol', () => {
-    const result = compile(`data Payload = { code: String }\nclass Op { data Payload }`, { prelude: KERNEL_PRELUDE })
+    const result = compile(`data Payload = { code: String }\nclass Op { data Payload }`, {
+      prelude: KERNEL_PRELUDE,
+    })
     expect(result.diagnostics.hasErrors()).toBe(false)
     const payloadSym = result.artifacts!.resolved.symbols.get('Payload')
     expect(payloadSym).toBeDefined()
@@ -428,7 +437,9 @@ describe('Resolver — Data Declarations', () => {
   })
 
   it('data fields resolve their types', () => {
-    const result = compile(`data Payload = { code: String, size: Int }`, { prelude: KERNEL_PRELUDE })
+    const result = compile(`data Payload = { code: String, size: Int }`, {
+      prelude: KERNEL_PRELUDE,
+    })
     expect(result.diagnostics.hasErrors()).toBe(false)
   })
 
@@ -799,7 +810,10 @@ describe('Edge Cases — Data Declarations & Projections', () => {
     const dt = findDataType(result.ir!, 'Payload')
     expect(dt.fields).toHaveLength(3)
     expect(dt.fields![0].name).toBe('tags')
-    expect(dt.fields![0].type).toEqual({ kind: 'List', element: { kind: 'Scalar', name: 'String' } })
+    expect(dt.fields![0].type).toEqual({
+      kind: 'List',
+      element: { kind: 'Scalar', name: 'String' },
+    })
     expect(dt.fields![1].name).toBe('count')
     expect(dt.fields![2].name).toBe('label')
     expect(dt.fields![2].nullable).toBe(true)

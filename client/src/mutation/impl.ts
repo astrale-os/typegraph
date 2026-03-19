@@ -408,7 +408,12 @@ export class GraphMutationsImpl<
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
+    return {
+      id: result.r.id,
+      from: result.fromId,
+      to: result.toId,
+      data: result.r as unknown as ResolveEdge<T, E & string>,
+    }
   }
 
   async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {
@@ -461,7 +466,12 @@ export class GraphMutationsImpl<
       throw new Error(`Edge not found: ${edge} with id ${edgeId}`)
     }
 
-    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
+    return {
+      id: edgeId,
+      from: result.fromId,
+      to: result.toId,
+      data: result.r as unknown as ResolveEdge<T, E & string>,
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -640,7 +650,10 @@ export class GraphMutationsImpl<
 
         let finalData = nodeData as NodeInput<S, NodeLabels<S>>
         if (options?.transform) {
-          const transformed = options.transform(node as unknown as ResolveNode<T, NodeLabels<S> & string>, depth)
+          const transformed = options.transform(
+            node as unknown as ResolveNode<T, NodeLabels<S> & string>,
+            depth,
+          )
           finalData = { ...finalData, ...transformed }
         }
 
@@ -661,7 +674,10 @@ export class GraphMutationsImpl<
         const result = results[0]
 
         if (result && depth === 0) {
-          clonedRoot = { id: newId, data: result.n as unknown as ResolveNode<T, NodeLabels<S> & string> }
+          clonedRoot = {
+            id: newId,
+            data: result.n as unknown as ResolveNode<T, NodeLabels<S> & string>,
+          }
         }
 
         // Re-create parent edge within the clone tree
@@ -1165,7 +1181,12 @@ class MutationTransactionImpl<
       throw new Error(`Failed to create edge: ${edge} from ${from} to ${to}`)
     }
 
-    return { id: edgeId, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
+    return {
+      id: edgeId,
+      from: result.fromId,
+      to: result.toId,
+      data: result.r as unknown as ResolveEdge<T, E & string>,
+    }
   }
 
   async patchLink<E extends EdgeTypes<S>>(
@@ -1195,7 +1216,12 @@ class MutationTransactionImpl<
       throw new EdgeNotFoundError(edge as string, from, to)
     }
 
-    return { id: result.r.id, from: result.fromId, to: result.toId, data: result.r as unknown as ResolveEdge<T, E & string> }
+    return {
+      id: result.r.id,
+      from: result.fromId,
+      to: result.toId,
+      data: result.r as unknown as ResolveEdge<T, E & string>,
+    }
   }
 
   async unlink<E extends EdgeTypes<S>>(edge: E, from: string, to: string): Promise<DeleteResult> {

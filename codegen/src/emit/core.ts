@@ -154,9 +154,13 @@ function emitRefsType(lines: string[]): void {
 }
 
 function emitNestedCoreRefsType(lines: string[]): void {
-  lines.push('/** Nested core refs type - supports hierarchical access like core.electronics.phones */')
+  lines.push(
+    '/** Nested core refs type - supports hierarchical access like core.electronics.phones */',
+  )
   lines.push('type NestedCoreKeys<T extends Record<string, any>> = {')
-  lines.push('  [K in keyof T & string]: T[K] extends { readonly children: infer C extends Record<string, any> }')
+  lines.push(
+    '  [K in keyof T & string]: T[K] extends { readonly children: infer C extends Record<string, any> }',
+  )
   lines.push('    ? NestedCoreKeys<C> & NodeId  // Parent with children')
   lines.push('    : NodeId                       // Leaf node ID')
   lines.push('}')

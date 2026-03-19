@@ -196,11 +196,7 @@ describe('where clauses', () => {
   })
 
   it('compiles chained where clauses with AND', () => {
-    const result = q
-      .node('Product')
-      .where('active', 'eq', true)
-      .where('price', 'gt', 50)
-      .compile()
+    const result = q.node('Product').where('active', 'eq', true).where('price', 'gt', 50).compile()
 
     expect(result.cypher).toBe(cypher`
       MATCH (n0:Product:Timestamped)
@@ -364,11 +360,7 @@ describe('ordering', () => {
   })
 
   it('combines orderBy with where', () => {
-    const result = q
-      .node('Product')
-      .where('active', 'eq', true)
-      .orderBy('price', 'DESC')
-      .compile()
+    const result = q.node('Product').where('active', 'eq', true).orderBy('price', 'DESC').compile()
 
     expect(result.cypher).toBe(cypher`
       MATCH (n0:Product:Timestamped)
@@ -438,12 +430,7 @@ describe('distinct', () => {
   })
 
   it('combines distinct with orderBy and pagination', () => {
-    const result = q
-      .node('Product')
-      .distinct()
-      .orderBy('name', 'ASC')
-      .limit(10)
-      .compile()
+    const result = q.node('Product').distinct().orderBy('name', 'ASC').limit(10).compile()
 
     expect(result.cypher).toBe(cypher`
       MATCH (n0:Product:Timestamped)

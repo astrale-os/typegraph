@@ -111,10 +111,7 @@ describe('Graph Topology', () => {
 
     // Query all followers
     const startTime = Date.now()
-    const allFollowers = await ctx.graph
-      .nodeByIdWithLabel('user', hub.id)
-      .from('follows')
-      .execute()
+    const allFollowers = await ctx.graph.nodeByIdWithLabel('user', hub.id).from('follows').execute()
     const duration = Date.now() - startTime
 
     expect(allFollowers).toHaveLength(100)
@@ -258,10 +255,7 @@ describe('Graph Topology', () => {
 
     // Query: Each user should have 4 followers
     for (const user of clique) {
-      const followers = await ctx.graph
-        .nodeByIdWithLabel('user', user.id)
-        .from('follows')
-        .execute()
+      const followers = await ctx.graph.nodeByIdWithLabel('user', user.id).from('follows').execute()
       expect(followers).toHaveLength(4)
     }
 
@@ -368,10 +362,7 @@ describe('Graph Topology', () => {
     expect(followers).toHaveLength(0)
 
     // Query following
-    const following = await ctx.graph
-      .nodeByIdWithLabel('user', isolated.id)
-      .to('follows')
-      .execute()
+    const following = await ctx.graph.nodeByIdWithLabel('user', isolated.id).to('follows').execute()
     expect(following).toHaveLength(0)
 
     // Reachable should only include self
@@ -415,10 +406,7 @@ describe('Graph Topology', () => {
     })
 
     // Query descendants from root
-    const descendants = await ctx.graph
-      .nodeByIdWithLabel('folder', root.id)
-      .descendants()
-      .execute()
+    const descendants = await ctx.graph.nodeByIdWithLabel('folder', root.id).descendants().execute()
 
     expect(descendants).toHaveLength(4)
 

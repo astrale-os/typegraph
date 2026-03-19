@@ -94,9 +94,7 @@ describe('InstanceModelPass', () => {
       expect(normalizeCypher(result.cypher)).toContain('[:instance_of]')
       // Should use IN for multiple implementors
       const paramValues = Object.values(result.params)
-      const implIds = paramValues.find(
-        (v) => Array.isArray(v) && v.includes('cls-user'),
-      )
+      const implIds = paramValues.find((v) => Array.isArray(v) && v.includes('cls-user'))
       expect(implIds).toBeTruthy()
     })
 
@@ -123,14 +121,12 @@ describe('InstanceModelPass', () => {
 
   describe('TraversalStep.toLabels', () => {
     it('rewrites target labels to :Node + instance_of', () => {
-      const ast = new QueryAST()
-        .addMatch('user')
-        .addTraversal({
-          edges: ['authored'],
-          direction: 'out',
-          toLabels: ['post'],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('user').addTraversal({
+        edges: ['authored'],
+        direction: 'out',
+        toLabels: ['post'],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, schema)
       const result = compile(transformed)
 
@@ -141,14 +137,12 @@ describe('InstanceModelPass', () => {
     })
 
     it('does not rewrite empty toLabels', () => {
-      const ast = new QueryAST()
-        .addMatch('user')
-        .addTraversal({
-          edges: ['authored'],
-          direction: 'out',
-          toLabels: [],
-          cardinality: 'many',
-        })
+      const ast = new QueryAST().addMatch('user').addTraversal({
+        edges: ['authored'],
+        direction: 'out',
+        toLabels: [],
+        cardinality: 'many',
+      })
       const transformed = pass.transform(ast, schema)
       const result = compile(transformed)
 
@@ -213,10 +207,7 @@ describe('InstanceModelPass', () => {
 
     it('does not rewrite nodes without labels', () => {
       const ast = new QueryAST().addPattern({
-        nodes: [
-          { alias: 'a' },
-          { alias: 'b', labels: ['user'] },
-        ],
+        nodes: [{ alias: 'a' }, { alias: 'b', labels: ['user'] }],
         edges: [{ from: 'a', to: 'b', types: ['authored'], direction: 'out', optional: false }],
       })
       const transformed = pass.transform(ast, schema)
@@ -260,9 +251,7 @@ describe('InstanceModelPass', () => {
 
       // Should have an array param with implementor class IDs
       const paramValues = Object.values(result.params)
-      const implIds = paramValues.find(
-        (v) => Array.isArray(v) && v.includes('cls-user'),
-      )
+      const implIds = paramValues.find((v) => Array.isArray(v) && v.includes('cls-user'))
       expect(implIds).toBeTruthy()
     })
   })
@@ -284,9 +273,7 @@ describe('InstanceModelPass', () => {
       const patternStep = transformed.steps[0] as any
 
       // Both u and p are in a required edge → instance_of edges should be required
-      const instanceOfEdges = patternStep.edges.filter(
-        (e: any) => e.types.includes('instance_of'),
-      )
+      const instanceOfEdges = patternStep.edges.filter((e: any) => e.types.includes('instance_of'))
       expect(instanceOfEdges.length).toBe(2)
       for (const edge of instanceOfEdges) {
         expect(edge.optional).toBe(false)
@@ -305,9 +292,7 @@ describe('InstanceModelPass', () => {
       const patternStep = transformed.steps[0] as any
 
       // Both nodes are ONLY in optional edges → instance_of should be optional
-      const instanceOfEdges = patternStep.edges.filter(
-        (e: any) => e.types.includes('instance_of'),
-      )
+      const instanceOfEdges = patternStep.edges.filter((e: any) => e.types.includes('instance_of'))
       expect(instanceOfEdges.length).toBe(2)
       for (const edge of instanceOfEdges) {
         expect(edge.optional).toBe(true)
@@ -322,9 +307,7 @@ describe('InstanceModelPass', () => {
       const transformed = pass.transform(ast, schema)
       const patternStep = transformed.steps[0] as any
 
-      const instanceOfEdges = patternStep.edges.filter(
-        (e: any) => e.types.includes('instance_of'),
-      )
+      const instanceOfEdges = patternStep.edges.filter((e: any) => e.types.includes('instance_of'))
       expect(instanceOfEdges.length).toBe(1)
       expect(instanceOfEdges[0].optional).toBe(false)
     })
@@ -341,7 +324,9 @@ describe('InstanceModelPass', () => {
           {
             alias: 'u',
             labels: ['user'],
-            where: [{ type: 'comparison', target: 'u', field: 'name', operator: 'eq', value: 'Alice' }],
+            where: [
+              { type: 'comparison', target: 'u', field: 'name', operator: 'eq', value: 'Alice' },
+            ],
           },
         ],
         edges: [],
@@ -383,13 +368,11 @@ describe('InstanceModelPass', () => {
         },
       ]
 
-      const ast = new QueryAST()
-        .addMatch('user')
-        .addSubqueryStep({
-          correlatedAliases: ['n0'],
-          steps: innerSteps,
-          exportedAliases: [],
-        })
+      const ast = new QueryAST().addMatch('user').addSubqueryStep({
+        correlatedAliases: ['n0'],
+        steps: innerSteps,
+        exportedAliases: [],
+      })
 
       const transformed = pass.transform(ast, schema)
 
@@ -431,14 +414,14 @@ describe('InstanceModelPass', () => {
         cardinality: 'many' as const,
       }
 
-      const ast = new QueryAST()
-        .addMatch('user')
-        .addWhere([{
+      const ast = new QueryAST().addMatch('user').addWhere([
+        {
           type: 'subquery',
           mode: 'exists',
           query: [innerTraversalStep],
           correlatedAliases: ['n0'],
-        }])
+        },
+      ])
 
       const transformed = pass.transform(ast, schema)
 
@@ -450,8 +433,8 @@ describe('InstanceModelPass', () => {
 
       // The subquery condition should also be transformed
       // Note: expandMatch adds its own WHERE step for class ID, so find the one with subquery condition
-      const whereStep = transformed.steps.find((s: any) =>
-        s.type === 'where' && s.conditions.some((c: any) => c.type === 'subquery'),
+      const whereStep = transformed.steps.find(
+        (s: any) => s.type === 'where' && s.conditions.some((c: any) => c.type === 'subquery'),
       ) as any
       expect(whereStep).toBeDefined()
 
@@ -476,22 +459,27 @@ describe('InstanceModelPass', () => {
         cardinality: 'many' as const,
       }
 
-      const ast = new QueryAST()
-        .addMatch('user')
-        .addWhere([{
+      const ast = new QueryAST().addMatch('user').addWhere([
+        {
           type: 'logical',
           operator: 'AND',
           conditions: [
             { type: 'comparison', target: 'n0', field: 'name', operator: 'eq', value: 'Alice' },
-            { type: 'subquery', mode: 'exists', query: [innerTraversalStep], correlatedAliases: ['n0'] },
+            {
+              type: 'subquery',
+              mode: 'exists',
+              query: [innerTraversalStep],
+              correlatedAliases: ['n0'],
+            },
           ],
-        }])
+        },
+      ])
 
       const transformed = pass.transform(ast, schema)
 
       // Find the WHERE step with the logical condition (not the class ID one)
-      const whereStep = transformed.steps.find((s: any) =>
-        s.type === 'where' && s.conditions.some((c: any) => c.type === 'logical'),
+      const whereStep = transformed.steps.find(
+        (s: any) => s.type === 'where' && s.conditions.some((c: any) => c.type === 'logical'),
       ) as any
       expect(whereStep).toBeDefined()
       const logicalCond = whereStep.conditions.find((c: any) => c.type === 'logical')

@@ -58,18 +58,14 @@ export function unresolvedScope(
 /**
  * Create an unresolved union expression.
  */
-export function unresolvedUnion(
-  ...operands: UnresolvedIdentityExpr[]
-): UnresolvedIdentityExpr {
+export function unresolvedUnion(...operands: UnresolvedIdentityExpr[]): UnresolvedIdentityExpr {
   return { kind: 'union', operands }
 }
 
 /**
  * Create an unresolved intersect expression.
  */
-export function unresolvedIntersect(
-  ...operands: UnresolvedIdentityExpr[]
-): UnresolvedIdentityExpr {
+export function unresolvedIntersect(...operands: UnresolvedIdentityExpr[]): UnresolvedIdentityExpr {
   return { kind: 'intersect', operands }
 }
 

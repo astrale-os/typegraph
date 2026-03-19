@@ -57,7 +57,11 @@ describe('diffSchema', () => {
           post: node({ properties: { title: z.string() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -90,7 +94,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -115,7 +123,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -140,7 +152,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -164,7 +180,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -189,7 +209,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -349,8 +373,16 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
-          likes: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'many' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
+          likes: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'many' },
+          }),
         },
       })
 
@@ -381,7 +413,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'space', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'space',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -400,7 +436,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'user', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'user',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -419,7 +459,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'many' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'many' },
+          }),
         },
       })
 
@@ -544,7 +588,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -568,7 +616,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -591,7 +643,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -613,7 +669,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -833,7 +893,11 @@ describe('diffSchema', () => {
           space: node({ properties: { name: z.string(), description: z.string().optional() } }),
         },
         edges: {
-          owns: edge({ from: 'user', to: 'space', cardinality: { outbound: 'many', inbound: 'one' } }),
+          owns: edge({
+            from: 'user',
+            to: 'space',
+            cardinality: { outbound: 'many', inbound: 'one' },
+          }),
         },
       })
 
@@ -942,9 +1006,7 @@ describe('diffSchema', () => {
       const indexChange = accessMod!.changes.find((c) => c.kind === 'index-changed')
       expect(indexChange).toBeDefined()
       expect(indexChange!.breaking).toBe(false)
-      expect(diff.warnings).toEqual(
-        expect.arrayContaining([expect.stringContaining('role')]),
-      )
+      expect(diff.warnings).toEqual(expect.arrayContaining([expect.stringContaining('role')]))
     })
 
     it('detects edge property type changed (breaking)', () => {

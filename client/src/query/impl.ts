@@ -22,7 +22,10 @@ import type { MatchConfig } from './match-builder'
  * Provides the entry points for building graph queries.
  * Creates and returns appropriate query builders.
  */
-export class GraphQueryImpl<S extends SchemaShape, T extends TypeMap = UntypedMap> implements GraphQuery<S, T> {
+export class GraphQueryImpl<
+  S extends SchemaShape,
+  T extends TypeMap = UntypedMap,
+> implements GraphQuery<S, T> {
   private readonly _schema: S
   private readonly _executor: QueryExecutor | null
 

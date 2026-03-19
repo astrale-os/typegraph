@@ -102,12 +102,7 @@ describe('enrichment', () => {
 
     const result = await (enriched as any).displayName()
     expect(result).toBe('Alice')
-    expect(dispatch).toHaveBeenCalledWith(
-      'Customer.displayName',
-      auth,
-      undefined,
-      raw,
-    )
+    expect(dispatch).toHaveBeenCalledWith('Customer.displayName', auth, undefined, raw)
   })
 
   it('passes method args as params', async () => {
@@ -118,12 +113,7 @@ describe('enrichment', () => {
     const enriched = enrichNode('Customer', raw, methodNames, dispatch, auth)
 
     await (enriched as any).recentOrders({ limit: 5 })
-    expect(dispatch).toHaveBeenCalledWith(
-      'Customer.recentOrders',
-      auth,
-      { limit: 5 },
-      raw,
-    )
+    expect(dispatch).toHaveBeenCalledWith('Customer.recentOrders', auth, { limit: 5 }, raw)
   })
 
   it('returns raw object if no method names', () => {
@@ -152,12 +142,7 @@ describe('enrichment', () => {
     expect(enriched.quantity).toBe(3)
     const result = await (enriched as any).subtotal()
     expect(result).toBe(1500)
-    expect(dispatch).toHaveBeenCalledWith(
-      'order_item.subtotal',
-      auth,
-      undefined,
-      raw,
-    )
+    expect(dispatch).toHaveBeenCalledWith('order_item.subtotal', auth, undefined, raw)
   })
 })
 

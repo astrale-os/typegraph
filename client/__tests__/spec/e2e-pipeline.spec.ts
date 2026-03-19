@@ -390,13 +390,11 @@ describe('E2E: Subquery pipeline (InstanceModel + ReifyEdges)', () => {
       },
     ]
 
-    const ast = new QueryAST()
-      .addMatch('customer')
-      .addSubqueryStep({
-        correlatedAliases: ['n0'],
-        steps: innerSteps,
-        exportedAliases: [],
-      })
+    const ast = new QueryAST().addMatch('customer').addSubqueryStep({
+      correlatedAliases: ['n0'],
+      steps: innerSteps,
+      exportedAliases: [],
+    })
 
     const { cypher, params } = compileQuery(ast)
     const c = normalizeCypher(cypher)
@@ -423,14 +421,14 @@ describe('E2E: Subquery pipeline (InstanceModel + ReifyEdges)', () => {
       cardinality: 'many' as const,
     }
 
-    const ast = new QueryAST()
-      .addMatch('order')
-      .addWhere([{
+    const ast = new QueryAST().addMatch('order').addWhere([
+      {
         type: 'subquery',
         mode: 'exists',
         query: [innerTraversalStep],
         correlatedAliases: ['n0'],
-      }])
+      },
+    ])
 
     const { cypher, params } = compileQuery(ast)
     const c = normalizeCypher(cypher)

@@ -195,8 +195,7 @@ describe('Edge Cases', () => {
 
       // Type-level test - verify union structure
       expectTypeOf<NodeUnion>().toMatchTypeOf<
-        | { id: string; kind: 'user'; email: string }
-        | { id: string; kind: 'post'; title: string }
+        { id: string; kind: 'user'; email: string } | { id: string; kind: 'post'; title: string }
       >()
     })
 

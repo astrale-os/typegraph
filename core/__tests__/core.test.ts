@@ -294,9 +294,7 @@ describe('defineCore', () => {
         admin: { kind: 'user', properties: { email: 'admin@ex.com', name: 'Admin' } },
         space: { kind: 'space', properties: { name: 'Default' } },
       },
-      edges: [
-        { kind: 'owns', from: 'admin', to: 'space' },
-      ],
+      edges: [{ kind: 'owns', from: 'admin', to: 'space' }],
     })
     expect(core.config.edges).toHaveLength(1)
   })
@@ -322,9 +320,7 @@ describe('defineCore', () => {
         admin: { kind: 'user', properties: { email: 'admin@ex.com', name: 'Admin' } },
         other: { kind: 'user', properties: { email: 'other@ex.com', name: 'Other' } },
       },
-      edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date() } },
-      ],
+      edges: [{ kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date() } }],
     })
     expect(core.config.edges).toHaveLength(1)
   })
@@ -339,8 +335,18 @@ describe('defineCore', () => {
           other: { kind: 'user', properties: { email: 'other@ex.com', name: 'Other' } },
         },
         edges: [
-          { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
-          { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2025-01-01') } },
+          {
+            kind: 'follows',
+            from: 'admin',
+            to: 'other',
+            properties: { since: new Date('2024-01-01') },
+          },
+          {
+            kind: 'follows',
+            from: 'admin',
+            to: 'other',
+            properties: { since: new Date('2025-01-01') },
+          },
         ],
       }),
     ).toThrow(SchemaValidationError)
@@ -492,9 +498,7 @@ describe('toCoreSnapshot', () => {
         admin: { kind: 'user', properties: { email: 'a@ex.com', name: 'A' } },
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
-      edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: date } },
-      ],
+      edges: [{ kind: 'follows', from: 'admin', to: 'other', properties: { since: date } }],
     })
 
     const snapshot = toCoreSnapshot(core)
@@ -569,9 +573,7 @@ describe('toCoreSnapshot', () => {
         admin: { kind: 'user', properties: { email: 'a@ex.com', name: 'A' } },
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
-      edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: date } },
-      ],
+      edges: [{ kind: 'follows', from: 'admin', to: 'other', properties: { since: date } }],
     })
 
     const snapshot = toCoreSnapshot(core)
@@ -698,9 +700,7 @@ describe('validateEdgeTupleUniqueness', () => {
 
   it('self-referential unique — valid', () => {
     expect(() =>
-      validateEdgeTupleUniqueness([
-        { kind: 'follows', from: 'a', to: 'a' },
-      ]),
+      validateEdgeTupleUniqueness([{ kind: 'follows', from: 'a', to: 'a' }]),
     ).not.toThrow()
   })
 })
@@ -715,9 +715,7 @@ describe('diffCore', () => {
       admin: { kind: 'user' as const, properties: { email: 'admin@ex.com', name: 'Admin' } },
       defaultSpace: { kind: 'space' as const, properties: { name: 'Default' } },
     },
-    edges: [
-      { kind: 'owns' as const, from: 'admin' as const, to: 'defaultSpace' as const },
-    ],
+    edges: [{ kind: 'owns' as const, from: 'admin' as const, to: 'defaultSpace' as const }],
   }
 
   it('returns empty diff for identical definitions', () => {
@@ -855,7 +853,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'other@ex.com', name: 'Other' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2024-01-01') },
+        },
       ],
     })
 
@@ -889,18 +892,14 @@ describe('diffCore', () => {
         admin: { kind: 'user', properties: { email: 'admin@ex.com', name: 'Admin' } },
         other: { kind: 'user', properties: { email: 'other@ex.com', name: 'Other' } },
       },
-      edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: date1 } },
-      ],
+      edges: [{ kind: 'follows', from: 'admin', to: 'other', properties: { since: date1 } }],
     })
     const core2 = defineCore(simpleSchema, {
       nodes: {
         admin: { kind: 'user', properties: { email: 'admin@ex.com', name: 'Admin' } },
         other: { kind: 'user', properties: { email: 'other@ex.com', name: 'Other' } },
       },
-      edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: date2 } },
-      ],
+      edges: [{ kind: 'follows', from: 'admin', to: 'other', properties: { since: date2 } }],
     })
 
     const diff = diffCore(simpleSchema, core1, core2)
@@ -1062,18 +1061,14 @@ describe('diffCore', () => {
         'ns::admin': { kind: 'user', properties: { email: 'a@ex.com', name: 'A' } },
         'ns::space': { kind: 'space', properties: { name: 'S' } },
       },
-      edges: [
-        { kind: 'owns', from: 'ns::admin', to: 'ns::space' },
-      ],
+      edges: [{ kind: 'owns', from: 'ns::admin', to: 'ns::space' }],
     }
     const snapshot2: CoreSnapshot = {
       nodes: {
         'ns::admin': { kind: 'user', properties: { email: 'a@ex.com', name: 'A' } },
         'ns::space': { kind: 'space', properties: { name: 'Updated' } },
       },
-      edges: [
-        { kind: 'owns', from: 'ns::admin', to: 'ns::space' },
-      ],
+      edges: [{ kind: 'owns', from: 'ns::admin', to: 'ns::space' }],
     }
 
     const diff = diffCore(simpleSchema, snapshot1, snapshot2)
@@ -1217,7 +1212,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2024-01-01') },
+        },
       ],
     }
     const snapshot2: CoreSnapshot = {
@@ -1226,7 +1226,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2024-01-01') },
+        },
       ],
     }
 
@@ -1242,7 +1247,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2024-01-01') },
+        },
       ],
     }
     const snapshot2: CoreSnapshot = {
@@ -1251,7 +1261,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2025-06-15') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2025-06-15') },
+        },
       ],
     }
 
@@ -1314,9 +1329,7 @@ describe('diffCore', () => {
         space: { kind: 'space', properties: { name: 'S' } },
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
-      edges: [
-        { kind: 'owns', from: 'admin', to: 'space' },
-      ],
+      edges: [{ kind: 'owns', from: 'admin', to: 'space' }],
     }
     const snapshot2: CoreSnapshot = {
       nodes: {
@@ -1325,7 +1338,12 @@ describe('diffCore', () => {
         other: { kind: 'user', properties: { email: 'b@ex.com', name: 'B' } },
       },
       edges: [
-        { kind: 'follows', from: 'admin', to: 'other', properties: { since: new Date('2024-01-01') } },
+        {
+          kind: 'follows',
+          from: 'admin',
+          to: 'other',
+          properties: { since: new Date('2024-01-01') },
+        },
       ],
     }
 

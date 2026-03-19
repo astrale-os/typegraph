@@ -84,12 +84,7 @@ export class MatchBuilder<S extends SchemaShape> {
   protected readonly _executor: QueryExecutor | null
   protected readonly _nodeAliases: Set<string>
 
-  constructor(
-    ast: QueryAST,
-    schema: S,
-    executor: QueryExecutor | null,
-    nodeAliases: Set<string>,
-  ) {
+  constructor(ast: QueryAST, schema: S, executor: QueryExecutor | null, nodeAliases: Set<string>) {
     this._ast = ast
     this._schema = schema
     this._executor = executor
@@ -135,9 +130,7 @@ export class MatchBuilder<S extends SchemaShape> {
   /**
    * Add multiple WHERE conditions (AND).
    */
-  whereAll(
-    conditions: Array<[string, string, ComparisonOperator, unknown]>,
-  ): MatchBuilder<S> {
+  whereAll(conditions: Array<[string, string, ComparisonOperator, unknown]>): MatchBuilder<S> {
     const compiled: WhereCondition[] = conditions.map(([alias, field, operator, value]) => {
       if (!this._nodeAliases.has(alias)) {
         throw new Error(`Unknown pattern alias: ${alias}`)
@@ -194,11 +187,7 @@ export class MatchBuilder<S extends SchemaShape> {
   /**
    * Order results by a field on a specific alias.
    */
-  orderBy(
-    alias: string,
-    field: string,
-    direction: 'ASC' | 'DESC' = 'ASC',
-  ): MatchBuilder<S> {
+  orderBy(alias: string, field: string, direction: 'ASC' | 'DESC' = 'ASC'): MatchBuilder<S> {
     if (!this._nodeAliases.has(alias)) {
       throw new Error(`Unknown pattern alias: ${alias}`)
     }
@@ -260,7 +249,9 @@ export class MatchBuilder<S extends SchemaShape> {
   /** Execute and return all matched patterns */
   async execute<T = Record<string, unknown>>(): Promise<T[]> {
     if (!this._executor) {
-      throw new Error('Cannot execute: no query executor configured. Use compile() for compile-only mode.')
+      throw new Error(
+        'Cannot execute: no query executor configured. Use compile() for compile-only mode.',
+      )
     }
     const compiled = this.compile()
     return this._executor.run<T>(compiled.cypher, compiled.params, this._ast)
@@ -336,7 +327,11 @@ export function buildMatchAST<S extends SchemaShape>(
     optional: edge.optional ?? false,
     alias: edge.as,
     variableLength: edge.variableLength
-      ? { min: edge.variableLength.min ?? 1, max: edge.variableLength.max, uniqueness: 'nodes' as const }
+      ? {
+          min: edge.variableLength.min ?? 1,
+          max: edge.variableLength.max,
+          uniqueness: 'nodes' as const,
+        }
       : undefined,
   }))
 

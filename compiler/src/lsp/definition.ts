@@ -3,22 +3,22 @@
 // Go-to-Definition — Navigate to declaration site
 // ============================================================
 
-import type { Location } from "vscode-languageserver-types";
-import type { Workspace, DocumentState } from "./workspace";
+import type { Location } from 'vscode-languageserver-types'
+import type { Workspace, DocumentState } from './workspace'
 
 export function provideDefinition(
   workspace: Workspace,
   state: DocumentState,
   offset: number,
 ): Location | null {
-  const symbol = workspace.symbolAt(state, offset);
-  if (!symbol) return null;
+  const symbol = workspace.symbolAt(state, offset)
+  if (!symbol) return null
 
   // Builtins and extension stubs have no source location
-  if (!symbol.span || !symbol.declaration) return null;
+  if (!symbol.span || !symbol.declaration) return null
 
-  const start = state.lineMap.positionAt(symbol.span.start);
-  const end = state.lineMap.positionAt(symbol.span.end);
+  const start = state.lineMap.positionAt(symbol.span.start)
+  const end = state.lineMap.positionAt(symbol.span.end)
 
   return {
     uri: state.document.uri,
@@ -26,5 +26,5 @@ export function provideDefinition(
       start: { line: start.line, character: start.col },
       end: { line: end.line, character: end.col },
     },
-  };
+  }
 }

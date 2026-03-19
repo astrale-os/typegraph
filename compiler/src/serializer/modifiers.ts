@@ -17,11 +17,7 @@ import {
   type LifecycleModifier,
   type IndexedModifier,
 } from '../ast/index'
-import {
-  type EdgeConstraints,
-  type AttributeModifiers,
-  type ValueConstraints,
-} from '../ir/index'
+import { type EdgeConstraints, type AttributeModifiers, type ValueConstraints } from '../ir/index'
 
 export function extractEdgeConstraints(modifiers: Modifier[]): EdgeConstraints {
   const result: EdgeConstraints = {

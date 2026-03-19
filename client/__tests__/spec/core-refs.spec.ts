@@ -306,10 +306,10 @@ describe('Graph.core typed integration', () => {
       product: NodeId('node-id-product'),
     }
 
-    const graph = await createGraph<TestSchema, UntypedMap, FlatCoreRefs>(
-      testSchema,
-      { adapter, coreRefs },
-    )
+    const graph = await createGraph<TestSchema, UntypedMap, FlatCoreRefs>(testSchema, {
+      adapter,
+      coreRefs,
+    })
 
     // Type check: graph.core is FlatCoreRefs | undefined
     expectTypeOf(graph.core).toEqualTypeOf<FlatCoreRefs | undefined>()
@@ -340,10 +340,10 @@ describe('Graph.core typed integration', () => {
       clothing: NodeId('node-id-clothing'),
     }
 
-    const graph = await createGraph<TestSchema, UntypedMap, NestedCoreRefs>(
-      testSchema,
-      { adapter, coreRefs },
-    )
+    const graph = await createGraph<TestSchema, UntypedMap, NestedCoreRefs>(testSchema, {
+      adapter,
+      coreRefs,
+    })
 
     // Type check: graph.core is NestedCoreRefs | undefined
     expectTypeOf(graph.core).toEqualTypeOf<NestedCoreRefs | undefined>()
@@ -430,10 +430,10 @@ describe('Graph.core typed integration', () => {
     }
 
     type TestRefs = { alice: NodeId; tech: NodeId }
-    const graph = await createGraph<TestSchema, UntypedMap, TestRefs>(
-      testSchema,
-      { adapter, coreRefs },
-    )
+    const graph = await createGraph<TestSchema, UntypedMap, TestRefs>(testSchema, {
+      adapter,
+      coreRefs,
+    })
 
     const core = graph.core!
 

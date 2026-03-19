@@ -300,18 +300,20 @@ describe('Performance Edge Cases', () => {
 
   it('complex WHERE with many fields', async () => {
     // Use correct WhereBuilder API
-    const query = ctx.graph.node('post').whereComplex((where) =>
-      where.and(
-        where.gte('views', 0),
-        where.lte('views', 1000),
-        where.isNotNull('title'),
-        where.or(
-          where.contains('title', 'Hello'),
-          where.contains('title', 'World'),
-          where.contains('title', 'Test'),
+    const query = ctx.graph
+      .node('post')
+      .whereComplex((where) =>
+        where.and(
+          where.gte('views', 0),
+          where.lte('views', 1000),
+          where.isNotNull('title'),
+          where.or(
+            where.contains('title', 'Hello'),
+            where.contains('title', 'World'),
+            where.contains('title', 'Test'),
+          ),
         ),
-      ),
-    )
+      )
 
     const compiled = query.compile()
     expect(compiled.cypher).toBeDefined()
@@ -326,10 +328,7 @@ describe('Performance Edge Cases', () => {
 
   it('empty result set operations', async () => {
     // Query that returns nothing
-    const query = ctx.graph
-      .node('user')
-      .where('name', 'eq', 'NonExistentUser12345')
-      .to('authored')
+    const query = ctx.graph.node('user').where('name', 'eq', 'NonExistentUser12345').to('authored')
 
     const results = await query.execute()
     expect(results).toHaveLength(0)
@@ -349,7 +348,7 @@ describe('Performance Edge Cases', () => {
     const specialUser = await ctx.graph.mutate.create(
       'user',
       {
-        name: "O'Reilly's \"Book\" Store & Café",
+        name: 'O\'Reilly\'s "Book" Store & Café',
         email: 'special@test.com',
         status: 'active' as const,
       },

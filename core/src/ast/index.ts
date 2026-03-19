@@ -51,4 +51,10 @@ export type {
   UnwindStep,
 } from './types'
 export { createDefaultProjection, createEdgeProjection } from './types'
-export { ASTVisitor, ASTTransformer, visitAST, visitSteps, type ASTVisitorInterface } from './visitor'
+export {
+  ASTVisitor,
+  ASTTransformer,
+  visitAST,
+  visitSteps,
+  type ASTVisitorInterface,
+} from './visitor'

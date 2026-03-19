@@ -100,7 +100,12 @@ function renderSummary(diagnostics: DiagnosticBag): string {
 
 // ─── Commands ────────────────────────────────────────────────
 
-function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude, registry?: SchemaRegistry): number {
+function cmdCompile(
+  inputPath: string,
+  outputPath?: string,
+  prelude?: Prelude,
+  registry?: SchemaRegistry,
+): number {
   const absInput = resolve(inputPath)
   if (!existsSync(absInput)) {
     process.stderr.write(`${c.red}${c.bold}error${c.reset}: file not found: ${absInput}\n`)
@@ -110,7 +115,12 @@ function cmdCompile(inputPath: string, outputPath?: string, prelude?: Prelude, r
   const source = readFileSync(absInput, 'utf-8')
   const hash = createHash('sha256').update(source).digest('hex').slice(0, 16)
 
-  const { ir, diagnostics } = compile(source, { sourceHash: hash, prelude, registry, sourceUri: absInput })
+  const { ir, diagnostics } = compile(source, {
+    sourceHash: hash,
+    prelude,
+    registry,
+    sourceUri: absInput,
+  })
 
   if (diagnostics.getErrors().length > 0 || diagnostics.getWarnings().length > 0) {
     process.stderr.write(renderDiagnostics(source, diagnostics, inputPath) + '\n')

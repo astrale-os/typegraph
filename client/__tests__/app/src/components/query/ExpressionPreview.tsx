@@ -1,14 +1,15 @@
 import type { IdentityExpr } from '@/types/api'
 
-type AnyExpr = IdentityExpr & Partial<{
-  expr: IdentityExpr
-  scopes: unknown[]
-  left: IdentityExpr
-  right: IdentityExpr
-  operands: IdentityExpr[]
-  base: IdentityExpr
-  excluded: IdentityExpr[]
-}>
+type AnyExpr = IdentityExpr &
+  Partial<{
+    expr: IdentityExpr
+    scopes: unknown[]
+    left: IdentityExpr
+    right: IdentityExpr
+    operands: IdentityExpr[]
+    base: IdentityExpr
+    excluded: IdentityExpr[]
+  }>
 
 function renderExpr(expr: IdentityExpr | undefined, depth: number = 0): string {
   if (!expr) return '<undefined>'

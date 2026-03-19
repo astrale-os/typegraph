@@ -82,7 +82,11 @@ function formatProjectedReturnType(model: GraphModel, m: MethodDef): string {
   return isList ? `${result}[]` : result
 }
 
-function applyProjection(proj: { star: boolean; fields: string[]; include_data: boolean }, elementType: string, classDataRef: string | null): string {
+function applyProjection(
+  proj: { star: boolean; fields: string[]; include_data: boolean },
+  elementType: string,
+  classDataRef: string | null,
+): string {
   // { DataType } only — no attributes
   if (!proj.star && proj.fields.length === 0 && proj.include_data) {
     if (classDataRef) {

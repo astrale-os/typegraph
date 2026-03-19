@@ -67,12 +67,14 @@ export class ReifyEdgesMutationPass implements MutationCompilationPass {
       linkLabel,
       fromLabels,
       toLabels,
-      items: [{
-        id: op.edgeId,
-        fromId: op.fromId,
-        toId: op.toId,
-        data: op.data,
-      }],
+      items: [
+        {
+          id: op.edgeId,
+          fromId: op.fromId,
+          toId: op.toId,
+          data: op.data,
+        },
+      ],
     }
   }
 

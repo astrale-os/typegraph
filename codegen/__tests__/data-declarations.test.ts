@@ -143,7 +143,9 @@ describe('Method Return Types — Projections', () => {
 
   it('{ field, DataType } → WithData<Pick<Type, field>, DataType>', () => {
     const { source } = compileAndGenerate(OPERATION_SCHEMA)
-    expect(source).toMatch(/getOpMeta\(\):\s*WithData<Pick<Operation, 'name' \| 'description'>, OperationData>/)
+    expect(source).toMatch(
+      /getOpMeta\(\):\s*WithData<Pick<Operation, 'name' \| 'description'>, OperationData>/,
+    )
   })
 
   it('{ DataType } only → data accessor object', () => {

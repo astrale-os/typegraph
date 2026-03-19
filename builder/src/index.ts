@@ -87,13 +87,7 @@ export type {
   SchemaRefsMap,
 } from './schema/refs.js'
 
-export type {
-  Ref,
-  CoreInstance,
-  CoreLink,
-  RefsFromInstances,
-  CoreDef,
-} from './core/index.js'
+export type { Ref, CoreInstance, CoreLink, RefsFromInstances, CoreDef } from './core/index.js'
 
 export type { SeedDef } from './seed/index.js'
 

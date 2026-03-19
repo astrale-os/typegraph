@@ -42,10 +42,7 @@ export interface ExportMetadata {
   kind: 'scalar' | 'node' | 'array'
 }
 
-export class SubqueryBuilder<
-  S extends SchemaShape,
-  N extends NodeLabels<S>,
-> {
+export class SubqueryBuilder<S extends SchemaShape, N extends NodeLabels<S>> {
   protected readonly _schema: S
   protected readonly _correlatedAlias: string
   protected readonly _currentAlias: string
@@ -73,10 +70,7 @@ export class SubqueryBuilder<
   // TRAVERSAL
   // ===========================================================================
 
-  to<E extends OutgoingEdges<S, N>>(
-    edge: E,
-    targetLabel?: string,
-  ): SubqueryBuilder<S, any> {
+  to<E extends OutgoingEdges<S, N>>(edge: E, targetLabel?: string): SubqueryBuilder<S, any> {
     const [toAlias, edgeAlias, nextCounter] = this._nextAliases('to')
 
     const step: TraversalStep = {
@@ -94,10 +88,7 @@ export class SubqueryBuilder<
     return this._derive(toAlias, nextCounter, [...this._steps, step])
   }
 
-  from<E extends IncomingEdges<S, N>>(
-    edge: E,
-    sourceLabel?: string,
-  ): SubqueryBuilder<S, any> {
+  from<E extends IncomingEdges<S, N>>(edge: E, sourceLabel?: string): SubqueryBuilder<S, any> {
     const [toAlias, edgeAlias, nextCounter] = this._nextAliases('from')
 
     const step: TraversalStep = {
@@ -115,9 +106,7 @@ export class SubqueryBuilder<
     return this._derive(toAlias, nextCounter, [...this._steps, step])
   }
 
-  related(
-    edge: string,
-  ): SubqueryBuilder<S, any> {
+  related(edge: string): SubqueryBuilder<S, any> {
     const [toAlias, edgeAlias, nextCounter] = this._nextAliases('rel')
 
     const step: TraversalStep = {
@@ -160,9 +149,7 @@ export class SubqueryBuilder<
     return this._derive(this._currentAlias, this._aliasCounter, [...this._steps, step])
   }
 
-  whereAll(
-    conditions: Array<[string, ComparisonOperator, unknown]>,
-  ): SubqueryBuilder<S, N> {
+  whereAll(conditions: Array<[string, ComparisonOperator, unknown]>): SubqueryBuilder<S, N> {
     if (conditions.length === 0) return this
 
     const compiledConditions: ComparisonCondition[] = conditions.map(([field, op, value]) => ({
@@ -189,11 +176,13 @@ export class SubqueryBuilder<
     const step: AggregateStep = {
       type: 'aggregate',
       groupBy: [],
-      aggregations: [{
-        function: 'count',
-        field: '*',
-        resultAlias: alias,
-      }],
+      aggregations: [
+        {
+          function: 'count',
+          field: '*',
+          resultAlias: alias,
+        },
+      ],
     }
 
     const newExports = new Map(this._exportedAliases)
@@ -209,19 +198,18 @@ export class SubqueryBuilder<
     )
   }
 
-  sum<K extends keyof NodeProps<S, N> & string>(
-    field: K,
-    alias: string,
-  ): SubqueryBuilder<S, N> {
+  sum<K extends keyof NodeProps<S, N> & string>(field: K, alias: string): SubqueryBuilder<S, N> {
     const step: AggregateStep = {
       type: 'aggregate',
       groupBy: [],
-      aggregations: [{
-        function: 'sum',
-        field,
-        sourceAlias: this._currentAlias,
-        resultAlias: alias,
-      }],
+      aggregations: [
+        {
+          function: 'sum',
+          field,
+          sourceAlias: this._currentAlias,
+          resultAlias: alias,
+        },
+      ],
     }
 
     const newExports = new Map(this._exportedAliases)
@@ -237,24 +225,15 @@ export class SubqueryBuilder<
     )
   }
 
-  max<K extends keyof NodeProps<S, N> & string>(
-    field: K,
-    alias: string,
-  ): SubqueryBuilder<S, N> {
+  max<K extends keyof NodeProps<S, N> & string>(field: K, alias: string): SubqueryBuilder<S, N> {
     return this._addAggregation('max', field, alias)
   }
 
-  min<K extends keyof NodeProps<S, N> & string>(
-    field: K,
-    alias: string,
-  ): SubqueryBuilder<S, N> {
+  min<K extends keyof NodeProps<S, N> & string>(field: K, alias: string): SubqueryBuilder<S, N> {
     return this._addAggregation('min', field, alias)
   }
 
-  avg<K extends keyof NodeProps<S, N> & string>(
-    field: K,
-    alias: string,
-  ): SubqueryBuilder<S, N> {
+  avg<K extends keyof NodeProps<S, N> & string>(field: K, alias: string): SubqueryBuilder<S, N> {
     return this._addAggregation('avg', field, alias)
   }
 
@@ -262,12 +241,14 @@ export class SubqueryBuilder<
     const step: AggregateStep = {
       type: 'aggregate',
       groupBy: [],
-      aggregations: [{
-        function: 'collect',
-        field: this._currentAlias,
-        resultAlias: alias,
-        distinct,
-      }],
+      aggregations: [
+        {
+          function: 'collect',
+          field: this._currentAlias,
+          resultAlias: alias,
+          distinct,
+        },
+      ],
     }
 
     const newExports = new Map(this._exportedAliases)
@@ -385,12 +366,14 @@ export class SubqueryBuilder<
     const step: AggregateStep = {
       type: 'aggregate',
       groupBy: [],
-      aggregations: [{
-        function: fn,
-        field,
-        sourceAlias: this._currentAlias,
-        resultAlias: alias,
-      }],
+      aggregations: [
+        {
+          function: fn,
+          field,
+          sourceAlias: this._currentAlias,
+          resultAlias: alias,
+        },
+      ],
     }
 
     const newExports = new Map(this._exportedAliases)

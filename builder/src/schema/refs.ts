@@ -47,9 +47,7 @@ export type InferOpReturn<D> =
  * All addressable definitions in a schema: top-level defs + qualified operations.
  * Used for total mappings (e.g., ID assignment) where every definition must be covered.
  */
-export type SchemaRefs<S extends Schema> =
-  | SchemaClassRefs<S>
-  | SchemaOpRefs<S>
+export type SchemaRefs<S extends Schema> = SchemaClassRefs<S> | SchemaOpRefs<S>
 
 /** Top-level definition names. */
 export type SchemaClassRefs<S extends Schema> = keyof S['defs'] & string

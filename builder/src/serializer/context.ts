@@ -157,12 +157,30 @@ export class SerializeContext {
     const c: EdgeConstraints = {}
     let has = false
     const constraints = config.constraints as DefConstraints | undefined
-    if (constraints?.unique) { c.unique = true; has = true }
-    if (constraints?.noSelf) { c.noSelf = true; has = true }
-    if (constraints?.acyclic) { c.acyclic = true; has = true }
-    if (constraints?.symmetric) { c.symmetric = true; has = true }
-    if (config.onDeleteSource) { c.onDeleteSource = config.onDeleteSource; has = true }
-    if (config.onDeleteTarget) { c.onDeleteTarget = config.onDeleteTarget; has = true }
+    if (constraints?.unique) {
+      c.unique = true
+      has = true
+    }
+    if (constraints?.noSelf) {
+      c.noSelf = true
+      has = true
+    }
+    if (constraints?.acyclic) {
+      c.acyclic = true
+      has = true
+    }
+    if (constraints?.symmetric) {
+      c.symmetric = true
+      has = true
+    }
+    if (config.onDeleteSource) {
+      c.onDeleteSource = config.onDeleteSource
+      has = true
+    }
+    if (config.onDeleteTarget) {
+      c.onDeleteTarget = config.onDeleteTarget
+      has = true
+    }
     return has ? c : undefined
   }
 
@@ -178,11 +196,7 @@ export class SerializeContext {
     return result
   }
 
-  private serializeProperty(
-    _name: string,
-    schema: z.ZodType,
-    _className: string,
-  ): JsonSchema {
+  private serializeProperty(_name: string, schema: z.ZodType, _className: string): JsonSchema {
     const { inner, nullable, defaultValue, hasDefault } = unwrapZod(schema)
     let jsonSchema = this.convertZodSchema(inner)
     if (nullable) jsonSchema = foldNullable(jsonSchema)
@@ -257,7 +271,8 @@ export class SerializeContext {
   private convertZodSchema(schema: z.ZodType): JsonSchema {
     if (hasRefTarget(schema)) return this.buildNodeRef(schema)
     if ((schema as unknown as ZodRefMeta).__data_self) return { $dataRef: 'self' }
-    if ((schema as unknown as ZodRefMeta).__data_grant) return { $dataRef: this.getDefName((schema as unknown as ZodRefMeta).__data_target!) }
+    if ((schema as unknown as ZodRefMeta).__data_grant)
+      return { $dataRef: this.getDefName((schema as unknown as ZodRefMeta).__data_target!) }
 
     const typeName = this.zodToTypeName.get(schema)
     if (typeName) return { $ref: `#/types/${typeName}` }
@@ -290,7 +305,9 @@ export class SerializeContext {
   }
 
   private buildNodeRef(schema: z.ZodType): JsonSchema {
-    const result: JsonSchema = { $nodeRef: this.getDefName((schema as unknown as ZodRefMeta).__ref_target!) }
+    const result: JsonSchema = {
+      $nodeRef: this.getDefName((schema as unknown as ZodRefMeta).__ref_target!),
+    }
     if ((schema as unknown as ZodRefMeta).__ref_data) result.includeData = true
     return result
   }

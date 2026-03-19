@@ -3,7 +3,14 @@ import { z } from 'zod'
 import { interfaceDef, classDef, op, ref, data } from './defs/index.js'
 import { defineSchema } from './schema/define.js'
 import { serialize } from './serializer/serialize.js'
-import type { SchemaIR, InterfaceDecl, NodeDecl, EdgeDecl, AnyDecl, JsonSchema } from '@astrale/typegraph-schema'
+import type {
+  SchemaIR,
+  InterfaceDecl,
+  NodeDecl,
+  EdgeDecl,
+  AnyDecl,
+  JsonSchema,
+} from '@astrale/typegraph-schema'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +66,12 @@ describe('serialize', () => {
     const Iface = interfaceDef({ props: { name: z.string() } })
     const A = classDef({ inherits: [Iface], props: { x: z.number().int() } })
     const B = classDef({})
-    const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
+    const aToB = classDef({
+      endpoints: [
+        { as: 'a', types: [A] },
+        { as: 'b', types: [B] },
+      ],
+    })
     const schema = defineSchema('test', { Iface, A, B, aToB })
     const ir = serialize(schema)
     const json = JSON.stringify(ir)
@@ -619,7 +631,12 @@ describe('serialize', () => {
     it('serializes a simple edge', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [B] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -634,7 +651,12 @@ describe('serialize', () => {
     it('serializes edge with cardinality 0..1', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B], cardinality: '0..1' }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [B], cardinality: '0..1' },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -644,7 +666,12 @@ describe('serialize', () => {
     it('serializes edge with cardinality 1', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '1' }, { as: 'b', types: [B] }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A], cardinality: '1' },
+          { as: 'b', types: [B] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -654,7 +681,12 @@ describe('serialize', () => {
     it('serializes edge with cardinality 1..*', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '1..*' }, { as: 'b', types: [B] }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A], cardinality: '1..*' },
+          { as: 'b', types: [B] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -664,7 +696,12 @@ describe('serialize', () => {
     it('omits cardinality when not set (defaults to 0..*)', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [B] }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [B] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -676,7 +713,12 @@ describe('serialize', () => {
       const A = classDef({})
       const B = classDef({})
       const C = classDef({})
-      const mixed = classDef({ endpoints: [{ as: 'source', types: [A, B] }, { as: 'target', types: [C] }] })
+      const mixed = classDef({
+        endpoints: [
+          { as: 'source', types: [A, B] },
+          { as: 'target', types: [C] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, C, mixed })
       const ir = serialize(schema)
       const e = findEdge(ir, 'mixed')
@@ -686,7 +728,12 @@ describe('serialize', () => {
     it('serializes edge with interface endpoint', () => {
       const I = interfaceDef({})
       const A = classDef({ inherits: [I] })
-      const e1 = classDef({ endpoints: [{ as: 'source', types: [I] }, { as: 'target', types: [A] }] })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'source', types: [I] },
+          { as: 'target', types: [A] },
+        ],
+      })
       const schema = defineSchema('test', { I, A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -699,7 +746,13 @@ describe('serialize', () => {
   describe('edge constraints', () => {
     it('serializes unique constraint', () => {
       const A = classDef({})
-      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { unique: true } })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
+        constraints: { unique: true },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -708,7 +761,13 @@ describe('serialize', () => {
 
     it('serializes noSelf constraint', () => {
       const A = classDef({})
-      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { noSelf: true } })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
+        constraints: { noSelf: true },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -717,7 +776,13 @@ describe('serialize', () => {
 
     it('serializes acyclic constraint', () => {
       const A = classDef({})
-      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { acyclic: true } })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
+        constraints: { acyclic: true },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -727,7 +792,10 @@ describe('serialize', () => {
     it('serializes multiple constraints', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         constraints: { noSelf: true, acyclic: true },
       })
       const schema = defineSchema('test', { A, e1 })
@@ -738,7 +806,12 @@ describe('serialize', () => {
 
     it('omits constraints when none set', () => {
       const A = classDef({})
-      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }] })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -752,7 +825,10 @@ describe('serialize', () => {
     it('serializes edge with props', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         props: { weight: z.number(), label: z.string().optional() },
       })
       const schema = defineSchema('test', { A, e1 })
@@ -762,7 +838,6 @@ describe('serialize', () => {
       expect(e.properties['weight']).toEqual({ type: 'number' })
       expect(e.properties['label'].type).toEqual(['string', 'null'])
     })
-
   })
 
   // ── Thunks (lazy config) ──────────────────────────────────────────────
@@ -868,7 +943,10 @@ describe('serialize', () => {
     const Identity = interfaceDef({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
     const Root = classDef({ inherits: [Identity] })
     const hasParent = classDef({
-      endpoints: [{ as: 'child', types: [Node], cardinality: '0..1' }, { as: 'parent', types: [Node] }],
+      endpoints: [
+        { as: 'child', types: [Node], cardinality: '0..1' },
+        { as: 'parent', types: [Node] },
+      ],
       constraints: { noSelf: true, acyclic: true },
     })
     // This registers all defs under the 'astrale.core' domain
@@ -927,7 +1005,10 @@ describe('serialize', () => {
     it('serializes edge endpoints referencing registered external defs', () => {
       const Widget = classDef({ inherits: [Node] })
       const widgetLink = classDef({
-        endpoints: [{ as: 'widget', types: [Widget] }, { as: 'parent', types: [Node] }], // Node from kernel, registered
+        endpoints: [
+          { as: 'widget', types: [Widget] },
+          { as: 'parent', types: [Node] },
+        ], // Node from kernel, registered
       })
       const distSchema = defineSchema('acme.widgets', { Widget, widgetLink })
       const ir = serialize(distSchema)
@@ -945,7 +1026,10 @@ describe('serialize', () => {
     it('serializes a complete app schema matching spec §7', () => {
       // Simulate kernel schema (registers defs in the registry)
       const Node = interfaceDef({})
-      const Identity = interfaceDef({ extends: [Node], props: { iss: z.string(), sub: z.string() } })
+      const Identity = interfaceDef({
+        extends: [Node],
+        props: { iss: z.string(), sub: z.string() },
+      })
       void defineSchema('astrale.core', { Node, Identity }) // registers Node and Identity
 
       const Priority = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -1000,17 +1084,26 @@ describe('serialize', () => {
       })
 
       const belongsTo = classDef({
-        endpoints: [{ as: 'task', types: [Task] }, { as: 'project', types: [Project], cardinality: '0..1' }],
+        endpoints: [
+          { as: 'task', types: [Task] },
+          { as: 'project', types: [Project], cardinality: '0..1' },
+        ],
         constraints: { unique: true },
       })
 
       const taggedWith = classDef({
-        endpoints: [{ as: 'task', types: [Task] }, { as: 'tag', types: [Tag] }],
+        endpoints: [
+          { as: 'task', types: [Task] },
+          { as: 'tag', types: [Tag] },
+        ],
         constraints: { unique: true },
       })
 
       const dependsOn = classDef({
-        endpoints: [{ as: 'blocker', types: [Task] }, { as: 'blocked', types: [Task] }],
+        endpoints: [
+          { as: 'blocker', types: [Task] },
+          { as: 'blocked', types: [Task] },
+        ],
         constraints: { noSelf: true, acyclic: true },
       })
 
@@ -1085,7 +1178,13 @@ describe('serialize', () => {
   describe('extended edge constraints', () => {
     it('serializes symmetric constraint', () => {
       const A = classDef({})
-      const e1 = classDef({ endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }], constraints: { symmetric: true } })
+      const e1 = classDef({
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
+        constraints: { symmetric: true },
+      })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
@@ -1095,7 +1194,10 @@ describe('serialize', () => {
     it('serializes onDeleteSource constraint', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         onDeleteSource: 'cascade',
       })
       const schema = defineSchema('test', { A, e1 })
@@ -1107,7 +1209,10 @@ describe('serialize', () => {
     it('serializes onDeleteTarget constraint', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         onDeleteTarget: 'prevent',
       })
       const schema = defineSchema('test', { A, e1 })
@@ -1119,7 +1224,10 @@ describe('serialize', () => {
     it('serializes all constraints together', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         constraints: { noSelf: true, acyclic: true, unique: true, symmetric: true },
         onDeleteSource: 'cascade',
         onDeleteTarget: 'unlink',
@@ -1144,7 +1252,12 @@ describe('serialize', () => {
     it('omits cardinality when explicitly set to 0..*', () => {
       const A = classDef({})
       const B = classDef({})
-      const aToB = classDef({ endpoints: [{ as: 'a', types: [A], cardinality: '0..*' }, { as: 'b', types: [B] }] })
+      const aToB = classDef({
+        endpoints: [
+          { as: 'a', types: [A], cardinality: '0..*' },
+          { as: 'b', types: [B] },
+        ],
+      })
       const schema = defineSchema('test', { A, B, aToB })
       const ir = serialize(schema)
       const e = findEdge(ir, 'aToB')
@@ -1159,7 +1272,10 @@ describe('serialize', () => {
     it('serializes methods on edges', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         methods: {
           weight: op({ returns: z.number() }),
         },
@@ -1247,9 +1363,7 @@ describe('serialize', () => {
         params: { title: z.string() },
         returns: z.boolean(),
       })
-      expect(() => defineSchema('test', { createTask } as any)).toThrow(
-        /Unsupported def type/,
-      )
+      expect(() => defineSchema('test', { createTask } as any)).toThrow(/Unsupported def type/)
     })
   })
 
@@ -1536,7 +1650,10 @@ describe('serialize', () => {
     it('serializes edge with method and params', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         props: { weight: z.number() },
         methods: {
           adjustWeight: op({
@@ -1558,7 +1675,10 @@ describe('serialize', () => {
     it('serializes edge with multiple methods', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         methods: {
           alpha: op({ returns: z.string() }),
           beta: op({ returns: z.number() }),
@@ -1574,7 +1694,10 @@ describe('serialize', () => {
     it('serializes edge with private method', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         methods: {
           internal: op({ returns: z.boolean(), access: 'private' }),
         },
@@ -1588,7 +1711,10 @@ describe('serialize', () => {
     it('serializes edge with props, methods, and constraints together', () => {
       const A = classDef({})
       const e1 = classDef({
-        endpoints: [{ as: 'a', types: [A] }, { as: 'b', types: [A] }],
+        endpoints: [
+          { as: 'a', types: [A] },
+          { as: 'b', types: [A] },
+        ],
         constraints: { unique: true, noSelf: true },
         props: { score: z.number().default(0) },
         methods: {
@@ -1748,7 +1874,10 @@ describe('serialize', () => {
       })
 
       const orderItem = classDef({
-        endpoints: [{ as: 'order', types: [Order] }, { as: 'product', types: [Product] }],
+        endpoints: [
+          { as: 'order', types: [Order] },
+          { as: 'product', types: [Product] },
+        ],
         props: { quantity: z.number().int().default(1), unitPriceCents: z.number().int() },
         methods: { subtotal: op({ returns: z.number().int(), access: 'private' }) },
       })

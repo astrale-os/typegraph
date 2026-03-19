@@ -28,9 +28,9 @@ import { validateDeclarations } from './declarations'
 
 export interface ValidateOptions {
   /** Known scalar type names for default-value type-checking. */
-  scalars?: readonly string[];
+  scalars?: readonly string[]
   /** Known default-value function names. */
-  defaultFunctions?: readonly string[];
+  defaultFunctions?: readonly string[]
 }
 
 export interface ValidateResult {

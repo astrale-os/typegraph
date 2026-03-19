@@ -131,7 +131,11 @@ export class RequestContext {
       case 'exclude':
         // Flatten if this expression is already an exclude
         if (thisExpr.kind === 'exclude') {
-          expression = { kind: 'exclude', base: thisExpr.base, excluded: [...thisExpr.excluded, otherExpr] }
+          expression = {
+            kind: 'exclude',
+            base: thisExpr.base,
+            excluded: [...thisExpr.excluded, otherExpr],
+          }
         } else {
           expression = unresolvedExclude(thisExpr, otherExpr)
         }
@@ -262,7 +266,11 @@ export class MockKernel implements KernelPort {
     this.accessChecker = config.accessChecker
   }
 
-  async checkAccess(appToken: string, resourceId: string, perm: Permission): Promise<AccessDecision> {
+  async checkAccess(
+    appToken: string,
+    resourceId: string,
+    perm: Permission,
+  ): Promise<AccessDecision> {
     const authCtx = await this.authKernel.authenticate(appToken)
     return this.accessChecker.checkAccess({
       principal: authCtx.principal,

@@ -444,13 +444,15 @@ export class ReifyEdgesPass implements CompilationPass {
         newNodes.push({
           alias: lclsAlias,
           labels: [META_LABELS.NODE, META_LABELS.CLASS],
-          where: [{
-            type: 'comparison',
-            target: lclsAlias,
-            field: 'id',
-            operator: 'eq',
-            value: classId,
-          }],
+          where: [
+            {
+              type: 'comparison',
+              target: lclsAlias,
+              field: 'id',
+              operator: 'eq',
+              value: classId,
+            },
+          ],
         })
 
         // instance_of edge from link to class
@@ -534,7 +536,9 @@ export class ReifyEdgesPass implements CompilationPass {
           result.push(this.rewriteFork(step as ForkStep, schema))
           break
         case 'pattern':
-          result.push(this.expandPatternEdges(step as PatternStep, schema, tempAliases, tempEdgeMap))
+          result.push(
+            this.expandPatternEdges(step as PatternStep, schema, tempAliases, tempEdgeMap),
+          )
           break
         case 'subquery':
           result.push({ ...step, steps: this.transformSteps((step as SubqueryStep).steps, schema) })

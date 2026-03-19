@@ -99,10 +99,7 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('OR semantics: any passing scope allows access', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [
-          { principals: ['WRONG'] },
-          { perms: 1 },
-        ],
+        scopes: [{ principals: ['WRONG'] }, { perms: 1 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
       const result = pruneExpression(expr, 'P1', READ)
@@ -114,10 +111,7 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('returns null when all scopes fail', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [
-          { principals: ['WRONG'] },
-          { perms: 2 },
-        ],
+        scopes: [{ principals: ['WRONG'] }, { perms: 2 }],
         expr: { kind: 'identity', id: 'USER1' },
       }
       const result = pruneExpression(expr, 'P1', READ)
@@ -148,10 +142,7 @@ describe('AUTH_V2: Expression Pruning', () => {
     it('unions node restrictions from multiple passing scopes', () => {
       const expr: IdentityExpr = {
         kind: 'scope',
-        scopes: [
-          { nodes: ['N1'] },
-          { nodes: ['N2'] },
-        ],
+        scopes: [{ nodes: ['N1'] }, { nodes: ['N2'] }],
         expr: { kind: 'identity', id: 'USER1' },
       }
       const result = pruneExpression(expr, 'P1', READ)

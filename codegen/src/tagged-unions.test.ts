@@ -34,8 +34,28 @@ describe('load — Tagged Unions', () => {
         {
           name: 'PublicKey',
           variants: [
-            { tag: 'jwk', fields: [{ name: 'key', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
-            { tag: 'jwksUri', fields: [{ name: 'uri', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+            {
+              tag: 'jwk',
+              fields: [
+                {
+                  name: 'key',
+                  type: { kind: 'Scalar', name: 'String' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
+            {
+              tag: 'jwksUri',
+              fields: [
+                {
+                  name: 'uri',
+                  type: { kind: 'Scalar', name: 'String' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
           ],
         },
       ],
@@ -51,8 +71,28 @@ describe('load — Tagged Unions', () => {
         {
           name: 'PK',
           variants: [
-            { tag: 'a', fields: [{ name: 'x', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null }] },
-            { tag: 'b', fields: [{ name: 'y', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+            {
+              tag: 'a',
+              fields: [
+                {
+                  name: 'x',
+                  type: { kind: 'Scalar', name: 'Int' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
+            {
+              tag: 'b',
+              fields: [
+                {
+                  name: 'y',
+                  type: { kind: 'Scalar', name: 'String' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
           ],
         },
       ],
@@ -67,7 +107,17 @@ describe('load — Tagged Unions', () => {
         {
           name: 'PK',
           variants: [
-            { tag: 'a', fields: [{ name: 'x', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: null }] },
+            {
+              tag: 'a',
+              fields: [
+                {
+                  name: 'x',
+                  type: { kind: 'Scalar', name: 'Int' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
             { tag: 'b', fields: [] },
           ],
         },
@@ -78,7 +128,17 @@ describe('load — Tagged Unions', () => {
         {
           name: 'PK',
           variants: [
-            { tag: 'c', fields: [{ name: 'z', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+            {
+              tag: 'c',
+              fields: [
+                {
+                  name: 'z',
+                  type: { kind: 'Scalar', name: 'String' },
+                  nullable: false,
+                  default: null,
+                },
+              ],
+            },
             { tag: 'd', fields: [] },
           ],
         },
@@ -96,8 +156,28 @@ describe('generate — Tagged Unions', () => {
       {
         name: 'PublicKey',
         variants: [
-          { tag: 'jwk', fields: [{ name: 'key', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
-          { tag: 'jwksUri', fields: [{ name: 'uri', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+          {
+            tag: 'jwk',
+            fields: [
+              {
+                name: 'key',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
+          {
+            tag: 'jwksUri',
+            fields: [
+              {
+                name: 'uri',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
         ],
       },
     ],
@@ -135,13 +215,23 @@ describe('generate — Tagged Union with nullable and default fields', () => {
           {
             tag: 'basic',
             fields: [
-              { name: 'retries', type: { kind: 'Scalar', name: 'Int' }, nullable: false, default: { kind: 'NumberLiteral', value: 3 } },
+              {
+                name: 'retries',
+                type: { kind: 'Scalar', name: 'Int' },
+                nullable: false,
+                default: { kind: 'NumberLiteral', value: 3 },
+              },
             ],
           },
           {
             tag: 'advanced',
             fields: [
-              { name: 'timeout', type: { kind: 'Scalar', name: 'Int' }, nullable: true, default: null },
+              {
+                name: 'timeout',
+                type: { kind: 'Scalar', name: 'Int' },
+                nullable: true,
+                default: null,
+              },
             ],
           },
         ],
@@ -171,8 +261,28 @@ describe('generate — Tagged Union as attribute type', () => {
       {
         name: 'PublicKey',
         variants: [
-          { tag: 'jwk', fields: [{ name: 'key', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
-          { tag: 'jwksUri', fields: [{ name: 'uri', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+          {
+            tag: 'jwk',
+            fields: [
+              {
+                name: 'key',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
+          {
+            tag: 'jwksUri',
+            fields: [
+              {
+                name: 'uri',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
         ],
       },
     ],
@@ -213,8 +323,28 @@ describe('generate — Multiple tagged unions', () => {
       {
         name: 'PublicKey',
         variants: [
-          { tag: 'jwk', fields: [{ name: 'key', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
-          { tag: 'jwksUri', fields: [{ name: 'uri', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null }] },
+          {
+            tag: 'jwk',
+            fields: [
+              {
+                name: 'key',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
+          {
+            tag: 'jwksUri',
+            fields: [
+              {
+                name: 'uri',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+            ],
+          },
         ],
       },
       {
@@ -223,21 +353,46 @@ describe('generate — Multiple tagged unions', () => {
           {
             tag: 'eq',
             fields: [
-              { name: 'field', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null },
-              { name: 'value', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null },
+              {
+                name: 'field',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+              {
+                name: 'value',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
             ],
           },
           {
             tag: 'contains',
             fields: [
-              { name: 'field', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null },
-              { name: 'value', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null },
+              {
+                name: 'field',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
+              {
+                name: 'value',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
             ],
           },
           {
             tag: 'exists',
             fields: [
-              { name: 'field', type: { kind: 'Scalar', name: 'String' }, nullable: false, default: null },
+              {
+                name: 'field',
+                type: { kind: 'Scalar', name: 'String' },
+                nullable: false,
+                default: null,
+              },
             ],
           },
         ],

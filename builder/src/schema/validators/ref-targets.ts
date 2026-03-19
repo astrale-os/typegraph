@@ -15,11 +15,7 @@ function extractRefTargets(schema: unknown): object[] {
   const s = schema as Record<string, unknown>
   if ('__ref_target' in s) targets.push(s.__ref_target as object)
   const zs = s as ZodInternals
-  const inner =
-    zs.element ??
-    zs.innerType ??
-    zs._def?.innerType ??
-    zs._def?.type
+  const inner = zs.element ?? zs.innerType ?? zs._def?.innerType ?? zs._def?.type
   if (inner && typeof inner === 'object') targets.push(...extractRefTargets(inner))
   return targets
 }

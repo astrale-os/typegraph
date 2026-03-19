@@ -246,7 +246,11 @@ export class IdentityEvaluator {
         return this.buildExprFromCompositions(expr.id, compositions)
       case 'scope':
         // Expand identities inside scope, preserve scope wrapper
-        return { kind: 'scope', scopes: expr.scopes, expr: this.buildResolvedExpr(expr.expr, compositions) }
+        return {
+          kind: 'scope',
+          scopes: expr.scopes,
+          expr: this.buildResolvedExpr(expr.expr, compositions),
+        }
       case 'union':
         return {
           kind: 'union',
@@ -317,9 +321,7 @@ export class IdentityEvaluator {
     const unionOperands: IdentityExpr[] = []
     if (hasDirectPerms) unionOperands.push(selfExpr)
     for (const unionId of unions) {
-      unionOperands.push(
-        this.buildExprFromCompositions(unionId, compositions, new Set(visited)),
-      )
+      unionOperands.push(this.buildExprFromCompositions(unionId, compositions, new Set(visited)))
     }
 
     // Build intersect operands
@@ -333,9 +335,7 @@ export class IdentityEvaluator {
     // Build excluded list
     const excludedExprs: IdentityExpr[] = []
     for (const excludeId of excludes) {
-      excludedExprs.push(
-        this.buildExprFromCompositions(excludeId, compositions, new Set(visited)),
-      )
+      excludedExprs.push(this.buildExprFromCompositions(excludeId, compositions, new Set(visited)))
     }
 
     // Assemble result

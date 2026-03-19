@@ -1,152 +1,202 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <title>AUTH_V2 Scalability Report</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }
-    h1 { color: #333; }
-    .chart-container { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    canvas { max-height: 400px; }
-    table { border-collapse: collapse; width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th, td { padding: 12px 16px; text-align: right; border-bottom: 1px solid #eee; }
-    th { background: #333; color: white; }
-    tr:hover { background: #f9f9f9; }
-    .info { background: #e8f4f8; padding: 16px; border-radius: 8px; margin: 20px 0; }
-  </style>
-</head>
-<body>
-  <h1>AUTH_V2 Scalability Report</h1>
-  <p>Generated: 2026-01-24T19:26:28.199Z</p>
-
-  <div class="info">
-    <strong>Configuration:</strong> Using <code>:Node</code> label on all nodes for indexed traversal.
-    No materialized paths - pure graph traversal with proper indexes.
-  </div>
-
-  <h2>Summary Table</h2>
-  <table>
-    <tr>
-      <th>Scale</th>
-      <th>Nodes</th>
-      <th>Mean Latency</th>
-      <th>P95 Latency</th>
-      <th>Seq Throughput</th>
-      <th>Conc Throughput</th>
-      <th>Move Latency</th>
-    </tr>
-    
-    <tr>
-      <td>1K</td>
-      <td>1,131</td>
-      <td>0.63 ms</td>
-      <td>2.34 ms</td>
-      <td>4301 req/s</td>
-      <td>7240 req/s</td>
-      <td>1.32 ms</td>
-    </tr>
-    
-    <tr>
-      <td>10K</td>
-      <td>10,541</td>
-      <td>0.26 ms</td>
-      <td>0.40 ms</td>
-      <td>5437 req/s</td>
-      <td>8936 req/s</td>
-      <td>0.59 ms</td>
-    </tr>
-    
-    <tr>
-      <td>100K</td>
-      <td>102,571</td>
-      <td>0.80 ms</td>
-      <td>0.66 ms</td>
-      <td>6141 req/s</td>
-      <td>9855 req/s</td>
-      <td>0.28 ms</td>
-    </tr>
-    
-    <tr>
-      <td>500K</td>
-      <td>510,121</td>
-      <td>0.87 ms</td>
-      <td>0.60 ms</td>
-      <td>6590 req/s</td>
-      <td>12075 req/s</td>
-      <td>0.27 ms</td>
-    </tr>
-    
-    <tr>
-      <td>1M</td>
-      <td>1,020,221</td>
-      <td>2.78 ms</td>
-      <td>9.70 ms</td>
-      <td>3995 req/s</td>
-      <td>7718 req/s</td>
-      <td>0.69 ms</td>
-    </tr>
-    
-  </table>
-
-  <div class="chart-container">
-    <h2>Latency vs Scale</h2>
-    <canvas id="latencyChart"></canvas>
-  </div>
-
-  <div class="chart-container">
-    <h2>Throughput vs Scale</h2>
-    <canvas id="throughputChart"></canvas>
-  </div>
-
-  <script>
-    new Chart(document.getElementById('latencyChart'), {
-      type: 'line',
-      data: {
-        labels: ["1K","10K","100K","500K","1M"],
-        datasets: [{
-          label: 'Mean Latency (ms)',
-          data: [0.6347641499999804,0.26340921999993955,0.7992512299952795,0.872211299999035,2.7767570800002432],
-          borderColor: '#4CAF50',
-          backgroundColor: 'rgba(76, 175, 80, 0.1)',
-          fill: true,
-        }, {
-          label: 'P95 Latency (ms)',
-          data: [2.3447919999998703,0.39891700000043784,0.6612919999752194,0.5995830000028946,9.701499999966472],
-          borderColor: '#FF9800',
-          backgroundColor: 'rgba(255, 152, 0, 0.1)',
-          fill: true,
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Latency (ms)' } },
-          x: { title: { display: true, text: 'Scale (nodes)' } }
-        }
+  <head>
+    <title>AUTH_V2 Scalability Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 40px;
+        background: #f5f5f5;
       }
-    });
-
-    new Chart(document.getElementById('throughputChart'), {
-      type: 'bar',
-      data: {
-        labels: ["1K","10K","100K","500K","1M"],
-        datasets: [{
-          label: 'Sequential (req/s)',
-          data: [4301,5436.5,6140.5,6590,3994.5],
-          backgroundColor: '#2196F3',
-        }, {
-          label: 'Concurrent (req/s)',
-          data: [7239.819004524887,8936.184738820146,9854.765394990864,12075.045927420357,7718.158774565984],
-          backgroundColor: '#9C27B0',
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Throughput (req/s)' } }
-        }
+      h1 {
+        color: #333;
       }
-    });
-  </script>
-</body>
+      .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      canvas {
+        max-height: 400px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      th,
+      td {
+        padding: 12px 16px;
+        text-align: right;
+        border-bottom: 1px solid #eee;
+      }
+      th {
+        background: #333;
+        color: white;
+      }
+      tr:hover {
+        background: #f9f9f9;
+      }
+      .info {
+        background: #e8f4f8;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AUTH_V2 Scalability Report</h1>
+    <p>Generated: 2026-01-24T19:26:28.199Z</p>
+
+    <div class="info">
+      <strong>Configuration:</strong> Using <code>:Node</code> label on all nodes for indexed
+      traversal. No materialized paths - pure graph traversal with proper indexes.
+    </div>
+
+    <h2>Summary Table</h2>
+    <table>
+      <tr>
+        <th>Scale</th>
+        <th>Nodes</th>
+        <th>Mean Latency</th>
+        <th>P95 Latency</th>
+        <th>Seq Throughput</th>
+        <th>Conc Throughput</th>
+        <th>Move Latency</th>
+      </tr>
+
+      <tr>
+        <td>1K</td>
+        <td>1,131</td>
+        <td>0.63 ms</td>
+        <td>2.34 ms</td>
+        <td>4301 req/s</td>
+        <td>7240 req/s</td>
+        <td>1.32 ms</td>
+      </tr>
+
+      <tr>
+        <td>10K</td>
+        <td>10,541</td>
+        <td>0.26 ms</td>
+        <td>0.40 ms</td>
+        <td>5437 req/s</td>
+        <td>8936 req/s</td>
+        <td>0.59 ms</td>
+      </tr>
+
+      <tr>
+        <td>100K</td>
+        <td>102,571</td>
+        <td>0.80 ms</td>
+        <td>0.66 ms</td>
+        <td>6141 req/s</td>
+        <td>9855 req/s</td>
+        <td>0.28 ms</td>
+      </tr>
+
+      <tr>
+        <td>500K</td>
+        <td>510,121</td>
+        <td>0.87 ms</td>
+        <td>0.60 ms</td>
+        <td>6590 req/s</td>
+        <td>12075 req/s</td>
+        <td>0.27 ms</td>
+      </tr>
+
+      <tr>
+        <td>1M</td>
+        <td>1,020,221</td>
+        <td>2.78 ms</td>
+        <td>9.70 ms</td>
+        <td>3995 req/s</td>
+        <td>7718 req/s</td>
+        <td>0.69 ms</td>
+      </tr>
+    </table>
+
+    <div class="chart-container">
+      <h2>Latency vs Scale</h2>
+      <canvas id="latencyChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+      <h2>Throughput vs Scale</h2>
+      <canvas id="throughputChart"></canvas>
+    </div>
+
+    <script>
+      new Chart(document.getElementById('latencyChart'), {
+        type: 'line',
+        data: {
+          labels: ['1K', '10K', '100K', '500K', '1M'],
+          datasets: [
+            {
+              label: 'Mean Latency (ms)',
+              data: [
+                0.6347641499999804, 0.26340921999993955, 0.7992512299952795, 0.872211299999035,
+                2.7767570800002432,
+              ],
+              borderColor: '#4CAF50',
+              backgroundColor: 'rgba(76, 175, 80, 0.1)',
+              fill: true,
+            },
+            {
+              label: 'P95 Latency (ms)',
+              data: [
+                2.3447919999998703, 0.39891700000043784, 0.6612919999752194, 0.5995830000028946,
+                9.701499999966472,
+              ],
+              borderColor: '#FF9800',
+              backgroundColor: 'rgba(255, 152, 0, 0.1)',
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Latency (ms)' } },
+            x: { title: { display: true, text: 'Scale (nodes)' } },
+          },
+        },
+      })
+
+      new Chart(document.getElementById('throughputChart'), {
+        type: 'bar',
+        data: {
+          labels: ['1K', '10K', '100K', '500K', '1M'],
+          datasets: [
+            {
+              label: 'Sequential (req/s)',
+              data: [4301, 5436.5, 6140.5, 6590, 3994.5],
+              backgroundColor: '#2196F3',
+            },
+            {
+              label: 'Concurrent (req/s)',
+              data: [
+                7239.819004524887, 8936.184738820146, 9854.765394990864, 12075.045927420357,
+                7718.158774565984,
+              ],
+              backgroundColor: '#9C27B0',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Throughput (req/s)' } },
+          },
+        },
+      })
+    </script>
+  </body>
 </html>

@@ -234,10 +234,7 @@ describe('Set Operations Integration Tests', () => {
       const q1 = ctx.graph.node('user').where('name', 'eq', 'Alice')
       const q2 = ctx.graph.node('user').where('name', 'eq', 'Bob')
 
-      const results = await ctx.graph
-        .union(q1, q2)
-        .orderBy('name', 'ASC')
-        .execute()
+      const results = await ctx.graph.union(q1, q2).orderBy('name', 'ASC').execute()
 
       expect(results).toHaveLength(2)
       expect(results[0]!.name).toBe('Alice')

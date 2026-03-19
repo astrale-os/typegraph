@@ -278,13 +278,15 @@ export class InstanceModelPass implements CompilationPass {
       if (!classId) {
         throw new Error(`InstanceModelPass: no ref found for type '${typeName}'`)
       }
-      return [{
-        type: 'comparison',
-        target: clsAlias,
-        field: 'id',
-        operator: 'eq',
-        value: classId,
-      }]
+      return [
+        {
+          type: 'comparison',
+          target: clsAlias,
+          field: 'id',
+          operator: 'eq',
+          value: classId,
+        },
+      ]
     }
 
     // Interface: use IN for multiple implementors
@@ -292,13 +294,15 @@ export class InstanceModelPass implements CompilationPass {
     if (!classIds?.length) {
       throw new Error(`InstanceModelPass: no implementors found for interface '${typeName}'`)
     }
-    return [{
-      type: 'comparison',
-      target: clsAlias,
-      field: 'id',
-      operator: classIds.length === 1 ? 'eq' : 'in',
-      value: classIds.length === 1 ? classIds[0] : classIds,
-    }]
+    return [
+      {
+        type: 'comparison',
+        target: clsAlias,
+        field: 'id',
+        operator: classIds.length === 1 ? 'eq' : 'in',
+        value: classIds.length === 1 ? classIds[0] : classIds,
+      },
+    ]
   }
 
   // ---------------------------------------------------------------------------

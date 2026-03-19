@@ -6,9 +6,20 @@
  */
 
 import type { AnySchema } from '../schema/types'
-import type { CoreDefinition, CoreNodeEntry, CoreEdgeEntry, AnyCoreDefinition, CoreSnapshot } from './types'
+import type {
+  CoreDefinition,
+  CoreNodeEntry,
+  CoreEdgeEntry,
+  AnyCoreDefinition,
+  CoreSnapshot,
+} from './types'
 import { SchemaValidationError } from '../errors'
-import { validateCoreNodes, validateCoreEdges, validateCardinality, validateEdgeTupleUniqueness } from './validation'
+import {
+  validateCoreNodes,
+  validateCoreEdges,
+  validateCardinality,
+  validateEdgeTupleUniqueness,
+} from './validation'
 
 /**
  * Core configuration — what the developer passes to defineCore().

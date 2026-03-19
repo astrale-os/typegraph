@@ -68,12 +68,20 @@ describe('resolveExtendUri', () => {
 describe('LazyFileRegistry', () => {
   it('delegates to base registry for pre-registered schemas', () => {
     const base = new MapSchemaRegistry()
-    const fakeSchema = { symbols: new Map([['Foo', { name: 'Foo', symbolKind: 'Class' as const, declaration: null, span: null }]]), declarations: [], references: new Map() }
+    const fakeSchema = {
+      symbols: new Map([
+        ['Foo', { name: 'Foo', symbolKind: 'Class' as const, declaration: null, span: null }],
+      ]),
+      declarations: [],
+      references: new Map(),
+    }
     base.register('https://example.com/v1', fakeSchema)
 
     const registry = new LazyFileRegistry(() => null, base)
     expect(registry.get('https://example.com/v1')).toBe(fakeSchema)
-    expect(registry.lookupSymbol('https://example.com/v1', 'Foo')).toEqual(fakeSchema.symbols.get('Foo'))
+    expect(registry.lookupSymbol('https://example.com/v1', 'Foo')).toEqual(
+      fakeSchema.symbols.get('Foo'),
+    )
   })
 
   it('calls compileFn for local paths', () => {
@@ -180,18 +188,15 @@ class User: Identity, Auditable {
   })
 
   it('reports error for missing symbol in local file', () => {
-    writeFileSync(
-      join(tmpDir, 'empty.gsl'),
-      `-- empty schema, no declarations`,
-      'utf-8',
-    )
+    writeFileSync(join(tmpDir, 'empty.gsl'), `-- empty schema, no declarations`, 'utf-8')
 
     const mainPath = join(tmpDir, 'main2.gsl')
     const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)
-    const { diagnostics } = compile(
-      `extend "./empty.gsl" { NonExistent }`,
-      { prelude: KERNEL_PRELUDE, registry, sourceUri: mainPath },
-    )
+    const { diagnostics } = compile(`extend "./empty.gsl" { NonExistent }`, {
+      prelude: KERNEL_PRELUDE,
+      registry,
+      sourceUri: mainPath,
+    })
 
     expect(diagnostics.hasErrors()).toBe(true)
     const errors = diagnostics.getErrors()
@@ -339,10 +344,11 @@ class Article: Publishable {
   it('gracefully handles missing local file', () => {
     const mainPath = join(tmpDir, 'missing.gsl')
     const registry = createLazyFileRegistry(buildKernelRegistry(), KERNEL_PRELUDE)
-    const { diagnostics } = compile(
-      `extend "./nonexistent.gsl" { Foo }`,
-      { prelude: KERNEL_PRELUDE, registry, sourceUri: mainPath },
-    )
+    const { diagnostics } = compile(`extend "./nonexistent.gsl" { Foo }`, {
+      prelude: KERNEL_PRELUDE,
+      registry,
+      sourceUri: mainPath,
+    })
 
     // Should fall back to stub (no schema found for the URI)
     expect(diagnostics.hasErrors()).toBe(false)

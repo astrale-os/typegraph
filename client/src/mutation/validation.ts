@@ -334,11 +334,7 @@ export class MutationValidator<S extends SchemaShape> {
   /**
    * Parse data through a Zod validator if available, otherwise strip undefined.
    */
-  private parseWithZod(
-    key: string,
-    data: unknown,
-    partial: boolean,
-  ): Record<string, unknown> {
+  private parseWithZod(key: string, data: unknown, partial: boolean): Record<string, unknown> {
     if (!this.validators || !(key in this.validators)) {
       return stripUndefined(data as Record<string, unknown>)
     }
@@ -386,7 +382,10 @@ export class MutationValidator<S extends SchemaShape> {
         return { ...op, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.data) }
       case 'cloneNode':
         if (Object.keys(op.overrides).length > 0) {
-          return { ...op, overrides: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.overrides, true) }
+          return {
+            ...op,
+            overrides: this.parseAndPrepareNode(op.label as NodeLabels<S>, op.overrides, true),
+          }
         }
         return op
       case 'createEdge':
@@ -395,18 +394,32 @@ export class MutationValidator<S extends SchemaShape> {
         }
         return op
       case 'updateEdge':
-        return { ...op, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {} }
+        return {
+          ...op,
+          data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {},
+        }
       case 'updateEdgeById':
-        return { ...op, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {} }
+        return {
+          ...op,
+          data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, op.data, true) ?? {},
+        }
       case 'batchCreate':
         return {
           ...op,
           items: op.items.map((item, i) => {
             try {
-              return { ...item, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data) }
+              return {
+                ...item,
+                data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data),
+              }
             } catch (err) {
               if (err instanceof ValidationError) {
-                throw new ValidationError(`Item[${i}]: ${err.message}`, err.field, err.expected, err.received)
+                throw new ValidationError(
+                  `Item[${i}]: ${err.message}`,
+                  err.field,
+                  err.expected,
+                  err.received,
+                )
               }
               throw err
             }
@@ -417,10 +430,18 @@ export class MutationValidator<S extends SchemaShape> {
           ...op,
           updates: op.updates.map((item, i) => {
             try {
-              return { ...item, data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data, true) }
+              return {
+                ...item,
+                data: this.parseAndPrepareNode(op.label as NodeLabels<S>, item.data, true),
+              }
             } catch (err) {
               if (err instanceof ValidationError) {
-                throw new ValidationError(`Item[${i}]: ${err.message}`, err.field, err.expected, err.received)
+                throw new ValidationError(
+                  `Item[${i}]: ${err.message}`,
+                  err.field,
+                  err.expected,
+                  err.received,
+                )
               }
               throw err
             }
@@ -432,10 +453,18 @@ export class MutationValidator<S extends SchemaShape> {
           links: op.links.map((link, i) => {
             if (!link.data) return link
             try {
-              return { ...link, data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, link.data) }
+              return {
+                ...link,
+                data: this.parseAndPrepareEdge(op.edgeType as EdgeTypes<S>, link.data),
+              }
             } catch (err) {
               if (err instanceof ValidationError) {
-                throw new ValidationError(`Link[${i}]: ${err.message}`, err.field, err.expected, err.received)
+                throw new ValidationError(
+                  `Link[${i}]: ${err.message}`,
+                  err.field,
+                  err.expected,
+                  err.received,
+                )
               }
               throw err
             }

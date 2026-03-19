@@ -95,7 +95,11 @@ export function load(inputs: SchemaIR[], options?: LoadOptions): GraphModel {
     for (const dt of ir.data_types ?? []) {
       const existing = model.dataTypes.get(dt.name)
       if (existing) {
-        if (JSON.stringify(existing) === JSON.stringify({ name: dt.name, fields: dt.fields, scalarType: dt.scalar_type })) continue
+        if (
+          JSON.stringify(existing) ===
+          JSON.stringify({ name: dt.name, fields: dt.fields, scalarType: dt.scalar_type })
+        )
+          continue
         if (strict) throw new ConflictError('data type', dt.name)
         continue
       }

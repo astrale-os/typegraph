@@ -19,7 +19,15 @@ import {
   type Extension,
 } from '../ir/index'
 import { type ResolvedSchema } from '../resolver/index'
-import type { TypeAliasDecl, ValueTypeDecl, TaggedUnionDecl, InterfaceDecl, NodeDecl, EdgeDecl, DataDecl } from '../ast/index'
+import type {
+  TypeAliasDecl,
+  ValueTypeDecl,
+  TaggedUnionDecl,
+  InterfaceDecl,
+  NodeDecl,
+  EdgeDecl,
+  DataDecl,
+} from '../ast/index'
 import { isLocalPath } from '../registry'
 import {
   serializeExtend,

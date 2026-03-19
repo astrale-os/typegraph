@@ -340,28 +340,31 @@ describe('Clone Operations Integration Tests', () => {
       expect(parent).toBeNull()
     })
 
-    it.skipIf(isFalkorDB)('cloneSubtree returns correct idMapping for all cloned nodes', async () => {
-      const result = await ctx.graph.mutate.cloneSubtree(ctx.data.folders.root, {
-        edge: 'hasParent',
-      })
+    it.skipIf(isFalkorDB)(
+      'cloneSubtree returns correct idMapping for all cloned nodes',
+      async () => {
+        const result = await ctx.graph.mutate.cloneSubtree(ctx.data.folders.root, {
+          edge: 'hasParent',
+        })
 
-      // Should map all 3 folders: root, docs, work
-      expect(Object.keys(result.idMapping)).toHaveLength(3)
+        // Should map all 3 folders: root, docs, work
+        expect(Object.keys(result.idMapping)).toHaveLength(3)
 
-      // All original IDs should be present as keys
-      expect(result.idMapping[ctx.data.folders.root]).toBeDefined()
-      expect(result.idMapping[ctx.data.folders.docs]).toBeDefined()
-      expect(result.idMapping[ctx.data.folders.work]).toBeDefined()
+        // All original IDs should be present as keys
+        expect(result.idMapping[ctx.data.folders.root]).toBeDefined()
+        expect(result.idMapping[ctx.data.folders.docs]).toBeDefined()
+        expect(result.idMapping[ctx.data.folders.work]).toBeDefined()
 
-      // All new IDs should be different from originals
-      expect(result.idMapping[ctx.data.folders.root]).not.toBe(ctx.data.folders.root)
-      expect(result.idMapping[ctx.data.folders.docs]).not.toBe(ctx.data.folders.docs)
-      expect(result.idMapping[ctx.data.folders.work]).not.toBe(ctx.data.folders.work)
+        // All new IDs should be different from originals
+        expect(result.idMapping[ctx.data.folders.root]).not.toBe(ctx.data.folders.root)
+        expect(result.idMapping[ctx.data.folders.docs]).not.toBe(ctx.data.folders.docs)
+        expect(result.idMapping[ctx.data.folders.work]).not.toBe(ctx.data.folders.work)
 
-      // All new IDs should be unique
-      const newIds = Object.values(result.idMapping)
-      expect(new Set(newIds).size).toBe(newIds.length)
-    })
+        // All new IDs should be unique
+        const newIds = Object.values(result.idMapping)
+        expect(new Set(newIds).size).toBe(newIds.length)
+      },
+    )
 
     it.skipIf(isFalkorDB)('cloneSubtree does not affect original nodes', async () => {
       // Get original data
@@ -378,9 +381,7 @@ describe('Clone Operations Integration Tests', () => {
       })
 
       // Verify original is unchanged
-      const docsAfter = await ctx.graph
-        .nodeByIdWithLabel('folder', ctx.data.folders.docs)
-        .execute()
+      const docsAfter = await ctx.graph.nodeByIdWithLabel('folder', ctx.data.folders.docs).execute()
 
       expect(docsAfter.name).toBe(originalDocs.name)
     })

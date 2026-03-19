@@ -407,7 +407,9 @@ describe('Full pipeline', () => {
   })
 
   it('compiles minimal schema', () => {
-    const { ir, diagnostics } = compileWithKernel('extend "https://kernel.astrale.ai/v1" { Node }\nclass Foo: Node {}')
+    const { ir, diagnostics } = compileWithKernel(
+      'extend "https://kernel.astrale.ai/v1" { Node }\nclass Foo: Node {}',
+    )
     expect(diagnostics.hasErrors()).toBe(false)
     expect(ir!.classes).toHaveLength(1)
     expect(ir!.classes[0].name).toBe('Foo')

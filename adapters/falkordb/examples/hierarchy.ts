@@ -63,10 +63,16 @@ async function main() {
   console.log('\nWork parent:', parent ? (parent as unknown as FolderNode).name : 'none') // "Documents"
 
   const ancestors = await graph.nodeById(work.id).ancestors().execute()
-  console.log('Work ancestors:', ancestors.map((a) => (a as unknown as FolderNode).name)) // ["Documents", "root"]
+  console.log(
+    'Work ancestors:',
+    ancestors.map((a) => (a as unknown as FolderNode).name),
+  ) // ["Documents", "root"]
 
   const children = await graph.nodeById(docs.id).children().execute()
-  console.log('Docs children:', children.map((c) => (c as unknown as FolderNode).name)) // ["Work", "Personal"]
+  console.log(
+    'Docs children:',
+    children.map((c) => (c as unknown as FolderNode).name),
+  ) // ["Work", "Personal"]
 
   const descendants = await graph.nodeById(root.id).descendants().execute()
   console.log('Root descendants:', descendants.length) // 3

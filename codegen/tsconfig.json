@@ -9,7 +9,5 @@
   },
   "include": ["src"],
   "exclude": ["dist", "node_modules"],
-  "references": [
-    { "path": "../compiler" }
-  ]
+  "references": [{ "path": "../compiler" }]
 }

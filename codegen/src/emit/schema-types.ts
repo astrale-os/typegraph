@@ -8,9 +8,7 @@ import type { GraphModel } from '../model'
 export function emitSchemaTypes(model: GraphModel): string {
   const lines: string[] = []
 
-  const concreteNodes = [...model.nodeDefs.values()]
-    .filter((n) => !n.abstract)
-    .map((n) => n.name)
+  const concreteNodes = [...model.nodeDefs.values()].filter((n) => !n.abstract).map((n) => n.name)
 
   const edges = [...model.edgeDefs.values()].map((e) => e.name)
 

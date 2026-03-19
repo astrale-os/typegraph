@@ -181,9 +181,7 @@ function collectLeaves(
       let nodeRestriction: NodeId[] | undefined
 
       if (applicableScopes.length > 0) {
-        const hasUnrestrictedScope = applicableScopes.some(
-          (scope) => scope.nodes === undefined,
-        )
+        const hasUnrestrictedScope = applicableScopes.some((scope) => scope.nodes === undefined)
 
         if (!hasUnrestrictedScope) {
           nodeRestriction = [...new Set(applicableScopes.flatMap((scope) => scope.nodes ?? []))]

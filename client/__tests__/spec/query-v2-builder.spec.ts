@@ -361,20 +361,14 @@ describe('SubqueryBuilder', () => {
 
     it('multiple as() calls register multiple exports', () => {
       const builder = new SubqueryBuilder(testSchema, 'n0')
-      const result = builder
-        .to('authored')
-        .as('post1')
-        .as('post2')
+      const result = builder.to('authored').as('post1').as('post2')
 
       expect(result.getExportedAliases()).toEqual(['post1', 'post2'])
     })
 
     it('getExportedAliases() returns registered exports', () => {
       const builder = new SubqueryBuilder(testSchema, 'n0')
-      const result = builder
-        .to('authored')
-        .count('postCount')
-        .as('postNode')
+      const result = builder.to('authored').count('postCount').as('postNode')
 
       // Both scalar and node exports
       expect(result.getExportedAliases()).toContain('postCount')
@@ -383,11 +377,7 @@ describe('SubqueryBuilder', () => {
 
     it('getExportMetadata() returns metadata with kinds', () => {
       const builder = new SubqueryBuilder(testSchema, 'n0')
-      const result = builder
-        .to('authored')
-        .count('cnt')
-        .collect('items', true)
-        .as('node')
+      const result = builder.to('authored').count('cnt').collect('items', true).as('node')
 
       const meta = result.getExportMetadata()
       expect(meta.get('cnt')).toEqual({ alias: 'cnt', kind: 'scalar' })
@@ -438,7 +428,7 @@ describe('SubqueryBuilder', () => {
       expect(steps[0].type).toBe('traversal')
       expect(steps[1].type).toBe('aggregate')
       // No return step
-      const returnSteps = steps.filter(s => s.type === 'return')
+      const returnSteps = steps.filter((s) => s.type === 'return')
       expect(returnSteps).toHaveLength(0)
     })
 
@@ -543,7 +533,10 @@ describe('NodeQueryBuilder v2', () => {
 
   describe('whereExists', () => {
     it('basic: compiles to EXISTS subquery', () => {
-      const compiled = graph.node('user').whereExists(q => q.to('authored')).compile()
+      const compiled = graph
+        .node('user')
+        .whereExists((q) => q.to('authored'))
+        .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
       expect(compiled.cypher).toContain('authored')
@@ -554,7 +547,7 @@ describe('NodeQueryBuilder v2', () => {
     it('with non-id filter: whereExists with inner where() compiles to EXISTS', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('authored').where('viewCount', 'gt', 100))
+        .whereExists((q) => q.to('authored').where('viewCount', 'gt', 100))
         .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
@@ -568,7 +561,7 @@ describe('NodeQueryBuilder v2', () => {
       const compiled = graph
         .node('user')
         .where('status', 'eq', 'active')
-        .whereExists(q => q.to('authored'))
+        .whereExists((q) => q.to('authored'))
         .compile()
 
       expect(compiled.cypher).toContain('status')
@@ -580,8 +573,8 @@ describe('NodeQueryBuilder v2', () => {
     it('multiple whereExists calls produce multiple EXISTS clauses', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('authored'))
-        .whereExists(q => q.to('follows'))
+        .whereExists((q) => q.to('authored'))
+        .whereExists((q) => q.to('follows'))
         .compile()
 
       const existsCount = (compiled.cypher.match(/EXISTS \{/g) || []).length
@@ -593,7 +586,7 @@ describe('NodeQueryBuilder v2', () => {
     it('whereExists with incoming traversal', () => {
       const compiled = graph
         .node('post')
-        .whereExists(q => q.from('authored'))
+        .whereExists((q) => q.from('authored'))
         .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
@@ -604,7 +597,7 @@ describe('NodeQueryBuilder v2', () => {
     it('whereExists with target label', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('authored', 'post'))
+        .whereExists((q) => q.to('authored', 'post'))
         .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
@@ -614,7 +607,7 @@ describe('NodeQueryBuilder v2', () => {
     it('whereExists with chained inner traversals', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('authored').to('categorizedAs'))
+        .whereExists((q) => q.to('authored').to('categorizedAs'))
         .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
@@ -626,7 +619,7 @@ describe('NodeQueryBuilder v2', () => {
       // The compiler detects [TraversalStep, WhereStep(id eq)] and inlines it
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('authored').where('id', 'eq', 'post_123'))
+        .whereExists((q) => q.to('authored').where('id', 'eq', 'post_123'))
         .compile()
 
       // Optimized to inline pattern, not EXISTS { }
@@ -644,7 +637,7 @@ describe('NodeQueryBuilder v2', () => {
     it('basic: compiles to NOT EXISTS subquery', () => {
       const compiled = graph
         .node('user')
-        .whereNotExists(q => q.to('authored'))
+        .whereNotExists((q) => q.to('authored'))
         .compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
@@ -654,9 +647,7 @@ describe('NodeQueryBuilder v2', () => {
     it('with non-id filter: NOT EXISTS with where clause', () => {
       const compiled = graph
         .node('user')
-        .whereNotExists(q =>
-          q.to('authored').where('viewCount', 'lt', 10),
-        )
+        .whereNotExists((q) => q.to('authored').where('viewCount', 'lt', 10))
         .compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
@@ -667,8 +658,8 @@ describe('NodeQueryBuilder v2', () => {
     it('chained with whereExists produces EXISTS and NOT EXISTS', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('follows'))
-        .whereNotExists(q => q.to('authored'))
+        .whereExists((q) => q.to('follows'))
+        .whereNotExists((q) => q.to('authored'))
         .compile()
 
       expect(compiled.cypher).toMatch(/(?<!NOT )EXISTS \{/)
@@ -680,7 +671,7 @@ describe('NodeQueryBuilder v2', () => {
     it('NOT EXISTS with bidirectional traversal', () => {
       const compiled = graph
         .node('user')
-        .whereNotExists(q => q.related('follows'))
+        .whereNotExists((q) => q.related('follows'))
         .compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
@@ -691,7 +682,7 @@ describe('NodeQueryBuilder v2', () => {
       // Compiler optimization: [TraversalStep, WhereStep(id eq)] -> NOT (n)-[:E]->({id: $p})
       const compiled = graph
         .node('user')
-        .whereNotExists(q => q.to('follows').where('id', 'eq', 'blocked_user'))
+        .whereNotExists((q) => q.to('follows').where('id', 'eq', 'blocked_user'))
         .compile()
 
       expect(compiled.cypher).toContain('NOT')
@@ -709,7 +700,7 @@ describe('NodeQueryBuilder v2', () => {
     it('gt operator: count > 5', () => {
       const compiled = graph
         .node('user')
-        .whereCount(q => q.to('authored'), 'gt', 5)
+        .whereCount((q) => q.to('authored'), 'gt', 5)
         .compile()
 
       expect(compiled.cypher).toContain('COUNT {')
@@ -721,7 +712,7 @@ describe('NodeQueryBuilder v2', () => {
     it('eq operator: count = 3', () => {
       const compiled = graph
         .node('user')
-        .whereCount(q => q.to('authored'), 'eq', 3)
+        .whereCount((q) => q.to('authored'), 'eq', 3)
         .compile()
 
       expect(compiled.cypher).toContain('COUNT {')
@@ -732,7 +723,7 @@ describe('NodeQueryBuilder v2', () => {
     it('lte operator: count <= 10', () => {
       const compiled = graph
         .node('user')
-        .whereCount(q => q.to('authored'), 'lte', 10)
+        .whereCount((q) => q.to('authored'), 'lte', 10)
         .compile()
 
       expect(compiled.cypher).toContain('COUNT {')
@@ -743,7 +734,7 @@ describe('NodeQueryBuilder v2', () => {
     it('value 0: count = 0 (equivalent to not exists but via count)', () => {
       const compiled = graph
         .node('user')
-        .whereCount(q => q.to('authored'), 'eq', 0)
+        .whereCount((q) => q.to('authored'), 'eq', 0)
         .compile()
 
       expect(compiled.cypher).toContain('COUNT {')
@@ -754,11 +745,7 @@ describe('NodeQueryBuilder v2', () => {
     it('with filter in subquery: count with where', () => {
       const compiled = graph
         .node('user')
-        .whereCount(
-          q => q.to('authored').where('viewCount', 'gt', 100),
-          'gte',
-          2,
-        )
+        .whereCount((q) => q.to('authored').where('viewCount', 'gt', 100), 'gte', 2)
         .compile()
 
       expect(compiled.cypher).toContain('COUNT {')
@@ -770,8 +757,8 @@ describe('NodeQueryBuilder v2', () => {
     it('multiple whereCount calls', () => {
       const compiled = graph
         .node('user')
-        .whereCount(q => q.to('authored'), 'gt', 5)
-        .whereCount(q => q.to('follows'), 'gte', 10)
+        .whereCount((q) => q.to('authored'), 'gt', 5)
+        .whereCount((q) => q.to('follows'), 'gte', 10)
         .compile()
 
       const countOccurrences = (compiled.cypher.match(/COUNT \{/g) || []).length
@@ -787,7 +774,7 @@ describe('NodeQueryBuilder v2', () => {
     it('pipeline subquery with count export', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').count('postCount'))
+        .subquery((q) => q.to('authored').count('postCount'))
         .compile()
 
       expect(compiled.cypher).toContain('CALL {')
@@ -798,7 +785,7 @@ describe('NodeQueryBuilder v2', () => {
     it('CALL {} in output', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').count('postCount'))
+        .subquery((q) => q.to('authored').count('postCount'))
         .compile()
 
       // Should produce CALL { ... }
@@ -809,7 +796,7 @@ describe('NodeQueryBuilder v2', () => {
     it('subquery with exported node alias', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').as('post'))
+        .subquery((q) => q.to('authored').as('post'))
         .compile()
 
       expect(compiled.cypher).toContain('CALL {')
@@ -821,7 +808,7 @@ describe('NodeQueryBuilder v2', () => {
     it('subquery with correlated alias (WITH clause)', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').count('postCount'))
+        .subquery((q) => q.to('authored').count('postCount'))
         .compile()
 
       // Correlated subquery should import the outer alias
@@ -831,7 +818,7 @@ describe('NodeQueryBuilder v2', () => {
     it('subquery with sum aggregation', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').sum('viewCount', 'totalViews'))
+        .subquery((q) => q.to('authored').sum('viewCount', 'totalViews'))
         .compile()
 
       expect(compiled.cypher).toContain('CALL {')
@@ -841,7 +828,7 @@ describe('NodeQueryBuilder v2', () => {
     it('subquery followed by where', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').count('postCount'))
+        .subquery((q) => q.to('authored').count('postCount'))
         .where('name', 'eq', 'Alice')
         .compile()
 
@@ -857,10 +844,7 @@ describe('NodeQueryBuilder v2', () => {
 
   describe('unwind', () => {
     it('basic unwind compiles to UNWIND clause', () => {
-      const compiled = graph
-        .node('post')
-        .unwind('tags', 'tag')
-        .compile()
+      const compiled = graph.node('post').unwind('tags', 'tag').compile()
 
       expect(compiled.cypher).toContain('UNWIND')
       expect(compiled.cypher).toContain('.tags')
@@ -868,10 +852,7 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('verify full UNWIND syntax', () => {
-      const compiled = graph
-        .node('post')
-        .unwind('tags', 'tag')
-        .compile()
+      const compiled = graph.node('post').unwind('tags', 'tag').compile()
 
       // Should match: UNWIND <alias>.tags AS tag
       expect(compiled.cypher).toMatch(/UNWIND \w+\.tags AS tag/)
@@ -896,10 +877,7 @@ describe('NodeQueryBuilder v2', () => {
 
   describe('hasEdge migration', () => {
     it('hasEdge outgoing produces EXISTS subquery', () => {
-      const compiled = graph
-        .node('user')
-        .hasEdge('authored', 'out')
-        .compile()
+      const compiled = graph.node('user').hasEdge('authored', 'out').compile()
 
       // hasEdge produces a single TraversalStep (no id WHERE), so no optimization
       expect(compiled.cypher).toContain('EXISTS {')
@@ -909,10 +887,7 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('hasEdge incoming produces EXISTS with incoming direction', () => {
-      const compiled = graph
-        .node('post')
-        .hasEdge('authored', 'in')
-        .compile()
+      const compiled = graph.node('post').hasEdge('authored', 'in').compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
       expect(compiled.cypher).toContain('authored')
@@ -920,20 +895,14 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('hasEdge both produces EXISTS with bidirectional', () => {
-      const compiled = graph
-        .node('user')
-        .hasEdge('follows', 'both')
-        .compile()
+      const compiled = graph.node('user').hasEdge('follows', 'both').compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
       expect(compiled.cypher).toContain('follows')
     })
 
     it('hasEdge default direction is outgoing', () => {
-      const compiled = graph
-        .node('user')
-        .hasEdge('authored')
-        .compile()
+      const compiled = graph.node('user').hasEdge('authored').compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
       expect(compiled.cypher).toContain('authored')
@@ -941,20 +910,14 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('hasNoEdge produces NOT EXISTS', () => {
-      const compiled = graph
-        .node('user')
-        .hasNoEdge('authored')
-        .compile()
+      const compiled = graph.node('user').hasNoEdge('authored').compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
       expect(compiled.cypher).toContain('authored')
     })
 
     it('hasNoEdge incoming produces NOT EXISTS with incoming direction', () => {
-      const compiled = graph
-        .node('post')
-        .hasNoEdge('authored', 'in')
-        .compile()
+      const compiled = graph.node('post').hasNoEdge('authored', 'in').compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
       expect(compiled.cypher).toContain('authored')
@@ -962,10 +925,7 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('hasNoEdge both produces NOT EXISTS with bidirectional', () => {
-      const compiled = graph
-        .node('user')
-        .hasNoEdge('follows', 'both')
-        .compile()
+      const compiled = graph.node('user').hasNoEdge('follows', 'both').compile()
 
       expect(compiled.cypher).toContain('NOT EXISTS {')
       expect(compiled.cypher).toContain('follows')
@@ -984,11 +944,7 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('multiple hasEdge calls produce multiple EXISTS clauses', () => {
-      const compiled = graph
-        .node('user')
-        .hasEdge('authored')
-        .hasEdge('follows')
-        .compile()
+      const compiled = graph.node('user').hasEdge('authored').hasEdge('follows').compile()
 
       const existsCount = (compiled.cypher.match(/EXISTS \{/g) || []).length
       expect(existsCount).toBe(2)
@@ -1002,10 +958,7 @@ describe('NodeQueryBuilder v2', () => {
   describe('whereConnectedTo migration', () => {
     it('whereConnectedTo compiles to optimized inline pattern with ID check', () => {
       // The compiler optimizes [TraversalStep, WhereStep(id eq)] into inline pattern
-      const compiled = graph
-        .node('post')
-        .whereConnectedTo('categorizedAs', 'cat_123')
-        .compile()
+      const compiled = graph.node('post').whereConnectedTo('categorizedAs', 'cat_123').compile()
 
       // Optimized: (n0)-[:categorizedAs]->({id: $p0}) instead of EXISTS { }
       expect(compiled.cypher).toContain('categorizedAs')
@@ -1014,20 +967,14 @@ describe('NodeQueryBuilder v2', () => {
     })
 
     it('whereConnectedTo uses outgoing direction in inline pattern', () => {
-      const compiled = graph
-        .node('post')
-        .whereConnectedTo('categorizedAs', 'cat_123')
-        .compile()
+      const compiled = graph.node('post').whereConnectedTo('categorizedAs', 'cat_123').compile()
 
       // Outgoing arrow in the inline pattern
       expect(compiled.cypher).toMatch(/-\[:categorizedAs\]->/)
     })
 
     it('whereConnectedFrom compiles to optimized inline pattern with incoming direction', () => {
-      const compiled = graph
-        .node('user')
-        .whereConnectedFrom('authored', 'post_123')
-        .compile()
+      const compiled = graph.node('user').whereConnectedFrom('authored', 'post_123').compile()
 
       // Incoming direction in inline pattern
       expect(compiled.cypher).toContain('authored')
@@ -1084,8 +1031,8 @@ describe('NodeQueryBuilder v2', () => {
     it('whereExists + whereCount together', () => {
       const compiled = graph
         .node('user')
-        .whereExists(q => q.to('follows'))
-        .whereCount(q => q.to('authored'), 'gt', 3)
+        .whereExists((q) => q.to('follows'))
+        .whereCount((q) => q.to('authored'), 'gt', 3)
         .compile()
 
       expect(compiled.cypher).toContain('EXISTS {')
@@ -1097,8 +1044,8 @@ describe('NodeQueryBuilder v2', () => {
     it('subquery + whereExists together', () => {
       const compiled = graph
         .node('user')
-        .subquery(q => q.to('authored').count('postCount'))
-        .whereExists(q => q.to('follows'))
+        .subquery((q) => q.to('authored').count('postCount'))
+        .whereExists((q) => q.to('follows'))
         .compile()
 
       expect(compiled.cypher).toContain('CALL {')
@@ -1111,7 +1058,7 @@ describe('NodeQueryBuilder v2', () => {
         .node('user')
         .where('status', 'eq', 'active')
         .hasEdge('authored')
-        .whereNotExists(q => q.to('follows').where('id', 'eq', 'blocked_user'))
+        .whereNotExists((q) => q.to('follows').where('id', 'eq', 'blocked_user'))
         .compile()
 
       expect(compiled.cypher).toContain('status')
@@ -1128,7 +1075,7 @@ describe('NodeQueryBuilder v2', () => {
         .node('user')
         .where('status', 'eq', 'active')
         .hasEdge('authored')
-        .whereNotExists(q => q.to('authored').where('viewCount', 'gt', 100))
+        .whereNotExists((q) => q.to('authored').where('viewCount', 'gt', 100))
         .compile()
 
       expect(compiled.cypher).toContain('status')
@@ -1142,7 +1089,7 @@ describe('NodeQueryBuilder v2', () => {
       const compiled = graph
         .node('user')
         .to('authored')
-        .whereExists(q => q.to('categorizedAs'))
+        .whereExists((q) => q.to('categorizedAs'))
         .unwind('tags', 'tag')
         .compile()
 
@@ -1162,8 +1109,8 @@ describe('NodeQueryBuilder v2', () => {
       const compiled = graph
         .node('user')
         .where('status', 'eq', 'active')
-        .whereExists(q => q.to('authored').where('viewCount', 'gt', 100))
-        .whereCount(q => q.to('follows'), 'gte', 5)
+        .whereExists((q) => q.to('authored').where('viewCount', 'gt', 100))
+        .whereCount((q) => q.to('follows'), 'gte', 5)
         .compile()
 
       // Each value should be present as a parameter

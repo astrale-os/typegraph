@@ -8,7 +8,7 @@ describe('edges', () => {
       class B: Node {}
       class connects(from: A, to: B) []
     `)
-    expect(source).toContain("connects: { from: string; to: string }")
+    expect(source).toContain('connects: { from: string; to: string }')
   })
 
   it('generates edge with union type endpoints', () => {
@@ -20,7 +20,7 @@ describe('edges', () => {
     `)
     const edge = model.edgeDefs.get('multi_target')!
     expect(edge.endpoints[1].allowed_types).toHaveLength(2)
-    expect(source).toContain("multi_target: { source: string; target: string }")
+    expect(source).toContain('multi_target: { source: string; target: string }')
   })
 
   it('generates edge with single endpoint (higher-order)', () => {
@@ -30,7 +30,7 @@ describe('edges', () => {
       class base_edge(x: A, y: B) []
       class meta(about: edge<any>) { note: String }
     `)
-    expect(source).toContain("meta: { about: string }")
+    expect(source).toContain('meta: { about: string }')
     expect(source).toContain('export interface MetaPayload {')
     expect(source).toContain('note: string')
   })

@@ -316,18 +316,10 @@ export interface SchemaDefinition<
   TNodes extends Record<string, NodeDefinition> = Record<string, NodeDefinition>,
   TEdges extends Record<
     string,
-    EdgeDefinition<
-      string | readonly string[],
-      string | readonly string[],
-      z.ZodRawShape
-    >
+    EdgeDefinition<string | readonly string[], string | readonly string[], z.ZodRawShape>
   > = Record<
     string,
-    EdgeDefinition<
-      string | readonly string[],
-      string | readonly string[],
-      z.ZodRawShape
-    >
+    EdgeDefinition<string | readonly string[], string | readonly string[], z.ZodRawShape>
   >,
 > {
   /** All node definitions keyed by label */

@@ -88,8 +88,8 @@ type FindNodeKey<
 type ExtractExtendsRefs<N extends NodeDefinition<any>> = N extends {
   _extendsRefs: readonly (infer R)[]
 }
-  // oxlint-disable-next-line no-explicit-any
-  ? R extends NodeDefinition<any>
+  ? // oxlint-disable-next-line no-explicit-any
+    R extends NodeDefinition<any>
     ? R
     : never
   : never

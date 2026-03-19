@@ -123,9 +123,7 @@ function mergeLinks(
 ): readonly InlineLink[] {
   const classId = schema.classRefs![typeKey]
   if (!classId) {
-    throw new Error(
-      `InstanceOfMutationPass: no class ref found for type '${typeKey}'`,
-    )
+    throw new Error(`InstanceOfMutationPass: no class ref found for type '${typeKey}'`)
   }
 
   const instanceOfLink: InlineLink = {

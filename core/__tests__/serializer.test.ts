@@ -139,9 +139,7 @@ describe('toSchema Serializer', () => {
               tenantId: z.string(),
               email: z.string(),
             },
-            indexes: [
-              { properties: ['tenantId', 'email'], type: 'unique' },
-            ],
+            indexes: [{ properties: ['tenantId', 'email'], type: 'unique' }],
           }),
         },
         edges: {},

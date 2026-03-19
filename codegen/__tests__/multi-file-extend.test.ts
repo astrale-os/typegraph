@@ -67,10 +67,7 @@ class contains(order: Order, product: Product) [] {
 
   it('does not duplicate imported definitions that are already emitted locally', () => {
     // base.gsl: a type alias
-    writeFileSync(
-      join(dir, 'base-types.gsl'),
-      `type PositiveInt = Int [>= 0]`,
-    )
+    writeFileSync(join(dir, 'base-types.gsl'), `type PositiveInt = Int [>= 0]`)
 
     const mainPath = join(dir, 'consumer-dedup.gsl')
     writeFileSync(mainPath, '')
@@ -107,10 +104,7 @@ class User: Identity { name: String }`,
 
   it('handles chained local extends', () => {
     // types.gsl: shared types
-    writeFileSync(
-      join(dir, 'chain-types.gsl'),
-      `type Email = String`,
-    )
+    writeFileSync(join(dir, 'chain-types.gsl'), `type Email = String`)
 
     // models.gsl: extends types.gsl, declares an interface and class
     writeFileSync(

@@ -105,9 +105,7 @@ function pruneScope(
   let scopeNodeRestriction: NodeId[] | undefined
   if (!hasUnrestrictedScope) {
     // All applicable scopes have node restrictions → union them (any scope's nodes are valid)
-    scopeNodeRestriction = [
-      ...new Set(applicableScopes.flatMap((s) => s.nodes ?? [])),
-    ]
+    scopeNodeRestriction = [...new Set(applicableScopes.flatMap((s) => s.nodes ?? []))]
   }
   // else: at least one scope has no node restriction → unrestricted
 

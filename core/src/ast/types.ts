@@ -44,9 +44,7 @@ export type ComparisonOperator =
  * // Parameter - value is passed separately
  * { kind: 'param', name: 'status' }
  */
-export type ConditionValue =
-  | { kind: 'literal'; value: unknown }
-  | { kind: 'param'; name: string }
+export type ConditionValue = { kind: 'literal'; value: unknown } | { kind: 'param'; name: string }
 
 // =============================================================================
 // WHERE CONDITIONS

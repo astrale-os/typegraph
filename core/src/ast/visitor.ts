@@ -68,9 +68,10 @@ export interface ASTVisitorInterface<TContext = void, TResult = void> {
  *
  * Provides default traversal behavior that can be overridden.
  */
-export abstract class ASTVisitor<TContext = void, TResult = void>
-  implements ASTVisitorInterface<TContext, TResult>
-{
+export abstract class ASTVisitor<TContext = void, TResult = void> implements ASTVisitorInterface<
+  TContext,
+  TResult
+> {
   visitMatch?(node: MatchStep, context: TContext): TResult
   visitMatchById?(node: MatchByIdStep, context: TContext): TResult
   visitTraversal?(node: TraversalStep, context: TContext): TResult
@@ -174,7 +175,10 @@ export abstract class ASTVisitor<TContext = void, TResult = void>
   }
 
   /** Visit an edge condition (lightweight, no target) */
-  visitEdgeCondition?(_condition: { field: string; operator: string; value?: unknown }, _context: TContext): TResult
+  visitEdgeCondition?(
+    _condition: { field: string; operator: string; value?: unknown },
+    _context: TContext,
+  ): TResult
 
   visit(node: ASTNode, context: TContext): TResult | undefined {
     switch (node.type) {

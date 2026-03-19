@@ -1,5 +1,1 @@
-export type {
-  GraphAdapter,
-  TransactionContext,
-  AdapterMetrics,
-} from './types.js'
+export type { GraphAdapter, TransactionContext, AdapterMetrics } from './types.js'

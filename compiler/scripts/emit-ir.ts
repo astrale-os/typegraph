@@ -2,9 +2,9 @@
 // Quick script to compile the blog schema and emit the IR JSON.
 // Run with: npx tsx scripts/emit-ir.ts
 
-import { compile } from "../src/compile.js";
-import { KERNEL_PRELUDE } from "../src/prelude.js";
-import { buildKernelRegistry } from "../src/kernel-prelude.js";
+import { compile } from '../src/compile.js'
+import { KERNEL_PRELUDE } from '../src/prelude.js'
+import { buildKernelRegistry } from '../src/kernel-prelude.js'
 
 const BLOG_SCHEMA = `
 extend "https://kernel.astrale.ai/v1" { Identity }
@@ -83,28 +83,28 @@ class flagged(about: edge<any>) {
   flagged_by: String,
   flagged_at: Timestamp = now()
 }
-`;
+`
 
 const { ir, diagnostics } = compile(BLOG_SCHEMA, {
   prelude: KERNEL_PRELUDE,
   registry: buildKernelRegistry(),
-  sourceHash: "blog-schema-v1",
-});
+  sourceHash: 'blog-schema-v1',
+})
 
 if (diagnostics.hasErrors()) {
-  console.error("Compilation errors:");
+  console.error('Compilation errors:')
   for (const d of diagnostics.getErrors()) {
-    console.error(`  [${d.code}] ${d.message} (offset ${d.span.start})`);
+    console.error(`  [${d.code}] ${d.message} (offset ${d.span.start})`)
   }
-  process.exit(1);
+  process.exit(1)
 }
 
-const warnings = diagnostics.getWarnings();
+const warnings = diagnostics.getWarnings()
 if (warnings.length > 0) {
-  console.error("Warnings:");
+  console.error('Warnings:')
   for (const w of warnings) {
-    console.error(`  [${w.code}] ${w.message}`);
+    console.error(`  [${w.code}] ${w.message}`)
   }
 }
 
-console.log(JSON.stringify(ir, null, 2));
+console.log(JSON.stringify(ir, null, 2))

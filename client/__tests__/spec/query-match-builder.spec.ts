@@ -244,9 +244,9 @@ describe('MatchBuilder: whereAll()', () => {
       edges: [],
     })
 
-    expect(() =>
-      builder.whereAll([['x', 'name', 'eq', 'test']]),
-    ).toThrow('Unknown pattern alias: x')
+    expect(() => builder.whereAll([['x', 'name', 'eq', 'test']])).toThrow(
+      'Unknown pattern alias: x',
+    )
   })
 })
 
@@ -275,9 +275,9 @@ describe('MatchBuilder: whereCompare()', () => {
       edges: [],
     })
 
-    expect(() =>
-      builder.whereCompare('x', 'name', 'eq', 'a', 'name'),
-    ).toThrow('Unknown pattern alias: x')
+    expect(() => builder.whereCompare('x', 'name', 'eq', 'a', 'name')).toThrow(
+      'Unknown pattern alias: x',
+    )
   })
 
   it('throws for unknown right alias', () => {
@@ -286,9 +286,9 @@ describe('MatchBuilder: whereCompare()', () => {
       edges: [],
     })
 
-    expect(() =>
-      builder.whereCompare('a', 'name', 'eq', 'y', 'name'),
-    ).toThrow('Unknown pattern alias: y')
+    expect(() => builder.whereCompare('a', 'name', 'eq', 'y', 'name')).toThrow(
+      'Unknown pattern alias: y',
+    )
   })
 })
 

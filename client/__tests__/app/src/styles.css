@@ -18,8 +18,7 @@
 body {
   margin: 0;
   font-family:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
-    monospace;
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   background: #0f172a;
   color: #e2e8f0;
 }

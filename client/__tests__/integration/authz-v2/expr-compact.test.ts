@@ -73,17 +73,35 @@ describe('AUTH_V2: Expression Compaction', () => {
     it('compacts union', () => {
       const expr: IdentityExpr = {
         kind: 'union',
-        operands: [{ kind: 'identity', id: 'A' }, { kind: 'identity', id: 'B' }],
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       }
-      expect(toCompact(expr)).toEqual(['u', [['i', 'A'], ['i', 'B']]])
+      expect(toCompact(expr)).toEqual([
+        'u',
+        [
+          ['i', 'A'],
+          ['i', 'B'],
+        ],
+      ])
     })
 
     it('compacts intersect', () => {
       const expr: IdentityExpr = {
         kind: 'intersect',
-        operands: [{ kind: 'identity', id: 'A' }, { kind: 'identity', id: 'B' }],
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       }
-      expect(toCompact(expr)).toEqual(['n', [['i', 'A'], ['i', 'B']]])
+      expect(toCompact(expr)).toEqual([
+        'n',
+        [
+          ['i', 'A'],
+          ['i', 'B'],
+        ],
+      ])
     })
 
     it('compacts exclude', () => {
@@ -104,7 +122,13 @@ describe('AUTH_V2: Expression Compaction', () => {
       expect(toCompact(expr)).toEqual([
         'n',
         [
-          ['u', [['i', 'A'], ['i', 'B']]],
+          [
+            'u',
+            [
+              ['i', 'A'],
+              ['i', 'B'],
+            ],
+          ],
           ['x', ['i', 'C'], [['i', 'D']]],
         ],
       ])
@@ -140,18 +164,36 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('expands union', () => {
-      const compact: CompactExpr = ['u', [['i', 'A'], ['i', 'B']]]
+      const compact: CompactExpr = [
+        'u',
+        [
+          ['i', 'A'],
+          ['i', 'B'],
+        ],
+      ]
       expect(fromCompact(compact)).toEqual({
         kind: 'union',
-        operands: [{ kind: 'identity', id: 'A' }, { kind: 'identity', id: 'B' }],
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
     it('expands intersect', () => {
-      const compact: CompactExpr = ['n', [['i', 'A'], ['i', 'B']]]
+      const compact: CompactExpr = [
+        'n',
+        [
+          ['i', 'A'],
+          ['i', 'B'],
+        ],
+      ]
       expect(fromCompact(compact)).toEqual({
         kind: 'intersect',
-        operands: [{ kind: 'identity', id: 'A' }, { kind: 'identity', id: 'B' }],
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
@@ -168,7 +210,13 @@ describe('AUTH_V2: Expression Compaction', () => {
       const compact: CompactExpr = [
         'n',
         [
-          ['u', [['i', 'A'], ['s', [{ n: ['ws1'] }], ['i', 'B']]]],
+          [
+            'u',
+            [
+              ['i', 'A'],
+              ['s', [{ n: ['ws1'] }], ['i', 'B']],
+            ],
+          ],
           ['x', ['i', 'C'], [['i', 'D']]],
         ],
       ]
@@ -222,7 +270,9 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('throws on missing operands for intersect', () => {
-      expect(() => fromCompact(['n', [['i', 'A']]])).toThrow('intersect must have at least 2 operands')
+      expect(() => fromCompact(['n', [['i', 'A']]])).toThrow(
+        'intersect must have at least 2 operands',
+      )
     })
 
     it('throws on invalid scope expression', () => {
@@ -234,7 +284,9 @@ describe('AUTH_V2: Expression Compaction', () => {
     })
 
     it('throws on invalid scope.nodes type', () => {
-      expect(() => fromCompact(['s', [{ n: 'not-array' }], ['i', 'A']])).toThrow('Invalid scope.nodes')
+      expect(() => fromCompact(['s', [{ n: 'not-array' }], ['i', 'A']])).toThrow(
+        'Invalid scope.nodes',
+      )
     })
 
     it('throws on invalid scope.nodes element type', () => {
@@ -289,7 +341,15 @@ describe('AUTH_V2: Expression Compaction', () => {
         ],
       }
       const compact = toCompact(expr)
-      expect(compact).toEqual(['x', ['i', 'A'], [['i', 'B'], ['i', 'C'], ['i', 'D']]])
+      expect(compact).toEqual([
+        'x',
+        ['i', 'A'],
+        [
+          ['i', 'B'],
+          ['i', 'C'],
+          ['i', 'D'],
+        ],
+      ])
       expect(fromCompact(compact)).toEqual(expr)
     })
   })
@@ -304,7 +364,13 @@ describe('AUTH_V2: Expression Compaction', () => {
       const json = toCompactJSON(expr)
 
       expect(typeof json).toBe('string')
-      expect(JSON.parse(json)).toEqual(['u', [['i', 'A'], ['i', 'B']]])
+      expect(JSON.parse(json)).toEqual([
+        'u',
+        [
+          ['i', 'A'],
+          ['i', 'B'],
+        ],
+      ])
     })
 
     it('fromCompactJSON parses from string', () => {
@@ -313,7 +379,10 @@ describe('AUTH_V2: Expression Compaction', () => {
 
       expect(expr).toEqual({
         kind: 'union',
-        operands: [{ kind: 'identity', id: 'A' }, { kind: 'identity', id: 'B' }],
+        operands: [
+          { kind: 'identity', id: 'A' },
+          { kind: 'identity', id: 'B' },
+        ],
       })
     })
 
@@ -393,7 +462,11 @@ describe('AUTH_V2: Expression Compaction', () => {
       // Empty scope {} is preserved to maintain round-trip consistency
       const compact = ['s', [{}], ['i', 'USER1']]
       const expanded = fromCompact(compact)
-      expect(expanded).toEqual({ kind: 'scope', scopes: [{}], expr: { kind: 'identity', id: 'USER1' } })
+      expect(expanded).toEqual({
+        kind: 'scope',
+        scopes: [{}],
+        expr: { kind: 'identity', id: 'USER1' },
+      })
     })
 
     it('rejects array passed as scope object', () => {

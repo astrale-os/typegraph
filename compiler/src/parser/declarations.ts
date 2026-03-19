@@ -60,7 +60,9 @@ export function parseDeclaration(p: ParserContext): DeclarationNode | null {
 
 // --- type Name = TypeExpr [modifiers]  or  type Name = { fields } ---
 
-function parseTypeAlias(p: ParserContext): TypeAliasDeclNode | ValueTypeDeclNode | TaggedUnionDeclNode {
+function parseTypeAlias(
+  p: ParserContext,
+): TypeAliasDeclNode | ValueTypeDeclNode | TaggedUnionDeclNode {
   const children: CstChild[] = []
 
   const typeKeyword = p.expectKeyword('type')

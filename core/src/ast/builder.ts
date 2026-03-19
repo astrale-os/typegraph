@@ -782,11 +782,7 @@ export class QueryAST {
   /**
    * Add an unwind step to expand an array field.
    */
-  addUnwind(config: {
-    sourceAlias: string
-    field: string
-    itemAlias: string
-  }): QueryAST {
+  addUnwind(config: { sourceAlias: string; field: string; itemAlias: string }): QueryAST {
     if (!this._aliases.has(config.sourceAlias)) {
       throw new Error(`Source alias '${config.sourceAlias}' does not exist`)
     }

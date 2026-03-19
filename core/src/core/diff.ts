@@ -214,11 +214,7 @@ export function diffCore(
       // Same kind — diff properties
       const nodeDef = schema.nodes[prevNode.kind]
       const indexMap = buildPropertyIndexMap(nodeDef?.indexes)
-      const changes = diffProperties(
-        prevNode.properties,
-        currNode.properties,
-        indexMap,
-      )
+      const changes = diffProperties(prevNode.properties, currNode.properties, indexMap)
       if (changes.length > 0) {
         nodesModified.push({ refKey: key, kind: prevNode.kind, changes })
         // Add warnings for indexed property changes
@@ -242,27 +238,42 @@ export function diffCore(
   const edgeKey = (e: { kind: string; from: string; to: string }) =>
     JSON.stringify([e.kind, e.from, e.to])
 
-  const prevEdgeMap = new Map<string, { kind: string; from: string; to: string; properties?: Record<string, unknown> }>()
+  const prevEdgeMap = new Map<
+    string,
+    { kind: string; from: string; to: string; properties?: Record<string, unknown> }
+  >()
   for (const e of prevEdges) {
     const k = edgeKey(e)
     if (prevEdgeMap.has(k)) {
-      warnings.push(`Duplicate edge in previous: '${e.kind}' from '${e.from}' to '${e.to}' (last occurrence used)`)
+      warnings.push(
+        `Duplicate edge in previous: '${e.kind}' from '${e.from}' to '${e.to}' (last occurrence used)`,
+      )
     }
     prevEdgeMap.set(k, e)
   }
 
-  const currEdgeMap = new Map<string, { kind: string; from: string; to: string; properties?: Record<string, unknown> }>()
+  const currEdgeMap = new Map<
+    string,
+    { kind: string; from: string; to: string; properties?: Record<string, unknown> }
+  >()
   for (const e of currEdges) {
     const k = edgeKey(e)
     if (currEdgeMap.has(k)) {
-      warnings.push(`Duplicate edge in current: '${e.kind}' from '${e.from}' to '${e.to}' (last occurrence used)`)
+      warnings.push(
+        `Duplicate edge in current: '${e.kind}' from '${e.from}' to '${e.to}' (last occurrence used)`,
+      )
     }
     currEdgeMap.set(k, e)
   }
 
   const edgesAdded: { kind: string; fromKey: string; toKey: string }[] = []
   const edgesRemoved: { kind: string; fromKey: string; toKey: string }[] = []
-  const edgesModified: { kind: string; fromKey: string; toKey: string; changes: PropertyChange[] }[] = []
+  const edgesModified: {
+    kind: string
+    fromKey: string
+    toKey: string
+    changes: PropertyChange[]
+  }[] = []
 
   // Added edges
   for (const [key, e] of currEdgeMap) {
@@ -275,9 +286,7 @@ export function diffCore(
   for (const [key, e] of prevEdgeMap) {
     if (!currEdgeMap.has(key)) {
       edgesRemoved.push({ kind: e.kind, fromKey: e.from, toKey: e.to })
-      breakingReasons.push(
-        `Edge '${e.kind}' from '${e.from}' to '${e.to}' was removed`,
-      )
+      breakingReasons.push(`Edge '${e.kind}' from '${e.from}' to '${e.to}' was removed`)
     }
   }
 
@@ -288,11 +297,7 @@ export function diffCore(
 
     const edgeDef = schema.edges[prevEdge.kind]
     const indexMap = buildPropertyIndexMap(edgeDef?.indexes)
-    const changes = diffProperties(
-      prevEdge.properties ?? {},
-      currEdge.properties ?? {},
-      indexMap,
-    )
+    const changes = diffProperties(prevEdge.properties ?? {}, currEdge.properties ?? {}, indexMap)
     if (changes.length > 0) {
       edgesModified.push({
         kind: prevEdge.kind,

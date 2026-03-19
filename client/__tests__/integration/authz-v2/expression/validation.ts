@@ -5,7 +5,15 @@
  * Pure functions, no I/O.
  */
 
-import type { IdentityExpr, Grant, NodeId, Permission, IdentityId, Scope, PermissionMask } from '../types'
+import type {
+  IdentityExpr,
+  Grant,
+  NodeId,
+  Permission,
+  IdentityId,
+  Scope,
+  PermissionMask,
+} from '../types'
 
 const ALL_PERMS = 0x7fffffff
 
@@ -26,7 +34,9 @@ export function validatePermission(perm: unknown): asserts perm is Permission {
 /** Validate a value is a valid PermissionMask (non-negative integer within range). */
 export function validatePermissionMask(mask: unknown): asserts mask is PermissionMask {
   if (typeof mask !== 'number' || !Number.isInteger(mask) || mask < 0 || mask > ALL_PERMS) {
-    throw new Error(`Invalid permission mask: must be a non-negative integer within range (got ${mask})`)
+    throw new Error(
+      `Invalid permission mask: must be a non-negative integer within range (got ${mask})`,
+    )
   }
 }
 

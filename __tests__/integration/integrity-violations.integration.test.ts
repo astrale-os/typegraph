@@ -266,7 +266,10 @@ describe('Data Integrity', () => {
     await ctx.graph.mutate.unlinkAllFrom('authored', testUser.id)
 
     // Verify none remain
-    const remaining = await ctx.graph.nodeByIdWithLabel('user', testUser.id).to('authored').execute()
+    const remaining = await ctx.graph
+      .nodeByIdWithLabel('user', testUser.id)
+      .to('authored')
+      .execute()
     expect(remaining.length).toBe(0)
 
     // Posts should still exist

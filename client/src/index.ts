@@ -201,7 +201,14 @@ export type {
   PathNode,
   PathEdge,
 } from './query'
-export { collect, collectDistinct, isCollectMarker, TypedReturningBuilder, MatchBuilder, buildMatchAST } from './query'
+export {
+  collect,
+  collectDistinct,
+  isCollectMarker,
+  TypedReturningBuilder,
+  MatchBuilder,
+  buildMatchAST,
+} from './query'
 export type { MatchConfig, MatchNodeConfig, MatchEdgeConfig } from './query'
 
 // =============================================================================

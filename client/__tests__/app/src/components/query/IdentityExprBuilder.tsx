@@ -20,9 +20,11 @@ function emptyIdentity(): ExprNode {
 }
 
 function isEmptyScope(scope: Scope): boolean {
-  return (!scope.nodes || scope.nodes.length === 0) &&
-         (!scope.perms || scope.perms.length === 0) &&
-         (!scope.principals || scope.principals.length === 0)
+  return (
+    (!scope.nodes || scope.nodes.length === 0) &&
+    (!scope.perms || scope.perms.length === 0) &&
+    (!scope.principals || scope.principals.length === 0)
+  )
 }
 
 function exprNodeToIdentityExpr(node: ExprNode): IdentityExpr | null {

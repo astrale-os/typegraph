@@ -154,14 +154,10 @@ describe('Complex Query Patterns', () => {
       { id: 'optional-chain-b' },
     )
 
-    const folderA = await ctx.graph.mutate.createChild(
-      'folder',
-      folderB.id,
-      {
-        name: 'Folder A',
-        path: '/b/a',
-      },
-    )
+    const folderA = await ctx.graph.mutate.createChild('folder', folderB.id, {
+      name: 'Folder A',
+      path: '/b/a',
+    })
 
     // Query: A -> parent -> parent (should return empty since B has no parent)
     const grandparents = await ctx.graph
@@ -316,10 +312,7 @@ describe('Complex Query Patterns', () => {
   it('hierarchy - ancestors with depth', async () => {
     const deepFolder = ctx.data.folders.work
 
-    const ancestors = await ctx.graph
-      .nodeByIdWithLabel('folder', deepFolder)
-      .ancestors()
-      .execute()
+    const ancestors = await ctx.graph.nodeByIdWithLabel('folder', deepFolder).ancestors().execute()
 
     expect(ancestors.length).toBe(2) // docs and root
     // Use type assertion since ancestors return type may not include folder properties
@@ -365,10 +358,7 @@ describe('Complex Query Patterns', () => {
     })
 
     // Query siblings of child1
-    const siblings = await ctx.graph
-      .nodeByIdWithLabel('folder', child1.id)
-      .siblings()
-      .execute()
+    const siblings = await ctx.graph.nodeByIdWithLabel('folder', child1.id).siblings().execute()
 
     expect(siblings).toHaveLength(1)
     expect(siblings[0]!.id).toBe(child2.id)
@@ -392,12 +382,7 @@ describe('Complex Query Patterns', () => {
         // Active users named Alice
         where.and(where.eq('status', 'active'), where.eq('name', 'Alice')),
         // NOT (inactive AND name is Charlie)
-        where.not(
-          where.and(
-            where.eq('status', 'inactive'),
-            where.eq('name', 'Charlie'),
-          ),
-        ),
+        where.not(where.and(where.eq('status', 'inactive'), where.eq('name', 'Charlie'))),
       ),
     )
 

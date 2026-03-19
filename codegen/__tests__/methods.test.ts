@@ -268,7 +268,9 @@ describe('method codegen', () => {
   it('generates correct param signatures', () => {
     const { source } = generate([ir])
     // canPurchase has required param
-    expect(source).toContain('canPurchase(args: { product: ProductId }): boolean | Promise<boolean>')
+    expect(source).toContain(
+      'canPurchase(args: { product: ProductId }): boolean | Promise<boolean>',
+    )
     // recentOrders has param with default → optional
     expect(source).toContain('recentOrders(args?: { limit?: number }): Order[] | Promise<Order[]>')
   })
@@ -327,7 +329,9 @@ describe('method codegen', () => {
 
   it('emits createMethodFactory and OperationSelf imports when methods exist', () => {
     const { source } = generate([ir])
-    expect(source).toContain("import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runtime'")
+    expect(source).toContain(
+      "import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runtime'",
+    )
   })
 
   it('emits defineMethods factory and per-type wrappers', () => {
@@ -335,9 +339,15 @@ describe('method codegen', () => {
     expect(source).toContain(
       'export const defineMethods = createMethodFactory<typeof schema, GeneratedTypeMap>()',
     )
-    expect(source).toContain('export const defineCustomerMethods = defineMethods.withSelf<CustomerNode>()')
-    expect(source).toContain('export const defineOrderMethods = defineMethods.withSelf<OrderNode>()')
-    expect(source).toContain('export const defineOrderItemMethods = defineMethods.withSelf<OrderItemPayload & OperationSelf>()')
+    expect(source).toContain(
+      'export const defineCustomerMethods = defineMethods.withSelf<CustomerNode>()',
+    )
+    expect(source).toContain(
+      'export const defineOrderMethods = defineMethods.withSelf<OrderNode>()',
+    )
+    expect(source).toContain(
+      'export const defineOrderItemMethods = defineMethods.withSelf<OrderItemPayload & OperationSelf>()',
+    )
   })
 
   it('emits Method Factory section header', () => {
@@ -348,12 +358,16 @@ describe('method codegen', () => {
   it('result schema for Node return type uses validators (not z.string())', () => {
     const { source } = generate([ir])
     expect(source).toContain('z.array(validators.Order)')
-    expect(source).not.toContain("recentOrders: op('Customer.recentOrders', 'private', z.object({ limit: z.number().int().default(10) }), z.array(z.string()))")
+    expect(source).not.toContain(
+      "recentOrders: op('Customer.recentOrders', 'private', z.object({ limit: z.number().int().default(10) }), z.array(z.string()))",
+    )
   })
 
   it('param schema for Node param type stays as z.string()', () => {
     const { source } = generate([ir])
-    expect(source).toContain("canPurchase: op('Customer.canPurchase', 'public', z.object({ product: z.string() })")
+    expect(source).toContain(
+      "canPurchase: op('Customer.canPurchase', 'public', z.object({ product: z.string() })",
+    )
   })
 
   it('scaffold uses per-type define functions', () => {
@@ -558,7 +572,9 @@ describe('method codegen — KRL integration', () => {
         fn canPurchase(product: Product): Boolean
       }
     `)
-    expect(source).toContain('canPurchase(args: { product: ProductId }): boolean | Promise<boolean>')
+    expect(source).toContain(
+      'canPurchase(args: { product: ProductId }): boolean | Promise<boolean>',
+    )
   })
 
   it('generates method with default params from KRL', () => {

@@ -13,7 +13,9 @@
   "bin": {
     "typegraph-codegen": "dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest",

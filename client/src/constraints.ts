@@ -18,7 +18,10 @@ export interface ConstraintSchemaInfo {
 }
 
 export interface ConstraintEdgeDef {
-  readonly endpoints: Record<string, { types: readonly string[]; cardinality?: { min: number; max: number | null } }>
+  readonly endpoints: Record<
+    string,
+    { types: readonly string[]; cardinality?: { min: number; max: number | null } }
+  >
   readonly constraints?: Partial<{
     no_self: boolean
     acyclic: boolean
@@ -126,13 +129,11 @@ export async function enforceConstraints(
     const max = epDef[param].cardinality?.max
     if (max !== undefined && max !== null) {
       const nodeId = endpoints.mapping[param]
-      const pattern = i === 0
-        ? `(n {id: $nodeId})-[:${edgeType}]->()`
-        : `()-[:${edgeType}]->(n {id: $nodeId})`
-      const [row] = await adapter.query<{ c: number }>(
-        `MATCH ${pattern} RETURN count(*) AS c`,
-        { nodeId },
-      )
+      const pattern =
+        i === 0 ? `(n {id: $nodeId})-[:${edgeType}]->()` : `()-[:${edgeType}]->(n {id: $nodeId})`
+      const [row] = await adapter.query<{ c: number }>(`MATCH ${pattern} RETURN count(*) AS c`, {
+        nodeId,
+      })
       if ((row?.c ?? 0) >= max) {
         throw new ConstraintViolation(
           edgeType,

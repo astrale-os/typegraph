@@ -907,9 +907,7 @@ export class CypherCompiler implements QueryCompilerProvider {
    *
    * Returns null if the pattern doesn't match (falls back to generic compilation).
    */
-  private tryCompileOptimizedConnectedTo(
-    condition: SubqueryCondition,
-  ): string | null {
+  private tryCompileOptimizedConnectedTo(condition: SubqueryCondition): string | null {
     const { query } = condition
 
     // Pattern: exactly 1 traversal + 1 where step
@@ -1000,15 +998,13 @@ export class CypherCompiler implements QueryCompilerProvider {
    */
   private compileReturnStep(step: ReturnStep): void {
     if (step.countOnly) {
-      const alias =
-        step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
+      const alias = step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
       this.clauses.push(`RETURN count(${alias}) AS count`)
       return
     }
 
     if (step.existsOnly) {
-      const alias =
-        step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
+      const alias = step.returns[0]?.kind === 'alias' ? step.returns[0].alias : 'n0'
       this.clauses.push(`RETURN count(${alias}) > 0 AS exists`)
       return
     }

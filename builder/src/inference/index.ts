@@ -1,14 +1,6 @@
-export type {
-  ExtractProps,
-  InferProps,
-  ExtractFullProps,
-} from './props.js'
+export type { ExtractProps, InferProps, ExtractFullProps } from './props.js'
 
-export type {
-  ExtractData,
-  ExtractFullData,
-  HasData,
-} from './data.js'
+export type { ExtractData, ExtractFullData, HasData } from './data.js'
 
 export type {
   ExtractMethods,
@@ -22,6 +14,4 @@ export type {
   MethodSelf,
 } from './methods.js'
 
-export type {
-  ExtractNodeInput,
-} from './input.js'
+export type { ExtractNodeInput } from './input.js'

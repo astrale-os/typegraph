@@ -5,9 +5,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": [
-      "ES2022"
-    ],
+    "lib": ["ES2022"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -26,14 +24,6 @@
     "incremental": true,
     "tsBuildInfoFile": "/Users/bryandjafer/Documents/astrale/workspace/typegraph/node_modules/.pnpm/vitest@2.1.9_@types+node@22.19.7/node_modules/vitest/dist/chunks/tsconfig.tmp.tsbuildinfo"
   },
-  "include": [
-    "src",
-    "__tests__",
-    "*.ts"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "__tests__/app"
-  ]
+  "include": ["src", "__tests__", "*.ts"],
+  "exclude": ["dist", "node_modules", "__tests__/app"]
 }

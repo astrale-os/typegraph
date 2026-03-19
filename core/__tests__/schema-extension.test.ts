@@ -268,7 +268,10 @@ describe('Schema Extension', () => {
       const baseNode = node({ properties: { id: z.string() } })
       const leftNode = node({ properties: { leftProp: z.string() }, extends: [baseNode] })
       const rightNode = node({ properties: { rightProp: z.string() }, extends: [baseNode] })
-      const childNode = node({ properties: { childProp: z.string() }, extends: [leftNode, rightNode] })
+      const childNode = node({
+        properties: { childProp: z.string() },
+        extends: [leftNode, rightNode],
+      })
       const schema = defineSchema({
         nodes: { base: baseNode, left: leftNode, right: rightNode, child: childNode },
         edges: {},
@@ -392,9 +395,18 @@ describe('Schema Extension', () => {
       // Verify the diamond pattern actually uses visited tracking
       // by checking that 'base' properties appear exactly once
       const baseNode = node({ properties: { baseId: z.literal('base-value') } })
-      const leftNode = node({ properties: { leftId: z.literal('left-value') }, extends: [baseNode] })
-      const rightNode = node({ properties: { rightId: z.literal('right-value') }, extends: [baseNode] })
-      const childNode = node({ properties: { childId: z.literal('child-value') }, extends: [leftNode, rightNode] })
+      const leftNode = node({
+        properties: { leftId: z.literal('left-value') },
+        extends: [baseNode],
+      })
+      const rightNode = node({
+        properties: { rightId: z.literal('right-value') },
+        extends: [baseNode],
+      })
+      const childNode = node({
+        properties: { childId: z.literal('child-value') },
+        extends: [leftNode, rightNode],
+      })
       const schema = defineSchema({
         nodes: { base: baseNode, left: leftNode, right: rightNode, child: childNode },
         edges: {},
@@ -431,7 +443,12 @@ describe('Schema Extension', () => {
         extends: [ancestor1Node, ancestor2Node, ancestor3Node],
       })
       const schema = defineSchema({
-        nodes: { ancestor1: ancestor1Node, ancestor2: ancestor2Node, ancestor3: ancestor3Node, child: childNode },
+        nodes: {
+          ancestor1: ancestor1Node,
+          ancestor2: ancestor2Node,
+          ancestor3: ancestor3Node,
+          child: childNode,
+        },
         edges: {},
       })
 
@@ -456,7 +473,10 @@ describe('Schema Extension', () => {
 
       // Redefine user with different extends - should still inherit from entity
       // Use base.nodes.entity (the resolved node) as the extends ref
-      const extUserNode = node({ properties: { extName: z.string() }, extends: [base.nodes.entity] })
+      const extUserNode = node({
+        properties: { extName: z.string() },
+        extends: [base.nodes.entity],
+      })
       const extended = extendSchema(base, {
         nodes: {
           user: extUserNode,
@@ -489,8 +509,12 @@ describe('Schema Extension', () => {
       const level5Node = node({ properties: { p5: z.literal(5) }, extends: [level4Node] })
       const fullSchema = defineSchema({
         nodes: {
-          level0: level0Node, level1: level1Node, level2: level2Node,
-          level3: level3Node, level4: level4Node, level5: level5Node,
+          level0: level0Node,
+          level1: level1Node,
+          level2: level2Node,
+          level3: level3Node,
+          level4: level4Node,
+          level5: level5Node,
         },
         edges: {},
       })
@@ -558,12 +582,17 @@ describe('Schema Extension', () => {
       expect(adminSchema.safeParse({ entityId: 'entity', adminId: 'admin' }).success).toBe(false)
 
       // NEGATIVE: Should fail if wrong value for literal
-      expect(adminSchema.safeParse({ entityId: 'wrong', userId: 'user', adminId: 'admin' }).success).toBe(false)
+      expect(
+        adminSchema.safeParse({ entityId: 'wrong', userId: 'user', adminId: 'admin' }).success,
+      ).toBe(false)
     })
 
     it('child can make parent required property optional (override)', () => {
       const entityNode = node({ properties: { required: z.string() } })
-      const userNode = node({ properties: { required: z.string().optional() }, extends: [entityNode] })
+      const userNode = node({
+        properties: { required: z.string().optional() },
+        extends: [entityNode],
+      })
       const schema = defineSchema({
         nodes: { entity: entityNode, user: userNode },
         edges: {},

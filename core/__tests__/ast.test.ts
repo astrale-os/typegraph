@@ -30,7 +30,9 @@ describe('Immutability Invariants', () => {
   it('chained operations preserve intermediate states', () => {
     const ast1 = new QueryAST()
     const ast2 = ast1.addMatch('user')
-    const ast3 = ast2.addWhere([{ type: 'comparison', target: 'n0', field: 'active', operator: 'eq', value: true }])
+    const ast3 = ast2.addWhere([
+      { type: 'comparison', target: 'n0', field: 'active', operator: 'eq', value: true },
+    ])
     const ast4 = ast3.addTraversal({
       edges: ['follows'],
       direction: 'out',
@@ -49,7 +51,7 @@ describe('Immutability Invariants', () => {
     const ast = new QueryAST().addMatch('user')
 
     expect(() => {
-      (ast.steps as unknown[]).push({ type: 'match', label: 'hacked', alias: 'x' })
+      ;(ast.steps as unknown[]).push({ type: 'match', label: 'hacked', alias: 'x' })
     }).toThrow()
   })
 
@@ -74,9 +76,9 @@ describe('Immutability Invariants', () => {
 describe('Alias Collision Prevention', () => {
   it('generates unique node aliases across operations', () => {
     const ast = new QueryAST()
-      .addMatch('user')      // n0
-      .addMatch('post')      // n1
-      .addMatch('comment')   // n2
+      .addMatch('user') // n0
+      .addMatch('post') // n1
+      .addMatch('comment') // n2
 
     const aliases = Array.from(ast.aliases.keys())
     expect(aliases).toContain('n0')
@@ -112,7 +114,7 @@ describe('Alias Collision Prevention', () => {
   it('withAliasOffset creates offset counters for parallel branches', () => {
     const ast = new QueryAST().addMatch('user') // counter at 1
 
-    const branch1 = ast.withAliasOffset(0).addMatch('post')   // n1
+    const branch1 = ast.withAliasOffset(0).addMatch('post') // n1
     const branch2 = ast.withAliasOffset(100).addMatch('post') // n101
 
     expect(branch1.currentAlias).toBe('n1')
@@ -126,23 +128,19 @@ describe('Alias Collision Prevention', () => {
 
 describe('User Alias Management', () => {
   it('maps user alias to current internal alias', () => {
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addUserAlias('myUser')
+    const ast = new QueryAST().addMatch('user').addUserAlias('myUser')
 
     expect(ast.resolveUserAlias('myUser')).toBe('n0')
   })
 
   it('tracks edge user aliases separately from node aliases', () => {
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addTraversal({
-        edges: ['follows'],
-        direction: 'out',
-        toLabels: ['user'],
-        cardinality: 'many',
-        edgeUserAlias: 'followEdge',
-      })
+    const ast = new QueryAST().addMatch('user').addTraversal({
+      edges: ['follows'],
+      direction: 'out',
+      toLabels: ['user'],
+      cardinality: 'many',
+      edgeUserAlias: 'followEdge',
+    })
 
     // Edge alias resolves to internal edge alias (e-prefixed)
     const resolvedEdgeAlias = ast.resolveEdgeUserAlias('followEdge')
@@ -194,19 +192,17 @@ describe('Complex Query Patterns', () => {
   })
 
   it('builds variable-length path traversal with uniqueness constraint', () => {
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addTraversal({
-        edges: ['follows'],
-        direction: 'out',
-        toLabels: ['user'],
-        cardinality: 'many',
-        variableLength: {
-          min: 1,
-          max: 6,
-          uniqueness: 'nodes',
-        },
-      })
+    const ast = new QueryAST().addMatch('user').addTraversal({
+      edges: ['follows'],
+      direction: 'out',
+      toLabels: ['user'],
+      cardinality: 'many',
+      variableLength: {
+        min: 1,
+        max: 6,
+        uniqueness: 'nodes',
+      },
+    })
 
     const traversalStep = ast.steps.find((s) => s.type === 'traversal')
     expect(traversalStep).toBeDefined()
@@ -218,15 +214,13 @@ describe('Complex Query Patterns', () => {
   })
 
   it('builds hierarchy ancestors query with depth tracking', () => {
-    const ast = new QueryAST()
-      .addMatch('folder')
-      .addHierarchy({
-        operation: 'ancestors',
-        edge: 'hasParent',
-        hierarchyDirection: 'up',
-        maxDepth: 10,
-        includeDepth: true,
-      })
+    const ast = new QueryAST().addMatch('folder').addHierarchy({
+      operation: 'ancestors',
+      edge: 'hasParent',
+      hierarchyDirection: 'up',
+      maxDepth: 10,
+      includeDepth: true,
+    })
 
     const hierarchyStep = ast.steps.find((s) => s.type === 'hierarchy')
     if (hierarchyStep?.type === 'hierarchy') {
@@ -239,11 +233,15 @@ describe('Complex Query Patterns', () => {
   it('builds union branch combining two filtered queries', () => {
     const admins = new QueryAST()
       .addMatch('user')
-      .addWhere([{ type: 'comparison', target: 'n0', field: 'role', operator: 'eq', value: 'admin' }])
+      .addWhere([
+        { type: 'comparison', target: 'n0', field: 'role', operator: 'eq', value: 'admin' },
+      ])
 
     const verified = new QueryAST()
       .addMatch('user')
-      .addWhere([{ type: 'comparison', target: 'n0', field: 'verified', operator: 'eq', value: true }])
+      .addWhere([
+        { type: 'comparison', target: 'n0', field: 'verified', operator: 'eq', value: true },
+      ])
 
     const ast = new QueryAST().addBranch({
       operator: 'union',
@@ -319,9 +317,7 @@ describe('Where Conditions', () => {
       { type: 'comparison', target: 'n0', field: 'status', operator: 'eq', value: 'active' },
     ]
 
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addWhere(conditions)
+    const ast = new QueryAST().addMatch('user').addWhere(conditions)
 
     const whereStep = ast.steps.find((s) => s.type === 'where')
     if (whereStep?.type === 'where') {
@@ -343,9 +339,7 @@ describe('Where Conditions', () => {
       },
     ]
 
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addWhere(conditions)
+    const ast = new QueryAST().addMatch('user').addWhere(conditions)
 
     const whereStep = ast.steps.find((s) => s.type === 'where')
     if (whereStep?.type === 'where' && whereStep.conditions[0]?.type === 'logical') {
@@ -357,12 +351,16 @@ describe('Where Conditions', () => {
   it('handles exists and connectedTo conditions', () => {
     const conditions: WhereCondition[] = [
       { type: 'exists', target: 'n0', edge: 'profilePicture', direction: 'out', negated: false },
-      { type: 'connectedTo', target: 'n0', edge: 'belongsTo', direction: 'out', nodeId: 'tenant-123' },
+      {
+        type: 'connectedTo',
+        target: 'n0',
+        edge: 'belongsTo',
+        direction: 'out',
+        nodeId: 'tenant-123',
+      },
     ]
 
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addWhere(conditions)
+    const ast = new QueryAST().addMatch('user').addWhere(conditions)
 
     const whereStep = ast.steps.find((s) => s.type === 'where')
     if (whereStep?.type === 'where') {
@@ -398,17 +396,13 @@ describe('Projection Validation', () => {
   })
 
   it('rejects multi-node projection with unknown node alias', () => {
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addUserAlias('u')
+    const ast = new QueryAST().addMatch('user').addUserAlias('u')
 
     expect(() => ast.setMultiNodeProjection(['u', 'unknown'])).toThrow(/Unknown node alias/)
   })
 
   it('rejects multi-node projection with unknown edge alias', () => {
-    const ast = new QueryAST()
-      .addMatch('user')
-      .addUserAlias('u')
+    const ast = new QueryAST().addMatch('user').addUserAlias('u')
 
     expect(() => ast.setMultiNodeProjection(['u'], ['unknownEdge'])).toThrow(/Unknown edge alias/)
   })
@@ -447,7 +441,9 @@ describe('Serialization', () => {
   it('toJSON preserves all step data for reconstruction', () => {
     const ast = new QueryAST()
       .addMatch('user')
-      .addWhere([{ type: 'comparison', target: 'n0', field: 'active', operator: 'eq', value: true }])
+      .addWhere([
+        { type: 'comparison', target: 'n0', field: 'active', operator: 'eq', value: true },
+      ])
       .addLimit(10)
 
     const json = ast.toJSON() as { steps: unknown[] }
