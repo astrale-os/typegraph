@@ -38,7 +38,7 @@ export {
 export { collectAvailableProps } from './helpers/props.js'
 
 // Core
-export { node, edge, kernelRefs, defineCore } from './core/index.js'
+export { node, edge, kernelRefs, defineCore, CorePath, buildCorePath, isCorePath } from './core/index.js'
 
 // Seed
 export { defineSeed } from './seed/index.js'
@@ -103,7 +103,14 @@ export type {
   SchemaRefsMap,
 } from './schema/refs.js'
 
-export type { Ref, CoreInstance, CoreLink, RefsFromInstances, CoreDef } from './core/index.js'
+export type {
+  CoreNode,
+  CoreEdge,
+  PathTree,
+  CoreDef,
+  CoreNodeEntry,
+  CoreEdgeEntry,
+} from './core/index.js'
 
 export type { SeedDef } from './seed/index.js'
 

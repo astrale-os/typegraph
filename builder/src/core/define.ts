@@ -1,55 +1,105 @@
 import type { Schema } from '../schema/schema.js'
-import type { CoreInstance, CoreLink, Ref, CoreDef, RefsFromInstances } from './types.js'
+import type { CoreNode, CoreEdge, CoreDef, PathTree, CoreNodeEntry, CoreEdgeEntry } from './types.js'
+import { CorePath, buildCorePath, isCorePath } from './path.js'
 
-let refCounter = 0
-
-function resolveTarget(target: CoreInstance | Ref, instanceToRef: Map<CoreInstance, Ref>): Ref {
-  // oxlint-disable-next-line no-explicit-any
-  if ('type' in target && (target as any).type === 'core-instance') {
-    const resolved = instanceToRef.get(target as CoreInstance)
-    if (!resolved) throw new Error('CoreInstance not found in this core/seed definition')
-    return resolved
-  }
-  return target as Ref
-}
-
+/**
+ * Define the core (genesis) data for a domain.
+ *
+ * Returns an object whose top-level keys are CorePath values matching the
+ * node tree structure, plus metadata (__nodes, __edges, schema, domain).
+ *
+ * @example
+ * const core = defineCore(EcommerceSchema, {
+ *   nodes: {
+ *     electronics: node(Category, { name: 'Electronics' }, {
+ *       laptop: node(Product, { title: 'Laptop Pro' }),
+ *     }),
+ *     clothing: node(Category, { name: 'Clothing' }),
+ *   },
+ *   edges: [
+ *     edge(laptop, 'inCategory', electronics),
+ *   ],
+ * })
+ *
+ * core.electronics              // CorePath "/example.e-commerce/electronics"
+ * core.electronics.laptop       // CorePath "/example.e-commerce/electronics/laptop"
+ */
 export function defineCore<
   S extends Schema,
-  const N extends string,
-  const Nodes extends Record<string, CoreInstance>,
+  const Nodes extends Record<string, CoreNode>,
 >(
   schema: S,
-  namespace: N,
-  config: { nodes: Nodes; links?: readonly CoreLink[] },
-): CoreDef<S, N, RefsFromInstances<Nodes>> {
-  const operations: Array<{ type: 'create' | 'link'; args: unknown[] }> = []
-  const instanceToRef = new Map<CoreInstance, Ref>()
+  config: { nodes: Nodes; edges?: readonly CoreEdge[] },
+): CoreDef<S, PathTree<Nodes>> & PathTree<Nodes> {
+  const domain = schema.domain
+  const nodeToPath = new Map<CoreNode, CorePath>()
+  const flatNodes: CoreNodeEntry[] = []
 
-  for (const [, instance] of Object.entries(config.nodes)) {
-    const id = `${namespace}:__ref_${++refCounter}`
-    const r: Ref = { __ref: true, __def: instance.__nodeDef, __id: id } as Ref
-    instanceToRef.set(instance, r)
-    operations.push({ type: 'create', args: [instance.__nodeDef, instance.__data, r] })
-  }
+  // Recursively walk the node tree, build CorePath for each, collect flat list
+  function walkNodes(
+    nodes: Record<string, CoreNode>,
+    parentSlugs: string[],
+    parentPath: CorePath | undefined,
+    result: Record<string, any>,
+  ): void {
+    for (const [key, coreNode] of Object.entries(nodes)) {
+      const slugs = [...parentSlugs, key]
+      const nodePath = buildCorePath(domain, slugs)
+      nodeToPath.set(coreNode, nodePath)
+      flatNodes.push({
+        path: nodePath,
+        def: coreNode.__nodeDef,
+        data: coreNode.__data,
+        parent: parentPath,
+      })
 
-  if (config.links) {
-    for (const lnk of config.links) {
-      const from = resolveTarget(lnk.__from, instanceToRef)
-      const to = resolveTarget(lnk.__to, instanceToRef)
-      operations.push({ type: 'link', args: [from, lnk.__edge, to, lnk.__data] })
+      const children = coreNode.__children as Record<string, CoreNode>
+      const hasChildren = Object.keys(children).length > 0
+
+      if (hasChildren) {
+        // Parent node: CorePath instance with child properties attached
+        const childPaths: Record<string, any> = {}
+        walkNodes(children, slugs, nodePath, childPaths)
+        // Attach child paths as properties on the CorePath instance
+        for (const [childKey, childPath] of Object.entries(childPaths)) {
+          Object.defineProperty(nodePath, childKey, {
+            value: childPath,
+            enumerable: true,
+            configurable: false,
+            writable: false,
+          })
+        }
+        result[key] = nodePath
+      } else {
+        result[key] = nodePath
+      }
     }
   }
 
-  const refs: Record<string, Ref> = {}
-  for (const [name, instance] of Object.entries(config.nodes)) {
-    refs[name] = instanceToRef.get(instance)!
+  const pathTree: Record<string, any> = {}
+  walkNodes(config.nodes, [], undefined, pathTree)
+
+  // Resolve edges
+  const flatEdges: CoreEdgeEntry[] = []
+  if (config.edges) {
+    for (const e of config.edges) {
+      const fromPath = resolveNodeOrPath(e.__from, nodeToPath)
+      const toPath = resolveNodeOrPath(e.__to, nodeToPath)
+      flatEdges.push({ from: fromPath, edge: e.__edge, to: toPath, data: e.__data })
+    }
   }
 
-  return { schema, namespace, refs, __operations: operations } as unknown as CoreDef<
-    S,
-    N,
-    RefsFromInstances<Nodes>
-  >
+  return Object.assign(pathTree, {
+    schema,
+    domain,
+    __nodes: flatNodes,
+    __edges: flatEdges,
+  }) as CoreDef<S, PathTree<Nodes>> & PathTree<Nodes>
 }
 
-export { resolveTarget }
+function resolveNodeOrPath(target: CoreNode | CorePath, nodeToPath: Map<CoreNode, CorePath>): CorePath {
+  if (isCorePath(target)) return target
+  const p = nodeToPath.get(target as CoreNode)
+  if (!p) throw new Error('CoreNode not found in this core definition — was it declared in `nodes`?')
+  return p
+}

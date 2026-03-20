@@ -1,56 +1,79 @@
 import type { Schema } from '../schema/schema.js'
-import type { CoreInstance, CoreLink, Ref, CoreDef, RefsFromInstances } from '../core/types.js'
-import { resolveTarget } from '../core/define.js'
-
-let seedCounter = 0
+import type { CoreNode, CoreEdge, CoreDef, PathTree, CoreNodeEntry, CoreEdgeEntry } from '../core/types.js'
+import { buildCorePath, isCorePath, type CorePath } from '../core/path.js'
 
 export interface SeedDef<
   S extends Schema = Schema,
   C extends CoreDef = CoreDef,
-  R extends Record<string, Ref> = Record<string, Ref>,
+  _Paths extends Record<string, any> = Record<string, CorePath>,
 > {
   readonly schema: S
   readonly core: C
-  readonly refs: R
-  readonly __operations: ReadonlyArray<{ type: 'create' | 'link'; args: unknown[] }>
+  readonly domain: string
+  readonly __nodes: readonly CoreNodeEntry[]
+  readonly __edges: readonly CoreEdgeEntry[]
 }
 
+/**
+ * Define seed data that extends a core definition.
+ *
+ * Seed nodes are flat (no nesting). Edges can reference core paths.
+ *
+ * @example
+ * const seed = defineSeed(EcommerceSchema, core, {
+ *   nodes: { alice: node(Customer, { email: 'alice@ex.com' }) },
+ *   edges: [
+ *     edge(alice, 'placedOrder', order1),
+ *     edge(order1, 'orderItem', core.electronics.laptop, { quantity: 2 }),
+ *   ],
+ * })
+ *
+ * seed.alice  // CorePath "/example.e-commerce/alice"
+ */
 export function defineSeed<
   S extends Schema,
   C extends CoreDef<S>,
-  const Nodes extends Record<string, CoreInstance>,
+  const Nodes extends Record<string, CoreNode>,
 >(
   schema: S,
   core: C,
-  config: { nodes: Nodes; links?: readonly CoreLink[] },
-): SeedDef<S, C, RefsFromInstances<Nodes>> {
-  const operations: Array<{ type: 'create' | 'link'; args: unknown[] }> = []
-  const namespace = core.namespace
-  const instanceToRef = new Map<CoreInstance, Ref>()
+  config: { nodes: Nodes; edges?: readonly CoreEdge[] },
+): SeedDef<S, C, PathTree<Nodes>> & PathTree<Nodes> {
+  const domain = schema.domain
+  const nodeToPath = new Map<CoreNode, CorePath>()
+  const flatNodes: CoreNodeEntry[] = []
 
-  for (const [, instance] of Object.entries(config.nodes)) {
-    const id = `${namespace}:__seed_${++seedCounter}`
-    const r: Ref = { __ref: true, __def: instance.__nodeDef, __id: id } as Ref
-    instanceToRef.set(instance, r)
-    operations.push({ type: 'create', args: [instance.__nodeDef, instance.__data, r] })
+  // Seed nodes are flat — all live directly under the domain
+  const pathTree: Record<string, any> = {}
+  for (const [key, coreNode] of Object.entries(config.nodes)) {
+    const nodePath = buildCorePath(domain, [key])
+    nodeToPath.set(coreNode, nodePath)
+    flatNodes.push({ path: nodePath, def: coreNode.__nodeDef, data: coreNode.__data })
+    pathTree[key] = nodePath
   }
 
-  if (config.links) {
-    for (const lnk of config.links) {
-      const from = resolveTarget(lnk.__from, instanceToRef)
-      const to = resolveTarget(lnk.__to, instanceToRef)
-      operations.push({ type: 'link', args: [from, lnk.__edge, to, lnk.__data] })
+  // Resolve edges — targets can be seed nodes or core paths
+  const flatEdges: CoreEdgeEntry[] = []
+  if (config.edges) {
+    for (const e of config.edges) {
+      const fromPath = resolveNodeOrPath(e.__from, nodeToPath)
+      const toPath = resolveNodeOrPath(e.__to, nodeToPath)
+      flatEdges.push({ from: fromPath, edge: e.__edge, to: toPath, data: e.__data })
     }
   }
 
-  const refs: Record<string, Ref> = {}
-  for (const [name, instance] of Object.entries(config.nodes)) {
-    refs[name] = instanceToRef.get(instance)!
-  }
+  return Object.assign(pathTree, {
+    schema,
+    core,
+    domain,
+    __nodes: flatNodes,
+    __edges: flatEdges,
+  }) as SeedDef<S, C, PathTree<Nodes>> & PathTree<Nodes>
+}
 
-  return { schema, core, refs, __operations: operations } as unknown as SeedDef<
-    S,
-    C,
-    RefsFromInstances<Nodes>
-  >
+function resolveNodeOrPath(target: CoreNode | CorePath, nodeToPath: Map<CoreNode, CorePath>): CorePath {
+  if (isCorePath(target)) return target
+  const p = nodeToPath.get(target as CoreNode)
+  if (!p) throw new Error('CoreNode not found in this seed definition — was it declared in `nodes`?')
+  return p
 }

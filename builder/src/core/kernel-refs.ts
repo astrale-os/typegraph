@@ -1,6 +1,6 @@
-import type { Ref } from './types.js'
+import { buildCorePath } from './path.js'
 
 export const kernelRefs = {
-  root: { __ref: true, __def: null, __id: '__kernel:root' } as Ref,
-  system: { __ref: true, __def: null, __id: '__kernel:system' } as Ref,
+  root: buildCorePath('kernel.astrale.ai', []),
+  system: buildCorePath('kernel.astrale.ai', ['system']),
 }
