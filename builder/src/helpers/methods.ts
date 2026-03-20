@@ -1,5 +1,18 @@
 import type { Def } from '../defs/definition.js'
-import type { OpDef } from '../defs/operation.js'
+import type { OpDef, MethodInheritance } from '../defs/operation.js'
+import { SchemaValidationError } from '../schema/schema.js'
+
+/** Resolved method with origin tracking for inheritance-aware validation. */
+export interface ResolvedMethod {
+  /** The OpDef for this method. */
+  opDef: OpDef
+  /** Effective inheritance: 'sealed' | 'abstract' | 'default'. */
+  inheritance: MethodInheritance
+  /** Name of the def that owns this method (interface or class). */
+  origin: string
+  /** Whether this method was declared with `override: true`. */
+  isOverride: boolean
+}
 
 /** Collect all method OpDef objects (own + inherited) from a def. */
 export function collectAllMethodDefs(def: Def): Record<string, OpDef> {
@@ -18,4 +31,157 @@ export function collectAllMethodDefs(def: Def): Record<string, OpDef> {
 /** Collect all method names (own + inherited). */
 export function collectAllMethodNames(def: Def): Set<string> {
   return new Set(Object.keys(collectAllMethodDefs(def)))
+}
+
+// ── Inheritance-aware resolution ──────────────────────────────────────────
+
+function getInheritance(opDef: OpDef): MethodInheritance {
+  const m = (opDef.config as { inheritance?: MethodInheritance }).inheritance
+  if (m === 'sealed') return 'sealed'
+  if (m === 'abstract') return 'abstract'
+  return 'default'
+}
+
+function getOverride(opDef: OpDef): boolean {
+  return (opDef.config as { override?: boolean }).override === true
+}
+
+interface InheritedAccum {
+  methods: Record<string, ResolvedMethod>
+  /** Track all origins per method name for diamond detection. */
+  originsByMethod: Record<string, string[]>
+}
+
+function collectInherited(
+  // oxlint-disable-next-line no-explicit-any
+  inherits: readonly Def<any>[] | undefined,
+  nameMap: Map<object, string>,
+): InheritedAccum {
+  const acc: InheritedAccum = { methods: {}, originsByMethod: {} }
+  if (!inherits) return acc
+
+  for (const parent of inherits) {
+    const parentResolved = resolveAllMethodsInternal(parent, nameMap)
+    for (const [name, rm] of Object.entries(parentResolved)) {
+      const existing = acc.methods[name]
+      if (existing) {
+        // Track multiple origins for diamond detection
+        if (existing.origin !== rm.origin) {
+          if (!acc.originsByMethod[name]) acc.originsByMethod[name] = [existing.origin]
+          if (!acc.originsByMethod[name].includes(rm.origin)) {
+            acc.originsByMethod[name].push(rm.origin)
+          }
+        }
+        // Sealed wins over everything (it's un-overridable)
+        if (existing.inheritance === 'sealed') continue
+        if (rm.inheritance === 'sealed') {
+          acc.methods[name] = rm
+          continue
+        }
+      }
+      acc.methods[name] = rm
+    }
+  }
+  return acc
+}
+
+function resolveAllMethodsInternal(
+  def: Def,
+  nameMap: Map<object, string>,
+): Record<string, ResolvedMethod> {
+  const defName = nameMap.get(def) ?? '?'
+
+  // Collect from parents first
+  // oxlint-disable-next-line no-explicit-any
+  const { methods: inherited, originsByMethod } = collectInherited(
+    (def.config as { inherits?: readonly Def[] }).inherits,
+    nameMap,
+  )
+
+  // Merge own methods
+  const result: Record<string, ResolvedMethod> = { ...inherited }
+  // oxlint-disable-next-line no-explicit-any
+  const ownMethods = (def.config as { methods?: Record<string, OpDef> }).methods
+  if (ownMethods) {
+    for (const [name, opDef] of Object.entries(ownMethods)) {
+      const inheritance = getInheritance(opDef)
+      const isOverride = getOverride(opDef)
+      const parentMethod = inherited[name]
+
+      // Sealed override check
+      if (parentMethod?.inheritance === 'sealed') {
+        throw new SchemaValidationError(
+          `'${defName}' cannot override sealed method '${name}' from '${parentMethod.origin}'`,
+          `${defName}.methods.${name}`,
+          `remove method '${name}' (sealed in '${parentMethod.origin}')`,
+          `method '${name}' with ${inheritance}`,
+        )
+      }
+
+      // Override keyword validation
+      if (parentMethod && parentMethod.inheritance !== 'abstract' && !isOverride) {
+        throw new SchemaValidationError(
+          `'${defName}.${name}' overrides '${parentMethod.origin}.${name}' but is not marked as override`,
+          `${defName}.methods.${name}`,
+          `op({ override: true, ... })`,
+          `op({ ... }) without override`,
+        )
+      }
+
+      if (isOverride && !parentMethod) {
+        throw new SchemaValidationError(
+          `'${defName}.${name}' is marked as override but no parent defines '${name}'`,
+          `${defName}.methods.${name}`,
+          `remove 'override: true' or add '${name}' to a parent interface`,
+          `override: true`,
+        )
+      }
+
+      result[name] = { opDef, inheritance, origin: defName, isOverride }
+    }
+  }
+
+  // Diamond conflict detection (only for concrete classes, not interfaces)
+  if (!(def.config as { abstract?: boolean }).abstract) {
+    for (const [name, origins] of Object.entries(originsByMethod)) {
+      if (origins.length > 1 && !ownMethods?.[name]) {
+        const rm = result[name]
+        if (rm && rm.inheritance === 'default') {
+          throw new SchemaValidationError(
+            `'${defName}' inherits conflicting default implementations of '${name}' from ${origins.map((o) => `'${o}'`).join(' and ')}. Must override explicitly.`,
+            `${defName}.methods.${name}`,
+            `add '${name}' with override: true to '${defName}'`,
+            `implicit inheritance`,
+          )
+        }
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Resolve all methods for a def with full inheritance/origin tracking.
+ * Validates sealed overrides, override keyword, and diamond conflicts.
+ *
+ * @param def The definition to resolve
+ * @param nameMap Map from def objects to their names (for error messages)
+ */
+export function resolveAllMethods(
+  def: Def,
+  nameMap: Map<object, string>,
+): Record<string, ResolvedMethod> {
+  return resolveAllMethodsInternal(def, nameMap)
+}
+
+/**
+ * Build a name map from a schema's defs record.
+ */
+export function buildNameMap(defs: Record<string, Def>): Map<object, string> {
+  const map = new Map<object, string>()
+  for (const [name, d] of Object.entries(defs)) {
+    map.set(d, name)
+  }
+  return map
 }

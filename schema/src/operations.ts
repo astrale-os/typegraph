@@ -17,6 +17,9 @@ export interface OperationDecl {
   /** Whether the return value can be null. Default: false (omitted). */
   returnsNullable?: boolean
 
-  /** Whether this is a static (class-level) method with no `self`. Default: false (omitted). */
-  static?: boolean
+  /** Whether this is a static (class-level) method with no `self`. */
+  static: boolean
+
+  /** Method inheritance. `'sealed'` = non-overridable, `'abstract'` = no impl, `'default'` = impl provided, overridable. */
+  inheritance: 'sealed' | 'abstract' | 'default'
 }

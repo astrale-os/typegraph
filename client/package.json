@@ -62,7 +62,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@astrale/typegraph-adapter-falkordb": "workspace:*",
     "@types/node": "^22.10.2",
     "falkordb": "^6.4.1",
     "neo4j-driver": "^5.27.0",

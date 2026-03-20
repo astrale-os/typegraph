@@ -414,7 +414,7 @@ describe('serialize', () => {
       expect(m.params['name']).toEqual({ type: 'string' })
     })
 
-    it('omits static field for non-static methods', () => {
+    it('defaults static to false for non-static methods', () => {
       const A = classDef({
         methods: {
           greet: op({ returns: z.string() }),
@@ -423,7 +423,7 @@ describe('serialize', () => {
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const m = findMethod(findNode(ir, 'A'), 'greet')!
-      expect(m.static).toBeUndefined()
+      expect(m.static).toBe(false)
     })
 
     it('serializes mixed static and instance methods', () => {
@@ -438,7 +438,7 @@ describe('serialize', () => {
       const initM = findMethod(findNode(ir, 'A'), 'init')!
       const renameM = findMethod(findNode(ir, 'A'), 'rename')!
       expect(initM.static).toBe(true)
-      expect(renameM.static).toBeUndefined()
+      expect(renameM.static).toBe(false)
     })
   })
 

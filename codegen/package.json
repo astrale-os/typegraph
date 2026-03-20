@@ -17,6 +17,7 @@
     "dist"
   ],
   "scripts": {
+    "preinstall": "node .check-workspace.cjs && node .ensure-bin.cjs",
     "build": "tsc",
     "test": "vitest",
     "check": "tsc --noEmit"

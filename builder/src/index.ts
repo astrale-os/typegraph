@@ -28,7 +28,13 @@ export { serialize, type SerializeOptions } from './serializer/index.js'
 export { schemaRefs } from './schema/refs.js'
 
 // Helpers
-export { collectAllMethodDefs, collectAllMethodNames } from './helpers/methods.js'
+export {
+  collectAllMethodDefs,
+  collectAllMethodNames,
+  resolveAllMethods,
+  buildNameMap,
+  type ResolvedMethod,
+} from './helpers/methods.js'
 export { collectAvailableProps } from './helpers/props.js'
 
 // Core
@@ -52,6 +58,7 @@ export type {
   DefConstraints,
   OpConfig,
   OpDef,
+  MethodInheritance,
   AnyDef,
 } from './defs/index.js'
 
@@ -72,6 +79,11 @@ export type {
   IsStaticMethod,
   MethodSelf,
   ExtractNodeInput,
+  ExtractMethodInheritance,
+  AllSealedKeys,
+  InheritedAbstractKeys,
+  InheritedDefaultKeys,
+  HasImplementableMethods,
 } from './inference/index.js'
 
 export type { Schema, Named } from './schema/schema.js'

@@ -12,6 +12,11 @@ export type {
   ExtractMethodReturns,
   ExtractMethodReturnValue,
   MethodSelf,
+  ExtractMethodInheritance,
+  AllSealedKeys,
+  InheritedAbstractKeys,
+  InheritedDefaultKeys,
+  HasImplementableMethods,
 } from './methods.js'
 
 export type { ExtractNodeInput } from './input.js'

@@ -84,3 +84,97 @@ export type MethodSelf<D> =
         }
       : ExtractFullProps<D> & { readonly id: string }
     : { readonly id: string }
+
+// ── Method inheritance type-level utilities ───────────────────────────────
+
+/** Extract the inheritance of a specific method. No inheritance = 'default'. */
+export type ExtractMethodInheritance<D, M extends string> =
+  GetMethodConfig<D, M> extends { inheritance: 'sealed' }
+    ? 'sealed'
+    : GetMethodConfig<D, M> extends { inheritance: 'abstract' }
+      ? 'abstract'
+      : 'default'
+
+/** Extract own sealed method keys from a def */
+type SealedOwnKeys<D> = {
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+    ? C extends { inheritance: 'sealed' }
+      ? M
+      : never
+    : never
+}[keyof ExtractMethods<D> & string]
+
+/** Collect sealed method keys recursively from inherits chain */
+type SealedKeysFromInherits<T> = T extends readonly [
+  infer Head extends Def<any>,
+  ...infer Tail extends readonly Def<any>[],
+]
+  ?
+      | SealedOwnKeys<Head>
+      | SealedKeysFromInherits<ExtractInherits<Head>>
+      | SealedKeysFromInherits<Tail>
+  : never
+
+/** All sealed method keys for a def (own + inherited) */
+export type AllSealedKeys<D> =
+  D extends Def<any> ? SealedOwnKeys<D> | SealedKeysFromInherits<ExtractInherits<D>> : never
+
+/** Extract own abstract method keys from a def */
+type AbstractOwnKeys<D> = {
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+    ? C extends { inheritance: 'abstract' }
+      ? M
+      : never
+    : never
+}[keyof ExtractMethods<D> & string]
+
+/** Collect abstract method keys recursively from inherits chain (only if not overridden) */
+type AbstractKeysFromInherits<T> = T extends readonly [
+  infer Head extends Def<any>,
+  ...infer Tail extends readonly Def<any>[],
+]
+  ?
+      | Exclude<AbstractOwnKeys<Head>, keyof ExtractMethods<Head>>
+      | AbstractKeysFromInherits<ExtractInherits<Head>>
+      | AbstractKeysFromInherits<Tail>
+  : never
+
+/** All abstract method keys inherited (not own) that need implementation */
+export type InheritedAbstractKeys<D> =
+  D extends Def<any>
+    ? Exclude<AbstractKeysFromInherits<ExtractInherits<D>>, keyof ExtractMethods<D>>
+    : never
+
+/** Extract own default (non-abstract, non-sealed) method keys from a def */
+type DefaultOwnKeys<D> = {
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+    ? C extends { inheritance: 'sealed' | 'abstract' }
+      ? never
+      : M
+    : never
+}[keyof ExtractMethods<D> & string]
+
+/** Default method keys inherited that are NOT overridden — these don't need class impl */
+type DefaultKeysFromInherits<T> = T extends readonly [
+  infer Head extends Def<any>,
+  ...infer Tail extends readonly Def<any>[],
+]
+  ?
+      | DefaultOwnKeys<Head>
+      | DefaultKeysFromInherits<ExtractInherits<Head>>
+      | DefaultKeysFromInherits<Tail>
+  : never
+
+/** All inherited default method keys for a def (own excluded, these use the interface impl) */
+export type InheritedDefaultKeys<D> =
+  D extends Def<any>
+    ? Exclude<DefaultKeysFromInherits<ExtractInherits<D>>, keyof ExtractMethods<D>>
+    : never
+
+/**
+ * Check if a def has non-abstract own methods (default or sealed) that need an implementation.
+ * Used to determine if an interface needs to appear in SchemaMethodsImpl.
+ */
+export type HasImplementableMethods<D> = DefaultOwnKeys<D> | SealedOwnKeys<D> extends never
+  ? false
+  : true

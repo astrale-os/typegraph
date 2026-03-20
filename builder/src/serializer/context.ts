@@ -227,9 +227,10 @@ export class SerializeContext {
       access: config.access === 'private' ? 'private' : 'public',
       params: this.serializeParams(config.params, _className, name),
       returns: this.convertZodSchema(returnInner),
+      static: config.static === true,
+      inheritance: config.inheritance ?? 'default',
     }
     if (returnNullable) op.returnsNullable = true
-    if (config.static) op.static = true
     return op
   }
 
