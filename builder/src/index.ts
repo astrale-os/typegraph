@@ -57,6 +57,7 @@ export type {
   EndpointCfg,
   DefConstraints,
   OpConfig,
+  ConcreteOpConfig,
   OpDef,
   MethodInheritance,
   AnyDef,

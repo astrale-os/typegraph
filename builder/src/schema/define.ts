@@ -9,6 +9,7 @@ import {
   validateEndpoints,
   validateIndexes,
   validateRefTargets,
+  validateMethods,
   type SchemaContext,
 } from './validators/index.js'
 
@@ -35,6 +36,7 @@ export function defineSchema<const D extends Record<string, AnyDef>>(
   validateEndpoints(ctx)
   validateIndexes(ctx)
   validateRefTargets(ctx)
+  validateMethods(ctx)
   const ops = buildOpsMap(ctx)
   return {
     domain,

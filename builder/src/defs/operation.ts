@@ -11,10 +11,13 @@ export interface OpConfig {
   readonly returns: z.ZodType
   readonly access?: Access
   readonly static?: boolean
-  /** Method inheritance. `'sealed'` = non-overridable, `'abstract'` = no impl, must be implemented by subtype. `'default'` or omitted = impl provided, overridable with `override: true`. */
+  /** Method inheritance. `'sealed'` = non-overridable, `'abstract'` = no impl, must be implemented by subtype. `'default'` or omitted = impl provided, overridable. */
   readonly inheritance?: MethodInheritance
-  /** Mark as an explicit override of a parent's default method. Required when overriding. */
-  readonly override?: boolean
+}
+
+/** OpConfig restricted to concrete defs: no inheritance allowed, only static. */
+export type ConcreteOpConfig = Omit<OpConfig, 'inheritance'> & {
+  readonly inheritance?: never
 }
 
 export interface OpDef<out C extends OpConfig = OpConfig> {

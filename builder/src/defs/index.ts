@@ -3,7 +3,14 @@ export type { DataShape } from './data.js'
 export type { IndexDef } from './indexing.js'
 export type { DefConstraints } from './constraints.js'
 export type { Cardinality, EndpointCfg } from './endpoint.js'
-export type { Access, ParamShape, OpConfig, OpDef, MethodInheritance } from './operation.js'
+export type {
+  Access,
+  ParamShape,
+  OpConfig,
+  ConcreteOpConfig,
+  OpDef,
+  MethodInheritance,
+} from './operation.js'
 export { op, method } from './operation.js'
 export type { DefType, DefConfig, Def, InterfaceConfig } from './definition.js'
 export { def, classDef, interfaceDef } from './definition.js'

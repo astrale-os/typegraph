@@ -10,7 +10,7 @@ export interface ResolvedMethod {
   inheritance: MethodInheritance
   /** Name of the def that owns this method (interface or class). */
   origin: string
-  /** Whether this method was declared with `override: true`. */
+  /** Whether this method overrides a parent's default implementation (auto-deduced). */
   isOverride: boolean
 }
 
@@ -40,10 +40,6 @@ function getInheritance(opDef: OpDef): MethodInheritance {
   if (m === 'sealed') return 'sealed'
   if (m === 'abstract') return 'abstract'
   return 'default'
-}
-
-function getOverride(opDef: OpDef): boolean {
-  return (opDef.config as { override?: boolean }).override === true
 }
 
 interface InheritedAccum {
@@ -105,7 +101,6 @@ function resolveAllMethodsInternal(
   if (ownMethods) {
     for (const [name, opDef] of Object.entries(ownMethods)) {
       const inheritance = getInheritance(opDef)
-      const isOverride = getOverride(opDef)
       const parentMethod = inherited[name]
 
       // Sealed override check
@@ -118,24 +113,8 @@ function resolveAllMethodsInternal(
         )
       }
 
-      // Override keyword validation
-      if (parentMethod && parentMethod.inheritance !== 'abstract' && !isOverride) {
-        throw new SchemaValidationError(
-          `'${defName}.${name}' overrides '${parentMethod.origin}.${name}' but is not marked as override`,
-          `${defName}.methods.${name}`,
-          `op({ override: true, ... })`,
-          `op({ ... }) without override`,
-        )
-      }
-
-      if (isOverride && !parentMethod) {
-        throw new SchemaValidationError(
-          `'${defName}.${name}' is marked as override but no parent defines '${name}'`,
-          `${defName}.methods.${name}`,
-          `remove 'override: true' or add '${name}' to a parent interface`,
-          `override: true`,
-        )
-      }
+      // Auto-deduce override: if parent has a default method, this is an override
+      const isOverride = !!parentMethod && parentMethod.inheritance === 'default'
 
       result[name] = { opDef, inheritance, origin: defName, isOverride }
     }
@@ -148,9 +127,9 @@ function resolveAllMethodsInternal(
         const rm = result[name]
         if (rm && rm.inheritance === 'default') {
           throw new SchemaValidationError(
-            `'${defName}' inherits conflicting default implementations of '${name}' from ${origins.map((o) => `'${o}'`).join(' and ')}. Must override explicitly.`,
+            `'${defName}' inherits conflicting default implementations of '${name}' from ${origins.map((o) => `'${o}'`).join(' and ')}. Must provide own implementation.`,
             `${defName}.methods.${name}`,
-            `add '${name}' with override: true to '${defName}'`,
+            `add '${name}' to '${defName}'`,
             `implicit inheritance`,
           )
         }
