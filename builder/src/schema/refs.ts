@@ -3,7 +3,11 @@ import type { Def } from '../defs/definition.js'
 import type { OpDef } from '../defs/operation.js'
 import type { ParamShape } from '../defs/operation.js'
 import type { z } from 'zod'
-import type { HasMethods, ExtractMethodNames } from '../inference/methods.js'
+import type {
+  HasMethods,
+  HasImplementableMethods,
+  ExtractMethodNames,
+} from '../inference/methods.js'
 import type { InferProps } from '../inference/props.js'
 
 // ── Schema-level type helpers ─────────────────────────────────────────────
@@ -23,6 +27,15 @@ export type MethodKeys<S extends Schema> = {
     : HasMethods<S['defs'][K]> extends true
       ? K
       : never
+}[keyof S['defs'] & string]
+
+/** Interface def keys that have implementable (sealed/default) methods */
+export type InterfaceMethodKeys<S extends Schema> = {
+  [K in keyof S['defs'] & string]: IsAbstract<S['defs'][K]> extends true
+    ? HasImplementableMethods<S['defs'][K]> extends true
+      ? K
+      : never
+    : never
 }[keyof S['defs'] & string]
 
 /** Infer params from a builder OpDef (handles thunk params) */

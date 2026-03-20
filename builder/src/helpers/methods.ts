@@ -35,6 +35,12 @@ export function collectAllMethodNames(def: Def): Set<string> {
 
 // ── Inheritance-aware resolution ──────────────────────────────────────────
 
+function getParamKeys(opDef: OpDef): string[] {
+  const raw = opDef.config.params
+  const params = typeof raw === 'function' ? raw() : raw
+  return params ? Object.keys(params) : []
+}
+
 function getInheritance(opDef: OpDef): MethodInheritance {
   const m = (opDef.config as { inheritance?: MethodInheritance }).inheritance
   if (m === 'sealed') return 'sealed'
@@ -115,6 +121,21 @@ function resolveAllMethodsInternal(
 
       // Auto-deduce override: if parent has a default method, this is an override
       const isOverride = !!parentMethod && parentMethod.inheritance === 'default'
+
+      // Default override: param keys must be a superset of the parent's
+      if (isOverride) {
+        const parentParams = getParamKeys(parentMethod.opDef)
+        const ownParams = getParamKeys(opDef)
+        const missing = parentParams.filter((k) => !ownParams.includes(k))
+        if (missing.length > 0) {
+          throw new SchemaValidationError(
+            `'${defName}.${name}' overrides default method from '${parentMethod.origin}' but is missing param keys: ${missing.join(', ')}`,
+            `${defName}.methods.${name}`,
+            `add missing params: ${missing.join(', ')}`,
+            `params: { ${ownParams.join(', ')} }`,
+          )
+        }
+      }
 
       result[name] = { opDef, inheritance, origin: defName, isOverride }
     }

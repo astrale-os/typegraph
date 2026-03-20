@@ -16,7 +16,9 @@ export type {
   AllSealedKeys,
   InheritedAbstractKeys,
   InheritedDefaultKeys,
+  AllParentDefaultKeys,
   HasImplementableMethods,
+  ImplementableOwnKeys,
 } from './methods.js'
 
 export type { ExtractNodeInput } from './input.js'

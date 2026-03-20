@@ -84,7 +84,9 @@ export type {
   AllSealedKeys,
   InheritedAbstractKeys,
   InheritedDefaultKeys,
+  AllParentDefaultKeys,
   HasImplementableMethods,
+  ImplementableOwnKeys,
 } from './inference/index.js'
 
 export type { Schema, Named } from './schema/schema.js'
@@ -92,6 +94,7 @@ export { SchemaValidationError } from './schema/schema.js'
 export type {
   DefForKey,
   MethodKeys,
+  InterfaceMethodKeys,
   InferOpParams,
   InferOpReturn,
   SchemaRefs,

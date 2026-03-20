@@ -171,10 +171,15 @@ export type InheritedDefaultKeys<D> =
     ? Exclude<DefaultKeysFromInherits<ExtractInherits<D>>, keyof ExtractMethods<D>>
     : never
 
+/** All default method keys from the parent chain (includes keys overridden by own methods) */
+export type AllParentDefaultKeys<D> =
+  D extends Def<any> ? DefaultKeysFromInherits<ExtractInherits<D>> : never
+
+/** Own method keys that need an implementation (sealed or default, not abstract) */
+export type ImplementableOwnKeys<D> = DefaultOwnKeys<D> | SealedOwnKeys<D>
+
 /**
  * Check if a def has non-abstract own methods (default or sealed) that need an implementation.
  * Used to determine if an interface needs to appear in SchemaMethodsImpl.
  */
-export type HasImplementableMethods<D> = DefaultOwnKeys<D> | SealedOwnKeys<D> extends never
-  ? false
-  : true
+export type HasImplementableMethods<D> = ImplementableOwnKeys<D> extends never ? false : true

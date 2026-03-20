@@ -9,6 +9,7 @@ export {
   type SchemaRefsMap,
   type DefForKey,
   type MethodKeys,
+  type InterfaceMethodKeys,
   type InferOpParams,
   type InferOpReturn,
 } from './refs.js'
