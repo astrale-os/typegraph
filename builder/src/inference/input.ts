@@ -3,21 +3,28 @@ import type { Def } from '../defs/definition.js'
 import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
 import type { ExtractData } from './data.js'
 
-/** Collect all props AND data from inherits chain — single traversal */
+/** Resolve one inherits entry: own props + data + recursive ancestors */
+type ResolveInheritsEntry<H extends Def<any>> =
+  InferProps<ExtractProps<H>> &
+  InferProps<ExtractData<H>> &
+  CollectInputFromInherits<ExtractInherits<H>>
+
+/** Collect all props AND data from inherits chain (later entries shadow earlier) */
 type CollectInputFromInherits<T> = T extends readonly [
   infer Head extends Def<any>,
   ...infer Tail extends readonly Def<any>[],
 ]
-  ? InferProps<ExtractProps<Head>> &
-      InferProps<ExtractData<Head>> &
-      CollectInputFromInherits<ExtractInherits<Head>> &
+  ? Omit<ResolveInheritsEntry<Head>, keyof CollectInputFromInherits<Tail>> &
       CollectInputFromInherits<Tail>
   : unknown
 
-/** Full inferred props AND data — single traversal for node() input */
+/** Full inferred props AND data — own props shadow inherited */
 export type ExtractNodeInput<D> =
   D extends Def<any>
-    ? InferProps<ExtractProps<D>> &
-        InferProps<ExtractData<D>> &
-        CollectInputFromInherits<ExtractInherits<D>>
+    ? Omit<
+        CollectInputFromInherits<ExtractInherits<D>>,
+        keyof InferProps<ExtractProps<D>> | keyof InferProps<ExtractData<D>>
+      > &
+        InferProps<ExtractProps<D>> &
+        InferProps<ExtractData<D>>
     : unknown

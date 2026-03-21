@@ -1,5 +1,12 @@
 import type { Schema } from '../schema/schema.js'
-import type { CoreNode, CoreEdge, CoreDef, PathTree, CoreNodeEntry, CoreEdgeEntry } from '../core/types.js'
+import type {
+  CoreNode,
+  CoreEdge,
+  CoreDef,
+  PathTree,
+  CoreNodeEntry,
+  CoreEdgeEntry,
+} from '../core/types.js'
 import { buildCorePath, isCorePath, type CorePath } from '../core/path.js'
 
 export interface SeedDef<
@@ -71,9 +78,13 @@ export function defineSeed<
   }) as SeedDef<S, C, PathTree<Nodes>> & PathTree<Nodes>
 }
 
-function resolveNodeOrPath(target: CoreNode | CorePath, nodeToPath: Map<CoreNode, CorePath>): CorePath {
+function resolveNodeOrPath(
+  target: CoreNode | CorePath,
+  nodeToPath: Map<CoreNode, CorePath>,
+): CorePath {
   if (isCorePath(target)) return target
   const p = nodeToPath.get(target as CoreNode)
-  if (!p) throw new Error('CoreNode not found in this seed definition — was it declared in `nodes`?')
+  if (!p)
+    throw new Error('CoreNode not found in this seed definition — was it declared in `nodes`?')
   return p
 }

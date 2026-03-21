@@ -6,20 +6,25 @@ import type { ExtractInherits, InferProps } from './props.js'
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ExtractData<D> = D extends { config: { data: infer P } } ? P : {}
 
-/** Collect data from an inherits list (own + recursive parents) */
+/** Resolve one inherits entry: own data + recursive ancestors */
+type ResolveDataEntry<H extends Def<any>> =
+  InferProps<ExtractData<H>> &
+  CollectDataFromInherits<ExtractInherits<H>>
+
+/** Collect data from an inherits list (later entries shadow earlier) */
 type CollectDataFromInherits<T> = T extends readonly [
   infer Head extends Def<any>,
   ...infer Tail extends readonly Def<any>[],
 ]
-  ? InferProps<ExtractData<Head>> &
-      CollectDataFromInherits<ExtractInherits<Head>> &
+  ? Omit<ResolveDataEntry<Head>, keyof CollectDataFromInherits<Tail>> &
       CollectDataFromInherits<Tail>
   : unknown
 
-/** Full inferred data: own + inherited from inherits chain */
+/** Full inferred data: own shadow inherited */
 export type ExtractFullData<D> =
   D extends Def<any>
-    ? InferProps<ExtractData<D>> & CollectDataFromInherits<ExtractInherits<D>>
+    ? Omit<CollectDataFromInherits<ExtractInherits<D>>, keyof InferProps<ExtractData<D>>> &
+        InferProps<ExtractData<D>>
     : unknown
 
 /** Check if a def has any data (own or inherited) */

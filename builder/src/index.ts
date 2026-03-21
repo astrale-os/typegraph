@@ -32,7 +32,6 @@ export {
   collectAllMethodDefs,
   collectAllMethodNames,
   resolveAllMethods,
-  buildNameMap,
   type ResolvedMethod,
 } from './helpers/methods.js'
 export { collectAvailableProps } from './helpers/props.js'
