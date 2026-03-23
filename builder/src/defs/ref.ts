@@ -29,7 +29,9 @@ export function ref(target: SelfDef): RefSchema<SelfDef, false>
 export function ref<D extends Def<any>>(target: D): RefSchema<D, false>
 export function ref<D extends Def<any>>(target: D, opts: { data: true }): RefSchema<D, true>
 export function ref<D extends Def<any>>(target: D, opts?: { data?: boolean }): RefSchema<D> {
-  const schema = z.custom<{ readonly id: string }>(() => true)
+  const schema = z
+    .union([z.string(), z.object({ id: z.string() }).passthrough()])
+    .transform((value) => (typeof value === 'string' ? { id: value } : value))
   ;(schema as any).__ref_target = target
   if (opts?.data) (schema as any).__ref_data = true
   return schema as unknown as RefSchema<D>
