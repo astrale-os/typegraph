@@ -1,5 +1,6 @@
 import type { Def } from '../defs/definition.js'
 import type { OpDef, MethodInheritance } from '../defs/operation.js'
+import { getDefName } from '../registry.js'
 import { SchemaValidationError } from '../schema/schema.js'
 
 /** Resolved method with origin tracking for inheritance-aware validation. */
@@ -57,13 +58,12 @@ interface InheritedAccum {
 function collectInherited(
   // oxlint-disable-next-line no-explicit-any
   inherits: readonly Def<any>[] | undefined,
-  nameMap: Map<object, string>,
 ): InheritedAccum {
   const acc: InheritedAccum = { methods: {}, originsByMethod: {} }
   if (!inherits) return acc
 
   for (const parent of inherits) {
-    const parentResolved = resolveAllMethodsInternal(parent, nameMap)
+    const parentResolved = resolveAllMethods(parent)
     for (const [name, rm] of Object.entries(parentResolved)) {
       const existing = acc.methods[name]
       if (existing) {
@@ -87,17 +87,13 @@ function collectInherited(
   return acc
 }
 
-function resolveAllMethodsInternal(
-  def: Def,
-  nameMap: Map<object, string>,
-): Record<string, ResolvedMethod> {
-  const defName = nameMap.get(def) ?? '?'
+export function resolveAllMethods(def: Def): Record<string, ResolvedMethod> {
+  const defName = getDefName(def) ?? '?'
 
   // Collect from parents first
   // oxlint-disable-next-line no-explicit-any
   const { methods: inherited, originsByMethod } = collectInherited(
     (def.config as { inherits?: readonly Def[] }).inherits,
-    nameMap,
   )
 
   // Merge own methods
@@ -161,27 +157,3 @@ function resolveAllMethodsInternal(
   return result
 }
 
-/**
- * Resolve all methods for a def with full inheritance/origin tracking.
- * Validates sealed overrides, override keyword, and diamond conflicts.
- *
- * @param def The definition to resolve
- * @param nameMap Map from def objects to their names (for error messages)
- */
-export function resolveAllMethods(
-  def: Def,
-  nameMap: Map<object, string>,
-): Record<string, ResolvedMethod> {
-  return resolveAllMethodsInternal(def, nameMap)
-}
-
-/**
- * Build a name map from a schema's defs record.
- */
-export function buildNameMap(defs: Record<string, Def>): Map<object, string> {
-  const map = new Map<object, string>()
-  for (const [name, d] of Object.entries(defs)) {
-    map.set(d, name)
-  }
-  return map
-}

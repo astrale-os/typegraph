@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 import { interfaceDef, classDef, method, ref } from '../defs/index.js'
 import { defineSchema } from '../schema/define.js'
-import { edge, node, defineCore } from '../core/index.js'
+import { edge, node, defineCore, CorePath, buildCorePath } from '../core/index.js'
+import { defineSeed } from '../seed/index.js'
 import { SchemaValidationError } from '../schema/schema.js'
 import { getDefName } from '../registry.js'
 
@@ -481,17 +482,179 @@ describe('edge() with Def (endpoints)', () => {
 // ── defineCore without edge validation ──────────────────────────────────────
 
 describe('defineCore edge validation removed', () => {
-  it('accepts links with external edge names', () => {
+  it('accepts edges with external edge names', () => {
     const N = classDef({})
     const schema = defineSchema('test', { N })
     const n1 = node(N, {})
     const n2 = node(N, {})
     // 'external_edge' is not in schema.defs — should not throw anymore
     expect(() =>
-      defineCore(schema, 'test', {
+      defineCore(schema, {
         nodes: { n1, n2 },
-        links: [edge(n1, 'external_edge', n2)],
+        edges: [edge(n1, 'external_edge', n2)],
       }),
     ).not.toThrow()
+  })
+})
+
+// ── CorePath ─────────────────────────────────────────────────────────────────
+
+describe('buildCorePath', () => {
+  it('rejects invalid slugs', () => {
+    expect(() => buildCorePath('domain', ['has space'])).toThrow()
+    expect(() => buildCorePath('domain', ['@invalid'])).toThrow()
+    expect(() => buildCorePath('domain', ['#bad'])).toThrow()
+    expect(() => buildCorePath('domain', [''])).toThrow()
+    expect(() => buildCorePath('domain', ['-leading'])).toThrow()
+  })
+
+  it('handles domain with dots', () => {
+    const p = buildCorePath('kernel.astrale.ai', ['system'])
+    expect(p.raw).toBe('/kernel.astrale.ai/system')
+  })
+})
+
+describe('CorePath string coercion', () => {
+  it('String(), template literal, and concatenation all match raw', () => {
+    const p = buildCorePath('test.domain', ['a', 'b'])
+    expect(String(p)).toBe(p.raw)
+    expect(`${p}`).toBe(p.raw)
+    expect(p + '').toBe(p.raw)
+  })
+})
+
+// ── defineCore path tree ─────────────────────────────────────────────────────
+
+describe('defineCore path tree', () => {
+  const N = classDef({})
+  const schema = defineSchema('my.domain', { N })
+
+  it('builds correct paths from nested tree', () => {
+    const c = node(N, {})
+    const b = node(N, {}, { c })
+    const a = node(N, {}, { b })
+    const core = defineCore(schema, { nodes: { a } })
+
+    expect(core.a.raw).toBe('/my.domain/a')
+    expect(core.a.b.raw).toBe('/my.domain/a/b')
+    expect(core.a.b.c.raw).toBe('/my.domain/a/b/c')
+  })
+
+  it('__nodes flat list includes all nodes with correct parent refs', () => {
+    const c = node(N, {})
+    const b = node(N, {}, { c })
+    const a = node(N, {}, { b })
+    const core = defineCore(schema, { nodes: { a } })
+
+    expect(core.__nodes).toHaveLength(3)
+
+    const nodeA = core.__nodes.find((n) => n.path.raw === '/my.domain/a')!
+    const nodeB = core.__nodes.find((n) => n.path.raw === '/my.domain/a/b')!
+    const nodeC = core.__nodes.find((n) => n.path.raw === '/my.domain/a/b/c')!
+
+    expect(nodeA.parent).toBeUndefined()
+    expect(nodeB.parent!.raw).toBe('/my.domain/a')
+    expect(nodeC.parent!.raw).toBe('/my.domain/a/b')
+  })
+
+  it('succeeds with no edges', () => {
+    const n1 = node(N, {})
+    const core = defineCore(schema, { nodes: { n1 } })
+
+    expect(core.__edges).toHaveLength(0)
+    expect(core.__nodes).toHaveLength(1)
+  })
+
+  it('path tree and metadata coexist on return object', () => {
+    const n1 = node(N, {})
+    const core = defineCore(schema, { nodes: { n1 } })
+
+    expect(core.n1).toBeInstanceOf(CorePath)
+    expect(Array.isArray(core.__nodes)).toBe(true)
+    expect(core.schema).toBe(schema)
+    expect(core.domain).toBe('my.domain')
+  })
+})
+
+// ── defineCore edge resolution ───────────────────────────────────────────────
+
+describe('defineCore edge resolution', () => {
+  const N = classDef({})
+  const schema = defineSchema('my.domain', { N })
+
+  it('resolves local CoreNode refs to correct paths', () => {
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    const core = defineCore(schema, {
+      nodes: { n1, n2 },
+      edges: [edge(n1, 'rel', n2)],
+    })
+
+    expect(core.__edges).toHaveLength(1)
+    expect(core.__edges[0]!.from.raw).toBe('/my.domain/n1')
+    expect(core.__edges[0]!.to.raw).toBe('/my.domain/n2')
+  })
+
+  it('throws for undeclared CoreNode in edges', () => {
+    const n1 = node(N, {})
+    const orphan = node(N, {})
+    expect(() =>
+      defineCore(schema, {
+        nodes: { n1 },
+        edges: [edge(n1, 'rel', orphan)],
+      }),
+    ).toThrow(/not found/)
+  })
+
+  it('preserves edge data in __edges', () => {
+    const n1 = node(N, {})
+    const n2 = node(N, {})
+    const core = defineCore(schema, {
+      nodes: { n1, n2 },
+      edges: [edge(n1, 'rel', n2, { quantity: 5 })],
+    })
+
+    expect(core.__edges[0]!.data).toEqual({ quantity: 5 })
+  })
+})
+
+// ── defineSeed cross-definition ──────────────────────────────────────────────
+
+describe('defineSeed cross-definition', () => {
+  const N = classDef({})
+  const schema = defineSchema('my.domain', { N })
+
+  it('edges reference core paths', () => {
+    const coreNode = node(N, {})
+    const core = defineCore(schema, { nodes: { coreNode } })
+
+    const seedNode = node(N, {})
+    const seed = defineSeed(schema, core, {
+      nodes: { seedNode },
+      edges: [edge(seedNode, 'rel', core.coreNode)],
+    })
+
+    expect(seed.__edges).toHaveLength(1)
+    expect(seed.__edges[0]!.to.raw).toBe(core.coreNode.raw)
+  })
+
+  it('edges work in both directions (seed→core and core→seed)', () => {
+    const coreNode = node(N, {})
+    const core = defineCore(schema, { nodes: { coreNode } })
+
+    const seedNode = node(N, {})
+    const seed = defineSeed(schema, core, {
+      nodes: { seedNode },
+      edges: [
+        edge(seedNode, 'forward', core.coreNode),
+        edge(core.coreNode, 'reverse', seedNode),
+      ],
+    })
+
+    expect(seed.__edges).toHaveLength(2)
+    expect(seed.__edges[0]!.from.raw).toBe('/my.domain/seedNode')
+    expect(seed.__edges[0]!.to.raw).toBe('/my.domain/coreNode')
+    expect(seed.__edges[1]!.from.raw).toBe('/my.domain/coreNode')
+    expect(seed.__edges[1]!.to.raw).toBe('/my.domain/seedNode')
   })
 })

@@ -21,18 +21,23 @@ export type ExtractInherits<D> =
       : readonly []
     : readonly []
 
-/** Collect props from an inherits list (own + recursive parents) */
+/** Resolve one inherits entry: own props + recursive ancestors */
+type ResolvePropsEntry<H extends Def<any>> =
+  InferProps<ExtractProps<H>> &
+  CollectPropsFromInherits<ExtractInherits<H>>
+
+/** Collect props from an inherits list (later entries shadow earlier) */
 export type CollectPropsFromInherits<T> = T extends readonly [
   infer Head extends Def<any>,
   ...infer Tail extends readonly Def<any>[],
 ]
-  ? InferProps<ExtractProps<Head>> &
-      CollectPropsFromInherits<ExtractInherits<Head>> &
+  ? Omit<ResolvePropsEntry<Head>, keyof CollectPropsFromInherits<Tail>> &
       CollectPropsFromInherits<Tail>
   : unknown
 
-/** Full inferred props: own + inherited from inherits chain */
+/** Full inferred props: own shadow inherited */
 export type ExtractFullProps<D> =
   D extends Def<any>
-    ? InferProps<ExtractProps<D>> & CollectPropsFromInherits<ExtractInherits<D>>
+    ? Omit<CollectPropsFromInherits<ExtractInherits<D>>, keyof InferProps<ExtractProps<D>>> &
+        InferProps<ExtractProps<D>>
     : unknown

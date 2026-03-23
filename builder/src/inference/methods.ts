@@ -21,10 +21,11 @@ type CollectMethodsFromInherits<T> = T extends readonly [
       CollectMethodsFromInherits<Tail>
   : unknown
 
-/** All methods for a def: own + inherited from inherits chain */
+/** All methods for a def: own + inherited from inherits chain (own shadows inherited) */
 export type AllMethods<D> =
   D extends Def<any>
-    ? ExtractMethods<D> & CollectMethodsFromInherits<ExtractInherits<D>>
+    ? Omit<CollectMethodsFromInherits<ExtractInherits<D>>, keyof ExtractMethods<D>> &
+        ExtractMethods<D>
     : ExtractMethods<D>
 
 /** Check if a def has methods (own or inherited) */

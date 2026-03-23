@@ -1,28 +1,29 @@
 import type { Def } from '../defs/definition.js'
-import type { CoreInstance, CoreLink, Ref } from './types.js'
+import type { CoreNode, CoreEdge } from './types.js'
+import type { CorePath } from './path.js'
 import type { EdgeInputData } from './node.js'
 import { getDefName } from '../registry.js'
 
 export function edge<E extends Def>(
-  from: CoreInstance | Ref,
+  from: CoreNode | CorePath,
   edgeRef: E,
-  to: CoreInstance | Ref,
+  to: CoreNode | CorePath,
   data?: EdgeInputData<E>,
-): CoreLink
+): CoreEdge
 export function edge(
-  from: CoreInstance | Ref,
+  from: CoreNode | CorePath,
   edgeRef: string,
-  to: CoreInstance | Ref,
+  to: CoreNode | CorePath,
   data?: Record<string, unknown>,
-): CoreLink
+): CoreEdge
 export function edge(
-  from: CoreInstance | Ref,
+  from: CoreNode | CorePath,
   edgeRef: string | Def,
-  to: CoreInstance | Ref,
+  to: CoreNode | CorePath,
   data?: Record<string, unknown>,
-): CoreLink {
+): CoreEdge {
   const edgeName = typeof edgeRef === 'string' ? edgeRef : getDefName(edgeRef)
   if (!edgeName)
     throw new Error('Edge ref must be a string or a registered Def (from defineSchema)')
-  return { type: 'core-link', __from: from, __to: to, __edge: edgeName, __data: data }
+  return { type: 'core-edge', __from: from, __to: to, __edge: edgeName, __data: data }
 }
