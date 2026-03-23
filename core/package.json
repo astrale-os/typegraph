@@ -2,6 +2,27 @@
   "name": "@astrale/typegraph-core",
   "version": "0.1.0",
   "description": "Core schema DSL and AST for TypeGraph - lightweight package for schema definitions and tooling",
+  "keywords": [
+    "ast",
+    "codegen",
+    "cypher",
+    "dsl",
+    "graph",
+    "schema",
+    "type-safe",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Astrale",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/astrale-os/typegraph.git",
+    "directory": "core"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -34,9 +55,6 @@
     }
   },
   "publishConfig": {
-    "main": "./dist/index.cjs",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
@@ -63,44 +81,27 @@
         "import": "./dist/core/index.js",
         "require": "./dist/core/index.cjs"
       }
-    }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
-  },
-  "keywords": [
-    "graph",
-    "schema",
-    "dsl",
-    "ast",
-    "cypher",
-    "typescript",
-    "type-safe",
-    "codegen"
-  ],
-  "author": "Astrale",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/astrale-os/typegraph.git",
-    "directory": "core"
   },
   "dependencies": {
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@typescript/native-preview": "latest",
     "tsup": "^8.3.5",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.1-rc",
     "vitest": "^2.1.8"
   },
   "engines": {

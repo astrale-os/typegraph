@@ -1,26 +1,26 @@
 {
   "name": "@astrale/kernel-compiler",
   "version": "0.1.0",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "gsl": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsgo",
     "test": "vitest",
-    "check": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "vscode-languageserver": "^9.0.1",
@@ -30,11 +30,12 @@
   "devDependencies": {
     "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
     "@types/node": "~22.15.6",
+    "@typescript/native-preview": "latest",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "esbuild": "^0.27.3",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.1-rc",
     "vitest": "~3.2.2"
   }
 }

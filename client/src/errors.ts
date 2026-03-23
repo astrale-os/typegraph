@@ -14,11 +14,12 @@ export class GraphQueryError extends Error {
     this.name = 'GraphQueryError'
     this.cause = cause
 
-    if (typeof (Error as { captureStackTrace?: unknown }).captureStackTrace === 'function') {
-      ;(Error as { captureStackTrace: (target: Error, ctor: unknown) => void }).captureStackTrace(
-        this,
-        this.constructor,
-      )
+    if (
+      typeof (Error as unknown as { captureStackTrace?: unknown }).captureStackTrace === 'function'
+    ) {
+      ;(
+        Error as unknown as { captureStackTrace: (target: Error, ctor: unknown) => void }
+      ).captureStackTrace(this, this.constructor)
     }
   }
 }

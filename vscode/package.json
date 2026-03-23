@@ -1,18 +1,32 @@
 {
   "name": "kernel-lang",
   "displayName": "Kernel Schema Language",
-  "description": "Language support for .gsl schema files — syntax highlighting, diagnostics, hover, go-to-definition, completions, and outline.",
   "version": "0.1.0",
-  "publisher": "astrale",
-  "license": "MIT",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
+  "description": "Language support for .gsl schema files — syntax highlighting, diagnostics, hover, go-to-definition, completions, and outline.",
   "categories": [
     "Programming Languages"
   ],
-  "activationEvents": [],
+  "license": "MIT",
+  "publisher": "astrale",
   "main": "./out/extension.js",
+  "scripts": {
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --target=node18 --sourcemap",
+    "build:server": "cd ../compiler && node scripts/bundle-server.mjs ../vscode/server",
+    "build": "npm run build:server && npm run build:ext",
+    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch --sourcemap",
+    "package": "npm run build && npx @vscode/vsce package --no-dependencies",
+    "install-local": "npm run package && code --install-extension kernel-lang-0.1.0.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@typescript/native-preview": "latest",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "~6.0.1-rc"
+  },
   "contributes": {
     "languages": [
       {
@@ -94,21 +108,8 @@
       }
     }
   },
-  "scripts": {
-    "build:ext": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --target=node18 --sourcemap",
-    "build:server": "cd ../compiler && node scripts/bundle-server.mjs ../vscode/server",
-    "build": "npm run build:server && npm run build:ext",
-    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch --sourcemap",
-    "package": "npm run build && npx @vscode/vsce package --no-dependencies",
-    "install-local": "npm run package && code --install-extension kernel-lang-0.1.0.vsix"
-  },
-  "dependencies": {
-    "vscode-languageclient": "^9.0.0"
-  },
-  "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.0.0",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.6.0"
+  "activationEvents": [],
+  "engines": {
+    "vscode": "^1.85.0"
   }
 }

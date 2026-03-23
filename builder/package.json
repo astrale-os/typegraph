@@ -7,7 +7,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@astrale/typegraph-schema": "workspace:*",
@@ -15,10 +15,11 @@
   },
   "devDependencies": {
     "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
-    "typescript": "~5.9.3",
+    "@typescript/native-preview": "latest",
+    "typescript": "~6.0.1-rc",
     "vitest": "^4.0.18"
   },
   "peerDependencies": {
-    "typescript": "~5.9.3"
+    "typescript": "~6.0.1-rc"
   }
 }

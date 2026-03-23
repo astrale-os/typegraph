@@ -1,6 +1,12 @@
 {
   "name": "@astrale/typegraph-codegen",
   "version": "0.1.0",
+  "bin": {
+    "typegraph-codegen": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,17 +16,11 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "bin": {
-    "typegraph-codegen": "dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "preinstall": "node .check-workspace.cjs && node .ensure-bin.cjs",
-    "build": "tsc",
+    "build": "tsgo",
     "test": "vitest",
-    "check": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@astrale/kernel-compiler": "workspace:*"
@@ -28,7 +28,8 @@
   "devDependencies": {
     "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
     "@types/node": "~22.15.6",
-    "typescript": "~5.9.3",
+    "@typescript/native-preview": "latest",
+    "typescript": "~6.0.1-rc",
     "vitest": "~3.2.2"
   }
 }

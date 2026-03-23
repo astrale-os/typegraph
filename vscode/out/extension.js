@@ -8,8 +8,7 @@ var __hasOwnProp = Object.prototype.hasOwnProperty
 var __commonJS = (cb, mod) =>
   function __require() {
     return (
-      mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod),
-      mod.exports
+      mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports
     )
   }
 var __export = (target, all) => {

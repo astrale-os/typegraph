@@ -2,6 +2,23 @@
   "name": "@astrale/typegraph-adapter-neo4j",
   "version": "0.1.0",
   "description": "Neo4j adapter for TypeGraph - Bolt-compatible graph database",
+  "keywords": [
+    "bolt",
+    "cypher",
+    "database",
+    "graph",
+    "memgraph",
+    "neo4j",
+    "type-safe",
+    "typegraph",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Astrale",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -19,43 +36,27 @@
     "module": "./dist/index.js",
     "types": "./dist/index.d.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down -v",
     "docker:logs": "docker-compose logs -f"
   },
-  "keywords": [
-    "graph",
-    "database",
-    "neo4j",
-    "bolt",
-    "memgraph",
-    "typegraph",
-    "typescript",
-    "type-safe",
-    "cypher"
-  ],
-  "author": "Astrale",
-  "license": "MIT",
   "dependencies": {
     "@astrale/typegraph-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@typescript/native-preview": "latest",
     "neo4j-driver": "^6.0.1",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.1-rc",
     "vitest": "^2.1.8",
     "zod": "^4.3.6"
   },
