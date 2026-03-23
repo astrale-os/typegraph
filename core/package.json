@@ -87,7 +87,7 @@
     "types": "./dist/index.d.ts"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsgo -p tsconfig.build.json --declaration --emitDeclarationOnly",
     "dev": "tsup --watch",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsgo --noEmit",

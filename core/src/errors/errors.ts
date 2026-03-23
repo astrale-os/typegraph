@@ -14,11 +14,9 @@ export class GraphQueryError extends Error {
     this.cause = cause
 
     // V8-specific stack trace capture (not in TypeScript's lib)
-    if (typeof (Error as { captureStackTrace?: unknown }).captureStackTrace === 'function') {
-      ;(Error as { captureStackTrace: (target: Error, ctor: unknown) => void }).captureStackTrace(
-        this,
-        this.constructor,
-      )
+    const E = Error as unknown as { captureStackTrace?: (target: Error, ctor: unknown) => void }
+    if (typeof E.captureStackTrace === 'function') {
+      E.captureStackTrace(this, this.constructor)
     }
   }
 }
