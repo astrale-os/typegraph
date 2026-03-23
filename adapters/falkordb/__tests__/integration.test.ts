@@ -8,10 +8,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph-client'
+import { createGraph, type Graph } from '@astrale/typegraph-client'
+import type { SchemaShape } from '@astrale/typegraph-client'
 import { falkordb, clearGraph } from '../src'
-import { z } from 'zod'
-import type { NodeProps } from '@astrale/typegraph-client'
 
 describe.skip('FalkorDB Adapter Integration', () => {
   const config = {
@@ -20,29 +19,26 @@ describe.skip('FalkorDB Adapter Integration', () => {
     graphName: 'test-graph',
   }
 
-  const schema = defineSchema({
+  const schema = {
     nodes: {
-      user: node({
-        properties: {
-          name: z.string(),
-          email: z.string().optional(),
-        },
-      }),
-      post: node({
-        properties: {
-          title: z.string(),
-          content: z.string(),
-        },
-      }),
+      user: {
+        abstract: false,
+        attributes: ['name', 'email'],
+      },
+      post: {
+        abstract: false,
+        attributes: ['title', 'content'],
+      },
     },
     edges: {
-      authored: edge({
-        from: 'user',
-        to: 'post',
-        cardinality: { outbound: 'many', inbound: 'one' },
-      }),
+      authored: {
+        endpoints: {
+          user: { types: ['user'] },
+          post: { types: ['post'], cardinality: { min: 0, max: 1 } },
+        },
+      },
     },
-  })
+  } as const satisfies SchemaShape
 
   let graph: Graph<typeof schema>
 
@@ -80,10 +76,7 @@ describe.skip('FalkorDB Adapter Integration', () => {
     const posts = await graph.nodeById(user.id).to('authored').execute()
     expect(posts).toHaveLength(1)
 
-    // Type narrowing: TypeScript can't infer the target node type from edge traversal
-    // This is a known limitation with conditional types (see TypeGraph single-node.ts:6)
-    type PostNode = NodeProps<typeof schema, 'post'>
-    expect((posts[0]! as PostNode).title).toBe('Test Post')
+    expect((posts[0]! as Record<string, unknown>).title).toBe('Test Post')
   })
 
   it('should handle updates', async () => {

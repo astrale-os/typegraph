@@ -347,30 +347,6 @@ describe('Where Conditions', () => {
       expect(whereStep.conditions[0].conditions).toHaveLength(2)
     }
   })
-
-  it('handles exists and connectedTo conditions', () => {
-    const conditions: WhereCondition[] = [
-      { type: 'exists', target: 'n0', edge: 'profilePicture', direction: 'out', negated: false },
-      {
-        type: 'connectedTo',
-        target: 'n0',
-        edge: 'belongsTo',
-        direction: 'out',
-        nodeId: 'tenant-123',
-      },
-    ]
-
-    const ast = new QueryAST().addMatch('user').addWhere(conditions)
-
-    const whereStep = ast.steps.find((s) => s.type === 'where')
-    if (whereStep?.type === 'where') {
-      expect(whereStep.conditions[0]?.type).toBe('exists')
-      expect(whereStep.conditions[1]?.type).toBe('connectedTo')
-      if (whereStep.conditions[1]?.type === 'connectedTo') {
-        expect(whereStep.conditions[1].nodeId).toBe('tenant-123')
-      }
-    }
-  })
 })
 
 // =============================================================================

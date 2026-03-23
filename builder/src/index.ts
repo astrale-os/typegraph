@@ -37,7 +37,15 @@ export {
 export { collectAvailableProps } from './helpers/props.js'
 
 // Core
-export { node, edge, kernelRefs, defineCore, CorePath, buildCorePath, isCorePath } from './core/index.js'
+export {
+  node,
+  edge,
+  kernelRefs,
+  defineCore,
+  CorePath,
+  buildCorePath,
+  isCorePath,
+} from './core/index.js'
 
 // Seed
 export { defineSeed } from './seed/index.js'

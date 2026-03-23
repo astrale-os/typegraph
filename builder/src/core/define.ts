@@ -1,6 +1,14 @@
 import type { Schema } from '../schema/schema.js'
-import type { CoreNode, CoreEdge, CoreDef, PathTree, CoreNodeEntry, CoreEdgeEntry } from './types.js'
-import { CorePath, buildCorePath, isCorePath } from './path.js'
+import type {
+  CoreNode,
+  CoreEdge,
+  CoreDef,
+  PathTree,
+  CoreNodeEntry,
+  CoreEdgeEntry,
+} from './types.js'
+import type { CorePath } from './path.js'
+import { buildCorePath, isCorePath } from './path.js'
 
 /**
  * Define the core (genesis) data for a domain.
@@ -24,9 +32,10 @@ import { CorePath, buildCorePath, isCorePath } from './path.js'
  * core.electronics              // CorePath "/example.e-commerce/electronics"
  * core.electronics.laptop       // CorePath "/example.e-commerce/electronics/laptop"
  */
+// oxlint-disable-next-line no-explicit-any
 export function defineCore<
   S extends Schema,
-  const Nodes extends Record<string, CoreNode>,
+  const Nodes extends Record<string, CoreNode<any, any>>,
 >(
   schema: S,
   config: { nodes: Nodes; edges?: readonly CoreEdge[] },
@@ -40,7 +49,7 @@ export function defineCore<
     nodes: Record<string, CoreNode>,
     parentSlugs: string[],
     parentPath: CorePath | undefined,
-    result: Record<string, any>,
+    result: Record<string, unknown>,
   ): void {
     for (const [key, coreNode] of Object.entries(nodes)) {
       const slugs = [...parentSlugs, key]
@@ -58,7 +67,7 @@ export function defineCore<
 
       if (hasChildren) {
         // Parent node: CorePath instance with child properties attached
-        const childPaths: Record<string, any> = {}
+        const childPaths: Record<string, unknown> = {}
         walkNodes(children, slugs, nodePath, childPaths)
         // Attach child paths as properties on the CorePath instance
         for (const [childKey, childPath] of Object.entries(childPaths)) {
@@ -76,7 +85,7 @@ export function defineCore<
     }
   }
 
-  const pathTree: Record<string, any> = {}
+  const pathTree: Record<string, unknown> = {}
   walkNodes(config.nodes, [], undefined, pathTree)
 
   // Resolve edges
@@ -97,9 +106,13 @@ export function defineCore<
   }) as CoreDef<S, PathTree<Nodes>> & PathTree<Nodes>
 }
 
-function resolveNodeOrPath(target: CoreNode | CorePath, nodeToPath: Map<CoreNode, CorePath>): CorePath {
+function resolveNodeOrPath(
+  target: CoreNode | CorePath,
+  nodeToPath: Map<CoreNode, CorePath>,
+): CorePath {
   if (isCorePath(target)) return target
   const p = nodeToPath.get(target as CoreNode)
-  if (!p) throw new Error('CoreNode not found in this core definition — was it declared in `nodes`?')
+  if (!p)
+    throw new Error('CoreNode not found in this core definition — was it declared in `nodes`?')
   return p
 }

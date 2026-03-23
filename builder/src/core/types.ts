@@ -7,7 +7,8 @@ import type { CorePath } from './path.js'
 /** A core node instance with its definition, data, and optional children. */
 export interface CoreNode<
   N extends Def = Def,
-  C extends Record<string, CoreNode> = Record<string, never>,
+  // oxlint-disable-next-line no-explicit-any
+  C extends Record<string, CoreNode<any, any>> = Record<string, never>,
 > {
   readonly type: 'core-node'
   readonly __nodeDef: N
@@ -29,7 +30,9 @@ export interface CoreEdge {
 // ── Path tree ────────────────────────────────────────────────────────────────
 
 /** Recursively maps a tree of CoreNodes to a tree of CorePaths. */
-export type PathTree<Nodes extends Record<string, CoreNode>> = {
+// oxlint-disable-next-line no-explicit-any
+export type PathTree<Nodes extends Record<string, CoreNode<any, any>>> = {
+  // oxlint-disable-next-line no-explicit-any
   readonly [K in keyof Nodes & string]: Nodes[K] extends CoreNode<any, infer C>
     ? keyof C extends never
       ? CorePath // Leaf node
@@ -58,6 +61,7 @@ export interface CoreEdgeEntry {
 /** The output of defineCore(). Also serves as the PathTree via intersection. */
 export interface CoreDef<
   S extends Schema = Schema,
+  // oxlint-disable-next-line no-explicit-any
   _Paths extends Record<string, any> = Record<string, CorePath>,
 > {
   readonly schema: S

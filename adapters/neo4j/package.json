@@ -48,6 +48,7 @@
     "docker:logs": "docker-compose logs -f"
   },
   "dependencies": {
+    "@astrale/builder": "workspace:*",
     "@astrale/typegraph-client": "workspace:*"
   },
   "devDependencies": {

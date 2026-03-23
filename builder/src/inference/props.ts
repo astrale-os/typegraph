@@ -22,8 +22,7 @@ export type ExtractInherits<D> =
     : readonly []
 
 /** Resolve one inherits entry: own props + recursive ancestors */
-type ResolvePropsEntry<H extends Def<any>> =
-  InferProps<ExtractProps<H>> &
+type ResolvePropsEntry<H extends Def<any>> = InferProps<ExtractProps<H>> &
   CollectPropsFromInherits<ExtractInherits<H>>
 
 /** Collect props from an inherits list (later entries shadow earlier) */

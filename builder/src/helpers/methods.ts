@@ -156,4 +156,3 @@ export function resolveAllMethods(def: Def): Record<string, ResolvedMethod> {
 
   return result
 }
-

@@ -12,6 +12,7 @@ import { buildCorePath, isCorePath, type CorePath } from '../core/path.js'
 export interface SeedDef<
   S extends Schema = Schema,
   C extends CoreDef = CoreDef,
+  // oxlint-disable-next-line no-explicit-any
   _Paths extends Record<string, any> = Record<string, CorePath>,
 > {
   readonly schema: S
@@ -51,7 +52,7 @@ export function defineSeed<
   const flatNodes: CoreNodeEntry[] = []
 
   // Seed nodes are flat — all live directly under the domain
-  const pathTree: Record<string, any> = {}
+  const pathTree: Record<string, unknown> = {}
   for (const [key, coreNode] of Object.entries(config.nodes)) {
     const nodePath = buildCorePath(domain, [key])
     nodeToPath.set(coreNode, nodePath)

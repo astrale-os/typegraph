@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/oxlint/configuration_schema.json",
   "extends": ["../config/packages/oxlint/oxlint.base.json"],
+  "ignorePatterns": ["vscode/out/**", "vscode/server/**", "kernel-vscode/server/**"],
   "overrides": [
     {
       "files": ["**/scripts/**/*.ts"],

@@ -4,8 +4,7 @@ import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
 import type { ExtractData } from './data.js'
 
 /** Resolve one inherits entry: own props + data + recursive ancestors */
-type ResolveInheritsEntry<H extends Def<any>> =
-  InferProps<ExtractProps<H>> &
+type ResolveInheritsEntry<H extends Def<any>> = InferProps<ExtractProps<H>> &
   InferProps<ExtractData<H>> &
   CollectInputFromInherits<ExtractInherits<H>>
 

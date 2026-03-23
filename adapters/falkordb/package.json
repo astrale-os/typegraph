@@ -53,6 +53,7 @@
     "example:hierarchy": "tsx examples/hierarchy.ts"
   },
   "dependencies": {
+    "@astrale/builder": "workspace:*",
     "@astrale/typegraph-client": "workspace:*",
     "falkordb": "^6.4.1"
   },

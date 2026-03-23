@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { defineSchema, node, edge, createGraph, type Graph } from '@astrale/typegraph-client'
+import { createGraph, type Graph } from '@astrale/typegraph-client'
+import type { SchemaShape } from '@astrale/typegraph-client'
 import { Neo4jAdapter } from '../src'
-import { z } from 'zod'
 
 describe('Neo4j Adapter Integration', () => {
   const config = {
@@ -13,29 +13,26 @@ describe('Neo4j Adapter Integration', () => {
     auth: { username: 'neo4j', password: 'testpassword' },
   }
 
-  const schema = defineSchema({
+  const schema = {
     nodes: {
-      user: node({
-        properties: {
-          name: z.string(),
-          email: z.string().optional(),
-        },
-      }),
-      post: node({
-        properties: {
-          title: z.string(),
-          content: z.string(),
-        },
-      }),
+      user: {
+        abstract: false,
+        attributes: ['name', 'email'],
+      },
+      post: {
+        abstract: false,
+        attributes: ['title', 'content'],
+      },
     },
     edges: {
-      authored: edge({
-        from: 'user',
-        to: 'post',
-        cardinality: { outbound: 'many', inbound: 'one' },
-      }),
+      authored: {
+        endpoints: {
+          user: { types: ['user'] },
+          post: { types: ['post'], cardinality: { min: 0, max: 1 } },
+        },
+      },
     },
-  })
+  } as const satisfies SchemaShape
 
   let graph: Graph<typeof schema>
   let adapter: Neo4jAdapter

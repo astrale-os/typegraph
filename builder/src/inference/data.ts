@@ -7,8 +7,7 @@ import type { ExtractInherits, InferProps } from './props.js'
 export type ExtractData<D> = D extends { config: { data: infer P } } ? P : {}
 
 /** Resolve one inherits entry: own data + recursive ancestors */
-type ResolveDataEntry<H extends Def<any>> =
-  InferProps<ExtractData<H>> &
+type ResolveDataEntry<H extends Def<any>> = InferProps<ExtractData<H>> &
   CollectDataFromInherits<ExtractInherits<H>>
 
 /** Collect data from an inherits list (later entries shadow earlier) */

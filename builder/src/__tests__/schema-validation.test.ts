@@ -645,10 +645,7 @@ describe('defineSeed cross-definition', () => {
     const seedNode = node(N, {})
     const seed = defineSeed(schema, core, {
       nodes: { seedNode },
-      edges: [
-        edge(seedNode, 'forward', core.coreNode),
-        edge(core.coreNode, 'reverse', seedNode),
-      ],
+      edges: [edge(seedNode, 'forward', core.coreNode), edge(core.coreNode, 'reverse', seedNode)],
     })
 
     expect(seed.__edges).toHaveLength(2)

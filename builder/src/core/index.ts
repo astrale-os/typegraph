@@ -1,4 +1,11 @@
-export type { CoreNode, CoreEdge, PathTree, CoreDef, CoreNodeEntry, CoreEdgeEntry } from './types.js'
+export type {
+  CoreNode,
+  CoreEdge,
+  PathTree,
+  CoreDef,
+  CoreNodeEntry,
+  CoreEdgeEntry,
+} from './types.js'
 export { CorePath, buildCorePath, isCorePath } from './path.js'
 export { node } from './node.js'
 export { edge } from './edge.js'
