@@ -12,8 +12,8 @@
     "build": "pnpm -r run build",
     "clean": "pnpm -r run clean",
     "typecheck": "pnpm -r run typecheck",
-    "lint": "oxlint -c oxlint.json .",
-    "lint:fix": "oxlint --fix -c oxlint.json .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
     "format": "pnpm exec oxfmt --write .",
     "format:check": "pnpm exec oxfmt --check .",
     "test": "pnpm -r run test",
@@ -27,6 +27,7 @@
     "@astrale/typegraph-core": "workspace:*"
   },
   "devDependencies": {
+    "@astrale-os/ox": ">=0.1.0 <1.0.0",
     "@astrale/commitlint-config": "jsr:@astrale/commitlint-config@~2.0.0",
     "@astrale/typescript-config": "jsr:@astrale/typescript-config@~1.1.0",
     "@commitlint/cli": "~20.3.1",
@@ -43,7 +44,7 @@
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,tsx}": [
-      "oxlint --fix -c oxlint.json",
+      "oxlint --fix",
       "oxfmt --write"
     ],
     "*.{json,yml,yaml}": [
