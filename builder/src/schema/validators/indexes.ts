@@ -1,7 +1,8 @@
 import type { IndexDef } from '../../defs/indexing.js'
+import type { SchemaContext } from './context.js'
+
 import { collectAvailableProps } from '../../helpers/props.js'
 import { SchemaValidationError } from '../schema.js'
-import type { SchemaContext } from './context.js'
 
 export function validateIndexes(ctx: SchemaContext): void {
   for (const [name, def] of Object.entries(ctx.defs)) {

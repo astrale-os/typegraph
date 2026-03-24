@@ -1,9 +1,10 @@
-import { useState } from 'react'
 import { Sprout, Trash2, Shuffle } from 'lucide-react'
-import { useConnectionStore } from '@/store/connection-store'
-import { useGraphStore } from '@/store/graph-store'
+import { useState } from 'react'
+
 import { api } from '@/api/client'
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useConnectionStore } from '@/store/connection-store'
+import { useGraphStore } from '@/store/graph-store'
 
 function SeedSummary({ data, label }: { data: Record<string, unknown> | null; label: string }) {
   if (!data) return null

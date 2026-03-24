@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
+import { useState } from 'react'
 
 interface TokenDisplayProps {
   label: string

@@ -5,10 +5,10 @@
  * Supports FalkorDB (and Neo4j/Memgraph via their respective adapters).
  */
 
-import { z } from 'zod'
-import { defineSchema, node, edge } from '@astrale/typegraph-core'
-import { createGraph, type Graph, type GraphAdapter } from '@astrale/typegraph-client'
 import { falkordb, deleteGraph } from '@astrale/typegraph-adapter-falkordb'
+import { createGraph, type Graph, type GraphAdapter } from '@astrale/typegraph-client'
+import { defineSchema, node, edge } from '@astrale/typegraph-core'
+import { z } from 'zod'
 
 // =============================================================================
 // GRAPH NAME GENERATION (for test isolation)

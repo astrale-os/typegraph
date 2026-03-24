@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NodeCreator } from './NodeCreator'
-import { EdgeCreator } from './EdgeCreator'
-import { SeedDataPanel } from './SeedDataPanel'
+
 import { CypherConsole } from './CypherConsole'
+import { EdgeCreator } from './EdgeCreator'
+import { NodeCreator } from './NodeCreator'
+import { SeedDataPanel } from './SeedDataPanel'
 
 const sections = ['Nodes', 'Edges', 'Seed', 'Cypher'] as const
 

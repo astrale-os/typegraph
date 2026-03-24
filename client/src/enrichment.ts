@@ -7,6 +7,7 @@
  */
 
 import type { MethodDispatchFn, OperationSelf } from './methods'
+
 import { MethodNotDispatchedError } from './errors'
 
 /**

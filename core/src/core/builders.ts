@@ -13,6 +13,7 @@ import type {
   AnyCoreDefinition,
   CoreSnapshot,
 } from './types'
+
 import { SchemaValidationError } from '../errors'
 import {
   validateCoreNodes,

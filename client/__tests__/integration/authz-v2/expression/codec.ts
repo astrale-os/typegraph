@@ -7,10 +7,11 @@
  */
 
 import type { IdentityExpr } from '../types'
-import { toCompact, fromCompact } from './compact'
-import { encode, decode } from './encoding'
-import { isDedupedExpr, expand, dedup } from './dedup'
+
 import { identityExprToUnresolved } from '../authentication/grant-encoding'
+import { toCompact, fromCompact } from './compact'
+import { isDedupedExpr, expand, dedup } from './dedup'
+import { encode, decode } from './encoding'
 
 // =============================================================================
 // TYPES

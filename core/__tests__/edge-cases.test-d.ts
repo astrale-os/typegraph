@@ -11,6 +11,7 @@
 
 import { describe, it, expectTypeOf } from 'vitest'
 import { z } from 'zod'
+
 import { defineSchema, node, edge, type Infer } from '../src'
 
 describe('Edge Cases', () => {

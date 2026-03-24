@@ -12,8 +12,6 @@
 //   - No contradictory modifiers
 // ============================================================
 
-import { type ResolvedSchema } from '../resolver/index'
-import { DiagnosticBag } from '../diagnostics'
 import {
   type Modifier,
   type FlagModifier,
@@ -24,6 +22,8 @@ import {
   type LifecycleModifier,
   type TypeExpr,
 } from '../ast/index'
+import { DiagnosticBag } from '../diagnostics'
+import { type ResolvedSchema } from '../resolver/index'
 import { validateDeclarations } from './declarations'
 
 export interface ValidateOptions {

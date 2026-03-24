@@ -1,7 +1,9 @@
-import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { useGraphStore } from '@/store/graph-store'
+import { useState } from 'react'
+
 import type { EdgeType } from '@/types/graph'
+
+import { useGraphStore } from '@/store/graph-store'
 
 const EDGE_TYPES: EdgeType[] = [
   'hasParent',

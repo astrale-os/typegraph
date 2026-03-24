@@ -6,7 +6,6 @@
 // and zero-arg function calls like now().
 // ============================================================
 
-import { type Token } from '../tokens'
 import {
   type CstChild,
   type ExpressionNode,
@@ -14,6 +13,7 @@ import {
   type CallExprNode,
 } from '../cst/index'
 import { DiagnosticCodes } from '../diagnostics'
+import { type Token } from '../tokens'
 import { type ParserContext } from './index'
 
 export function parseExpression(p: ParserContext): ExpressionNode {

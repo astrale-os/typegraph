@@ -23,6 +23,7 @@ import {
   type Name,
 } from '../ast/index'
 import { DiagnosticCodes } from '../diagnostics'
+import { validateAttribute, validateFieldDefault } from './defaults'
 import {
   type ValidatorContext,
   EDGE_MODIFIERS,
@@ -31,7 +32,6 @@ import {
   modifierName,
   renderTypeExpr,
 } from './index'
-import { validateAttribute, validateFieldDefault } from './defaults'
 
 export function validateDeclarations(ctx: ValidatorContext): void {
   for (const decl of ctx.schema.declarations) {

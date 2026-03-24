@@ -8,6 +8,7 @@
  * The IM pass then handles relabeling and instance_of on the resulting link-node ops.
  */
 
+import type { SchemaShape } from '../../schema'
 import type { MutationCompilationPass } from '../ast/pipeline'
 import type {
   MutationOp,
@@ -21,9 +22,9 @@ import type {
   UnlinkAllFromOp,
   UnlinkAllToOp,
 } from '../ast/types'
-import type { SchemaShape } from '../../schema'
-import { STRUCTURAL_EDGE_SET } from '../../schema'
+
 import { isReified, resolveNodeLabels, edgeFrom, edgeTo } from '../../helpers'
+import { STRUCTURAL_EDGE_SET } from '../../schema'
 
 export class ReifyEdgesMutationPass implements MutationCompilationPass {
   readonly name = 'ReifyEdgesMutation'

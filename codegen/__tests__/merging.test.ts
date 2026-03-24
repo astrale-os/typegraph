@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { compileKRL, mergeAndGenerate } from './helpers.js'
+
 import { load, ConflictError, normalizeIR } from '../src/loader.js'
+import { compileKRL, mergeAndGenerate } from './helpers.js'
 
 describe('schema merging', () => {
   it('merges two schemas with distinct definitions', () => {

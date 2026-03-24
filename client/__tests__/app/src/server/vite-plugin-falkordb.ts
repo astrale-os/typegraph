@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+
 import { handleApiRequest } from './api-routes'
 
 export function falkordbPlugin(): Plugin {

@@ -8,10 +8,12 @@
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest'
-import { createCoreProxy } from '../../src/core-proxy'
-import { installCore, type CoreDefinition, type CoreRefs } from '../../src/core'
-import { createGraph, type Graph } from '../../src/graph'
+
 import type { UntypedMap } from '../../src/schema'
+
+import { installCore, type CoreDefinition, type CoreRefs } from '../../src/core'
+import { createCoreProxy } from '../../src/core-proxy'
+import { createGraph, type Graph } from '../../src/graph'
 import { NodeId } from '../../src/schema'
 import { MockAdapter } from '../mock-adapter'
 import { testSchema, type TestSchema } from './fixtures/test-schema'

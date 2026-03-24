@@ -11,6 +11,7 @@
 // ============================================================
 
 import type { Token, TokenKind, Trivia, TriviaKind } from './tokens'
+
 import { DiagnosticBag, DiagnosticCodes } from './diagnostics'
 
 export interface LexResult {

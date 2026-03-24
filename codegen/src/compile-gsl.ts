@@ -6,17 +6,20 @@
  * watchers, and tests should use instead of reimplementing the pipeline.
  */
 
+import type { Prelude, CompileOptions } from '@astrale/kernel-compiler'
+
 import {
   compile,
   KERNEL_PRELUDE,
   createLazyFileRegistry,
   buildKernelRegistry,
 } from '@astrale/kernel-compiler'
-import type { Prelude, CompileOptions } from '@astrale/kernel-compiler'
-import type { SchemaIR } from './model'
-import { normalizeIR } from './loader'
-import { generate } from './generate'
+
 import type { GenerateResult, GenerateOptions } from './generate'
+import type { SchemaIR } from './model'
+
+import { generate } from './generate'
+import { normalizeIR } from './loader'
 
 // ─── Types ──────────────────────────────────────────────────
 

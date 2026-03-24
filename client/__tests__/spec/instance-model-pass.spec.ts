@@ -6,10 +6,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
+import type { SchemaShape } from '../../src/schema'
+
 import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
-import type { SchemaShape } from '../../src/schema'
 import { ClassId, InterfaceId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 

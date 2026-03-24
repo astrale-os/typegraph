@@ -4,15 +4,16 @@
  * Represents edge-centric queries where edges are the primary focus.
  */
 
-import { type CollectionBuilder } from './collection'
-import { type QueryAST } from './ast'
-import { getCompiler, type CompiledQuery } from './compiler'
-import type { ComparisonOperator, WhereCondition } from './ast'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { ResolveEdge } from '../resolve'
 import type { EdgeTypes, EdgeProps, EdgeSource, EdgeTarget, NodeProps } from '../inference'
 import type { AliasMap, EdgeAliasMap } from '../inference'
+import type { ResolveEdge } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { ComparisonOperator, WhereCondition } from './ast'
 import type { QueryExecutor } from './types'
+
+import { type QueryAST } from './ast'
+import { type CollectionBuilder } from './collection'
+import { getCompiler, type CompiledQuery } from './compiler'
 
 /**
  * Where builder for edge properties.

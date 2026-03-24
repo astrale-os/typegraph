@@ -5,10 +5,12 @@
  * The mutation AST enables compilation passes (InstanceModelPass, ReifyEdgesPass) to transform mutations.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { ResolveNode, ResolveEdge } from '../resolve'
 import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
-import { resolveNodeLabels } from '../helpers'
+import type { ResolveNode, ResolveEdge } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { MutationCompilationPass } from './ast/pipeline'
+import type { MutationOp, MoveNodeOp, CloneNodeOp } from './ast/types'
+import type { CompiledMutation } from './cypher/compiler'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -31,7 +33,12 @@ import type {
   BatchDeleteResult,
   UpsertResult,
 } from './types'
-import { defaultIdGenerator } from './types'
+
+import { resolveNodeLabels } from '../helpers'
+import { deserializeDateFields } from '../utils/dates'
+import * as ops from './ast/builder'
+import { MutationCompilationPipeline } from './ast/pipeline'
+import { MutationCypherCompiler } from './cypher/compiler'
 import {
   NodeNotFoundError,
   ParentNotFoundError,
@@ -40,13 +47,7 @@ import {
   EdgeNotFoundError,
   HasRelationshipsError,
 } from './errors'
-import { deserializeDateFields } from '../utils/dates'
-import * as ops from './ast/builder'
-import type { MutationOp, MoveNodeOp, CloneNodeOp } from './ast/types'
-import { MutationCompilationPipeline } from './ast/pipeline'
-import type { MutationCompilationPass } from './ast/pipeline'
-import { MutationCypherCompiler } from './cypher/compiler'
-import type { CompiledMutation } from './cypher/compiler'
+import { defaultIdGenerator } from './types'
 
 // =============================================================================
 // EXECUTOR INTERFACE
@@ -65,18 +66,19 @@ export interface TransactionRunner {
 // MUTATION CONFIG
 // =============================================================================
 
+import type { DryRunOptions } from './dry-run'
 import type { MutationHooks } from './hooks'
-import { HooksRunner } from './hooks'
 import type { ValidationOptions, ValidatorMap } from './validation'
+
+import { DryRunBuilder } from './dry-run'
+import { ValidationError } from './errors'
+import { HooksRunner } from './hooks'
 import {
   MutationValidator,
   defaultValidationOptions,
   stripUndefined,
   serializeDates,
 } from './validation'
-import { ValidationError } from './errors'
-import type { DryRunOptions } from './dry-run'
-import { DryRunBuilder } from './dry-run'
 
 export interface MutationConfig<S extends SchemaShape = SchemaShape> {
   idGenerator?: IdGenerator

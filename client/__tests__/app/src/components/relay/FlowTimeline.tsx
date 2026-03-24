@@ -1,4 +1,5 @@
 import type { FlowStep } from '@/store/relay-store'
+
 import { TokenDisplay } from './TokenDisplay'
 
 interface FlowTimelineProps {

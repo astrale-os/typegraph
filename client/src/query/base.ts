@@ -4,11 +4,12 @@
  * Shared foundation for all builder types.
  */
 
+import type { NodeLabels } from '../inference'
+import type { SchemaShape } from '../schema'
+import type { CompiledQuery } from './compiler'
+
 import { type QueryAST } from './ast'
 import { getCompiler, getQueryPipeline } from './compiler'
-import type { CompiledQuery } from './compiler'
-import type { SchemaShape } from '../schema'
-import type { NodeLabels } from '../inference'
 
 // =============================================================================
 // QUERY FRAGMENT (For composition/reuse)

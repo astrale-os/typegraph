@@ -10,8 +10,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { QueryAST } from '../src/ast/builder'
+
 import type { WhereCondition } from '../src/ast/types'
+
+import { QueryAST } from '../src/ast/builder'
 
 // =============================================================================
 // IMMUTABILITY INVARIANTS

@@ -4,6 +4,8 @@
  * Type definitions and utilities shared across builder types.
  */
 
+import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
+import type { SchemaShape } from '../schema'
 import type {
   ComparisonOperator,
   WhereCondition,
@@ -11,8 +13,6 @@ import type {
   ComparisonCondition,
   LogicalCondition,
 } from './ast'
-import type { SchemaShape } from '../schema'
-import type { NodeLabels, NodeProps, EdgeTypes, EdgeProps } from '../inference'
 
 // =============================================================================
 // EDGE FILTER OPTIONS

@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
 import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
 
 // FalkorDB doesn't support ACID transactions - skip rollback tests

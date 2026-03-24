@@ -6,10 +6,10 @@
 
 // @ts-expect-error — .gsl file imported as text by esbuild
 import kernelSource from '../../kernel.gsl'
-import { startServer } from './server'
-import { KERNEL_PRELUDE } from '../prelude'
-import { buildKernelRegistry } from '../kernel-prelude'
 import { createLazyFileRegistry } from '../file-resolver'
+import { buildKernelRegistry } from '../kernel-prelude'
+import { KERNEL_PRELUDE } from '../prelude'
+import { startServer } from './server'
 
 const registry = createLazyFileRegistry(buildKernelRegistry(kernelSource), KERNEL_PRELUDE)
 startServer(KERNEL_PRELUDE, registry)

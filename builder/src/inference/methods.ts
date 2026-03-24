@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { z } from 'zod'
+
+import type { Def } from '../defs/definition.js'
 import type { OpDef } from '../defs/operation.js'
 import type { ParamShape } from '../defs/operation.js'
-import type { Def } from '../defs/definition.js'
-import type { ExtractInherits, ExtractFullProps } from './props.js'
 import type { ExtractFullData } from './data.js'
+import type { ExtractInherits, ExtractFullProps } from './props.js'
 
 /** Extract own methods from a def's config (not inherited) */
 export type ExtractMethods<D> =

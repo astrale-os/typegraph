@@ -6,6 +6,7 @@
  */
 
 import type { Span, Trace, TraceInput, TraceOutput, Phase, SpanMetadata } from './types'
+
 import {
   generateSpanId,
   generateTraceId,

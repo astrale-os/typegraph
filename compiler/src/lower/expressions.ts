@@ -6,7 +6,6 @@
 // StringLiteral, NumberLiteral, BooleanLiteral, NullLiteral, CallExpression
 // ============================================================
 
-import { type ExpressionNode, type LiteralExprNode, type CallExprNode, spanOf } from '../cst/index'
 import {
   type Expression,
   type StringLiteral,
@@ -15,8 +14,9 @@ import {
   type NullLiteral,
   type CallExpression,
 } from '../ast/index'
-import { type LoweringContext } from './index'
+import { type ExpressionNode, type LiteralExprNode, type CallExprNode, spanOf } from '../cst/index'
 import { lowerName, unquote } from './declarations'
+import { type LoweringContext } from './index'
 import { parseNum } from './modifiers'
 
 export function lowerExpression(ctx: LoweringContext, node: ExpressionNode): Expression {

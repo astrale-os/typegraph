@@ -4,7 +4,6 @@
  * Server-side handlers for latency profiling API endpoints.
  */
 
-import type { PlaygroundFalkorDBClient } from './falkordb-client'
 import type {
   ScenarioResult,
   TestScenario,
@@ -14,7 +13,8 @@ import type {
   Phase,
   Span,
 } from '../types/profiling'
-import { emptyMetrics } from '../types/profiling'
+import type { PlaygroundFalkorDBClient } from './falkordb-client'
+
 import {
   type Scale,
   type GraphMetadata,
@@ -24,6 +24,7 @@ import {
   serializeMetadata,
   deserializeMetadata,
 } from '../performance'
+import { emptyMetrics } from '../types/profiling'
 
 // =============================================================================
 // TYPES

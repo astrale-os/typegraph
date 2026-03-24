@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
 import { Timer, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState, useMemo } from 'react'
+
 import type { PerformanceProfile } from '@/types/api'
 
 interface TimingBreakdownProps {

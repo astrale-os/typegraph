@@ -1,10 +1,3 @@
-import { z } from 'zod'
-import type { Schema } from '../schema/schema.js'
-import type { Def } from '../defs/definition.js'
-import type { EndpointCfg } from '../defs/endpoint.js'
-import type { DefConstraints } from '../defs/constraints.js'
-import type { OpDef } from '../defs/operation.js'
-import { getDefRegistration } from '../registry.js'
 import type {
   SchemaIR,
   InterfaceDecl,
@@ -16,6 +9,16 @@ import type {
   EdgeConstraints,
   JsonSchema,
 } from '@astrale/typegraph-schema'
+
+import { z } from 'zod'
+
+import type { DefConstraints } from '../defs/constraints.js'
+import type { Def } from '../defs/definition.js'
+import type { EndpointCfg } from '../defs/endpoint.js'
+import type { OpDef } from '../defs/operation.js'
+import type { Schema } from '../schema/schema.js'
+
+import { getDefRegistration } from '../registry.js'
 import {
   unwrapZod,
   getArrayElement,

@@ -5,9 +5,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { normalizeCypher } from './fixtures/test-schema'
+
 import { type SchemaShape, QueryAST } from '../../src'
 import { CypherCompiler } from '../../src/query/compiler'
+import { normalizeCypher } from './fixtures/test-schema'
 
 describe('Query Compilation: Hierarchy', () => {
   // ===========================================================================

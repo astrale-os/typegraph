@@ -5,11 +5,12 @@
  * falls back to structural checks otherwise.
  */
 
-import type { SchemaShape } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { SchemaShape } from '../schema'
+import type { MutationOp } from './ast/types'
+
 import { getNodesSatisfying, edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 import { ValidationError } from './errors'
-import type { MutationOp } from './ast/types'
 
 // =============================================================================
 // VALIDATOR MAP TYPE

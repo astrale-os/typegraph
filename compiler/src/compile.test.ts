@@ -1,9 +1,10 @@
 // src/compile.test.ts
 import { describe, it, expect } from 'vitest'
+
 import { compile } from './compile'
 import { type SchemaIR, type NodeDef, type EdgeDef, ClassDef } from './ir/index'
-import { KERNEL_PRELUDE } from './prelude'
 import { buildKernelRegistry } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
 
 const kernelRegistry = buildKernelRegistry()
 

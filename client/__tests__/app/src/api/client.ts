@@ -6,6 +6,7 @@ import type {
   NodeId,
   Permission,
 } from '@authz/types'
+
 import type { PerformanceProfile } from '@/types/api'
 
 async function get<T>(url: string): Promise<T> {

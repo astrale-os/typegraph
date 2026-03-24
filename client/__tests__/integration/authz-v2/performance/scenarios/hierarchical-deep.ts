@@ -11,8 +11,9 @@
  */
 
 import type { TestScenario } from './types'
-import { separateGrant, identity } from './types'
+
 import { READ, EDIT } from '../../testing/helpers'
+import { separateGrant, identity } from './types'
 
 /**
  * USER1 → M1 (read)

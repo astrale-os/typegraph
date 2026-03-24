@@ -1,12 +1,13 @@
-// src/lower.test.ts
-import { describe, it, expect } from 'vitest'
-import { lex } from './lexer'
-import { parse } from './parser/index'
-import { lower } from './lower/index'
 import { readFileSync } from 'fs'
 import { resolve as pathResolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+// src/lower.test.ts
+import { describe, it, expect } from 'vitest'
+
 import { DiagnosticBag } from './diagnostics'
+import { lex } from './lexer'
+import { lower } from './lower/index'
+import { parse } from './parser/index'
 
 const KERNEL_SCHEMA_SOURCE = readFileSync(
   pathResolve(dirname(fileURLToPath(import.meta.url)), '..', 'kernel.gsl'),

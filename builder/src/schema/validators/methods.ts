@@ -1,6 +1,7 @@
 import type { OpDef } from '../../defs/operation.js'
-import { SchemaValidationError } from '../schema.js'
 import type { SchemaContext } from './context.js'
+
+import { SchemaValidationError } from '../schema.js'
 
 /**
  * Validates that concrete (non-abstract) defs do not declare `inheritance`

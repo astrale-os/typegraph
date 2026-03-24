@@ -1,5 +1,7 @@
 import { Shield, Zap } from 'lucide-react'
+
 import { useQueryStore } from '@/store/query-store'
+
 import { AccessQueryForm } from './AccessQueryForm'
 import { ResultDisplay } from './ResultDisplay'
 

@@ -6,8 +6,10 @@
  */
 
 import { z } from 'zod'
-import { deepEqual } from '../deep-equal'
+
 import type { AnySchema, NodeDefinition, EdgeDefinition, SchemaDiff, SchemaChange } from './types'
+
+import { deepEqual } from '../deep-equal'
 
 /** Minimal subset of JSON Schema output from z.toJSONSchema(). */
 interface JSONSchemaObject {

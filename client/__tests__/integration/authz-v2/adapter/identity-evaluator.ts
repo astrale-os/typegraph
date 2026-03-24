@@ -12,6 +12,7 @@
  */
 
 import type { IdentityExpr, IdentityComposition, RawExecutor } from '../types'
+
 import { isExprBuilder, type ExprBuilder } from '../expression/builder'
 import { type GraphVocab, resolveVocab } from './vocabulary'
 

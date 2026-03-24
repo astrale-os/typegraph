@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
 import { Circle, Plug, Unplug } from 'lucide-react'
+import { useEffect } from 'react'
+
 import { useConnectionStore } from '@/store/connection-store'
 
 export function ConnectionStatus() {

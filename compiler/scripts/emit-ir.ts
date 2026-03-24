@@ -3,8 +3,8 @@
 // Run with: npx tsx scripts/emit-ir.ts
 
 import { compile } from '../src/compile.js'
-import { KERNEL_PRELUDE } from '../src/prelude.js'
 import { buildKernelRegistry } from '../src/kernel-prelude.js'
+import { KERNEL_PRELUDE } from '../src/prelude.js'
 
 const BLOG_SCHEMA = `
 extend "https://kernel.astrale.ai/v1" { Identity }

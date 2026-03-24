@@ -2,9 +2,11 @@
  * Integration tests for Neo4j adapter.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { createGraph, type Graph } from '@astrale/typegraph-client'
 import type { SchemaShape } from '@astrale/typegraph-client'
+
+import { createGraph, type Graph } from '@astrale/typegraph-client'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+
 import { Neo4jAdapter } from '../src'
 
 describe('Neo4j Adapter Integration', () => {

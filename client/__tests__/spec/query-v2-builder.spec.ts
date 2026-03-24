@@ -18,9 +18,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
 import { createQueryBuilder } from '../../src'
-import { testSchema } from './fixtures/test-schema'
 import { SubqueryBuilder } from '../../src/query/subquery-builder'
+import { testSchema } from './fixtures/test-schema'
 
 const graph = createQueryBuilder(testSchema)
 

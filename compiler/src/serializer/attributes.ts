@@ -8,8 +8,8 @@
 import { type Attribute, type Expression } from '../ast/index'
 import { type IRAttribute, type ValueNode } from '../ir/index'
 import { type SerializerContext } from './index'
-import { serializeTypeRef } from './types'
 import { extractAttributeModifiers } from './modifiers'
+import { serializeTypeRef } from './types'
 
 export function serializeAttribute(ctx: SerializerContext, attr: Attribute): IRAttribute {
   return {

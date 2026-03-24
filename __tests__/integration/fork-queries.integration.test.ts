@@ -18,9 +18,10 @@
  * compatibility, or when using Neo4j/Memgraph which don't have this limitation.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
 import { collect, collectDistinct } from '@astrale/typegraph-client'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
+import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
 
 describe('Fork Queries Integration Tests', () => {
   let ctx: TestContext

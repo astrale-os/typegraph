@@ -1,16 +1,6 @@
 import { FalkorDB, type Graph } from 'falkordb'
-import {
-  createRawExecutor,
-  clearDatabase,
-  createIndexes,
-} from '../../../integration/authz-v2/testing/setup'
-import { FalkorDBAccessQueryAdapter } from '../../../integration/authz-v2/adapter/queries'
-import {
-  createIdentityEvaluator,
-  type IdentityEvaluator,
-} from '../../../integration/authz-v2/adapter/identity-evaluator'
-import { checkAccess } from '../../../integration/authz-v2/authorization/checker'
-import { explainAccess } from '../../../integration/authz-v2/authorization/explainer'
+
+import type { QueryFragment } from '../../../integration/authz-v2/adapter/cypher'
 import type { AccessQueryPort } from '../../../integration/authz-v2/authorization/access-query-port'
 import type {
   RawExecutor,
@@ -25,20 +15,32 @@ import type {
   AccessExplanation,
   UnresolvedGrant,
 } from '../../../integration/authz-v2/types'
-import type { QueryFragment } from '../../../integration/authz-v2/adapter/cypher'
 import type { MethodTiming, PerformanceProfile } from '../types/api'
+
 import {
-  TokenVerifier,
-  KERNEL_ISSUER,
-  type TokenPayload,
-} from '../../../integration/authz-v2/authentication/token-verifier'
-import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
-import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
+  createIdentityEvaluator,
+  type IdentityEvaluator,
+} from '../../../integration/authz-v2/adapter/identity-evaluator'
+import { FalkorDBAccessQueryAdapter } from '../../../integration/authz-v2/adapter/queries'
 import {
   GrantDecoder,
   validateGrant,
   type DecodedGrant,
 } from '../../../integration/authz-v2/authentication/grant-decoder'
+import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
+import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
+import {
+  TokenVerifier,
+  KERNEL_ISSUER,
+  type TokenPayload,
+} from '../../../integration/authz-v2/authentication/token-verifier'
+import { checkAccess } from '../../../integration/authz-v2/authorization/checker'
+import { explainAccess } from '../../../integration/authz-v2/authorization/explainer'
+import {
+  createRawExecutor,
+  clearDatabase,
+  createIndexes,
+} from '../../../integration/authz-v2/testing/setup'
 import {
   type Scale,
   type GraphMetadata,

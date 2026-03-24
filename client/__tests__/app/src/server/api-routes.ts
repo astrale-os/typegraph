@@ -1,5 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+
+import { type Scale, serializeMetadata } from '../performance'
 import { playgroundClient } from './falkordb-client'
+import {
+  handleRunScenario,
+  handleGenerateGraph,
+  handleGetScenarios,
+  cachedMetadata,
+} from './perf-service'
 import {
   handleRelaySetup,
   handleIssueToken,
@@ -8,13 +16,6 @@ import {
   handleDecodeToken,
   handleKernelCheckAccess,
 } from './relay-service'
-import {
-  handleRunScenario,
-  handleGenerateGraph,
-  handleGetScenarios,
-  cachedMetadata,
-} from './perf-service'
-import { type Scale, serializeMetadata } from '../performance'
 
 type RouteHandler = (body: Record<string, unknown>, res: ServerResponse) => Promise<void>
 

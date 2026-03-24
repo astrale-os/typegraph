@@ -4,8 +4,8 @@
  * Execute custom Cypher queries and measure latency.
  */
 
-import { useState, useRef, useEffect } from 'react'
 import { Play, Clock, Copy, Check, ChevronDown } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 
 interface QueryBuilderProps {
   scale: string

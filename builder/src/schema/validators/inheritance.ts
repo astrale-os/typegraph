@@ -1,7 +1,8 @@
 import type { Def } from '../../defs/definition.js'
+import type { SchemaContext } from './context.js'
+
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
-import type { SchemaContext } from './context.js'
 
 export function validateInheritance(ctx: SchemaContext): void {
   const isKnownDef = (target: object): boolean => ctx.allDefValues.has(target) || hasDefName(target)

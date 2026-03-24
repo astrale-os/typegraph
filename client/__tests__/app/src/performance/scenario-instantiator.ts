@@ -4,6 +4,7 @@
  * Converts scenario templates to concrete test scenarios using graph metadata.
  */
 
+import type { TestScenario } from '../types/profiling'
 import type { GraphMetadata } from './graph-metadata'
 import type {
   ScenarioTemplate,
@@ -11,8 +12,8 @@ import type {
   UserSelector,
   AppSelector,
 } from './scenario-templates'
+
 import { createSeededRandom, type SeededRandom } from './seeded-random'
-import type { TestScenario } from '../types/profiling'
 
 // =============================================================================
 // MAIN INSTANTIATION

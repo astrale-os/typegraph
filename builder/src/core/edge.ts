@@ -1,7 +1,8 @@
 import type { Def } from '../defs/definition.js'
-import type { CoreNode, CoreEdge } from './types.js'
-import type { CorePath } from './path.js'
 import type { EdgeInputData } from './node.js'
+import type { CorePath } from './path.js'
+import type { CoreNode, CoreEdge } from './types.js'
+
 import { getDefName } from '../registry.js'
 
 export function edge<E extends Def>(

@@ -1,5 +1,4 @@
 import 'reactflow/dist/style.css'
-
 import { useCallback, useEffect, useMemo } from 'react'
 import ReactFlow, {
   Background,
@@ -16,13 +15,14 @@ import ReactFlow, {
 
 import { useGraphStore } from '@/store/graph-store'
 import { EDGE_COLORS, NODE_COLORS, type EdgeType, type NodeType } from '@/types/graph'
-import { getLayoutedElements } from './layout'
+
 import { EdgeFilters } from './EdgeFilters'
+import { getLayoutedElements } from './layout'
+import { IdentityNode } from './nodes/IdentityNode'
+import { ModuleNode } from './nodes/ModuleNode'
 import { RootNode } from './nodes/RootNode'
 import { SpaceNode } from './nodes/SpaceNode'
-import { ModuleNode } from './nodes/ModuleNode'
 import { TypeNode } from './nodes/TypeNode'
-import { IdentityNode } from './nodes/IdentityNode'
 
 const nodeTypes = {
   Root: RootNode,

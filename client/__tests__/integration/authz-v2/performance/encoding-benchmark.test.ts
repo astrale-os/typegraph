@@ -11,12 +11,14 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { identity, union, intersect, exclude } from '../expression/builder'
-import { toCompactJSON, fromCompactJSON } from '../expression/compact'
-import { encode, decode, encodeBase64, decodeBase64 } from '../expression/encoding'
-import { dedup, expand, hasRepeatedSubtrees, dedupStats } from '../expression/dedup'
+
 import type { IdentityExpr } from '../types'
 import type { PermissionMask } from '../types'
+
+import { identity, union, intersect, exclude } from '../expression/builder'
+import { toCompactJSON, fromCompactJSON } from '../expression/compact'
+import { dedup, expand, hasRepeatedSubtrees, dedupStats } from '../expression/dedup'
+import { encode, decode, encodeBase64, decodeBase64 } from '../expression/encoding'
 import { READ, EDIT, USE, SHARE } from '../testing/helpers'
 
 // =============================================================================

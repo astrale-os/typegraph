@@ -8,6 +8,7 @@ import type {
   IRAttribute,
   TypeRef,
 } from '../model'
+
 import { scalarToTs } from './scalars'
 import { pascalCase, section } from './utils'
 

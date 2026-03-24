@@ -1,9 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
 import { X, Undo2 } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+
 import type { IdentityExpr } from '@/types/api'
-import { ScopeEditor } from './ScopeEditor'
 import type { Scope } from '@/types/api'
+
 import { useGraphStore } from '@/store/graph-store'
+
+import { ScopeEditor } from './ScopeEditor'
 
 type ExprKind = 'identity' | 'union' | 'intersect' | 'exclude'
 

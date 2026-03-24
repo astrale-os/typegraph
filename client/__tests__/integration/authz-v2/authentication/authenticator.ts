@@ -7,9 +7,10 @@
  */
 
 import type { Grant, IdentityId } from '../types'
-import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
+
 import { type GrantDecoder, validateGrant } from './grant-decoder'
+import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 
 // =============================================================================
 // AUTH CONTEXT

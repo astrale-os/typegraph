@@ -6,12 +6,14 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { QueryAST } from '../../src/query/ast'
-import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
-import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
-import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
-import { getCompiler, getQueryPipeline } from '../../src/query/compiler/cache'
+
 import type { SchemaShape } from '../../src/schema'
+
+import { QueryAST } from '../../src/query/ast'
+import { getCompiler, getQueryPipeline } from '../../src/query/compiler/cache'
+import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
+import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
+import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
 import { ClassId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 

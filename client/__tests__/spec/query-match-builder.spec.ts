@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
 import { createQueryBuilder } from '../../src'
 import { testSchema, normalizeCypher } from './fixtures/test-schema'
 

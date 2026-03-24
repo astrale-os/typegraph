@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { interfaceDef, classDef, method, ref } from '../defs/index.js'
-import { defineSchema } from '../schema/define.js'
+
 import { edge, node, defineCore, CorePath, buildCorePath } from '../core/index.js'
-import { defineSeed } from '../seed/index.js'
-import { SchemaValidationError } from '../schema/schema.js'
+import { interfaceDef, classDef, method, ref } from '../defs/index.js'
 import { getDefName } from '../registry.js'
+import { defineSchema } from '../schema/define.js'
+import { SchemaValidationError } from '../schema/schema.js'
+import { defineSeed } from '../seed/index.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

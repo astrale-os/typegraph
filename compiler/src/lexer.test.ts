@@ -1,9 +1,10 @@
-// src/lexer.test.ts
-import { describe, it, expect } from 'vitest'
-import { lex } from './lexer'
 import { readFileSync } from 'fs'
 import { resolve as pathResolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+// src/lexer.test.ts
+import { describe, it, expect } from 'vitest'
+
+import { lex } from './lexer'
 
 const KERNEL_SCHEMA_SOURCE = readFileSync(
   pathResolve(dirname(fileURLToPath(import.meta.url)), '..', 'kernel.gsl'),

@@ -7,8 +7,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { toCypher, type CypherOptions } from './adapter/cypher'
+
 import type { PrunedIdentityExpr } from './types'
+
+import { toCypher, type CypherOptions } from './adapter/cypher'
 import { DEFAULT_VOCAB } from './adapter/vocabulary'
 import { READ, EDIT } from './testing/helpers'
 

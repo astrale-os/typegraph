@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+
 import { compileAndGenerate } from './helpers.js'
 
 describe('core DSL', () => {

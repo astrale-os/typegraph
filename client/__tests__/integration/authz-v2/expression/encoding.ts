@@ -18,8 +18,9 @@
  */
 
 import type { IdentityExpr, Scope } from '../types'
-import { isDedupedExpr, isRef, type DedupedExpr, type RefExpr } from './dedup'
+
 import { toCompactJSON } from './compact'
+import { isDedupedExpr, isRef, type DedupedExpr, type RefExpr } from './dedup'
 
 // =============================================================================
 // TYPE TAGS

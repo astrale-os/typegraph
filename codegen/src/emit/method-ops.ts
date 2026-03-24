@@ -1,6 +1,7 @@
 import type { GraphModel, MethodDef, MethodParam } from '../model'
-import { resolveZodTypeRef, renderDefault } from './zod-utils'
+
 import { pascalCase } from './utils'
+import { resolveZodTypeRef, renderDefault } from './zod-utils'
 
 /**
  * Emit `*Ops` constants — typed `op(...)` calls for every type with methods.

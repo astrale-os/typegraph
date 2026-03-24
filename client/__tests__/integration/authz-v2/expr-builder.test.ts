@@ -5,6 +5,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
+import type { IdentityExpr, Scope } from './types'
+
 import {
   identity,
   id,
@@ -16,7 +19,6 @@ import {
   isExprBuilder,
 } from './expression/builder'
 import { applyScope } from './expression/scope'
-import type { IdentityExpr, Scope } from './types'
 import { READ, EDIT } from './testing/helpers'
 
 describe('AUTH_V2: Expression Builder SDK', () => {

@@ -5,8 +5,8 @@
  * Allows plugging different query languages (Cypher, Gremlin, SQL, etc.)
  */
 
-import type { QueryAST } from '../ast'
 import type { SchemaShape } from '../../schema'
+import type { QueryAST } from '../ast'
 import type { CompiledQuery, CompilerOptions } from './types'
 
 // =============================================================================

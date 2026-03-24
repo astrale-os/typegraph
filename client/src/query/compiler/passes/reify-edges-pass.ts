@@ -8,7 +8,7 @@
  * The CypherCompiler is untouched.
  */
 
-import { QueryAST } from '../../ast'
+import type { SchemaShape } from '../../../schema'
 import type {
   ASTNode,
   TraversalStep,
@@ -25,10 +25,11 @@ import type {
   AliasRegistry,
   Projection,
 } from '../../ast'
-import type { SchemaShape } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
+
 import { isReified } from '../../../helpers'
 import { STRUCTURAL_EDGES, STRUCTURAL_EDGE_SET, META_LABELS } from '../../../schema'
+import { QueryAST } from '../../ast'
 
 export class ReifyEdgesPass implements CompilationPass {
   readonly name = 'ReifyEdges'

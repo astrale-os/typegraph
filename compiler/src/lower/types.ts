@@ -4,6 +4,13 @@
 // ============================================================
 
 import {
+  type TypeExpr,
+  type NamedType,
+  type NullableType,
+  type UnionType,
+  type EdgeRefType,
+} from '../ast/index'
+import {
   type TypeExprNode,
   type UnionTypeNode,
   type NullableTypeNode,
@@ -11,13 +18,6 @@ import {
   type EdgeRefTypeNode,
   spanOf,
 } from '../cst/index'
-import {
-  type TypeExpr,
-  type NamedType,
-  type NullableType,
-  type UnionType,
-  type EdgeRefType,
-} from '../ast/index'
 import { lowerName } from './declarations'
 
 export function lowerTypeExpr(node: TypeExprNode): TypeExpr {

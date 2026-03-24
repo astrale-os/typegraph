@@ -7,9 +7,11 @@
  * documented in the TypeGraph library itself (see single-node.ts line 6).
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import { createGraph, type Graph } from '@astrale/typegraph-client'
 import type { SchemaShape } from '@astrale/typegraph-client'
+
+import { createGraph, type Graph } from '@astrale/typegraph-client'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+
 import { falkordb, clearGraph } from '../src'
 
 describe.skip('FalkorDB Adapter Integration', () => {

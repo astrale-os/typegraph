@@ -1,4 +1,5 @@
 import type { IdentityExpr } from '@authz/types'
+
 import { identity, id, union, intersect, exclude, grant, raw } from '@authz/expression/builder'
 import { applyScope } from '@authz/expression/scope'
 

@@ -5,6 +5,8 @@
  */
 
 import { z } from 'zod'
+
+import type { ResolvedNodes } from './inference'
 import type {
   SchemaDefinition,
   NodeDefinition,
@@ -14,7 +16,7 @@ import type {
   CompositeIndex,
   HierarchyConfig,
 } from './types'
-import type { ResolvedNodes } from './inference'
+
 import { SchemaValidationError } from '../errors'
 
 // =============================================================================

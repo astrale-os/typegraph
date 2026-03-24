@@ -13,8 +13,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createCypherCompiler } from '../../src/query/compiler'
+
 import { QueryAST } from '../../src/query/ast'
+import { createCypherCompiler } from '../../src/query/compiler'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================

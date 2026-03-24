@@ -4,9 +4,9 @@
  * Types for the mutation API - create, update, delete, link, hierarchy operations.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
 import type { ResolveNode, ResolveEdge, ResolveNodeInput, ResolveEdgeInput } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 
 // =============================================================================
 // INPUT TYPES (What user provides)

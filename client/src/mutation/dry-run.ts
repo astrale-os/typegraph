@@ -5,9 +5,9 @@
  * Useful for validation, debugging, and testing.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
 import type { ResolveNode, ResolveEdge } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type {
   NodeInput,
   EdgeInput,

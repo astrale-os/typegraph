@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { Location } from 'vscode-languageserver-types'
+
 import type { Workspace, DocumentState } from './workspace'
 
 export function provideDefinition(

@@ -1,13 +1,14 @@
 // src/resolver.test.ts
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer'
-import { parse } from './parser/index'
-import { lower } from './lower/index'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
-import { KERNEL_PRELUDE } from './prelude'
-import { buildKernelRegistry, KERNEL_SCHEMA_URI } from './kernel-prelude'
-import { type SchemaRegistry } from './registry'
+
 import { DiagnosticBag } from './diagnostics'
+import { buildKernelRegistry, KERNEL_SCHEMA_URI } from './kernel-prelude'
+import { lex } from './lexer'
+import { lower } from './lower/index'
+import { parse } from './parser/index'
+import { KERNEL_PRELUDE } from './prelude'
+import { type SchemaRegistry } from './registry'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
 
 const kernelRegistry = buildKernelRegistry()
 

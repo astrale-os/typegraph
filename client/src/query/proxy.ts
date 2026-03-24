@@ -5,8 +5,8 @@
  * These proxies track alias accesses and property accesses for AST building.
  */
 
-import type { SchemaShape } from '../schema'
 import type { AliasMap, EdgeAliasMap, QueryContext } from '../inference'
+import type { SchemaShape } from '../schema'
 
 // =============================================================================
 // INTERNAL TYPES

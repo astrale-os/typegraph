@@ -3,6 +3,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
+import type { IdentityExpr } from './types'
+
+import { identity, union, intersect, exclude } from './expression/builder'
 import {
   toCompact,
   fromCompact,
@@ -10,8 +14,6 @@ import {
   fromCompactJSON,
   type CompactExpr,
 } from './expression/compact'
-import { identity, union, intersect, exclude } from './expression/builder'
-import type { IdentityExpr } from './types'
 import { READ, EDIT } from './testing/helpers'
 
 describe('AUTH_V2: Expression Compaction', () => {

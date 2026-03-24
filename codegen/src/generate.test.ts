@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect } from 'vitest'
+
+import type { SchemaIR } from './model'
+
 import { generate } from './generate'
 import { normalizeIR, load } from './loader'
-import type { SchemaIR } from './model'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const BLOG_IR_PATH = resolve(__dirname, '../../compiler/blog-compiled.json')

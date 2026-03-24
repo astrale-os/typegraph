@@ -1,12 +1,13 @@
-// src/registry.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { writeFileSync, mkdirSync, rmSync } from 'fs'
 import { resolve, join } from 'path'
-import { isLocalPath, resolveExtendUri, LazyFileRegistry, MapSchemaRegistry } from './registry'
+// src/registry.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
 import { compile } from './compile'
-import { KERNEL_PRELUDE } from './prelude'
-import { buildKernelRegistry } from './kernel-prelude'
 import { createLazyFileRegistry } from './file-resolver'
+import { buildKernelRegistry } from './kernel-prelude'
+import { KERNEL_PRELUDE } from './prelude'
+import { isLocalPath, resolveExtendUri, LazyFileRegistry, MapSchemaRegistry } from './registry'
 
 // ─── isLocalPath ─────────────────────────────────────────────
 

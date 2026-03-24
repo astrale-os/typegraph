@@ -6,6 +6,7 @@
  */
 
 import type { AnySchema, NodeDefinition, EdgeDefinition } from './types'
+
 import { toPascalCase } from './labels'
 
 // =============================================================================

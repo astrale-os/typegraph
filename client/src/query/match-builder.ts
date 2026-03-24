@@ -21,13 +21,14 @@
  * ```
  */
 
+import type { NodeLabels } from '../inference'
+import type { SchemaShape } from '../schema'
 import type { QueryAST } from './ast'
 import type { ComparisonOperator, WhereCondition } from './ast'
-import { getCompiler, getQueryPipeline } from './compiler'
 import type { CompiledQuery } from './compiler'
-import type { SchemaShape } from '../schema'
-import type { NodeLabels } from '../inference'
 import type { QueryExecutor } from './types'
+
+import { getCompiler, getQueryPipeline } from './compiler'
 
 // =============================================================================
 // CONFIG TYPES

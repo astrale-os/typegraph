@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { PropShape } from './property.js'
+import type { DefConstraints } from './constraints.js'
 import type { DataShape } from './data.js'
+import type { EndpointCfg } from './endpoint.js'
 import type { IndexDef } from './indexing.js'
 import type { OpDef } from './operation.js'
-import type { EndpointCfg } from './endpoint.js'
-import type { DefConstraints } from './constraints.js'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { PropShape } from './property.js'
 
 export type DefType = 'def' | 'op'
 

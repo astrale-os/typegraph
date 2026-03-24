@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod'
-import type { Def } from './definition.js'
+
 import type { ExtractFullData } from '../inference/index.js'
+import type { Def } from './definition.js'
 
 export type DataShape = Record<string, z.ZodType>
 

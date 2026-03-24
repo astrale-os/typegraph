@@ -6,8 +6,9 @@
  */
 
 import type { UnresolvedGrant } from '../types'
-import { IssuerKeyStore } from './issuer-key-store'
+
 import { IdentityRegistry } from './identity-registry'
+import { IssuerKeyStore } from './issuer-key-store'
 
 // =============================================================================
 // TYPES

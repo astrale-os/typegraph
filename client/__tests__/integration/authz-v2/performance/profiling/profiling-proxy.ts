@@ -5,10 +5,11 @@
  * Uses SpanCollector to record timing and metadata without modifying core code.
  */
 
-import type { AccessQueryPort } from '../../authorization/access-query-port'
 import type { QueryFragment } from '../../adapter/cypher'
+import type { AccessQueryPort } from '../../authorization/access-query-port'
 import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation } from '../../types'
 import type { Phase, SpanMetadata } from './types'
+
 import { type SpanCollector } from './span-collector'
 
 // =============================================================================

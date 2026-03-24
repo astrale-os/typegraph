@@ -1,7 +1,8 @@
 import type { EndpointCfg, Cardinality } from '../../defs/endpoint.js'
+import type { SchemaContext } from './context.js'
+
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
-import type { SchemaContext } from './context.js'
 
 export function validateEndpoints(ctx: SchemaContext): void {
   const isKnownDef = (target: object): boolean => ctx.allDefValues.has(target) || hasDefName(target)

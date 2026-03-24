@@ -7,21 +7,22 @@
 // feature providers (hover, definition, completion, etc.)
 // ============================================================
 
+import { fileURLToPath } from 'url'
 import {
   TextDocument,
   type TextDocumentContentChangeEvent,
 } from 'vscode-languageserver-textdocument'
 import { type Diagnostic as LspDiagnostic, DiagnosticSeverity } from 'vscode-languageserver-types'
-import { fileURLToPath } from 'url'
+
+import { type Declaration } from '../ast/index'
 import { compile, type CompileResult } from '../compile'
+import { isToken, isNode, type CstNode } from '../cst/index'
 import { type DiagnosticBag } from '../diagnostics'
 import { LineMap } from '../linemap'
-import { type Declaration } from '../ast/index'
-import { type Symbol, createBuiltinScope } from '../resolver/index'
-import { type Token } from '../tokens'
-import { isToken, isNode, type CstNode } from '../cst/index'
 import { type Prelude, DEFAULT_PRELUDE } from '../prelude'
 import { type SchemaRegistry, EMPTY_REGISTRY } from '../registry'
+import { type Symbol, createBuiltinScope } from '../resolver/index'
+import { type Token } from '../tokens'
 
 export interface DocumentState {
   document: TextDocument

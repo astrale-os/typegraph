@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
+
+import type { MethodSchemaInfo, MethodDispatchFn, ConstraintSchemaInfo } from '../../src'
+
 import {
   collectMethodNames,
   MethodNotDispatchedError,
@@ -8,7 +11,6 @@ import {
   resolveEndpoints,
   ConstraintViolation,
 } from '../../src'
-import type { MethodSchemaInfo, MethodDispatchFn, ConstraintSchemaInfo } from '../../src'
 
 // ─── Test Schema Info ────────────────────────────────────────
 

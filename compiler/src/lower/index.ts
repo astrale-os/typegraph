@@ -10,8 +10,8 @@
 //   - Converts number literal text to numbers
 // ============================================================
 
-import { type SchemaNode } from '../cst/index'
 import { type Schema, type Declaration } from '../ast/index'
+import { type SchemaNode } from '../cst/index'
 import { spanOf } from '../cst/index'
 import { DiagnosticBag } from '../diagnostics'
 import { lowerDeclaration } from './declarations'

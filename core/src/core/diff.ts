@@ -7,9 +7,10 @@
  */
 
 import type { AnySchema } from '../schema/types'
-import { isCompositeIndex, isSinglePropertyIndex, type IndexConfig } from '../schema/types'
-import { deepEqual } from '../deep-equal'
 import type { AnyCoreDefinition, CoreDiff, CoreDiffInput, PropertyChange } from './types'
+
+import { deepEqual } from '../deep-equal'
+import { isCompositeIndex, isSinglePropertyIndex, type IndexConfig } from '../schema/types'
 
 /**
  * Index info for a single property: what type of index covers it.

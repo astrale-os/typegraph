@@ -9,16 +9,6 @@
 // go into a single `classes` array, discriminated by `type`.
 // ============================================================
 
-import {
-  type SchemaIR,
-  type TypeAlias,
-  type ValueTypeDef,
-  type TaggedUnionDef,
-  type DataTypeDef,
-  type ClassDef,
-  type Extension,
-} from '../ir/index'
-import { type ResolvedSchema } from '../resolver/index'
 import type {
   TypeAliasDecl,
   ValueTypeDecl,
@@ -28,7 +18,18 @@ import type {
   EdgeDecl,
   DataDecl,
 } from '../ast/index'
+
+import {
+  type SchemaIR,
+  type TypeAlias,
+  type ValueTypeDef,
+  type TaggedUnionDef,
+  type DataTypeDef,
+  type ClassDef,
+  type Extension,
+} from '../ir/index'
 import { isLocalPath } from '../registry'
+import { type ResolvedSchema } from '../resolver/index'
 import {
   serializeExtend,
   serializeTypeAlias,

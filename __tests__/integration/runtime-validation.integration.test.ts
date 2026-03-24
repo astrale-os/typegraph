@@ -5,9 +5,10 @@
  * Verifies the system properly validates data at runtime and provides clear errors.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
 import { fail } from 'assert'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
+import { setupIntegrationTest, teardownIntegrationTest, type TestContext } from './setup'
 
 describe('Runtime Validation', () => {
   let ctx: TestContext

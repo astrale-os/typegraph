@@ -6,8 +6,9 @@
  */
 
 import type { AnySchema } from '../schema/types'
-import { getNodesSatisfying } from '../schema/labels'
+
 import { SchemaValidationError } from '../errors'
+import { getNodesSatisfying } from '../schema/labels'
 
 /**
  * Validates all node entries in a Core definition.

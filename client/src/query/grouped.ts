@@ -5,14 +5,15 @@
  * Created by CollectionBuilder.groupBy().
  */
 
+import type { NodeLabels, NodeProps } from '../inference'
+import type { SchemaShape } from '../schema'
 import type { QueryAST, ComparisonOperator } from './ast'
 import type { CompiledQuery } from './compiler'
-import { getCompiler } from './compiler'
-import type { SchemaShape } from '../schema'
-import type { NodeLabels, NodeProps } from '../inference'
 import type { QueryExecutor } from './types'
+
 import { ExecutionError } from '../errors'
 import { convertNeo4jValue } from '../utils'
+import { getCompiler } from './compiler'
 
 /**
  * Infer the result type of a grouped aggregation.

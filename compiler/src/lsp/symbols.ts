@@ -4,7 +4,7 @@
 // ============================================================
 
 import { type DocumentSymbol, SymbolKind, type Range } from 'vscode-languageserver-types'
-import { type DocumentState } from './workspace'
+
 import {
   type Declaration,
   type TypeAliasDecl,
@@ -21,6 +21,7 @@ import {
   type TypeExpr,
   type Name,
 } from '../ast/index'
+import { type DocumentState } from './workspace'
 
 export function provideDocumentSymbols(state: DocumentState): DocumentSymbol[] {
   const ast = state.result.artifacts?.ast

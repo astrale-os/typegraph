@@ -1,6 +1,6 @@
+import type { Endpoint, EdgeConstraints } from './endpoints.js'
 import type { JsonSchema } from './json-schema.js'
 import type { OperationDecl } from './operations.js'
-import type { Endpoint, EdgeConstraints } from './endpoints.js'
 
 /** An interface declaration. Cannot be instantiated directly. */
 export interface InterfaceDecl {

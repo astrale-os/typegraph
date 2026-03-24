@@ -23,8 +23,10 @@
  */
 
 import type { GraphAdapter } from '@astrale/typegraph-client'
-import { FalkorDBAdapter } from './adapter'
+
 import type { FalkorDBConfig } from './types'
+
+import { FalkorDBAdapter } from './adapter'
 import { validateGraphName } from './errors'
 
 // Re-export types

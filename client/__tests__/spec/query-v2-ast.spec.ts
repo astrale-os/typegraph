@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { QueryAST, ASTVisitor } from '../../src/query/ast'
+
 import type {
   ASTNode,
   WhereCondition,
@@ -20,6 +20,8 @@ import type {
   SubqueryCountCondition,
   ProjectionReturn,
 } from '../../src/query/ast'
+
+import { QueryAST, ASTVisitor } from '../../src/query/ast'
 
 // =============================================================================
 // HELPERS

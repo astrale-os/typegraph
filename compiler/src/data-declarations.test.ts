@@ -4,15 +4,15 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest'
-import { lex } from './lexer'
-import { parse } from './parser/index'
-import { lower } from './lower/index'
+
 import { compile } from './compile'
-import { KERNEL_PRELUDE } from './prelude'
 import { buildKernelRegistry } from './kernel-prelude'
+import { lex } from './lexer'
+import { lower } from './lower/index'
+import { parse } from './parser/index'
+import { KERNEL_PRELUDE } from './prelude'
 
 const kernelRegistry = buildKernelRegistry()
-import { type ClassDeclNode, type DataDeclNode } from './cst/index'
 import {
   type NodeDecl,
   type EdgeDecl,
@@ -20,6 +20,8 @@ import {
   type DataDecl,
   type Declaration,
 } from './ast/index'
+import { type ClassDeclNode, type DataDeclNode } from './cst/index'
+import { DiagnosticBag, DiagnosticCodes } from './diagnostics'
 import {
   type SchemaIR,
   type NodeDef,
@@ -27,7 +29,6 @@ import {
   type MethodDef,
   type DataTypeDef,
 } from './ir/index'
-import { DiagnosticBag, DiagnosticCodes } from './diagnostics'
 
 // ─── Helpers ────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import type { DomainOrigin } from './domain.js'
 import type { ClassDecl, InterfaceDecl, AnyDecl } from './classes.js'
+import type { DomainOrigin } from './domain.js'
 import type { JsonSchema } from './json-schema.js'
 
 /**

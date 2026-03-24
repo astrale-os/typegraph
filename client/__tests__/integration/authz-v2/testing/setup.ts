@@ -6,6 +6,7 @@
  */
 
 import { FalkorDB, type Graph } from 'falkordb'
+
 import type { AuthzTestData, RawExecutor } from '../types'
 
 // =============================================================================

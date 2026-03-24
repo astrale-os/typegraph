@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, extendSchema, node, edge, mergeNodeSchemas } from '../src/schema/builders'
+
 import type { NodeDefinition } from '../src/schema/types'
+
+import { defineSchema, extendSchema, node, edge, mergeNodeSchemas } from '../src/schema/builders'
 
 describe('Schema Extension', () => {
   // ─────────────────────────────────────────────────────────────────────────────

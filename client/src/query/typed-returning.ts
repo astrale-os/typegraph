@@ -5,15 +5,16 @@
  * Uses composition instead of mutation - wraps a ReturningBuilder and transforms results.
  */
 
+import type { AliasMap, EdgeAliasMap, TypedReturnQuery } from '../inference'
+import type { SchemaShape } from '../schema'
 import type { CompiledQuery } from './compiler'
 import type { ReturnSpec } from './proxy'
-import { transformReturnResult } from './proxy'
 import type { ReturningBuilder, CollectSpec } from './returning'
-import type { SchemaShape } from '../schema'
-import type { AliasMap, EdgeAliasMap, TypedReturnQuery } from '../inference'
-import { ExecutionError } from '../errors'
 import type { QueryExecutor } from './types'
+
+import { ExecutionError } from '../errors'
 import { deserializeDateFields } from '../utils'
+import { transformReturnResult } from './proxy'
 
 /**
  * A query builder with a typed execute() method.

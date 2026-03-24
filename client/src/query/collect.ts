@@ -6,8 +6,8 @@
  * operation for Cypher generation.
  */
 
-import type { SchemaShape } from '../schema'
 import type { NodeLabels, NodeProps, NodeProxy, OptionalNodeProxy } from '../inference'
+import type { SchemaShape } from '../schema'
 
 // =============================================================================
 // COLLECT MARKER TYPES

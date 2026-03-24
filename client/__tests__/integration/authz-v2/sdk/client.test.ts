@@ -6,6 +6,16 @@
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
+
+import type { IdentityExpr } from '../types'
+
+import { FalkorDBIdentityAdapter } from '../adapter'
+import { unresolvedJwt } from '../authentication/grant-encoding'
+import { IdentityRegistry } from '../authentication/identity-registry'
+import { IssuerKeyStore } from '../authentication/issuer-key-store'
+import { KernelService, createUserJwt } from '../authentication/relay-token'
+import { KERNEL_ISSUER } from '../authentication/token-verifier'
+import { expectGranted, expectDeniedByResource, READ, EDIT, USE } from '../testing/helpers'
 import {
   setupAuthzTest,
   teardownAuthzTest,
@@ -13,15 +23,7 @@ import {
   seedAuthzTestData,
   type AuthzTestContext,
 } from '../testing/setup'
-import { FalkorDBIdentityAdapter } from '../adapter'
 import { AppSDK, MockKernel, type RequestContext } from './client'
-import { KernelService, createUserJwt } from '../authentication/relay-token'
-import { IdentityRegistry } from '../authentication/identity-registry'
-import { IssuerKeyStore } from '../authentication/issuer-key-store'
-import { KERNEL_ISSUER } from '../authentication/token-verifier'
-import { unresolvedJwt } from '../authentication/grant-encoding'
-import { expectGranted, expectDeniedByResource, READ, EDIT, USE } from '../testing/helpers'
-import type { IdentityExpr } from '../types'
 
 describe('AUTH_V2: SDK RequestContext', () => {
   let testCtx: AuthzTestContext

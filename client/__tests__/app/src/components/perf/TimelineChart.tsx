@@ -5,7 +5,9 @@
  */
 
 import { useMemo, useState } from 'react'
+
 import type { ScenarioResult, Span, Phase } from '@/types/profiling'
+
 import { formatMicros, getPhaseColor } from '@/types/profiling'
 
 interface TimelineChartProps {

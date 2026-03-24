@@ -5,13 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import {
-  setupAuthzTest,
-  teardownAuthzTest,
-  clearDatabase,
-  seedAuthzTestData,
-  type AuthzTestContext,
-} from './testing/setup'
+
 import { createAccessChecker } from './adapter'
 import {
   IdentityEvaluator,
@@ -29,6 +23,13 @@ import {
   EDIT,
   USE,
 } from './testing/helpers'
+import {
+  setupAuthzTest,
+  teardownAuthzTest,
+  clearDatabase,
+  seedAuthzTestData,
+  type AuthzTestContext,
+} from './testing/setup'
 
 describe('AUTH_V2: Edge Cases', () => {
   let ctx: AuthzTestContext

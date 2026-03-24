@@ -5,12 +5,13 @@
  * Used for shortest path, all paths, and path analysis.
  */
 
-import type { QueryAST, ComparisonOperator } from './ast'
-import type { CompiledQuery } from './compiler'
-import { getCompiler } from './compiler'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
 import type { ResolveNode } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { QueryAST, ComparisonOperator } from './ast'
+import type { CompiledQuery } from './compiler'
+
+import { getCompiler } from './compiler'
 
 /**
  * A single node in a path.

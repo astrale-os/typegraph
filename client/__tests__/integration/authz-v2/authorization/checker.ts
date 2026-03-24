@@ -6,10 +6,11 @@
  * Delegates all I/O to AccessQueryPort.
  */
 
-import type { AccessQueryPort } from './access-query-port'
-import { validateAccessInputs } from '../expression/validation'
-import { pruneExpression } from '../expression/prune'
 import type { Grant, NodeId, Permission, IdentityId, AccessDecision } from '../types'
+import type { AccessQueryPort } from './access-query-port'
+
+import { pruneExpression } from '../expression/prune'
+import { validateAccessInputs } from '../expression/validation'
 
 export async function checkAccess(
   params: {

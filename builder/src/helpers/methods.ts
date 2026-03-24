@@ -1,5 +1,6 @@
 import type { Def } from '../defs/definition.js'
 import type { OpDef, MethodInheritance } from '../defs/operation.js'
+
 import { getDefName } from '../registry.js'
 import { SchemaValidationError } from '../schema/schema.js'
 

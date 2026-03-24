@@ -6,8 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { pruneExpression, intersectNodeRestrictions } from './expression/prune'
+
 import type { IdentityExpr, PrunedIdentityExpr } from './types'
+
+import { pruneExpression, intersectNodeRestrictions } from './expression/prune'
 import { READ } from './testing/helpers'
 
 describe('AUTH_V2: Expression Pruning', () => {

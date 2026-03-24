@@ -5,13 +5,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
-import {
-  setupAuthzTest,
-  teardownAuthzTest,
-  clearDatabase,
-  seedAuthzTestData,
-  type AuthzTestContext,
-} from './testing/setup'
+
+import type { Permission } from './types'
+
 import { createAccessChecker } from './adapter'
 import { IdentityEvaluator } from './adapter/identity-evaluator'
 import {
@@ -29,7 +25,13 @@ import {
   EDIT,
   USE,
 } from './testing/helpers'
-import type { Permission } from './types'
+import {
+  setupAuthzTest,
+  teardownAuthzTest,
+  clearDatabase,
+  seedAuthzTestData,
+  type AuthzTestContext,
+} from './testing/setup'
 
 describe('AUTH_V2: New API', () => {
   let ctx: AuthzTestContext

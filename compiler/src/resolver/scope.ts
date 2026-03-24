@@ -16,9 +16,9 @@ import {
   type TypeExpr,
   type Name,
 } from '../ast/index'
-import { type Span } from '../tokens'
 import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
 import { type SchemaRegistry, EMPTY_REGISTRY, resolveExtendUri } from '../registry'
+import { type Span } from '../tokens'
 
 // ─── Resolved Schema Types ──────────────────────────────────
 

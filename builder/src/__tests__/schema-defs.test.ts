@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
+
+import type { SchemaRefs, SchemaClassRefs, SchemaOpRefs, SchemaRefsMap } from '../schema/refs.js'
+
 import { interfaceDef, classDef, op } from '../defs/index.js'
 import { defineSchema } from '../schema/define.js'
-import type { SchemaRefs, SchemaClassRefs, SchemaOpRefs, SchemaRefsMap } from '../schema/refs.js'
 import { schemaRefs } from '../schema/refs.js'
 
 // ── Type-level helpers ─────────────────────────────────────────────────────

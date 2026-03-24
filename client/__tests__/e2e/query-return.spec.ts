@@ -7,9 +7,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
 import { createQueryBuilder, collect, collectDistinct } from '../../src'
-import { schema } from './schema'
 import { cypher } from './helpers'
+import { schema } from './schema'
 
 const q = createQueryBuilder(schema)
 

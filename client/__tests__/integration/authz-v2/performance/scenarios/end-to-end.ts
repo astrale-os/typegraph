@@ -6,8 +6,9 @@
  */
 
 import type { TestScenario } from './types'
-import { separateGrant, simpleGrant, union, identity } from './types'
+
 import { READ, EDIT } from '../../testing/helpers'
+import { separateGrant, simpleGrant, union, identity } from './types'
 
 /**
  * Complete flow for a simple app + user combo.

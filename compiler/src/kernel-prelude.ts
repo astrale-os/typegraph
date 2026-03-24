@@ -13,13 +13,14 @@
 import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { lex } from './lexer'
-import { parse } from './parser/index'
-import { lower } from './lower/index'
-import { resolve as resolveSchema, createBuiltinScope } from './resolver/index'
+
 import { DiagnosticBag } from './diagnostics'
+import { lex } from './lexer'
+import { lower } from './lower/index'
+import { parse } from './parser/index'
 import { KERNEL_PRELUDE } from './prelude'
 import { MapSchemaRegistry } from './registry'
+import { resolve as resolveSchema, createBuiltinScope } from './resolver/index'
 
 export const KERNEL_SCHEMA_URI = 'https://kernel.astrale.ai/v1'
 

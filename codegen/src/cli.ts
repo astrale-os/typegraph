@@ -2,9 +2,10 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+
+import { compileGsl } from './compile-gsl'
 import { generate } from './generate'
 import { normalizeIR } from './loader'
-import { compileGsl } from './compile-gsl'
 
 const args = process.argv.slice(2)
 

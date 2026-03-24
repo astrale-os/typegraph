@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
+
 import { defineSchema, node, edge, toSchema } from '../src/schema'
 
 describe('toSchema Serializer', () => {

@@ -21,31 +21,13 @@ export {
   identity,
 } from './types'
 
-// Direct permission scenarios
+// Batch scenarios
 import {
-  directPermissionScenario,
-  directPermissionM2Scenario,
-  directPermissionWrongPermScenario,
-} from './direct-permission'
-
-// Hierarchical scenarios
-import {
-  hierarchicalReadRootScenario,
-  hierarchicalReadRoot2Scenario,
-  hierarchicalEditWorkspaceScenario,
-  hierarchicalEditWrongWorkspaceScenario,
-  hierarchicalRoleEditScenario,
-} from './hierarchical-deep'
-
-// Composed union scenarios
-import {
-  composedUnionEditScenario,
-  composedUnionEditViaUser,
-  composedUnionReadScenario,
-  composedUnionABScenario,
-  composedUnionABM2Scenario,
-} from './composed-union'
-
+  batchSamePermDiffNodeScenarios,
+  batchDiffPermSameNodeScenarios,
+  batchDiffIdentitySamePermScenarios,
+  allBatchScenarios,
+} from './batch-permissions'
 // Composed exclude scenarios
 import {
   composedExcludeM1Scenario,
@@ -54,15 +36,20 @@ import {
   composedExcludeUserRoleEditScenario,
   composedExcludeRoleUserEditScenario,
 } from './composed-exclude'
-
-// Batch scenarios
+// Composed union scenarios
 import {
-  batchSamePermDiffNodeScenarios,
-  batchDiffPermSameNodeScenarios,
-  batchDiffIdentitySamePermScenarios,
-  allBatchScenarios,
-} from './batch-permissions'
-
+  composedUnionEditScenario,
+  composedUnionEditViaUser,
+  composedUnionReadScenario,
+  composedUnionABScenario,
+  composedUnionABM2Scenario,
+} from './composed-union'
+// Direct permission scenarios
+import {
+  directPermissionScenario,
+  directPermissionM2Scenario,
+  directPermissionWrongPermScenario,
+} from './direct-permission'
 // End-to-end scenarios
 import {
   e2eSimpleAppScenario,
@@ -73,6 +60,14 @@ import {
   e2eIntersectionDeniedScenario,
   allE2EScenarios,
 } from './end-to-end'
+// Hierarchical scenarios
+import {
+  hierarchicalReadRootScenario,
+  hierarchicalReadRoot2Scenario,
+  hierarchicalEditWorkspaceScenario,
+  hierarchicalEditWrongWorkspaceScenario,
+  hierarchicalRoleEditScenario,
+} from './hierarchical-deep'
 
 // =============================================================================
 // SCENARIO GROUPS

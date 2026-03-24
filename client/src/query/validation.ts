@@ -5,8 +5,9 @@
  * Catches invalid node labels, edge types, and property names before execution.
  */
 
-import type { SchemaShape } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { SchemaShape } from '../schema'
+
 import { getNodesSatisfying, edgeFrom, edgeTo } from '../helpers'
 
 // =============================================================================

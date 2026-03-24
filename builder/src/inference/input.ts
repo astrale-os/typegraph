@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Def } from '../defs/definition.js'
-import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
 import type { ExtractData } from './data.js'
+import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
 
 /** Resolve one inherits entry: own props + data + recursive ancestors */
 type ResolveInheritsEntry<H extends Def<any>> = InferProps<ExtractProps<H>> &

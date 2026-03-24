@@ -15,8 +15,9 @@
  */
 
 import type { TestScenario } from './types'
-import { separateGrant, simpleGrant } from './types'
+
 import { READ, USE } from '../../testing/helpers'
+import { separateGrant, simpleGrant } from './types'
 
 /**
  * APP1 (type) + USER1 (resource) → M1 (read)

@@ -5,15 +5,12 @@
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
-import {
-  setupAuthzTest,
-  teardownAuthzTest,
-  clearDatabase,
-  seedAuthzTestData,
-  type AuthzTestContext,
-} from './testing/setup'
+
+import type { Permission } from './types'
+
 import { createAccessChecker } from './adapter'
 import { IdentityEvaluator, createCompositionCache } from './adapter/identity-evaluator'
+import { identity, union, intersect, grant, raw } from './expression/builder'
 import {
   expectGranted,
   expectDeniedByResource,
@@ -22,8 +19,13 @@ import {
   EDIT,
   USE,
 } from './testing/helpers'
-import type { Permission } from './types'
-import { identity, union, intersect, grant, raw } from './expression/builder'
+import {
+  setupAuthzTest,
+  teardownAuthzTest,
+  clearDatabase,
+  seedAuthzTestData,
+  type AuthzTestContext,
+} from './testing/setup'
 
 describe('AUTH_V2: Identity Composition', () => {
   let ctx: AuthzTestContext

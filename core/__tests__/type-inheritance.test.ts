@@ -15,7 +15,7 @@
 
 import { describe, it, expectTypeOf } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge } from '../src/schema'
+
 import type {
   NodeProps,
   NodeInputProps,
@@ -25,6 +25,8 @@ import type {
   AllSatisfiedLabels,
   EdgeTargetsFrom,
 } from '../src/schema/inference'
+
+import { defineSchema, node, edge } from '../src/schema'
 
 // =============================================================================
 // TEST SCHEMAS

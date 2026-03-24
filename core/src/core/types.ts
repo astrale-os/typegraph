@@ -8,8 +8,8 @@
  * CoreRefs is the resolved type with real DB IDs, used by operations at runtime.
  */
 
-import type { AnySchema } from '../schema/types'
 import type { NodeLabels, EdgeTypes, NodeInputProps, EdgeInputProps } from '../schema/inference'
+import type { AnySchema } from '../schema/types'
 
 // =============================================================================
 // NODE & EDGE ENTRY TYPES

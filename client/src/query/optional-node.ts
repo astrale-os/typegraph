@@ -7,13 +7,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { NodeQueryBuilder } from './node-query-builder'
-import { buildOutTraversal, buildInTraversal } from './traversal'
-import type { TraversalOptions } from './traits'
-import type { QueryAST } from './ast'
-import type { CompiledQuery } from './compiler'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { ResolveNode } from '../resolve'
 import type {
   NodeLabels,
   NodeProps,
@@ -31,11 +24,18 @@ import type {
   EdgeOutboundCardinality,
   EdgeInboundCardinality,
 } from '../inference'
+import type { ResolveNode } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
+import type { TraversalOptions } from './traits'
 
-import { SingleNodeBuilder } from './single-node'
-import { CollectionBuilder } from './collection'
-import { extractNodeFromRecord } from '../utils'
 import { ExecutionError } from '../errors'
+import { extractNodeFromRecord } from '../utils'
+import { CollectionBuilder } from './collection'
+import { NodeQueryBuilder } from './node-query-builder'
+import { SingleNodeBuilder } from './single-node'
+import { buildOutTraversal, buildInTraversal } from './traversal'
 
 /**
  * Builder for queries that return zero or one node.

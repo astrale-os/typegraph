@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
 import { normalizeCypher } from './fixtures/test-schema'
 
 describe('Query Compilation: Traversal', () => {

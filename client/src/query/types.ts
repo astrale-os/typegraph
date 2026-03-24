@@ -4,13 +4,13 @@
  * Interfaces for the query layer: GraphQuery, QueryExecutor.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { QueryAST } from './ast'
 import type { CollectionBuilder } from './collection'
-import type { SingleNodeBuilder } from './single-node'
 import type { EdgeBuilder } from './edge'
 import type { PathBuilder } from './path'
+import type { SingleNodeBuilder } from './single-node'
 
 /**
  * Interface for executing compiled queries.

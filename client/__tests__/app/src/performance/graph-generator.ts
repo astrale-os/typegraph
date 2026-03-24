@@ -5,10 +5,11 @@
  * Uses batch inserts with UNWIND for efficient creation at 1M+ scale.
  */
 
-import type { Scale, ScaleConfig } from './scales'
-import { SCALE_CONFIGS } from './scales'
 import type { GraphMetadata, ProgressCallback } from './graph-metadata'
+import type { Scale, ScaleConfig } from './scales'
+
 import { createEmptyMetadata, addToPermissionIndex } from './graph-metadata'
+import { SCALE_CONFIGS } from './scales'
 import { createSeededRandom, type SeededRandom } from './seeded-random'
 
 // =============================================================================

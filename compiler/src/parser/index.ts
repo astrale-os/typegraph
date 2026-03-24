@@ -11,9 +11,9 @@
 // closing braces/brackets) and continue parsing.
 // ============================================================
 
-import { type Token, type TokenKind, isKeyword } from '../tokens'
 import { type CstChild, type SchemaNode, type DeclarationNode } from '../cst/index'
 import { DiagnosticBag, DiagnosticCodes } from '../diagnostics'
+import { type Token, type TokenKind, isKeyword } from '../tokens'
 import { parseDeclaration } from './declarations'
 
 export interface ParseResult {

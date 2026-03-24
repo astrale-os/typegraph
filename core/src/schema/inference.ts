@@ -6,6 +6,7 @@
  */
 
 import { type z } from 'zod'
+
 import type { AnySchema, NodeDefinition, EdgeDefinition, Cardinality } from './types'
 
 // =============================================================================

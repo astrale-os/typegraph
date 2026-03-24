@@ -7,11 +7,6 @@
  * Delegates all I/O to AccessQueryPort.
  */
 
-import type { AccessQueryPort } from './access-query-port'
-import { validateAccessInputs, throwExhaustiveCheck } from '../expression/validation'
-import { checkFilter, intersectScopes } from '../expression/scope'
-import { pruneExpression } from '../expression/prune'
-import { fragmentToDisplayString } from '../adapter/cypher'
 import type {
   Grant,
   NodeId,
@@ -23,6 +18,12 @@ import type {
   IdentityExpr,
   LeafEvaluation,
 } from '../types'
+import type { AccessQueryPort } from './access-query-port'
+
+import { fragmentToDisplayString } from '../adapter/cypher'
+import { pruneExpression } from '../expression/prune'
+import { checkFilter, intersectScopes } from '../expression/scope'
+import { validateAccessInputs, throwExhaustiveCheck } from '../expression/validation'
 
 export async function explainAccess(
   params: {

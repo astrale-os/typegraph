@@ -41,10 +41,10 @@ import {
   type Cardinality,
   type TypeRef,
 } from '../ir/index'
-import { type SerializerContext } from './index'
-import { serializeTypeRef } from './types'
 import { serializeAttribute, serializeValueNode } from './attributes'
+import { type SerializerContext } from './index'
 import { extractEdgeConstraints, extractValueConstraints } from './modifiers'
+import { serializeTypeRef } from './types'
 
 export function serializeExtend(decl: ExtendDecl): Extension {
   return {

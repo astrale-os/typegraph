@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { useQueryStore } from '@/store/query-store'
+
 import { useGraphStore } from '@/store/graph-store'
-import { IdentityExprBuilder } from './IdentityExprBuilder'
+import { useQueryStore } from '@/store/query-store'
+
 import { ExpressionPreview } from './ExpressionPreview'
+import { IdentityExprBuilder } from './IdentityExprBuilder'
 
 const PERMS = ['read', 'edit', 'use', 'share']
 

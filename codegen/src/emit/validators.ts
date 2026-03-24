@@ -1,4 +1,5 @@
 import type { GraphModel, IRAttribute } from '../model'
+
 import { scalarToZod } from './scalars'
 import { pascalCase } from './utils'
 import { resolveZodTypeRef, applyConstraints, renderDefault } from './zod-utils'

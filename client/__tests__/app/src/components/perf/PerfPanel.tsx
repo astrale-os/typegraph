@@ -1,11 +1,14 @@
-import { useState } from 'react'
 import { BarChart3, Play, Timer } from 'lucide-react'
+import { useState } from 'react'
+
+import type { IdentityExpr } from '@/types/api'
+
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
 import { usePerfStore } from '@/store/perf-store'
 import { useQueryStore } from '@/store/query-store'
-import { SizeChart } from './SizeChart'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+
 import { LatencyProfiler } from './LatencyProfiler'
-import type { IdentityExpr } from '@/types/api'
+import { SizeChart } from './SizeChart'
 
 type PerfTab = 'encoding' | 'latency'
 

@@ -7,7 +7,6 @@
 // lifecycle, string lists.
 // ============================================================
 
-import { type Token } from '../tokens'
 import {
   type CstChild,
   type ModifierListNode,
@@ -15,6 +14,7 @@ import {
   type StringListNode,
 } from '../cst/index'
 import { DiagnosticCodes } from '../diagnostics'
+import { type Token } from '../tokens'
 import { type ParserContext, isDeclStart } from './index'
 
 // [ Modifier, Modifier, ... ]

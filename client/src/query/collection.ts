@@ -5,14 +5,6 @@
  * Extends NodeQueryBuilder for shared filtering, traversal, hierarchy, and projection.
  */
 
-import { NodeQueryBuilder, _registerCollectionBuilder } from './node-query-builder'
-import type { BaseBuilder } from './base'
-import { buildOutTraversal, buildInTraversal, buildMultiEdgeTraversal } from './traversal'
-import type { TraversalOptions } from './traits'
-import type { QueryAST } from './ast'
-import type { CompiledQuery } from './compiler'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { ResolveNode } from '../resolve'
 import type {
   NodeLabels,
   NodeProps,
@@ -28,12 +20,20 @@ import type {
   MultiEdgeSources,
   MultiEdgeBidirectional,
 } from '../inference'
-
-import { GroupedBuilder } from './grouped'
-import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
-import { ExecutionError } from '../errors'
-import { SingleNodeBuilder } from './single-node'
+import type { ResolveNode } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { QueryAST } from './ast'
+import type { BaseBuilder } from './base'
+import type { CompiledQuery } from './compiler'
 import type { OptionalNodeBuilder } from './optional-node'
+import type { TraversalOptions } from './traits'
+
+import { ExecutionError } from '../errors'
+import { extractNodeFromRecord, convertNeo4jValue } from '../utils'
+import { GroupedBuilder } from './grouped'
+import { NodeQueryBuilder, _registerCollectionBuilder } from './node-query-builder'
+import { SingleNodeBuilder } from './single-node'
+import { buildOutTraversal, buildInTraversal, buildMultiEdgeTraversal } from './traversal'
 
 /**
  * Builder for queries that return multiple nodes.

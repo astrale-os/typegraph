@@ -10,17 +10,19 @@
 import { describe, it, beforeAll, afterAll } from 'vitest'
 
 const SKIP_PERF_TESTS = !process.env.RUN_PERF_TESTS
+import * as fs from 'fs'
+import * as path from 'path'
+
+import type { RawExecutor } from '../types'
+
+import { READ } from '../testing/helpers'
 import {
   createFalkorDBConnection,
   createRawExecutor,
   clearDatabase,
   type FalkorDBConnection,
 } from '../testing/setup'
-import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
-import { READ } from '../testing/helpers'
-import * as fs from 'fs'
-import * as path from 'path'
 
 interface ScaleResult {
   scale: string

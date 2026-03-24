@@ -5,12 +5,15 @@
  */
 
 import type { GraphAdapter, TransactionContext, AdapterMetrics } from '@astrale/typegraph-client'
-import { FalkorDB } from 'falkordb'
 import type { Graph } from 'falkordb'
-import { transformResults } from './transform'
+
+import { FalkorDB } from 'falkordb'
+
 import type { FalkorDBConfig } from './types'
+
 import { validateConfig, createConnectionError } from './errors'
 import { retryWithBackoff } from './retry'
+import { transformResults } from './transform'
 
 /**
  * FalkorDB QueryParam type (matches internal FalkorDB definition).

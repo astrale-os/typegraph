@@ -38,9 +38,10 @@ import type {
   ProjectionExpression,
   ComputedOperator,
 } from '../../ast'
-import { resolveNodeLabels, formatLabels, toPascalCase } from '../../../helpers'
-import type { CompiledQuery, CompilerOptions } from '../types'
 import type { QueryCompilerProvider } from '../provider'
+import type { CompiledQuery, CompilerOptions } from '../types'
+
+import { resolveNodeLabels, formatLabels, toPascalCase } from '../../../helpers'
 
 /**
  * Cypher compiler implementation.

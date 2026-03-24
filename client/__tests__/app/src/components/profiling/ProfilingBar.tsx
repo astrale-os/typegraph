@@ -1,6 +1,7 @@
 import { Zap, Trash2 } from 'lucide-react'
-import { useProfilingStore, type RequestProfile } from '@/store/profiling-store'
+
 import { formatBytes } from '@/api/instrumented-client'
+import { useProfilingStore, type RequestProfile } from '@/store/profiling-store'
 
 function RequestRow({ req }: { req: RequestProfile }) {
   return (

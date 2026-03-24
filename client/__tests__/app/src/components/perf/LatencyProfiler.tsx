@@ -4,7 +4,6 @@
  * Main panel for running latency profiling scenarios and viewing results.
  */
 
-import { useState, useEffect } from 'react'
 import {
   Timer,
   Play,
@@ -17,6 +16,8 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+
 import {
   useLatencyStore,
   selectIsGraphGenerated,
@@ -24,13 +25,14 @@ import {
   selectAvailableScenarios,
   type SelectedScale,
 } from '@/store/latency-store'
+import { formatMicros } from '@/types/profiling'
+
+import { PhaseBreakdown } from './PhaseBreakdown'
+import { QueryBuilder } from './QueryBuilder'
+import { QueryDrilldown } from './QueryDrilldown'
+import { ScenarioComparison } from './ScenarioComparison'
 import { TimelineChart } from './TimelineChart'
 import { WaterfallChart } from './WaterfallChart'
-import { PhaseBreakdown } from './PhaseBreakdown'
-import { ScenarioComparison } from './ScenarioComparison'
-import { QueryDrilldown } from './QueryDrilldown'
-import { QueryBuilder } from './QueryBuilder'
-import { formatMicros } from '@/types/profiling'
 
 const TABS = [
   { id: 'timeline', label: 'Timeline' },

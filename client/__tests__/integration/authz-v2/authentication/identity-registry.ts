@@ -6,6 +6,7 @@
  */
 
 import type { IdentityId } from '../types'
+
 import { KERNEL_ISSUER } from './token-verifier'
 
 /**

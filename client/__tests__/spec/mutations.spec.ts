@@ -5,6 +5,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
+
+import type { MutationCompilationPass } from '../../src/mutation/ast/pipeline'
+import type { SchemaShape } from '../../src/schema'
+
 import {
   createNode,
   updateNode,
@@ -27,9 +31,7 @@ import {
   unlinkAllTo,
 } from '../../src/mutation/ast/builder'
 import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
-import type { MutationCompilationPass } from '../../src/mutation/ast/pipeline'
 import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
-import type { SchemaShape } from '../../src/schema'
 
 // Minimal schema fixture for compiler tests
 const schema: SchemaShape = {

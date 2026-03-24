@@ -1,8 +1,9 @@
-import { useState } from 'react'
 import { Play } from 'lucide-react'
+import { useState } from 'react'
+
 import { api } from '@/api/client'
-import { useGraphStore } from '@/store/graph-store'
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useGraphStore } from '@/store/graph-store'
 
 export function CypherConsole() {
   const [query, setQuery] = useState('MATCH (n) RETURN n.id, labels(n)')

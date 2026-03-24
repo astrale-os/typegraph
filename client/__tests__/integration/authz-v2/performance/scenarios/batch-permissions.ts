@@ -6,8 +6,9 @@
  */
 
 import type { TestScenario } from './types'
-import { separateGrant, simpleGrant, identity } from './types'
+
 import { READ, EDIT, USE } from '../../testing/helpers'
+import { separateGrant, simpleGrant, identity } from './types'
 
 /**
  * Batch scenarios are designed to be run in sequence.

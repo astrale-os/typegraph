@@ -4,7 +4,7 @@
 // ============================================================
 
 import { type Hover, MarkupKind } from 'vscode-languageserver-types'
-import { type Workspace, type DocumentState } from './workspace'
+
 import {
   type TypeAliasDecl,
   type ValueTypeDecl,
@@ -34,6 +34,7 @@ import {
   type Name,
 } from '../ast/index'
 import { type Symbol } from '../resolver/index'
+import { type Workspace, type DocumentState } from './workspace'
 
 export function provideHover(
   workspace: Workspace,

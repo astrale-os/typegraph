@@ -1,9 +1,11 @@
-import { useState } from 'react'
 import { Code, Play, Copy, Check } from 'lucide-react'
-import { ExprCodeEditor } from './ExprCodeEditor'
+import { useState } from 'react'
+
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
 import { evaluateExprCode, EXAMPLE_CODE, EXAMPLE_EXPR, type EvalResult } from '@/lib/expr-evaluator'
 import { useQueryStore } from '@/store/query-store'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+
+import { ExprCodeEditor } from './ExprCodeEditor'
 
 export function ExprCodePanel() {
   const [code, setCode] = useState(EXAMPLE_CODE)

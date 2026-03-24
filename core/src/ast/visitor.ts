@@ -5,6 +5,7 @@
  * Used by the compiler and optimizer.
  */
 
+import type { QueryAST } from './builder'
 import type {
   ASTNode,
   MatchStep,
@@ -30,7 +31,6 @@ import type {
   ReturnStep,
   ProjectionExpression,
 } from './types'
-import type { QueryAST } from './builder'
 
 /**
  * Visitor interface with a method for each AST node type.

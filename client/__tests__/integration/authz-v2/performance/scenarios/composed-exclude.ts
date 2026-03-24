@@ -17,8 +17,9 @@
  */
 
 import type { TestScenario } from './types'
-import { exclude, identity } from './types'
+
 import { READ, EDIT } from '../../testing/helpers'
+import { exclude, identity } from './types'
 
 /**
  * (A \ B) → M1 (read) - Should fail

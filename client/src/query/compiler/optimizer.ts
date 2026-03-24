@@ -5,8 +5,9 @@
  * Passes include lowering (e.g. edge reification), optimization, and rewrites.
  */
 
-import { type QueryAST } from '../ast'
 import type { SchemaShape } from '../../schema'
+
+import { type QueryAST } from '../ast'
 
 /**
  * A single AST transformation pass.

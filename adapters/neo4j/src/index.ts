@@ -26,6 +26,7 @@
  */
 
 import type { GraphAdapter } from '@astrale/typegraph-client'
+
 import { Neo4jAdapter } from './adapter'
 
 // Types

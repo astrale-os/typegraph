@@ -5,9 +5,6 @@
  * This is the main entry point for access checking.
  */
 
-import { checkAccess } from '../authorization/checker'
-import { explainAccess, evaluateGranted } from '../authorization/explainer'
-import { FalkorDBAccessQueryAdapter, type FalkorDBQueryConfig } from './queries'
 import type {
   RawExecutor,
   AccessDecision,
@@ -19,6 +16,10 @@ import type {
   IdentityExpr,
   LeafEvaluation,
 } from '../types'
+
+import { checkAccess } from '../authorization/checker'
+import { explainAccess, evaluateGranted } from '../authorization/explainer'
+import { FalkorDBAccessQueryAdapter, type FalkorDBQueryConfig } from './queries'
 
 export class FalkorDBIdentityAdapter {
   private queryAdapter: FalkorDBAccessQueryAdapter

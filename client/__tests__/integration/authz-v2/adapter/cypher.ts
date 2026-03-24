@@ -15,8 +15,9 @@
  * Without these, ancestor traversal and identity lookups degrade significantly.
  */
 
-import { throwExhaustiveCheck } from '../expression/validation'
 import type { PrunedIdentityExpr, Permission, NodeId } from '../types'
+
+import { throwExhaustiveCheck } from '../expression/validation'
 import { type GraphVocab } from './vocabulary'
 
 export interface CypherOptions {

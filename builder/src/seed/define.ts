@@ -1,4 +1,3 @@
-import type { Schema } from '../schema/schema.js'
 import type {
   CoreNode,
   CoreEdge,
@@ -7,6 +6,8 @@ import type {
   CoreNodeEntry,
   CoreEdgeEntry,
 } from '../core/types.js'
+import type { Schema } from '../schema/schema.js'
+
 import { buildCorePath, isCorePath, type CorePath } from '../core/path.js'
 
 export interface SeedDef<

@@ -7,16 +7,17 @@
 // precise underlines.
 // ============================================================
 
+import { createHash } from 'crypto'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
+
 import { compile } from './compile'
 import { type DiagnosticBag } from './diagnostics'
-import { LineMap } from './linemap'
-import { createHash } from 'crypto'
-import { DEFAULT_PRELUDE, KERNEL_PRELUDE, type Prelude } from './prelude'
-import { buildKernelRegistry } from './kernel-prelude'
-import { EMPTY_REGISTRY, type SchemaRegistry } from './registry'
 import { createLazyFileRegistry } from './file-resolver'
+import { buildKernelRegistry } from './kernel-prelude'
+import { LineMap } from './linemap'
+import { DEFAULT_PRELUDE, KERNEL_PRELUDE, type Prelude } from './prelude'
+import { EMPTY_REGISTRY, type SchemaRegistry } from './registry'
 
 // ─── Colors (ANSI, no deps) ─────────────────────────────────
 

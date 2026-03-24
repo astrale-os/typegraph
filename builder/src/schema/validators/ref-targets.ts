@@ -1,7 +1,8 @@
 import type { OpDef } from '../../defs/operation.js'
+import type { SchemaContext } from './context.js'
+
 import { hasDefName } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
-import type { SchemaContext } from './context.js'
 
 interface ZodInternals {
   element?: unknown

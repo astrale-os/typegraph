@@ -24,6 +24,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import type { NodeLabels, NodeProps, OutgoingEdges, IncomingEdges } from '../inference'
+import type { SchemaShape } from '../schema'
 import type {
   ASTNode,
   TraversalStep,
@@ -34,8 +36,6 @@ import type {
   ReturnStep,
   ProjectionReturn,
 } from './ast'
-import type { SchemaShape } from '../schema'
-import type { NodeLabels, NodeProps, OutgoingEdges, IncomingEdges } from '../inference'
 
 export interface ExportMetadata {
   alias: string

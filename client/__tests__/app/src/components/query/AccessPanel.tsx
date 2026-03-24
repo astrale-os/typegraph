@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo } from 'react'
+import { evaluateGranted } from '@authz/authorization/explainer'
 import { Shield, Zap } from 'lucide-react'
-import { useQueryStore } from '@/store/query-store'
+import { useState, useEffect, useMemo } from 'react'
+
+import { PhaseCard } from '@/components/explain/PhaseCard'
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { TimingBreakdown } from '@/components/ui/TimingBreakdown'
 import { useGraphStore } from '@/store/graph-store'
+import { useQueryStore } from '@/store/query-store'
+
 import { AccessQueryForm } from './AccessQueryForm'
 import { ResultDisplay } from './ResultDisplay'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
-import { TimingBreakdown } from '@/components/ui/TimingBreakdown'
-import { PhaseCard } from '@/components/explain/PhaseCard'
-import { evaluateGranted } from '@authz/authorization/explainer'
 
 type Mode = 'check' | 'explain'
 

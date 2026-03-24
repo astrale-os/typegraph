@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
-import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
-import type { SchemaShape } from '../../src/schema'
-import { ClassId } from '../../src/schema'
+
 import type {
   MutationOp,
   CreateNodeOp,
@@ -28,6 +25,11 @@ import type {
   DeleteLinkNodesFromOp,
   DeleteLinkNodesToOp,
 } from '../../src/mutation/ast/types'
+import type { SchemaShape } from '../../src/schema'
+
+import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
+import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
+import { ClassId } from '../../src/schema'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================

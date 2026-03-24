@@ -4,6 +4,7 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest'
+
 import { compileAndGenerate, compileToModel } from './helpers.js'
 
 // ─── Data Type Interface Emission ────────────────────────────

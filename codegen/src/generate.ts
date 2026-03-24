@@ -1,19 +1,20 @@
 import type { SchemaIR, GraphModel } from './model'
-import { load } from './loader'
+
+import { emitBootstrap } from './emit/bootstrap'
+import { emitBrandedIds } from './emit/branded-ids'
+import { emitCore } from './emit/core'
 import { emitEnums } from './emit/enums'
 import { emitInterfaces } from './emit/interfaces'
-import { emitMethods } from './emit/methods'
-import { emitMethodOps } from './emit/method-ops'
 import { emitMethodFactory } from './emit/method-factory'
+import { emitMethodOps } from './emit/method-ops'
 import { emitMethodScaffold } from './emit/method-scaffold'
-import { emitValidators } from './emit/validators'
-import { emitSchemaValue } from './emit/schema-value'
+import { emitMethods } from './emit/methods'
 import { emitSchemaTypes } from './emit/schema-types'
-import { emitCore } from './emit/core'
+import { emitSchemaValue } from './emit/schema-value'
 import { emitTypemap } from './emit/typemap'
-import { emitBrandedIds } from './emit/branded-ids'
-import { emitBootstrap } from './emit/bootstrap'
 import { banner, section } from './emit/utils'
+import { emitValidators } from './emit/validators'
+import { load } from './loader'
 
 export interface GenerateOptions {
   /** Override the file header. Default: @generated banner. */

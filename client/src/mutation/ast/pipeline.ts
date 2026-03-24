@@ -5,8 +5,8 @@
  * Passes can expand one op into many (1:N) for reification, instance model, etc.
  */
 
-import type { MutationOp } from './types'
 import type { SchemaShape } from '../../schema'
+import type { MutationOp } from './types'
 
 /**
  * A single mutation AST transformation pass.

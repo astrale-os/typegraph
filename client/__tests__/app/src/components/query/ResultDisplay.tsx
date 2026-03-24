@@ -1,6 +1,7 @@
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
 import type { AccessDecision } from '@/types/api'
+
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 
 interface ResultDisplayProps {
   result: AccessDecision | null

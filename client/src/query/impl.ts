@@ -4,17 +4,18 @@
  * GraphQueryImpl class that implements the GraphQuery interface.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { MatchConfig } from './match-builder'
+import type { GraphQuery, QueryExecutor } from './types'
+
 import { createEdgeProjection } from './ast'
 import { QueryAST } from './ast'
-import type { GraphQuery, QueryExecutor } from './types'
 import { CollectionBuilder } from './collection'
-import { SingleNodeBuilder } from './single-node'
 import { EdgeBuilder } from './edge'
-import { type PathBuilder } from './path'
 import { MatchBuilder, buildMatchAST } from './match-builder'
-import type { MatchConfig } from './match-builder'
+import { type PathBuilder } from './path'
+import { SingleNodeBuilder } from './single-node'
 
 /**
  * Implementation of the GraphQuery interface.

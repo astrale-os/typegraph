@@ -6,8 +6,9 @@
  */
 
 import { describe, it, expectTypeOf } from 'vitest'
-import type { CoreRefs } from '../../../examples/e-commerce/schema.generated'
+
 import type { core } from '../../../examples/e-commerce/core'
+import type { CoreRefs } from '../../../examples/e-commerce/schema.generated'
 import type { NodeId } from '../../src/schema'
 
 type C = CoreRefs<typeof core>

@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
 import { Search, Zap } from 'lucide-react'
-import { useQueryStore } from '@/store/query-store'
-import { useGraphStore } from '@/store/graph-store'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useEffect } from 'react'
+
 import { AccessQueryForm } from '@/components/query/AccessQueryForm'
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useGraphStore } from '@/store/graph-store'
+import { useQueryStore } from '@/store/query-store'
+
 import { PhaseCard } from './PhaseCard'
 
 export function ExplainPanel() {

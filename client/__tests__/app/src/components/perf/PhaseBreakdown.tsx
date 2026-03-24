@@ -5,6 +5,7 @@
  */
 
 import type { TraceMetrics, Phase } from '@/types/profiling'
+
 import { formatMicros, getPhaseColor } from '@/types/profiling'
 
 interface PhaseBreakdownProps {

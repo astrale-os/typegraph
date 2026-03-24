@@ -7,17 +7,19 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
+import type { MutationOp } from '../../src/mutation/ast/types'
+import type { SchemaShape } from '../../src/schema'
+
+import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
+import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
+import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
+import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
 import { QueryAST } from '../../src/query/ast'
 import { CypherCompiler } from '../../src/query/compiler/cypher/compiler'
 import { InstanceModelPass } from '../../src/query/compiler/passes/instance-model-pass'
 import { ReifyEdgesPass } from '../../src/query/compiler/passes/reify-edges-pass'
-import { InstanceOfMutationPass } from '../../src/mutation/passes/instance-of-mutation-pass'
-import { ReifyEdgesMutationPass } from '../../src/mutation/passes/reify-edges-mutation-pass'
-import type { SchemaShape } from '../../src/schema'
 import { ClassId, InterfaceId } from '../../src/schema'
-import { MutationCypherCompiler } from '../../src/mutation/cypher/compiler'
-import { MutationCompilationPipeline } from '../../src/mutation/ast/pipeline'
-import type { MutationOp } from '../../src/mutation/ast/types'
 import { normalizeCypher } from './fixtures/test-schema'
 
 // =============================================================================

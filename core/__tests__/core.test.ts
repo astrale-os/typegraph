@@ -6,6 +6,9 @@
 
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
+
+import type { CoreRefs, CoreSnapshot } from '../src'
+
 import {
   node,
   edge,
@@ -16,7 +19,6 @@ import {
   validateEdgeTupleUniqueness,
   SchemaValidationError,
 } from '../src'
-import type { CoreRefs, CoreSnapshot } from '../src'
 
 // =============================================================================
 // TEST SCHEMAS

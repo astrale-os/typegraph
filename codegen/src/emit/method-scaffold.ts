@@ -1,4 +1,5 @@
 import type { GraphModel, MethodDef } from '../model'
+
 import { pascalCase } from './utils'
 
 /**

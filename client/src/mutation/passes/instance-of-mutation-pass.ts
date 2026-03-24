@@ -11,9 +11,10 @@
  * Runs AFTER ReifyEdgesMutationPass in the mutation pipeline.
  */
 
+import type { SchemaShape } from '../../schema'
 import type { MutationCompilationPass } from '../ast/pipeline'
 import type { MutationOp, InlineLink } from '../ast/types'
-import type { SchemaShape } from '../../schema'
+
 import { STRUCTURAL_EDGES, META_LABELS } from '../../schema'
 
 export class InstanceOfMutationPass implements MutationCompilationPass {

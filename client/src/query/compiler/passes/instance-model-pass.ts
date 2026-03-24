@@ -8,7 +8,7 @@
  * The CypherCompiler is untouched.
  */
 
-import { QueryAST } from '../../ast'
+import type { SchemaShape, SchemaNodeDef } from '../../../schema'
 import type {
   ASTNode,
   MatchStep,
@@ -27,9 +27,10 @@ import type {
   AliasInfo,
   AliasRegistry,
 } from '../../ast'
-import type { SchemaShape, SchemaNodeDef } from '../../../schema'
 import type { CompilationPass } from '../optimizer'
+
 import { STRUCTURAL_EDGES, META_LABELS } from '../../../schema'
+import { QueryAST } from '../../ast'
 
 export class InstanceModelPass implements CompilationPass {
   readonly name = 'InstanceModel'

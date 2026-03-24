@@ -4,9 +4,11 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest'
+
+import type { SchemaIR } from './model'
+
 import { generate } from './generate'
 import { load } from './loader'
-import type { SchemaIR } from './model'
 
 // ─── Helpers ────────────────────────────────────────────────
 

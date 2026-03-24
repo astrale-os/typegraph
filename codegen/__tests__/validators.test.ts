@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+
 import { compileAndGenerate, extractValidatorBlock } from './helpers.js'
 
 describe('validators', () => {

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { testSchema } from './fixtures/test-schema'
+
 import {
   GraphQueryImpl,
   createQueryBuilder,
@@ -13,6 +13,7 @@ import {
   CardinalityError,
   ExecutionError,
 } from '../../src'
+import { testSchema } from './fixtures/test-schema'
 
 describe('Query Execution', () => {
   let mockExecutor: QueryExecutor

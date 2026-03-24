@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { mergeSchemaExtension } from '../../src/schema/extend'
+
 import type { SchemaShape } from '../../src/schema'
+
 import { ClassId } from '../../src/schema'
+import { mergeSchemaExtension } from '../../src/schema/extend'
 
 function baseSchema(overrides?: Partial<SchemaShape>): SchemaShape {
   return { nodes: {}, edges: {}, ...overrides } as SchemaShape

@@ -1,15 +1,16 @@
 // src/lsp/lsp.test.ts
 import { describe, it, expect } from 'vitest'
-import { LineMap } from '../linemap'
-import { Workspace } from './workspace'
-import { provideHover } from './hover'
-import { provideDefinition } from './definition'
-import { provideCompletion } from './completion'
-import { provideDocumentSymbols } from './symbols'
-import { provideSemanticTokens, SEMANTIC_TOKEN_TYPES } from './semantic-tokens'
-import { KERNEL_PRELUDE } from '../prelude'
-import { buildKernelRegistry } from '../kernel-prelude'
 import { SymbolKind, CompletionItemKind } from 'vscode-languageserver-types'
+
+import { buildKernelRegistry } from '../kernel-prelude'
+import { LineMap } from '../linemap'
+import { KERNEL_PRELUDE } from '../prelude'
+import { provideCompletion } from './completion'
+import { provideDefinition } from './definition'
+import { provideHover } from './hover'
+import { provideSemanticTokens, SEMANTIC_TOKEN_TYPES } from './semantic-tokens'
+import { provideDocumentSymbols } from './symbols'
+import { Workspace } from './workspace'
 import { type DocumentState } from './workspace'
 
 const kernelRegistry = buildKernelRegistry()

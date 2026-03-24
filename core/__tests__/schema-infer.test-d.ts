@@ -11,8 +11,10 @@
 
 import { describe, it, expectTypeOf } from 'vitest'
 import { z } from 'zod'
-import { defineSchema, node, edge } from '../src/schema'
+
 import type { Infer } from '../src/schema/inference'
+
+import { defineSchema, node, edge } from '../src/schema'
 
 // =============================================================================
 // TEST SCHEMAS

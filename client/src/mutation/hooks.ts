@@ -5,8 +5,8 @@
  * Allows intercepting and modifying mutations at various stages.
  */
 
-import type { SchemaShape } from '../schema'
 import type { NodeLabels, EdgeTypes } from '../inference'
+import type { SchemaShape } from '../schema'
 import type { NodeInput, EdgeInput, NodeResult, EdgeResult, DeleteResult } from './types'
 
 // =============================================================================

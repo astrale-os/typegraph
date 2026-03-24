@@ -8,15 +8,17 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
+import type { RawExecutor } from '../types'
+
+import { READ } from '../testing/helpers'
 import {
   createFalkorDBConnection,
   createRawExecutor,
   clearDatabase,
   type FalkorDBConnection,
 } from '../testing/setup'
-import type { RawExecutor } from '../types'
 import { benchmark, runConcurrent } from './perf-utils'
-import { READ } from '../testing/helpers'
 
 const SKIP_PERF_TESTS = !process.env.RUN_PERF_TESTS
 

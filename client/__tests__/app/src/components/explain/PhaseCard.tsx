@@ -1,5 +1,7 @@
 import type { PhaseExplanation } from '@/types/api'
+
 import { ExpressionPreview } from '@/components/query/ExpressionPreview'
+
 import { CypherDisplay } from './CypherDisplay'
 import { LeafEvaluationList } from './LeafEvaluationList'
 

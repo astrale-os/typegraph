@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+
 import { compileAndGenerate, extractValidatorBlock, extractSchemaEdgeBlock } from './helpers.js'
 
 const ECOMMERCE = `

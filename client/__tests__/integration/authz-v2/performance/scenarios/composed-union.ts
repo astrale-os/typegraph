@@ -16,8 +16,9 @@
  */
 
 import type { TestScenario } from './types'
-import { union, identity } from './types'
+
 import { READ, EDIT } from '../../testing/helpers'
+import { union, identity } from './types'
 
 /**
  * (USER1 ∪ ROLE1) → M3 (edit)

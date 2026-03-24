@@ -11,17 +11,18 @@ import type {
   RelayTokenResponse,
   UnresolvedIdentityExpr,
 } from '../types'
-import { TokenVerifier, KERNEL_ISSUER, type TokenPayload } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
 import type { IssuerKeyStore } from './issuer-key-store'
-import { GrantDecoder, extractPrimaryIdentity } from './grant-decoder'
-import { authenticate as authenticateImpl, type AuthContext } from './authenticator'
+
 import {
   type ExpressionEncoding,
   type PayloadCodec,
   getCodec,
   jsonCodec as _jsonCodec,
 } from '../expression/codec'
+import { authenticate as authenticateImpl, type AuthContext } from './authenticator'
+import { GrantDecoder, extractPrimaryIdentity } from './grant-decoder'
+import { TokenVerifier, KERNEL_ISSUER, type TokenPayload } from './token-verifier'
 
 // =============================================================================
 // RE-EXPORTS

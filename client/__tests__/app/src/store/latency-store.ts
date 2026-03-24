@@ -5,6 +5,8 @@
  */
 
 import { create } from 'zustand'
+
+import type { Scale, GraphMetadata } from '@/performance'
 import type {
   ProfilerState,
   ProfilerTab,
@@ -14,14 +16,14 @@ import type {
   TestScenario,
   Stats,
 } from '@/types/profiling'
-import { emptyMetrics } from '@/types/profiling'
-import type { Scale, GraphMetadata } from '@/performance'
+
 import {
   getScaleInfo,
   deserializeMetadata,
   BASE_SCALE_INFO,
   AVAILABLE_SCENARIOS,
 } from '@/performance'
+import { emptyMetrics } from '@/types/profiling'
 
 // =============================================================================
 // SCALE TYPES

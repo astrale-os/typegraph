@@ -1,9 +1,11 @@
-import { useState } from 'react'
 import { KeyRound, Play, Trash2 } from 'lucide-react'
-import { useRelayStore } from '@/store/relay-store'
-import { useGraphStore } from '@/store/graph-store'
-import { FlowTimeline } from './FlowTimeline'
+import { useState } from 'react'
+
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { useGraphStore } from '@/store/graph-store'
+import { useRelayStore } from '@/store/relay-store'
+
+import { FlowTimeline } from './FlowTimeline'
 
 export function RelayPanel() {
   const {

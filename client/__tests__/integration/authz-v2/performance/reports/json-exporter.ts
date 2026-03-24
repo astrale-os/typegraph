@@ -6,6 +6,7 @@
 
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
+
 import type { Trace, TraceMetrics, PerformanceThresholds } from '../profiling'
 import type { TestScenario, ScenarioResult } from '../scenarios'
 

@@ -7,13 +7,6 @@
 // ============================================================
 
 import {
-  type ModifierListNode,
-  type ModifierNode,
-  type StringListNode,
-  isToken,
-  spanOf,
-} from '../cst/index'
-import {
   type Modifier,
   type FlagModifier,
   type FormatModifier,
@@ -24,10 +17,17 @@ import {
   type CardinalityModifier,
   type LifecycleModifier,
 } from '../ast/index'
-import { type Token, type Span } from '../tokens'
+import {
+  type ModifierListNode,
+  type ModifierNode,
+  type StringListNode,
+  isToken,
+  spanOf,
+} from '../cst/index'
 import { type DiagnosticBag, DiagnosticCodes } from '../diagnostics'
-import { type LoweringContext } from './index'
+import { type Token, type Span } from '../tokens'
 import { unquote } from './declarations'
+import { type LoweringContext } from './index'
 
 export function lowerModifiers(ctx: LoweringContext, list: ModifierListNode | null): Modifier[] {
   if (!list) return []

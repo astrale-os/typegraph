@@ -1,3 +1,11 @@
+import type {
+  UnresolvedIdentityExpr,
+  AccessDecision,
+  AccessExplanation,
+} from '../../../integration/authz-v2/types'
+
+import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
+import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
 import {
   KernelService,
   createAppJwt,
@@ -5,13 +13,6 @@ import {
   decodeMockJwt,
   KERNEL_ISSUER,
 } from '../../../integration/authz-v2/authentication/relay-token'
-import { IdentityRegistry } from '../../../integration/authz-v2/authentication/identity-registry'
-import { IssuerKeyStore } from '../../../integration/authz-v2/authentication/issuer-key-store'
-import type {
-  UnresolvedIdentityExpr,
-  AccessDecision,
-  AccessExplanation,
-} from '../../../integration/authz-v2/types'
 import { playgroundClient } from './falkordb-client'
 
 let kernelService: KernelService | null = null

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'fs'
-import { join } from 'path'
 import { tmpdir } from 'os'
+import { join } from 'path'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+
 import { compileGsl } from '../src/compile-gsl.js'
 
 /**

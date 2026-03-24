@@ -150,8 +150,9 @@ export {
 export { createGraph } from './graph'
 export type { Graph, GraphOptions, TransactionScope } from './graph'
 
-import type { SchemaShape } from './schema'
 import type { GraphQuery } from './query'
+import type { SchemaShape } from './schema'
+
 import { GraphQueryImpl } from './query'
 
 /**

@@ -7,6 +7,7 @@
  * 1% case: ctx.compose(other, "union"), ctx.withScope(scope) — immutable, lazy.
  */
 
+import type { FalkorDBIdentityAdapter } from '../adapter/falkordb-identity.adapter'
 import type {
   Scope,
   Permission,
@@ -15,16 +16,16 @@ import type {
   UnresolvedIdentityExpr,
   AccessDecision,
 } from '../types'
-import { READ, EDIT, USE } from '../testing/helpers'
-import { type KernelService } from '../authentication/relay-token'
+
 import {
   unresolvedJwt,
   unresolvedUnion,
   unresolvedIntersect,
   unresolvedExclude,
 } from '../authentication/grant-encoding'
+import { type KernelService } from '../authentication/relay-token'
 import { TokenVerifier, type TokenPayload, KERNEL_ISSUER } from '../authentication/token-verifier'
-import type { FalkorDBIdentityAdapter } from '../adapter/falkordb-identity.adapter'
+import { READ, EDIT, USE } from '../testing/helpers'
 
 // =============================================================================
 // KERNEL PORT (interface, mockable)

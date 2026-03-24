@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+
 import { compileAndGenerate, compileToModel, extractValidatorBlock } from './helpers.js'
 
 describe('inheritance', () => {

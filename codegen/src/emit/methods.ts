@@ -1,4 +1,5 @@
 import type { GraphModel, MethodDef } from '../model'
+
 import { resolveMethodReturnTypeRef, resolveMethodParamTypeRef } from './interfaces'
 import { pascalCase } from './utils'
 

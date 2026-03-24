@@ -6,8 +6,10 @@
 
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { LatencyReport } from './json-exporter'
+
 import type { Trace, TraceMetrics, Phase } from '../profiling'
+import type { LatencyReport } from './json-exporter'
+
 import { formatMicros } from '../profiling'
 
 // =============================================================================

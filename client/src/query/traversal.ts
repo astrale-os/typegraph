@@ -5,8 +5,9 @@
  * Used by all node builders to avoid duplicating traversal logic.
  */
 
-import type { QueryAST } from './ast'
 import type { SchemaShape } from '../schema'
+import type { QueryAST } from './ast'
+
 import { edgeFrom, edgeTo, edgeCardinality } from '../helpers'
 import { buildEdgeWhere } from './traits'
 

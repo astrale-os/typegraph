@@ -1,5 +1,6 @@
-import { useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+
 import { parseError, type ParsedError } from '@/lib/error-parser'
 
 interface ErrorDisplayProps {

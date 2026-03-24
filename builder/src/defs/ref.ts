@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod'
-import type { Def, DefConfig } from './definition.js'
+
 import type { ExtractFullProps, ExtractFullData } from '../inference/index.js'
+import type { Def, DefConfig } from './definition.js'
 
 /** Branded Zod schema wrapping a graph def reference.
  * Extends z.ZodType<{id}> for compatibility; _output is overridden so

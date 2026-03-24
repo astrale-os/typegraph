@@ -8,6 +8,7 @@
 
 import { resolve as pathResolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+
 import { type ResolvedSchema, type Symbol } from './resolver/index'
 
 // ─── URI helpers ─────────────────────────────────────────────

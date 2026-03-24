@@ -7,19 +7,16 @@
  * Run with: RUN_PERF_TESTS=1 pnpm test latency-profiling
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { join } from 'node:path'
-
-// Test setup
-import { setupAuthzTest, teardownAuthzTest, type AuthzTestContext } from '../testing/setup'
-import { USE } from '../testing/helpers'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 
 // Adapter
 import { FalkorDBAccessQueryAdapter } from '../adapter/queries'
-
 // Authorization
 import { checkAccess } from '../authorization/checker'
-
+import { USE } from '../testing/helpers'
+// Test setup
+import { setupAuthzTest, teardownAuthzTest, type AuthzTestContext } from '../testing/setup'
 // Profiling infrastructure
 import {
   SpanCollector,
@@ -32,7 +29,9 @@ import {
   type TraceMetrics,
   type PerformanceThresholds,
 } from './profiling'
-
+import { saveHtmlReport } from './reports/html-generator'
+// Reports
+import { buildReport, saveJsonReport, type LatencyReport } from './reports/json-exporter'
 // Scenarios
 import {
   type TestScenario,
@@ -47,10 +46,6 @@ import {
   allBatchScenarios,
   allE2EScenarios,
 } from './scenarios'
-
-// Reports
-import { buildReport, saveJsonReport, type LatencyReport } from './reports/json-exporter'
-import { saveHtmlReport } from './reports/html-generator'
 
 // =============================================================================
 // TEST CONFIGURATION

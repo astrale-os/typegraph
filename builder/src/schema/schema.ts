@@ -1,6 +1,7 @@
-import type { OpDef } from '../defs/operation.js'
-import type { AnyDef } from '../defs/index.js'
 import type { Domain } from '@astrale/typegraph-schema'
+
+import type { AnyDef } from '../defs/index.js'
+import type { OpDef } from '../defs/operation.js'
 
 /** A def with its schema-assigned name as a literal type. */
 export type Named<D, K extends string = string> = D & { readonly name: K }

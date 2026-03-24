@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
+
+import type { SchemaIR, ValueTypeDef } from '../src/model.js'
+
 import { generate } from '../src/generate.js'
 import { load } from '../src/loader.js'
-import type { SchemaIR, ValueTypeDef } from '../src/model.js'
 import { compileAndGenerate, compileToModel } from './helpers.js'
 
 // ─── Hand-crafted IR with value types ────────────────────────

@@ -8,7 +8,6 @@
  */
 
 import type { SchemaShape } from '../../schema'
-import { resolveNodeLabels, formatLabels, edgeFrom, edgeTo } from '../../helpers'
 import type {
   MutationOp,
   CreateNodeOp,
@@ -37,6 +36,8 @@ import type {
   DeleteLinkNodesFromOp,
   DeleteLinkNodesToOp,
 } from '../ast/types'
+
+import { resolveNodeLabels, formatLabels, edgeFrom, edgeTo } from '../../helpers'
 
 // =============================================================================
 // COMPILED OUTPUT

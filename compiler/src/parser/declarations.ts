@@ -7,7 +7,6 @@
 // body, attributes, default values).
 // ============================================================
 
-import { type Token } from '../tokens'
 import {
   type CstChild,
   type DeclarationNode,
@@ -34,12 +33,13 @@ import {
   type DefaultValueNode,
   type ModifierListNode,
 } from '../cst/index'
-import { isKeyword } from '../tokens'
 import { DiagnosticCodes } from '../diagnostics'
-import { type ParserContext, isDeclStart } from './index'
-import { parseTypeExpr } from './types'
-import { parseModifierList } from './modifiers'
+import { type Token } from '../tokens'
+import { isKeyword } from '../tokens'
 import { parseExpression } from './expressions'
+import { type ParserContext, isDeclStart } from './index'
+import { parseModifierList } from './modifiers'
+import { parseTypeExpr } from './types'
 
 // --- Declaration dispatch ---
 

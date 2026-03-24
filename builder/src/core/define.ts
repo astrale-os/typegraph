@@ -1,4 +1,5 @@
 import type { Schema } from '../schema/schema.js'
+import type { CorePath } from './path.js'
 import type {
   CoreNode,
   CoreEdge,
@@ -7,7 +8,7 @@ import type {
   CoreNodeEntry,
   CoreEdgeEntry,
 } from './types.js'
-import type { CorePath } from './path.js'
+
 import { buildCorePath, isCorePath } from './path.js'
 
 /**

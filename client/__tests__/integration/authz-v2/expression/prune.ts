@@ -25,6 +25,7 @@ import type {
   NodeId,
   Scope,
 } from '../types'
+
 import { scopePasses } from './scope'
 
 // =============================================================================

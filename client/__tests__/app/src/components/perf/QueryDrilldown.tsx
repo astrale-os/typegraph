@@ -5,7 +5,9 @@
  */
 
 import { useState, useMemo } from 'react'
+
 import type { ScenarioResult } from '@/types/profiling'
+
 import { formatMicros } from '@/types/profiling'
 
 interface QueryDrilldownProps {

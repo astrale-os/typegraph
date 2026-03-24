@@ -1,12 +1,14 @@
-import { useState } from 'react'
 import { KeyRound, Play, Trash2, Code, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
-import { useRelayStore } from '@/store/relay-store'
+import { useState } from 'react'
+
+import { ExprCodeEditor } from '@/components/editor/ExprCodeEditor'
+import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
+import { evaluateExprCode, EXAMPLE_CODE, EXAMPLE_EXPR, type EvalResult } from '@/lib/expr-evaluator'
 import { useGraphStore } from '@/store/graph-store'
 import { useQueryStore } from '@/store/query-store'
+import { useRelayStore } from '@/store/relay-store'
+
 import { FlowTimeline } from './FlowTimeline'
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay'
-import { ExprCodeEditor } from '@/components/editor/ExprCodeEditor'
-import { evaluateExprCode, EXAMPLE_CODE, EXAMPLE_EXPR, type EvalResult } from '@/lib/expr-evaluator'
 
 const PERMS = ['read', 'edit', 'use', 'share']
 

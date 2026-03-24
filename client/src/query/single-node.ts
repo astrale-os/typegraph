@@ -7,15 +7,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { NodeQueryBuilder } from './node-query-builder'
-import { type BaseBuilder } from './base'
-import { buildOutTraversal, buildInTraversal } from './traversal'
-import type { TraversalOptions } from './traits'
-import * as hierarchy from './hierarchy'
-import type { QueryAST } from './ast'
-import type { CompiledQuery } from './compiler'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
-import type { ResolveNode } from '../resolve'
 import type {
   NodeLabels,
   NodeProps,
@@ -35,11 +26,20 @@ import type {
   EdgeInboundCardinality,
   HierarchyParent,
 } from '../inference'
+import type { ResolveNode } from '../resolve'
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
+import type { TraversalOptions } from './traits'
 
-import { CollectionBuilder } from './collection'
-import { OptionalNodeBuilder } from './optional-node'
-import { extractNodeFromRecord } from '../utils'
 import { CardinalityError, ExecutionError } from '../errors'
+import { extractNodeFromRecord } from '../utils'
+import { type BaseBuilder } from './base'
+import { CollectionBuilder } from './collection'
+import * as hierarchy from './hierarchy'
+import { NodeQueryBuilder } from './node-query-builder'
+import { OptionalNodeBuilder } from './optional-node'
+import { buildOutTraversal, buildInTraversal } from './traversal'
 
 /**
  * Builder for queries that return exactly one node.

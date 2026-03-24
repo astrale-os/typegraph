@@ -6,10 +6,6 @@
  * @internal
  */
 
-import type { QueryAST } from './ast'
-import type { CompiledQuery } from './compiler'
-import { getCompiler } from './compiler'
-import type { SchemaShape } from '../schema'
 import type { NodeLabels, NodeProps } from '../inference'
 import type {
   AliasMap,
@@ -17,9 +13,14 @@ import type {
   EdgeAliasMap,
   EdgeAliasMapToReturnType,
 } from '../inference'
+import type { SchemaShape } from '../schema'
+import type { QueryAST } from './ast'
+import type { CompiledQuery } from './compiler'
 import type { QueryExecutor } from './types'
-import { transformMultiAliasResults } from '../utils'
+
 import { ExecutionError } from '../errors'
+import { transformMultiAliasResults } from '../utils'
+import { getCompiler } from './compiler'
 
 /**
  * Type for collect specifications.

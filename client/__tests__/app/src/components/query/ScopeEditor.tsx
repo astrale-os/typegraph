@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
+
 import type { Scope } from '@/types/api'
 
 interface ScopeEditorProps {

@@ -5,10 +5,12 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { encode, decode, encodeBase64, decodeBase64, compareSizes } from './expression/encoding'
-import { dedup, expand, isDedupedExpr } from './expression/dedup'
-import { identity, union, intersect, exclude } from './expression/builder'
+
 import type { IdentityExpr } from './types'
+
+import { identity, union, intersect, exclude } from './expression/builder'
+import { dedup, expand, isDedupedExpr } from './expression/dedup'
+import { encode, decode, encodeBase64, decodeBase64, compareSizes } from './expression/encoding'
 import { READ, EDIT, USE, SHARE } from './testing/helpers'
 
 describe('AUTH_V2: Binary Expression Encoding', () => {

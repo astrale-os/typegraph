@@ -6,11 +6,12 @@
  */
 
 import type { SchemaShape } from '../../schema'
+import type { CompilerOptions } from './types'
+
 import { CypherCompiler } from './cypher'
 import { CompilationPipeline, type CompilationPass } from './optimizer'
 import { InstanceModelPass } from './passes/instance-model-pass'
 import { ReifyEdgesPass } from './passes/reify-edges-pass'
-import type { CompilerOptions } from './types'
 
 /**
  * Cache for compiler instances, keyed by schema reference.

@@ -1,6 +1,8 @@
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { InheritancePathViz } from './InheritancePathViz'
 import type { LeafEvaluation } from '@/types/api'
+
+import { StatusBadge } from '@/components/ui/StatusBadge'
+
+import { InheritancePathViz } from './InheritancePathViz'
 
 interface LeafEvaluationListProps {
   leaves: LeafEvaluation[]

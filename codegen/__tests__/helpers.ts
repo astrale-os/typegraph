@@ -4,6 +4,7 @@ import {
   buildKernelRegistry,
   type SchemaIR,
 } from '@astrale/kernel-compiler'
+
 import { generate, type GenerateResult } from '../src/generate.js'
 import { normalizeIR, load, type GraphModel } from '../src/index.js'
 

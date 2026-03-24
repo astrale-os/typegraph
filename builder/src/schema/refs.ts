@@ -1,14 +1,15 @@
-import type { Schema } from './schema.js'
+import type { z } from 'zod'
+
 import type { Def } from '../defs/definition.js'
 import type { OpDef } from '../defs/operation.js'
 import type { ParamShape } from '../defs/operation.js'
-import type { z } from 'zod'
 import type {
   HasMethods,
   HasImplementableMethods,
   ExtractMethodNames,
 } from '../inference/methods.js'
 import type { InferProps } from '../inference/props.js'
+import type { Schema } from './schema.js'
 
 // ── Schema-level type helpers ─────────────────────────────────────────────
 

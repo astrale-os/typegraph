@@ -1,7 +1,9 @@
-import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { useGraphStore } from '@/store/graph-store'
+import { useState } from 'react'
+
 import type { NodeType } from '@/types/graph'
+
+import { useGraphStore } from '@/store/graph-store'
 
 const NODE_TYPES: NodeType[] = ['Root', 'Space', 'Module', 'Type', 'Identity']
 

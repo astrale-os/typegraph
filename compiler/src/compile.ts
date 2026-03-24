@@ -10,18 +10,19 @@
 // when `extend` declarations are encountered.
 // ============================================================
 
+import type { Schema as AstSchema } from './ast/index'
+import type { SchemaNode } from './cst/index'
+import type { SchemaIR } from './ir/index'
+
+import { DiagnosticBag } from './diagnostics'
 import { lex } from './lexer'
-import { parse } from './parser/index'
 import { lower } from './lower/index'
-import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
-import { validate } from './validator/index'
-import { serialize, type SerializeOptions } from './serializer/index'
+import { parse } from './parser/index'
 import { type Prelude, DEFAULT_PRELUDE } from './prelude'
 import { type SchemaRegistry, EMPTY_REGISTRY } from './registry'
-import type { SchemaIR } from './ir/index'
-import { DiagnosticBag } from './diagnostics'
-import type { SchemaNode } from './cst/index'
-import type { Schema as AstSchema } from './ast/index'
+import { resolve, createBuiltinScope, type ResolvedSchema } from './resolver/index'
+import { serialize, type SerializeOptions } from './serializer/index'
+import { validate } from './validator/index'
 
 export interface CompileResult {
   /** The IR output. Null if there were errors preventing serialization. */

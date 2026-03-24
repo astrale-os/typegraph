@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
 import { FalkorDBAdapter, deleteGraph } from '../src'
 
 describe('Error Handling', () => {

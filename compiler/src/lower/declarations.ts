@@ -7,23 +7,6 @@
 // ============================================================
 
 import {
-  type DeclarationNode,
-  type ClassDeclNode,
-  type InterfaceDeclNode,
-  type TypeAliasDeclNode,
-  type ValueTypeDeclNode,
-  type ValueTypeFieldNode,
-  type TaggedUnionDeclNode,
-  type DataDeclNode,
-  type NullableTypeNode,
-  type ExtendDeclNode,
-  type AttributeNode,
-  type ParamNode,
-  type MethodNode,
-  type MethodParamNode,
-  spanOf,
-} from '../cst/index'
-import {
   type Declaration,
   type TypeAliasDecl,
   type ValueTypeDecl,
@@ -41,11 +24,28 @@ import {
   type Projection,
   type Name,
 } from '../ast/index'
+import {
+  type DeclarationNode,
+  type ClassDeclNode,
+  type InterfaceDeclNode,
+  type TypeAliasDeclNode,
+  type ValueTypeDeclNode,
+  type ValueTypeFieldNode,
+  type TaggedUnionDeclNode,
+  type DataDeclNode,
+  type NullableTypeNode,
+  type ExtendDeclNode,
+  type AttributeNode,
+  type ParamNode,
+  type MethodNode,
+  type MethodParamNode,
+  spanOf,
+} from '../cst/index'
 import { type Token } from '../tokens'
-import { type LoweringContext } from './index'
-import { lowerTypeExpr } from './types'
-import { lowerModifiers } from './modifiers'
 import { lowerExpression } from './expressions'
+import { type LoweringContext } from './index'
+import { lowerModifiers } from './modifiers'
+import { lowerTypeExpr } from './types'
 
 // --- Declaration dispatch ---
 

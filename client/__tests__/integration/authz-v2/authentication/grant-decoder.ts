@@ -9,6 +9,7 @@
  * - "resolve" = Full identity composition expansion via DB queries (what evalExpr does)
  */
 
+import type { PayloadCodec } from '../expression/codec'
 import type {
   IdentityExpr,
   IdentityId,
@@ -16,10 +17,10 @@ import type {
   UnresolvedIdentityExpr,
   UnresolvedGrant,
 } from '../types'
-import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 import type { IdentityRegistry } from './identity-registry'
+
 import { applyTopLevelScopes } from '../expression/scope'
-import type { PayloadCodec } from '../expression/codec'
+import { type TokenVerifier, KERNEL_ISSUER } from './token-verifier'
 
 // =============================================================================
 // DECODED TYPES

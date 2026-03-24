@@ -11,26 +11,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { BaseBuilder, type QueryFragment } from './base'
-import {
-  createWhereBuilder,
-  type WhereBuilder,
-  type ReachableOptions,
-  type HierarchyTraversalOptions,
-  type EdgeFilterOptions,
-} from './traits'
-import { buildBiTraversal } from './traversal'
-import * as hierarchy from './hierarchy'
-import type { QueryAST } from './ast'
-import type {
-  ComparisonOperator,
-  WhereCondition,
-  ComparisonCondition,
-  SubqueryExistsCondition,
-  SubqueryNotExistsCondition,
-  SubqueryCountCondition,
-} from './ast'
-import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
 import type {
   NodeLabels,
   NodeProps,
@@ -49,18 +29,37 @@ import type {
   InferReturnType,
   TypedReturnQuery,
 } from '../inference'
-import { ExecutionError } from '../errors'
-
-import type { QueryExecutor } from './types'
-import { ReturningBuilder } from './returning'
-import { TypedReturningBuilder } from './typed-returning'
-import { createQueryContext, parseReturnSpec, type AliasInfo, type EdgeAliasInfo } from './proxy'
-import { SubqueryBuilder } from './subquery-builder'
-
+import type { SchemaShape, TypeMap, UntypedMap } from '../schema'
+import type { QueryAST } from './ast'
+import type {
+  ComparisonOperator,
+  WhereCondition,
+  ComparisonCondition,
+  SubqueryExistsCondition,
+  SubqueryNotExistsCondition,
+  SubqueryCountCondition,
+} from './ast'
 // Circular dependency resolution: CollectionBuilder extends NodeQueryBuilder,
 // but NodeQueryBuilder methods return CollectionBuilder. CollectionBuilder
 // registers itself here at module initialization time via _registerCollectionBuilder().
 import type { CollectionBuilder as CollectionBuilderType } from './collection'
+import type { QueryExecutor } from './types'
+
+import { ExecutionError } from '../errors'
+import { BaseBuilder, type QueryFragment } from './base'
+import * as hierarchy from './hierarchy'
+import { createQueryContext, parseReturnSpec, type AliasInfo, type EdgeAliasInfo } from './proxy'
+import { ReturningBuilder } from './returning'
+import { SubqueryBuilder } from './subquery-builder'
+import {
+  createWhereBuilder,
+  type WhereBuilder,
+  type ReachableOptions,
+  type HierarchyTraversalOptions,
+  type EdgeFilterOptions,
+} from './traits'
+import { buildBiTraversal } from './traversal'
+import { TypedReturningBuilder } from './typed-returning'
 
 let _CollectionBuilderCtor: any = null
 

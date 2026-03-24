@@ -1,8 +1,3 @@
-import { describe, it, expect } from 'vitest'
-import { z } from 'zod'
-import { interfaceDef, classDef, op, ref, data } from './defs/index.js'
-import { defineSchema } from './schema/define.js'
-import { serialize } from './serializer/serialize.js'
 import type {
   SchemaIR,
   InterfaceDecl,
@@ -11,6 +6,13 @@ import type {
   AnyDecl,
   JsonSchema,
 } from '@astrale/typegraph-schema'
+
+import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
+
+import { interfaceDef, classDef, op, ref, data } from './defs/index.js'
+import { defineSchema } from './schema/define.js'
+import { serialize } from './serializer/serialize.js'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

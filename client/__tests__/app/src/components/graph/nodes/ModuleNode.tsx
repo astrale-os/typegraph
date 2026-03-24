@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from 'reactflow'
+
 import { NODE_COLORS } from '@/types/graph'
 
 export function ModuleNode({ data }: NodeProps) {

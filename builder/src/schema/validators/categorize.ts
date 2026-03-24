@@ -1,9 +1,10 @@
 import type { AnyDef } from '../../defs/index.js'
 import type { OpDef } from '../../defs/operation.js'
+import type { SchemaContext } from './context.js'
+
 import { SELF } from '../../defs/ref.js'
 import { registerDef } from '../../registry.js'
 import { SchemaValidationError } from '../schema.js'
-import type { SchemaContext } from './context.js'
 
 /** Resolve all thunks (config + param) and collect defs. */
 export function categorize(domain: string, defs: Record<string, AnyDef>): SchemaContext {

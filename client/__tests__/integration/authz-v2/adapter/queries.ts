@@ -6,9 +6,10 @@
  */
 
 import type { AccessQueryPort } from '../authorization/access-query-port'
+import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation, RawExecutor } from '../types'
+
 import { toCypher, assembleQuery, type QueryFragment, type CypherOptions } from './cypher'
 import { type GraphVocab, resolveVocab } from './vocabulary'
-import type { PrunedIdentityExpr, NodeId, Permission, LeafEvaluation, RawExecutor } from '../types'
 
 export interface FalkorDBQueryConfig {
   maxDepth?: number

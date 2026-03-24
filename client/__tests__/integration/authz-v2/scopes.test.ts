@@ -5,13 +5,9 @@
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest'
-import {
-  setupAuthzTest,
-  teardownAuthzTest,
-  clearDatabase,
-  seedAuthzTestData,
-  type AuthzTestContext,
-} from './testing/setup'
+
+import type { Permission, PermissionMask } from './types'
+
 import { createAccessChecker } from './adapter'
 import { IdentityEvaluator } from './adapter/identity-evaluator'
 import {
@@ -27,7 +23,13 @@ import {
   EDIT,
   USE,
 } from './testing/helpers'
-import type { Permission, PermissionMask } from './types'
+import {
+  setupAuthzTest,
+  teardownAuthzTest,
+  clearDatabase,
+  seedAuthzTestData,
+  type AuthzTestContext,
+} from './testing/setup'
 
 describe('AUTH_V2: Scope Filtering', () => {
   let ctx: AuthzTestContext

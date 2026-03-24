@@ -5,6 +5,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
+
+import type { IdentityExpr } from './types'
+
+import { identity, union, intersect, exclude } from './expression/builder'
 import {
   dedup,
   expand,
@@ -15,8 +19,6 @@ import {
   type DedupedExpr,
   type Ref,
 } from './expression/dedup'
-import { identity, union, intersect, exclude } from './expression/builder'
-import type { IdentityExpr } from './types'
 import { READ } from './testing/helpers'
 
 describe('AUTH_V2: Expression Deduplication', () => {

@@ -5,14 +5,11 @@
  * Schema comes from KRL codegen output.
  */
 
-import type { SchemaShape, TypeMap, UntypedMap } from './schema'
-import { mergeSchemaExtension } from './schema'
-import type { NodeLabels, EdgeTypes } from './inference'
 import type { GraphAdapter, TransactionContext } from './adapter'
+import type { ConstraintSchemaInfo } from './constraints'
 import type { CoreRefs } from './core'
-import { createCoreProxy } from './core-proxy'
-import type { GraphQuery, QueryExecutor } from './query/types'
-import { GraphQueryImpl } from './query/impl'
+import type { NodeLabels, EdgeTypes } from './inference'
+import type { MethodDispatchFn, MethodSchemaInfo } from './methods'
 import type {
   GraphMutations,
   MutationTransaction,
@@ -23,17 +20,21 @@ import type {
   ValidationOptions,
   DryRunOptions,
 } from './mutation'
-import { GraphMutationsImpl, defaultIdGenerator } from './mutation'
+import type { ValidatorMap } from './mutation/validation'
 import type { CollectionBuilder } from './query/collection'
-import type { SingleNodeBuilder } from './query/single-node'
 import type { EdgeBuilder } from './query/edge'
 import type { PathBuilder } from './query/path'
-import type { MethodDispatchFn, MethodSchemaInfo } from './methods'
-import { MethodNotDispatchedError } from './errors'
-import type { ConstraintSchemaInfo } from './constraints'
+import type { SingleNodeBuilder } from './query/single-node'
+import type { GraphQuery, QueryExecutor } from './query/types'
+import type { SchemaShape, TypeMap, UntypedMap } from './schema'
+
 import { resolveEndpoints } from './constraints'
+import { createCoreProxy } from './core-proxy'
+import { MethodNotDispatchedError } from './errors'
+import { GraphMutationsImpl, defaultIdGenerator } from './mutation'
 import { invalidateCompilerCache, invalidatePipelineCache } from './query/compiler/cache'
-import type { ValidatorMap } from './mutation/validation'
+import { GraphQueryImpl } from './query/impl'
+import { mergeSchemaExtension } from './schema'
 
 /**
  * Options for creating a graph instance.
