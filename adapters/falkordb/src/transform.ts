@@ -1,8 +1,45 @@
 /**
  * Result transformation utilities for FalkorDB.
+ *
+ * FalkorDB only supports primitives and flat arrays of primitives as property
+ * values. {@link serializeProperties} encodes complex values (objects, arrays
+ * of objects) as sentinel-prefixed JSON strings before write, and
+ * {@link convertValue} transparently reverses this on read.
  */
 
 import type { FalkorNode, FalkorRelationship } from './types'
+
+// ─── Complex Property Serde ────────────────────────────────
+
+const JSON_SENTINEL = '$$json::'
+
+/**
+ * Serialize complex property values for FalkorDB storage.
+ *
+ * FalkorDB cannot persist objects or arrays-of-objects as node/edge
+ * properties. This encodes those values as sentinel-prefixed JSON strings
+ * that {@link convertValue} reverses transparently on read.
+ *
+ * Flat arrays of primitives are left untouched (FalkorDB stores them natively).
+ */
+export function serializeProperties<T extends Record<string, unknown>>(props: T): T {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(props)) {
+    out[k] = needsSerialization(v) ? `${JSON_SENTINEL}${JSON.stringify(v)}` : v
+  }
+  return out as T
+}
+
+function needsSerialization(v: unknown): boolean {
+  if (v === null || v === undefined || typeof v !== 'object') return false
+  if (Array.isArray(v)) return v.some((el) => el !== null && typeof el === 'object')
+  return true
+}
+
+function deserializeIfPrefixed(v: unknown): unknown {
+  if (typeof v !== 'string' || !v.startsWith(JSON_SENTINEL)) return v
+  return JSON.parse(v.slice(JSON_SENTINEL.length))
+}
 
 /**
  * Type guard for FalkorDB nodes.
@@ -35,7 +72,7 @@ export function isFalkorRelationship(v: unknown): v is FalkorRelationship {
 export function convertValue(value: unknown, seen = new WeakMap()): unknown {
   // Primitives
   if (value === null || value === undefined) return value
-  if (typeof value !== 'object') return value
+  if (typeof value !== 'object') return deserializeIfPrefixed(value)
 
   // Prevent infinite recursion on circular references
   if (seen.has(value as object)) return seen.get(value as object)

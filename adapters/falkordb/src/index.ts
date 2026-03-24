@@ -34,7 +34,13 @@ export type { FalkorDBConfig, FalkorNode, FalkorRelationship } from './types'
 export { FalkorDBAdapter }
 
 // Re-export transform utilities (useful for custom adapters)
-export { transformResults, convertValue, isFalkorNode, isFalkorRelationship } from './transform'
+export {
+  transformResults,
+  convertValue,
+  serializeProperties,
+  isFalkorNode,
+  isFalkorRelationship,
+} from './transform'
 
 /**
  * Create a FalkorDB adapter.
@@ -104,7 +110,7 @@ export async function listGraphs(config: Partial<FalkorDBConfig>): Promise<strin
 }
 
 /**
- * Delete a graph from the FalkorDB instance.
+ * Delete a graph (`GRAPH.DELETE` via the falkordb client — not `CALL dbms.graph.delete`, which some servers omit).
  *
  * @example
  * ```typescript
@@ -112,13 +118,14 @@ export async function listGraphs(config: Partial<FalkorDBConfig>): Promise<strin
  * ```
  */
 export async function deleteGraph(config: FalkorDBConfig): Promise<void> {
-  // Validate graphName to prevent injection (defense-in-depth, also validated in connect())
   validateGraphName(config.graphName)
 
   const adapter = new FalkorDBAdapter(config)
   try {
     await adapter.connect()
-    await adapter.mutate(`CALL dbms.graph.delete('${config.graphName}')`)
+    const graph = adapter.rawGraph
+    if (!graph) throw new Error('Not connected')
+    await graph.delete()
   } finally {
     await adapter.close()
   }
