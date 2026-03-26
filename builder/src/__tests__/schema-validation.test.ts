@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 
 import { edge, node, defineCore, CorePath, buildCorePath } from '../core/index.js'
-import { interfaceDef, classDef, method, ref } from '../defs/index.js'
+import { interfaceDef, classDef, fn, ref } from '../defs/index.js'
 import { getDefName } from '../registry.js'
 import { defineSchema } from '../schema/define.js'
 import { SchemaValidationError } from '../schema/schema.js'
@@ -111,7 +111,7 @@ describe('defineSchema', () => {
   it('throws on unresolvable param thunk', () => {
     const Bad = classDef({
       methods: {
-        broken: method({
+        broken: fn({
           params: () => {
             throw new Error('boom')
           },
@@ -125,7 +125,7 @@ describe('defineSchema', () => {
   it('thunk error includes def and method name', () => {
     const Bad = classDef({
       methods: {
-        doStuff: method({
+        doStuff: fn({
           params: () => {
             throw new Error('nope')
           },
@@ -219,7 +219,7 @@ describe('defineSchema', () => {
     const Outside = classDef({ props: { a: z.string() } })
     const Inside = classDef({
       methods: {
-        doIt: method({ params: { target: ref(Outside) }, returns: z.void() }),
+        doIt: fn({ params: { target: ref(Outside) }, returns: z.void() }),
       },
     })
     expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
@@ -229,7 +229,7 @@ describe('defineSchema', () => {
     const Outside = classDef({})
     const Inside = classDef({
       methods: {
-        get: method({ returns: ref(Outside) }),
+        get: fn({ returns: ref(Outside) }),
       },
     })
     expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
@@ -239,7 +239,7 @@ describe('defineSchema', () => {
     const Outside = classDef({})
     const Inside = classDef({
       methods: {
-        list: method({ returns: z.array(ref(Outside)) }),
+        list: fn({ returns: z.array(ref(Outside)) }),
       },
     })
     expect(() => defineSchema('test', { Inside })).toThrow(SchemaValidationError)
@@ -249,7 +249,7 @@ describe('defineSchema', () => {
     const Outside = classDef({})
     const Inside = classDef({
       methods: {
-        act: method({ params: { who: ref(Outside) }, returns: z.void() }),
+        act: fn({ params: { who: ref(Outside) }, returns: z.void() }),
       },
     })
     try {
@@ -265,7 +265,7 @@ describe('defineSchema', () => {
     const Target = classDef({})
     const Source = classDef({
       methods: {
-        get: method({ params: { t: ref(Target) }, returns: z.void() }),
+        get: fn({ params: { t: ref(Target) }, returns: z.void() }),
       },
     })
     expect(() => defineSchema('test', { Target, Source })).not.toThrow()
@@ -275,7 +275,7 @@ describe('defineSchema', () => {
     const Item = classDef({})
     const List = classDef({
       methods: {
-        all: method({ returns: z.array(ref(Item)) }),
+        all: fn({ returns: z.array(ref(Item)) }),
       },
     })
     expect(() => defineSchema('test', { Item, List })).not.toThrow()
@@ -285,7 +285,7 @@ describe('defineSchema', () => {
     const Target = classDef({})
     const Source = interfaceDef({
       methods: {
-        act: method({
+        act: fn({
           params: () => ({ t: ref(Target) }),
           returns: z.void(),
         }),
@@ -298,7 +298,7 @@ describe('defineSchema', () => {
     const Outside = classDef({})
     const Source = classDef({
       methods: {
-        act: method({
+        act: fn({
           params: () => ({ t: ref(Outside) }),
           returns: z.void(),
         }),
@@ -318,7 +318,7 @@ describe('defineSchema', () => {
             { as: 'a', types: [N] },
             { as: 'b', types: [N] },
           ],
-          methods: { calc: method({ returns: ref(Outside) }) },
+          methods: { calc: fn({ returns: ref(Outside) }) },
         }),
       }),
     ).toThrow(SchemaValidationError)
@@ -379,7 +379,7 @@ describe('defineSchema', () => {
     defineSchema('test', { ExternalNode }) // registers name
     const MyNode = classDef({
       methods: {
-        doIt: method({ params: { target: ref(ExternalNode) }, returns: z.void() }),
+        doIt: fn({ params: { target: ref(ExternalNode) }, returns: z.void() }),
       },
     })
     expect(() => defineSchema('test', { MyNode })).not.toThrow()
@@ -390,7 +390,7 @@ describe('defineSchema', () => {
     defineSchema('test', { ExternalNode }) // registers name
     const MyNode = classDef({
       methods: {
-        get: method({ returns: ref(ExternalNode) }),
+        get: fn({ returns: ref(ExternalNode) }),
       },
     })
     expect(() => defineSchema('test', { MyNode })).not.toThrow()
@@ -400,7 +400,7 @@ describe('defineSchema', () => {
     const Unregistered = classDef({}) // never passed through defineSchema
     const MyNode = classDef({
       methods: {
-        doIt: method({ params: { target: ref(Unregistered) }, returns: z.void() }),
+        doIt: fn({ params: { target: ref(Unregistered) }, returns: z.void() }),
       },
     })
     expect(() => defineSchema('test', { MyNode })).toThrow(SchemaValidationError)

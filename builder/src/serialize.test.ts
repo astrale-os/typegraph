@@ -326,21 +326,20 @@ describe('serialize', () => {
       const ir = serialize(schema)
       const m = findMethod(findNode(ir, 'A'), 'greet')!
       expect(m.name).toBe('greet')
-      expect(m.access).toBe('public')
       expect(m.params).toEqual({})
       expect(m.returns).toEqual({ type: 'string' })
     })
 
-    it('serializes private method', () => {
+    it('serializes method with no params', () => {
       const A = classDef({
         methods: {
-          internal: fn({ returns: z.boolean(), access: 'private' }),
+          internal: fn({ returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A })
       const ir = serialize(schema)
       const m = findMethod(findNode(ir, 'A'), 'internal')!
-      expect(m.access).toBe('private')
+      expect(m.params).toEqual({})
     })
 
     it('serializes method params', () => {
@@ -412,7 +411,6 @@ describe('serialize', () => {
       const ir = serialize(schema)
       const m = findMethod(findNode(ir, 'A'), 'create')!
       expect(m.static).toBe(true)
-      expect(m.access).toBe('public')
       expect(m.params['name']).toEqual({ type: 'string' })
     })
 
@@ -1659,7 +1657,7 @@ describe('serialize', () => {
       expect(Object.keys(e.methods)).toEqual(['alpha', 'beta'])
     })
 
-    it('serializes edge with private method', () => {
+    it('serializes edge with method that has no params', () => {
       const A = classDef({})
       const e1 = classDef({
         endpoints: [
@@ -1667,13 +1665,13 @@ describe('serialize', () => {
           { as: 'b', types: [A] },
         ],
         methods: {
-          internal: fn({ returns: z.boolean(), access: 'private' }),
+          internal: fn({ returns: z.boolean() }),
         },
       } as any)
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
       const e = findEdge(ir, 'e1')
-      expect(e.methods['internal'].access).toBe('private')
+      expect(e.methods['internal'].params).toEqual({})
     })
 
     it('serializes edge with props, methods, and constraints together', () => {
@@ -1808,7 +1806,7 @@ describe('serialize', () => {
           totalCents: z.number().int(),
         },
         methods: {
-          cancel: fn({ returns: z.boolean(), access: 'private' }),
+          cancel: fn({ returns: z.boolean() }),
         },
       })
 
@@ -1836,7 +1834,6 @@ describe('serialize', () => {
           recentOrders: fn({
             params: { limit: z.number().int().default(10) },
             returns: z.array(ref(Order)),
-            access: 'private',
           }),
         },
       })
@@ -1847,7 +1844,7 @@ describe('serialize', () => {
           { as: 'product', types: [Product] },
         ],
         props: { quantity: z.number().int().default(1), unitPriceCents: z.number().int() },
-        methods: { subtotal: fn({ returns: z.number().int(), access: 'private' }) },
+        methods: { subtotal: fn({ returns: z.number().int() }) },
       })
 
       const schema = defineSchema('test', {
@@ -1890,19 +1887,16 @@ describe('serialize', () => {
       // Order
       const order = findNode(ir, 'Order')
       expect(Object.keys(order.methods).length).toBe(1)
-      expect(Object.values(order.methods)[0].access).toBe('private')
 
       // Edge with props and methods
       const oi = findEdge(ir, 'orderItem')
       expect(Object.keys(oi.properties).length).toBe(2)
       expect(Object.keys(oi.methods).length).toBe(1)
       expect(oi.methods['subtotal']).toBeDefined()
-      expect(oi.methods['subtotal'].access).toBe('private')
 
-      // Customer private method with params
+      // Customer method with params
       const customer = findNode(ir, 'Customer')
       const recentOrders = findMethod(customer, 'recentOrders')!
-      expect(recentOrders.access).toBe('private')
       expect(recentOrders.params['limit'].default).toBe(10)
       expect(recentOrders.returns).toEqual({ type: 'array', items: { $nodeRef: 'Order' } })
 
