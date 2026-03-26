@@ -5,12 +5,12 @@ export {
   schemaRefs,
   type SchemaRefs,
   type SchemaClassRefs,
-  type SchemaOpRefs,
+  type SchemaFnRefs,
   type SchemaRefsMap,
   type DefForKey,
   type MethodKeys,
   type InterfaceMethodKeys,
-  type InferOpParams,
-  type InferOpReturn,
+  type InferFnParams,
+  type InferFnReturn,
 } from './refs.js'
 export type { SchemaContext } from './validators/context.js'

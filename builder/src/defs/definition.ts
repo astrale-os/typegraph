@@ -1,12 +1,12 @@
 import type { DefConstraints } from './constraints.js'
 import type { DataShape } from './data.js'
 import type { EndpointCfg } from './endpoint.js'
+import type { FnDef } from './function.js'
 import type { IndexDef } from './indexing.js'
-import type { OpDef } from './operation.js'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PropShape } from './property.js'
 
-export type DefType = 'def' | 'op'
+export type DefType = 'def' | 'fn'
 
 export interface DefConfig {
   readonly abstract?: boolean
@@ -14,12 +14,10 @@ export interface DefConfig {
   readonly props?: PropShape
   readonly data?: DataShape
   readonly indexes?: readonly IndexDef[]
-  readonly methods?: Record<string, OpDef>
+  readonly methods?: Record<string, FnDef>
   // Edge-specific (optional — presence of endpoints makes this an "edge class")
   readonly endpoints?: readonly [EndpointCfg, EndpointCfg]
   readonly constraints?: DefConstraints
-  readonly onDeleteSource?: 'cascade' | 'unlink' | 'prevent'
-  readonly onDeleteTarget?: 'cascade' | 'unlink' | 'prevent'
 }
 
 export interface Def<out C extends DefConfig = DefConfig> {

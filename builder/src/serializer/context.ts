@@ -4,7 +4,7 @@ import type {
   ClassDecl,
   NodeDecl,
   EdgeDecl,
-  OperationDecl,
+  FunctionDecl,
   Endpoint,
   EdgeConstraints,
   JsonSchema,
@@ -13,9 +13,9 @@ import type {
 import { z } from 'zod'
 
 import type { DefConstraints } from '../defs/constraints.js'
-import type { Def } from '../defs/definition.js'
+import type { Def, DefConfig } from '../defs/definition.js'
 import type { EndpointCfg } from '../defs/endpoint.js'
-import type { OpDef } from '../defs/operation.js'
+import type { FnDef } from '../defs/function.js'
 import type { Schema } from '../schema/schema.js'
 
 import { getDefRegistration } from '../registry.js'
@@ -88,8 +88,7 @@ export class SerializeContext {
   }
 
   private serializeInterface(name: string, def: Def): InterfaceDecl {
-    // oxlint-disable-next-line no-explicit-any
-    const config = def.config as Record<string, any>
+    const { config } = def
     const result: InterfaceDecl = {
       type: 'interface',
       name,
@@ -103,8 +102,7 @@ export class SerializeContext {
   }
 
   private serializeNode(name: string, def: Def): NodeDecl {
-    // oxlint-disable-next-line no-explicit-any
-    const config = def.config as Record<string, any>
+    const { config } = def
     const result: NodeDecl = {
       type: 'node',
       name,
@@ -118,9 +116,8 @@ export class SerializeContext {
   }
 
   private serializeEdge(name: string, def: Def): EdgeDecl {
-    // oxlint-disable-next-line no-explicit-any
-    const config = def.config as Record<string, any>
-    const endpoints = config.endpoints as [EndpointCfg, EndpointCfg]
+    const { config } = def
+    const endpoints = config.endpoints!
 
     const result: EdgeDecl = {
       type: 'edge',
@@ -131,16 +128,14 @@ export class SerializeContext {
       methods: this.serializeMethods(config.methods, name),
     }
 
-    const constraints = this.serializeConstraints(config)
+    const constraints = this.serializeConstraints(config.constraints)
     if (constraints) result.constraints = constraints
     return result
   }
 
-  // oxlint-disable-next-line no-explicit-any
-  private resolveInherits(config: Record<string, any>): string[] {
-    const exts = config.inherits as Def[] | undefined
-    if (!exts) return []
-    return exts.map((e) => this.getDefName(e))
+  private resolveInherits(config: DefConfig): string[] {
+    if (!config.inherits) return []
+    return config.inherits.map((e) => this.getDefName(e))
   }
 
   private serializeEndpoint(endpoint: EndpointCfg): Endpoint {
@@ -155,33 +150,26 @@ export class SerializeContext {
     return result
   }
 
-  // oxlint-disable-next-line no-explicit-any
-  private serializeConstraints(config: Record<string, any>): EdgeConstraints | undefined {
+  private serializeConstraints(
+    constraints: DefConstraints | undefined,
+  ): EdgeConstraints | undefined {
+    if (!constraints) return undefined
     const c: EdgeConstraints = {}
     let has = false
-    const constraints = config.constraints as DefConstraints | undefined
-    if (constraints?.unique) {
+    if (constraints.unique) {
       c.unique = true
       has = true
     }
-    if (constraints?.noSelf) {
+    if (constraints.noSelf) {
       c.noSelf = true
       has = true
     }
-    if (constraints?.acyclic) {
+    if (constraints.acyclic) {
       c.acyclic = true
       has = true
     }
-    if (constraints?.symmetric) {
+    if (constraints.symmetric) {
       c.symmetric = true
-      has = true
-    }
-    if (config.onDeleteSource) {
-      c.onDeleteSource = config.onDeleteSource
-      has = true
-    }
-    if (config.onDeleteTarget) {
-      c.onDeleteTarget = config.onDeleteTarget
       has = true
     }
     return has ? c : undefined
@@ -208,33 +196,30 @@ export class SerializeContext {
   }
 
   private serializeMethods(
-    methods: Record<string, OpDef> | undefined,
+    methods: Record<string, FnDef> | undefined,
     className: string,
-  ): Record<string, OperationDecl> {
+  ): Record<string, FunctionDecl> {
     if (!methods) return {}
-    const result: Record<string, OperationDecl> = {}
+    const result: Record<string, FunctionDecl> = {}
     for (const [name, def] of Object.entries(methods)) {
-      result[name] = this.serializeOp(name, def, className)
+      result[name] = this.serializeFn(name, def, className)
     }
     return result
   }
 
-  private serializeOp(name: string, def: OpDef, _className?: string): OperationDecl {
-    // oxlint-disable-next-line no-explicit-any
-    const config = def.config as Record<string, any>
-    const returnSchema = config.returns as z.ZodType
-    const { inner: returnInner, nullable: returnNullable } = unwrapZod(returnSchema)
+  private serializeFn(name: string, def: FnDef, _className?: string): FunctionDecl {
+    const { config } = def
+    const { inner: returnInner, nullable: returnNullable } = unwrapZod(config.returns)
 
-    const op: OperationDecl = {
+    const fn: FunctionDecl = {
       name,
-      access: config.access === 'private' ? 'private' : 'public',
       params: this.serializeParams(config.params, _className, name),
       returns: this.convertZodSchema(returnInner),
       static: config.static === true,
       inheritance: config.inheritance ?? 'default',
     }
-    if (returnNullable) op.returnsNullable = true
-    return op
+    if (returnNullable) fn.returnsNullable = true
+    return fn
   }
 
   private serializeParams(

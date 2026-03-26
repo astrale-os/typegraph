@@ -1,4 +1,4 @@
-import type { OpDef } from '../../defs/operation.js'
+import type { FnDef } from '../../defs/function.js'
 import type { SchemaContext } from './context.js'
 
 import { hasDefName } from '../../registry.js'
@@ -24,8 +24,8 @@ function extractRefTargets(schema: unknown): object[] {
 export function validateRefTargets(ctx: SchemaContext): void {
   const isKnownDef = (target: object): boolean => ctx.allDefValues.has(target) || hasDefName(target)
 
-  const validateOpRefs = (path: string, opDef: OpDef) => {
-    const params = opDef.config.params
+  const validateFnRefs = (path: string, fnDef: FnDef) => {
+    const params = fnDef.config.params
     if (params && typeof params === 'object' && typeof params !== 'function') {
       for (const [paramName, paramSchema] of Object.entries(params as Record<string, unknown>)) {
         for (const target of extractRefTargets(paramSchema)) {
@@ -40,7 +40,7 @@ export function validateRefTargets(ctx: SchemaContext): void {
         }
       }
     }
-    for (const target of extractRefTargets(opDef.config.returns)) {
+    for (const target of extractRefTargets(fnDef.config.returns)) {
       if (!isKnownDef(target)) {
         throw new SchemaValidationError(
           `'${path}' return type references an unknown def`,
@@ -53,10 +53,10 @@ export function validateRefTargets(ctx: SchemaContext): void {
   }
 
   for (const [name, def] of Object.entries(ctx.defs)) {
-    const methods = def.config.methods as Record<string, OpDef> | undefined
+    const methods = def.config.methods as Record<string, FnDef> | undefined
     if (methods) {
       for (const [methodName, methodDef] of Object.entries(methods)) {
-        validateOpRefs(`${name}.${methodName}`, methodDef)
+        validateFnRefs(`${name}.${methodName}`, methodDef)
       }
     }
   }

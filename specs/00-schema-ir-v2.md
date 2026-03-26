@@ -607,12 +607,6 @@ interface EdgeConstraints {
 
   /** If A→B exists, B→A must also exist. */
   symmetric?: boolean
-
-  /** Action when the source node is deleted. */
-  onDeleteSource?: 'cascade' | 'unlink' | 'prevent'
-
-  /** Action when the target node is deleted. */
-  onDeleteTarget?: 'cascade' | 'unlink' | 'prevent'
 }
 ```
 
@@ -1259,7 +1253,7 @@ export const ir = serialize(Schema, { types: { Priority, TaskStatus } })
 | **Nullable** | `nullable: boolean` on attributes | Same |
 | **Defaults** | `ValueNode` (PascalCase kinds) | `ValueLiteral` (lowercase kinds, `fn` instead of `Call`) |
 | **Constraints** | `ValueConstraints` on attributes | Standard JSON Schema constraints on the schema itself |
-| **Naming** | snake_case keys (`type_aliases`, `param_name`, `on_kill_source`) | camelCase keys (`onDeleteSource`, `returnsNullable`) |
+| **Naming** | snake_case keys (`type_aliases`, `param_name`) | camelCase keys (`returnsNullable`) |
 | **Data types** | Separate `data_types[]` + `data_ref` on nodes | Inline `data?: JsonSchema` on nodes |
 | **Method projection** | `MethodProjection` with `star`, `fields`, `include_data` | Removed (builder concern, not IR concern) |
 | **Edge endpoints** | `endpoints: Endpoint[]` (any length) | `endpoints: [Endpoint, Endpoint]` (always binary) |

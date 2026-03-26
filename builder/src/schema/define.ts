@@ -1,5 +1,5 @@
+import type { FnDef } from '../defs/function.js'
 import type { AnyDef } from '../defs/index.js'
-import type { OpDef } from '../defs/operation.js'
 import type { Schema } from './schema.js'
 
 import { collectAllMethodDefs } from '../helpers/methods.js'
@@ -14,17 +14,17 @@ import {
   type SchemaContext,
 } from './validators/index.js'
 
-function buildOpsMap(ctx: SchemaContext): Record<string, OpDef> {
-  const ops: Record<string, OpDef> = {}
+function buildFnsMap(ctx: SchemaContext): Record<string, FnDef> {
+  const fns: Record<string, FnDef> = {}
   for (const [name, def] of Object.entries(ctx.defs)) {
     // Only collect methods from concrete (non-abstract) defs
     if (def.config.abstract) continue
     const allMethods = collectAllMethodDefs(def)
-    for (const [methodName, opDef] of Object.entries(allMethods)) {
-      ops[`${name}.${methodName}`] = opDef
+    for (const [methodName, fnDef] of Object.entries(allMethods)) {
+      fns[`${name}.${methodName}`] = fnDef
     }
   }
-  return ops
+  return fns
 }
 
 export function defineSchema<const D extends Record<string, AnyDef>>(
@@ -38,10 +38,10 @@ export function defineSchema<const D extends Record<string, AnyDef>>(
   validateIndexes(ctx)
   validateRefTargets(ctx)
   validateMethods(ctx)
-  const ops = buildOpsMap(ctx)
+  const fns = buildFnsMap(ctx)
   return {
     domain,
     defs,
-    ops,
+    fns,
   } as unknown as Schema<D>
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 
-import type { SchemaRefs, SchemaClassRefs, SchemaOpRefs, SchemaRefsMap } from '../schema/refs.js'
+import type { SchemaRefs, SchemaClassRefs, SchemaFnRefs, SchemaRefsMap } from '../schema/refs.js'
 
-import { interfaceDef, classDef, op } from '../defs/index.js'
+import { interfaceDef, classDef, fn } from '../defs/index.js'
 import { defineSchema } from '../schema/define.js'
 import { schemaRefs } from '../schema/refs.js'
 
@@ -19,23 +19,23 @@ type Includes<U, T> = T extends U ? true : false
 
 const Publishable = interfaceDef({
   methods: {
-    publish: op({ returns: z.boolean() }),
-    unpublish: op({ returns: z.boolean() }),
+    publish: fn({ returns: z.boolean() }),
+    unpublish: fn({ returns: z.boolean() }),
   },
 })
 
 const Commentable = interfaceDef({
   extends: [Publishable],
   methods: {
-    addComment: op({ params: { body: z.string() }, returns: z.string() }),
+    addComment: fn({ params: { body: z.string() }, returns: z.string() }),
   },
 })
 
 const Author = classDef({
   props: { name: z.string() },
   methods: {
-    updateProfile: op({ params: { name: z.string() }, returns: z.boolean() }),
-    deactivate: op({ access: 'private', returns: z.void() }),
+    updateProfile: fn({ params: { name: z.string() }, returns: z.boolean() }),
+    deactivate: fn({ access: 'private', returns: z.void() }),
   },
 })
 
@@ -43,7 +43,7 @@ const Article = classDef({
   inherits: [Commentable],
   props: { title: z.string() },
   methods: {
-    archive: op({ returns: z.void() }),
+    archive: fn({ returns: z.void() }),
   },
 })
 
@@ -51,7 +51,7 @@ const FeaturedArticle = classDef({
   inherits: [Article],
   props: { priority: z.number() },
   methods: {
-    promote: op({ returns: z.void() }),
+    promote: fn({ returns: z.void() }),
   },
 })
 
@@ -66,7 +66,7 @@ const wrote = classDef({
     { as: 'article', types: [Article] },
   ],
   methods: {
-    setPublishedAt: op({ params: { date: z.string() }, returns: z.boolean() }),
+    setPublishedAt: fn({ params: { date: z.string() }, returns: z.boolean() }),
   },
 })
 
@@ -118,84 +118,84 @@ describe('SchemaRefs (type-level)', () => {
       void _bad
     })
 
-    it('rejects qualified operation refs', () => {
-      // @ts-expect-error — operations are not class refs
+    it('rejects qualified function refs', () => {
+      // @ts-expect-error — functions are not class refs
       const _bad: Classes = 'Author.deactivate'
       void _bad
     })
   })
 
-  describe('SchemaOpRefs', () => {
-    type Ops = SchemaOpRefs<Blog>
+  describe('SchemaFnRefs', () => {
+    type Fns = SchemaFnRefs<Blog>
 
     it('includes own methods on concrete nodes', () => {
-      const _: Ops = 'Author.updateProfile'
-      const _2: Ops = 'Author.deactivate'
-      const _3: Ops = 'Article.archive'
-      const _4: Ops = 'FeaturedArticle.promote'
+      const _: Fns = 'Author.updateProfile'
+      const _2: Fns = 'Author.deactivate'
+      const _3: Fns = 'Article.archive'
+      const _4: Fns = 'FeaturedArticle.promote'
       void [_, _2, _3, _4]
     })
 
     it('includes inherited methods on concrete nodes', () => {
       // Article extends Commentable (extends Publishable)
-      const _publish: Ops = 'Article.publish'
-      const _unpublish: Ops = 'Article.unpublish'
-      const _addComment: Ops = 'Article.addComment'
+      const _publish: Fns = 'Article.publish'
+      const _unpublish: Fns = 'Article.unpublish'
+      const _addComment: Fns = 'Article.addComment'
 
       // FeaturedArticle extends Article (which extends Commentable)
-      const _fpublish: Ops = 'FeaturedArticle.publish'
-      const _funpublish: Ops = 'FeaturedArticle.unpublish'
-      const _faddComment: Ops = 'FeaturedArticle.addComment'
-      const _farchive: Ops = 'FeaturedArticle.archive'
+      const _fpublish: Fns = 'FeaturedArticle.publish'
+      const _funpublish: Fns = 'FeaturedArticle.unpublish'
+      const _faddComment: Fns = 'FeaturedArticle.addComment'
+      const _farchive: Fns = 'FeaturedArticle.archive'
 
       void [_publish, _unpublish, _addComment, _fpublish, _funpublish, _faddComment, _farchive]
     })
 
     it('includes methods on edges', () => {
-      const _: Ops = 'wrote.setPublishedAt'
+      const _: Fns = 'wrote.setPublishedAt'
       void _
     })
 
-    it('excludes interface-qualified operations (MethodKeys skips ifaces)', () => {
+    it('excludes interface-qualified functions (MethodKeys skips ifaces)', () => {
       // @ts-expect-error — Publishable is an interface, not in MethodKeys
-      const _bad: Ops = 'Publishable.publish'
+      const _bad: Fns = 'Publishable.publish'
       // @ts-expect-error — Commentable is an interface
-      const _bad2: Ops = 'Commentable.addComment'
+      const _bad2: Fns = 'Commentable.addComment'
       void [_bad, _bad2]
     })
 
     it('excludes defs without methods', () => {
       // @ts-expect-error — Category has no methods
-      const _bad: Ops = 'Category.anything'
+      const _bad: Fns = 'Category.anything'
       // @ts-expect-error — categorized_as has no methods
-      const _bad2: Ops = 'categorized_as.anything'
+      const _bad2: Fns = 'categorized_as.anything'
       void [_bad, _bad2]
     })
 
     it('rejects nonexistent methods', () => {
       // @ts-expect-error — not a real method
-      const _bad: Ops = 'Author.nonexistent'
+      const _bad: Fns = 'Author.nonexistent'
       void _bad
     })
 
     it('rejects bare class names', () => {
-      // @ts-expect-error — ops must be qualified
-      const _bad: Ops = 'Author'
+      // @ts-expect-error — fns must be qualified
+      const _bad: Fns = 'Author'
       void _bad
     })
   })
 
-  describe('SchemaRefs (union of class + op refs)', () => {
+  describe('SchemaRefs (union of class + fn refs)', () => {
     type Refs = SchemaRefs<Blog>
 
-    it('includes both class refs and operation refs', () => {
+    it('includes both class refs and function refs', () => {
       const _class: Refs = 'Author'
       const _iface: Refs = 'Publishable'
       const _edge: Refs = 'wrote'
-      const _op: Refs = 'Author.deactivate'
-      const _inheritedOp: Refs = 'Article.publish'
-      const _edgeOp: Refs = 'wrote.setPublishedAt'
-      void [_class, _iface, _edge, _op, _inheritedOp, _edgeOp]
+      const _fn: Refs = 'Author.deactivate'
+      const _inheritedFn: Refs = 'Article.publish'
+      const _edgeFn: Refs = 'wrote.setPublishedAt'
+      void [_class, _iface, _edge, _fn, _inheritedFn, _edgeFn]
     })
 
     it('rejects invalid refs', () => {
@@ -215,7 +215,7 @@ describe('SchemaRefs (type-level)', () => {
     type Refs = SchemaRefs<Blog>
     type IdMapping = { [K in Refs]: string }
 
-    it('enforces completeness — every def and operation must be mapped', () => {
+    it('enforces completeness — every def and function must be mapped', () => {
       const ids: IdMapping = {
         // Top-level defs
         Publishable: 'iface:publishable',
@@ -226,21 +226,21 @@ describe('SchemaRefs (type-level)', () => {
         Category: 'node:category',
         wrote: 'edge:wrote',
         categorized_as: 'edge:categorized-as',
-        // Author operations (own)
+        // Author functions (own)
         'Author.updateProfile': 'op:author:update-profile',
         'Author.deactivate': 'op:author:deactivate',
-        // Article operations (own + inherited)
+        // Article functions (own + inherited)
         'Article.archive': 'op:article:archive',
         'Article.publish': 'op:article:publish',
         'Article.unpublish': 'op:article:unpublish',
         'Article.addComment': 'op:article:add-comment',
-        // FeaturedArticle operations (own + inherited from Article + Commentable chain)
+        // FeaturedArticle functions (own + inherited from Article + Commentable chain)
         'FeaturedArticle.promote': 'op:featured:promote',
         'FeaturedArticle.archive': 'op:featured:archive',
         'FeaturedArticle.publish': 'op:featured:publish',
         'FeaturedArticle.unpublish': 'op:featured:unpublish',
         'FeaturedArticle.addComment': 'op:featured:add-comment',
-        // Edge operations
+        // Edge functions
         'wrote.setPublishedAt': 'op:wrote:set-published-at',
       }
 
@@ -284,19 +284,19 @@ describe('SchemaRefs (type-level)', () => {
   // ── Target DX: type narrowing ───────────────────────────────────────────
 
   describe('type narrowing DX', () => {
-    it('SchemaClassRefs excludes operations', () => {
+    it('SchemaClassRefs excludes functions', () => {
       assert<Equal<Includes<SchemaClassRefs<Blog>, 'Author.deactivate'>, false>>()
     })
 
-    it('SchemaOpRefs excludes bare class names', () => {
-      assert<Equal<Includes<SchemaOpRefs<Blog>, 'Author'>, false>>()
+    it('SchemaFnRefs excludes bare class names', () => {
+      assert<Equal<Includes<SchemaFnRefs<Blog>, 'Author'>, false>>()
     })
 
-    it('SchemaRefs is the union of class + op refs', () => {
+    it('SchemaRefs is the union of class + fn refs', () => {
       // Every class ref is in Defs
       assert<Includes<SchemaRefs<Blog>, SchemaClassRefs<Blog>>>()
-      // Every op ref is in Defs
-      assert<Includes<SchemaRefs<Blog>, SchemaOpRefs<Blog>>>()
+      // Every fn ref is in Defs
+      assert<Includes<SchemaRefs<Blog>, SchemaFnRefs<Blog>>>()
     })
   })
 
@@ -323,8 +323,8 @@ describe('SchemaRefs (type-level)', () => {
       void [_a, _b, _ab]
     })
 
-    it('SchemaOpRefs is never when no defs have methods', () => {
-      assert<Equal<SchemaOpRefs<S>, never>>()
+    it('SchemaFnRefs is never when no defs have methods', () => {
+      assert<Equal<SchemaFnRefs<S>, never>>()
     })
 
     it('SchemaRefs equals SchemaClassRefs when no methods', () => {
@@ -357,26 +357,26 @@ describe('schemaRefs()', () => {
     })
   })
 
-  describe('own operation refs', () => {
-    it('Author has own operations', () => {
+  describe('own function refs', () => {
+    it('Author has own functions', () => {
       expect(refs['Author.updateProfile']).toBe('Author.updateProfile')
       expect(refs['Author.deactivate']).toBe('Author.deactivate')
     })
 
-    it('Article has own operations', () => {
+    it('Article has own functions', () => {
       expect(refs['Article.archive']).toBe('Article.archive')
     })
 
-    it('FeaturedArticle has own operations', () => {
+    it('FeaturedArticle has own functions', () => {
       expect(refs['FeaturedArticle.promote']).toBe('FeaturedArticle.promote')
     })
 
-    it('edge wrote has own operations', () => {
+    it('edge wrote has own functions', () => {
       expect(refs['wrote.setPublishedAt']).toBe('wrote.setPublishedAt')
     })
   })
 
-  describe('inherited operation refs', () => {
+  describe('inherited function refs', () => {
     it('Article inherits from Commentable (extends Publishable)', () => {
       expect(refs['Article.publish']).toBe('Article.publish')
       expect(refs['Article.unpublish']).toBe('Article.unpublish')
@@ -391,7 +391,7 @@ describe('schemaRefs()', () => {
     })
   })
 
-  describe('defs without methods have no operation entries', () => {
+  describe('defs without methods have no function entries', () => {
     it('no Category.* keys exist', () => {
       const categoryOps = Object.keys(refs).filter((k) => k.startsWith('Category.'))
       expect(categoryOps).toEqual([])
@@ -456,16 +456,16 @@ describe('schemaRefs()', () => {
       void [authorRef, wroteRef]
     })
 
-    it('operation ref is typed as its qualified literal string', () => {
-      const opRef: 'Author.deactivate' = refs['Author.deactivate']
-      const edgeOpRef: 'wrote.setPublishedAt' = refs['wrote.setPublishedAt']
-      void [opRef, edgeOpRef]
+    it('function ref is typed as its qualified literal string', () => {
+      const fnRef: 'Author.deactivate' = refs['Author.deactivate']
+      const edgeFnRef: 'wrote.setPublishedAt' = refs['wrote.setPublishedAt']
+      void [fnRef, edgeFnRef]
     })
 
     it('rejects nonexistent keys at compile time', () => {
       // @ts-expect-error — no such def in schema
       void refs.Nonexistent
-      // @ts-expect-error — no such qualified operation
+      // @ts-expect-error — no such qualified function
       void refs['Author.nonexistent']
     })
   })
@@ -476,7 +476,7 @@ describe('schemaRefs()', () => {
       expect(obj.Author).toBe('value')
     })
 
-    it('operation ref as computed key', () => {
+    it('function ref as computed key', () => {
       const obj = { [refs['Author.deactivate']]: 'value' } as Record<string, string>
       expect(obj['Author.deactivate']).toBe('value')
     })
@@ -513,7 +513,7 @@ describe('schemaRefs()', () => {
       expect(ids[refs.Author]).toBe('id:author')
       expect(ids[refs.wrote]).toBe('id:wrote')
 
-      // Operation refs index directly — plain strings
+      // Function refs index directly — plain strings
       expect(ids[refs['Author.deactivate']]).toBe('id:author-deactivate')
       expect(ids[refs['Article.publish']]).toBe('id:article-publish')
       expect(ids[refs['wrote.setPublishedAt']]).toBe('id:wrote-set-published')

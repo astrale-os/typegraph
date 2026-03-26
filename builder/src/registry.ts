@@ -1,7 +1,7 @@
 /**
  * Domain-aware definition registry.
  *
- * Maps def objects (Def, OpDef) to their canonical
+ * Maps def objects (Def, FnDef) to their canonical
  * identity: `{ domain, name }`. Populated by `defineSchema`, consumed by
  * the serializer and validation logic.
  *

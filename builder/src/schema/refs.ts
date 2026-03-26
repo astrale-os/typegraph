@@ -1,8 +1,8 @@
 import type { z } from 'zod'
 
 import type { Def } from '../defs/definition.js'
-import type { OpDef } from '../defs/operation.js'
-import type { ParamShape } from '../defs/operation.js'
+import type { FnDef } from '../defs/function.js'
+import type { ParamShape } from '../defs/function.js'
 import type {
   HasMethods,
   HasImplementableMethods,
@@ -39,9 +39,9 @@ export type InterfaceMethodKeys<S extends Schema> = {
     : never
 }[keyof S['defs'] & string]
 
-/** Infer params from a builder OpDef (handles thunk params) */
-export type InferOpParams<D> =
-  D extends OpDef<infer C>
+/** Infer params from a builder FnDef (handles thunk params) */
+export type InferFnParams<D> =
+  D extends FnDef<infer C>
     ? C extends { params: infer P }
       ? P extends (() => infer R extends ParamShape)
         ? InferProps<R>
@@ -51,28 +51,28 @@ export type InferOpParams<D> =
       : Record<string, never>
     : Record<string, never>
 
-/** Infer return type from a builder OpDef */
-export type InferOpReturn<D> =
-  D extends OpDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
+/** Infer return type from a builder FnDef */
+export type InferFnReturn<D> =
+  D extends FnDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
 
 // ── Schema definition references ───────────────────────────────────────────
 
 /**
- * All addressable definitions in a schema: top-level defs + qualified operations.
+ * All addressable definitions in a schema: top-level defs + qualified functions.
  * Used for total mappings (e.g., ID assignment) where every definition must be covered.
  */
-export type SchemaRefs<S extends Schema> = SchemaClassRefs<S> | SchemaOpRefs<S>
+export type SchemaRefs<S extends Schema> = SchemaClassRefs<S> | SchemaFnRefs<S>
 
 /** Top-level definition names. */
 export type SchemaClassRefs<S extends Schema> = keyof S['defs'] & string
 
-/** Qualified operation refs: "ClassName.methodName" for all defs with methods. */
-export type SchemaOpRefs<S extends Schema> = {
+/** Qualified function refs: "ClassName.methodName" for all defs with methods. */
+export type SchemaFnRefs<S extends Schema> = {
   [K in MethodKeys<S> & string]: `${K}.${ExtractMethodNames<DefForKey<S, K>>}`
 }[MethodKeys<S> & string]
 
 /**
- * Flat typed map of all schema refs (class names + qualified operations).
+ * Flat typed map of all schema refs (class names + qualified functions).
  * Every key is a SchemaRefs<S> string, every value is the same string (identity).
  */
 export type SchemaRefsMap<S extends Schema> = {
@@ -102,7 +102,7 @@ export function schemaRefs<S extends Schema>(schema: S): SchemaRefsMap<S> {
     result[name] = name
   }
 
-  for (const key of Object.keys(schema.ops)) {
+  for (const key of Object.keys(schema.fns)) {
     result[key] = key
   }
 

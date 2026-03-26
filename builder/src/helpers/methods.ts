@@ -1,13 +1,13 @@
 import type { Def } from '../defs/definition.js'
-import type { OpDef, MethodInheritance } from '../defs/operation.js'
+import type { FnDef, MethodInheritance } from '../defs/function.js'
 
 import { getDefName } from '../registry.js'
 import { SchemaValidationError } from '../schema/schema.js'
 
 /** Resolved method with origin tracking for inheritance-aware validation. */
 export interface ResolvedMethod {
-  /** The OpDef for this method. */
-  opDef: OpDef
+  /** The FnDef for this method. */
+  fnDef: FnDef
   /** Effective inheritance: 'sealed' | 'abstract' | 'default'. */
   inheritance: MethodInheritance
   /** Name of the def that owns this method (interface or class). */
@@ -16,9 +16,9 @@ export interface ResolvedMethod {
   isOverride: boolean
 }
 
-/** Collect all method OpDef objects (own + inherited) from a def. */
-export function collectAllMethodDefs(def: Def): Record<string, OpDef> {
-  const out: Record<string, OpDef> = {}
+/** Collect all method FnDef objects (own + inherited) from a def. */
+export function collectAllMethodDefs(def: Def): Record<string, FnDef> {
+  const out: Record<string, FnDef> = {}
 
   if (def.config.inherits) {
     for (const parent of def.config.inherits) {
@@ -37,14 +37,14 @@ export function collectAllMethodNames(def: Def): Set<string> {
 
 // ── Inheritance-aware resolution ──────────────────────────────────────────
 
-function getParamKeys(opDef: OpDef): string[] {
-  const raw = opDef.config.params
+function getParamKeys(fnDef: FnDef): string[] {
+  const raw = fnDef.config.params
   const params = typeof raw === 'function' ? raw() : raw
   return params ? Object.keys(params) : []
 }
 
-function getInheritance(opDef: OpDef): MethodInheritance {
-  const m = (opDef.config as { inheritance?: MethodInheritance }).inheritance
+function getInheritance(fnDef: FnDef): MethodInheritance {
+  const m = (fnDef.config as { inheritance?: MethodInheritance }).inheritance
   if (m === 'sealed') return 'sealed'
   if (m === 'abstract') return 'abstract'
   return 'default'
@@ -100,10 +100,10 @@ export function resolveAllMethods(def: Def): Record<string, ResolvedMethod> {
   // Merge own methods
   const result: Record<string, ResolvedMethod> = { ...inherited }
   // oxlint-disable-next-line no-explicit-any
-  const ownMethods = (def.config as { methods?: Record<string, OpDef> }).methods
+  const ownMethods = (def.config as { methods?: Record<string, FnDef> }).methods
   if (ownMethods) {
-    for (const [name, opDef] of Object.entries(ownMethods)) {
-      const inheritance = getInheritance(opDef)
+    for (const [name, fnDef] of Object.entries(ownMethods)) {
+      const inheritance = getInheritance(fnDef)
       const parentMethod = inherited[name]
 
       // Sealed override check
@@ -121,8 +121,8 @@ export function resolveAllMethods(def: Def): Record<string, ResolvedMethod> {
 
       // Default override: param keys must be a superset of the parent's
       if (isOverride) {
-        const parentParams = getParamKeys(parentMethod.opDef)
-        const ownParams = getParamKeys(opDef)
+        const parentParams = getParamKeys(parentMethod.fnDef)
+        const ownParams = getParamKeys(fnDef)
         const missing = parentParams.filter((k) => !ownParams.includes(k))
         if (missing.length > 0) {
           throw new SchemaValidationError(
@@ -134,7 +134,7 @@ export function resolveAllMethods(def: Def): Record<string, ResolvedMethod> {
         }
       }
 
-      result[name] = { opDef, inheritance, origin: defName, isOverride }
+      result[name] = { fnDef, inheritance, origin: defName, isOverride }
     }
   }
 

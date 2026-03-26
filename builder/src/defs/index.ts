@@ -4,14 +4,13 @@ export type { IndexDef } from './indexing.js'
 export type { DefConstraints } from './constraints.js'
 export type { Cardinality, EndpointCfg } from './endpoint.js'
 export type {
-  Access,
   ParamShape,
-  OpConfig,
-  ConcreteOpConfig,
-  OpDef,
+  FnConfig,
+  ConcreteFnConfig,
+  FnDef,
   MethodInheritance,
-} from './operation.js'
-export { op, method } from './operation.js'
+} from './function.js'
+export { fn } from './function.js'
 export type { DefType, DefConfig, Def, InterfaceConfig } from './definition.js'
 export { def, classDef, interfaceDef } from './definition.js'
 export type { RefSchema, SelfDef } from './ref.js'

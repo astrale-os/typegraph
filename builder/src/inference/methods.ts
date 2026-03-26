@@ -2,15 +2,15 @@
 import type { z } from 'zod'
 
 import type { Def } from '../defs/definition.js'
-import type { OpDef } from '../defs/operation.js'
-import type { ParamShape } from '../defs/operation.js'
+import type { FnDef } from '../defs/function.js'
+import type { ParamShape } from '../defs/function.js'
 import type { ExtractFullData } from './data.js'
 import type { ExtractInherits, ExtractFullProps } from './props.js'
 
 /** Extract own methods from a def's config (not inherited) */
 export type ExtractMethods<D> =
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  D extends { config: { methods: infer M extends Record<string, OpDef> } } ? M : {}
+  D extends { config: { methods: infer M extends Record<string, FnDef> } } ? M : {}
 
 /** Collect methods from an inherits list (own + recursive parents) */
 type CollectMethodsFromInherits<T> = T extends readonly [
@@ -37,7 +37,7 @@ export type ExtractMethodNames<D> = keyof AllMethods<D> & string
 
 /** Get the config of a specific method (own or inherited) */
 type GetMethodConfig<D, M extends string> = M extends keyof AllMethods<D>
-  ? AllMethods<D>[M] extends OpDef<infer MC>
+  ? AllMethods<D>[M] extends FnDef<infer MC>
     ? MC
     : never
   : never
@@ -99,7 +99,7 @@ export type ExtractMethodInheritance<D, M extends string> =
 
 /** Extract own sealed method keys from a def */
 type SealedOwnKeys<D> = {
-  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends FnDef<infer C>
     ? C extends { inheritance: 'sealed' }
       ? M
       : never
@@ -123,7 +123,7 @@ export type AllSealedKeys<D> =
 
 /** Extract own abstract method keys from a def */
 type AbstractOwnKeys<D> = {
-  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends FnDef<infer C>
     ? C extends { inheritance: 'abstract' }
       ? M
       : never
@@ -149,7 +149,7 @@ export type InheritedAbstractKeys<D> =
 
 /** Extract own default (non-abstract, non-sealed) method keys from a def */
 type DefaultOwnKeys<D> = {
-  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends OpDef<infer C>
+  [M in keyof ExtractMethods<D> & string]: ExtractMethods<D>[M] extends FnDef<infer C>
     ? C extends { inheritance: 'sealed' | 'abstract' }
       ? never
       : M

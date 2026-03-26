@@ -30,10 +30,4 @@ export interface EdgeConstraints {
 
   /** If A→B exists, B→A must also exist. */
   symmetric?: boolean
-
-  /** Action when the source node is deleted. */
-  onDeleteSource?: 'cascade' | 'unlink' | 'prevent'
-
-  /** Action when the target node is deleted. */
-  onDeleteTarget?: 'cascade' | 'unlink' | 'prevent'
 }

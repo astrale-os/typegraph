@@ -10,7 +10,7 @@ import type {
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 
-import { interfaceDef, classDef, op, ref, data } from './defs/index.js'
+import { interfaceDef, classDef, fn, ref, data } from './defs/index.js'
 import { defineSchema } from './schema/define.js'
 import { serialize } from './serializer/serialize.js'
 
@@ -281,7 +281,7 @@ describe('serialize', () => {
       const Priority = z.enum(['low', 'medium', 'high'])
       const A = classDef({
         methods: {
-          setPriority: op({ params: { p: Priority }, returns: z.boolean() }),
+          setPriority: fn({ params: { p: Priority }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -319,7 +319,7 @@ describe('serialize', () => {
     it('serializes a simple method', () => {
       const A = classDef({
         methods: {
-          greet: op({ returns: z.string() }),
+          greet: fn({ returns: z.string() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -334,7 +334,7 @@ describe('serialize', () => {
     it('serializes private method', () => {
       const A = classDef({
         methods: {
-          internal: op({ returns: z.boolean(), access: 'private' }),
+          internal: fn({ returns: z.boolean(), access: 'private' }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -346,7 +346,7 @@ describe('serialize', () => {
     it('serializes method params', () => {
       const A = classDef({
         methods: {
-          setName: op({
+          setName: fn({
             params: { name: z.string(), age: z.number().int() },
             returns: z.boolean(),
           }),
@@ -363,7 +363,7 @@ describe('serialize', () => {
     it('folds method param default into schema', () => {
       const A = classDef({
         methods: {
-          setCount: op({
+          setCount: fn({
             params: { count: z.number().default(10) },
             returns: z.boolean(),
           }),
@@ -378,7 +378,7 @@ describe('serialize', () => {
     it('serializes method with nullable return', () => {
       const A = classDef({
         methods: {
-          findName: op({ returns: z.string().optional() }),
+          findName: fn({ returns: z.string().optional() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -391,9 +391,9 @@ describe('serialize', () => {
     it('serializes multiple methods preserving order', () => {
       const A = classDef({
         methods: {
-          alpha: op({ returns: z.string() }),
-          beta: op({ returns: z.number() }),
-          gamma: op({ returns: z.boolean() }),
+          alpha: fn({ returns: z.string() }),
+          beta: fn({ returns: z.number() }),
+          gamma: fn({ returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -405,7 +405,7 @@ describe('serialize', () => {
     it('serializes static method with static: true', () => {
       const A = classDef({
         methods: {
-          create: op({ static: true, params: { name: z.string() }, returns: z.string() }),
+          create: fn({ static: true, params: { name: z.string() }, returns: z.string() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -419,7 +419,7 @@ describe('serialize', () => {
     it('defaults static to false for non-static methods', () => {
       const A = classDef({
         methods: {
-          greet: op({ returns: z.string() }),
+          greet: fn({ returns: z.string() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -431,8 +431,8 @@ describe('serialize', () => {
     it('serializes mixed static and instance methods', () => {
       const A = classDef({
         methods: {
-          init: op({ static: true, params: { title: z.string() }, returns: z.string() }),
-          rename: op({ params: { newTitle: z.string() }, returns: z.boolean() }),
+          init: fn({ static: true, params: { title: z.string() }, returns: z.string() }),
+          rename: fn({ params: { newTitle: z.string() }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -451,7 +451,7 @@ describe('serialize', () => {
       const A = classDef({})
       const B = classDef({
         methods: {
-          linkTo: op({ params: { target: ref(A) }, returns: z.boolean() }),
+          linkTo: fn({ params: { target: ref(A) }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -464,7 +464,7 @@ describe('serialize', () => {
       const A = classDef({})
       const B = classDef({
         methods: {
-          getA: op({ returns: ref(A) }),
+          getA: fn({ returns: ref(A) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -478,7 +478,7 @@ describe('serialize', () => {
       const A = classDef({
         inherits: [I],
         methods: {
-          getI: op({ returns: ref(I) }),
+          getI: fn({ returns: ref(I) }),
         },
       })
       const schema = defineSchema('test', { I, A })
@@ -491,7 +491,7 @@ describe('serialize', () => {
       const A = classDef({})
       const B = classDef({
         methods: {
-          getMany: op({ returns: z.array(ref(A)) }),
+          getMany: fn({ returns: z.array(ref(A)) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -507,7 +507,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          getFull: op({ returns: ref(A, { data: true }) }),
+          getFull: fn({ returns: ref(A, { data: true }) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -520,7 +520,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          process: op({ params: { item: ref(A, { data: true }) }, returns: z.boolean() }),
+          process: fn({ params: { item: ref(A, { data: true }) }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -533,7 +533,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          maybe: op({ params: { item: ref(A, { data: true }).optional() }, returns: z.boolean() }),
+          maybe: fn({ params: { item: ref(A, { data: true }).optional() }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -548,7 +548,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          listFull: op({ returns: z.array(ref(A, { data: true })) }),
+          listFull: fn({ returns: z.array(ref(A, { data: true })) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -564,7 +564,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          getA: op({ returns: ref(A) }),
+          getA: fn({ returns: ref(A) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -582,7 +582,7 @@ describe('serialize', () => {
       const A = classDef({
         data: { body: z.string() },
         methods: {
-          content: op({ returns: data() }),
+          content: fn({ returns: data() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -595,7 +595,7 @@ describe('serialize', () => {
       const A = classDef({ data: { body: z.string() } })
       const B = classDef({
         methods: {
-          getAData: op({ returns: data(A) }),
+          getAData: fn({ returns: data(A) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -848,7 +848,7 @@ describe('serialize', () => {
     it('handles iface with thunk config (circular refs)', () => {
       const I: any = interfaceDef(() => ({
         methods: {
-          getParent: op({ params: { child: ref(I) }, returns: ref(I) }),
+          getParent: fn({ params: { child: ref(I) }, returns: ref(I) }),
         },
       }))
       const schema = defineSchema('test', { I })
@@ -865,7 +865,7 @@ describe('serialize', () => {
     it('serializes z.object as JSON Schema', () => {
       const A = classDef({
         methods: {
-          create: op({
+          create: fn({
             params: { input: z.object({ x: z.string(), y: z.number() }) },
             returns: z.boolean(),
           }),
@@ -881,7 +881,7 @@ describe('serialize', () => {
     it('serializes z.array with standard items', () => {
       const A = classDef({
         methods: {
-          getTags: op({ returns: z.array(z.string()) }),
+          getTags: fn({ returns: z.array(z.string()) }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -1052,9 +1052,9 @@ describe('serialize', () => {
           archived: z.boolean().default(false),
         },
         methods: {
-          summary: op({ returns: z.string() }),
-          taskCount: op({ returns: z.number().int() }),
-          addTask: op({
+          summary: fn({ returns: z.string() }),
+          taskCount: fn({ returns: z.number().int() }),
+          addTask: fn({
             params: { title: z.string(), priority: Priority.default('medium') },
             returns: z.boolean(),
           }),
@@ -1071,9 +1071,9 @@ describe('serialize', () => {
           dueDate: z.string().datetime().optional(),
         },
         methods: {
-          formatTitle: op({ returns: z.string() }),
-          complete: op({ returns: z.boolean() }),
-          reopen: op({ returns: z.boolean() }),
+          formatTitle: fn({ returns: z.string() }),
+          complete: fn({ returns: z.boolean() }),
+          reopen: fn({ returns: z.boolean() }),
         },
       })
 
@@ -1193,36 +1193,6 @@ describe('serialize', () => {
       expect(e.constraints).toEqual({ symmetric: true })
     })
 
-    it('serializes onDeleteSource constraint', () => {
-      const A = classDef({})
-      const e1 = classDef({
-        endpoints: [
-          { as: 'a', types: [A] },
-          { as: 'b', types: [A] },
-        ],
-        onDeleteSource: 'cascade',
-      })
-      const schema = defineSchema('test', { A, e1 })
-      const ir = serialize(schema)
-      const e = findEdge(ir, 'e1')
-      expect(e.constraints).toEqual({ onDeleteSource: 'cascade' })
-    })
-
-    it('serializes onDeleteTarget constraint', () => {
-      const A = classDef({})
-      const e1 = classDef({
-        endpoints: [
-          { as: 'a', types: [A] },
-          { as: 'b', types: [A] },
-        ],
-        onDeleteTarget: 'prevent',
-      })
-      const schema = defineSchema('test', { A, e1 })
-      const ir = serialize(schema)
-      const e = findEdge(ir, 'e1')
-      expect(e.constraints).toEqual({ onDeleteTarget: 'prevent' })
-    })
-
     it('serializes all constraints together', () => {
       const A = classDef({})
       const e1 = classDef({
@@ -1231,8 +1201,6 @@ describe('serialize', () => {
           { as: 'b', types: [A] },
         ],
         constraints: { noSelf: true, acyclic: true, unique: true, symmetric: true },
-        onDeleteSource: 'cascade',
-        onDeleteTarget: 'unlink',
       })
       const schema = defineSchema('test', { A, e1 })
       const ir = serialize(schema)
@@ -1242,8 +1210,6 @@ describe('serialize', () => {
         acyclic: true,
         unique: true,
         symmetric: true,
-        onDeleteSource: 'cascade',
-        onDeleteTarget: 'unlink',
       })
     })
   })
@@ -1279,7 +1245,7 @@ describe('serialize', () => {
           { as: 'b', types: [A] },
         ],
         methods: {
-          weight: op({ returns: z.number() }),
+          weight: fn({ returns: z.number() }),
         },
       } as any)
       const schema = defineSchema('test', { A, e1 })
@@ -1331,7 +1297,7 @@ describe('serialize', () => {
       const A = classDef({})
       const B = classDef({
         methods: {
-          maybe: op({ params: { target: ref(A).optional() }, returns: z.boolean() }),
+          maybe: fn({ params: { target: ref(A).optional() }, returns: z.boolean() }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -1357,11 +1323,11 @@ describe('serialize', () => {
     })
   })
 
-  // ── Standalone operations rejected ──────────────────────────────────
+  // ── Standalone functions rejected ──────────────────────────────────
 
-  describe('standalone operations rejected', () => {
-    it('throws when a standalone op is passed to defineSchema', () => {
-      const createTask = op({
+  describe('standalone functions rejected', () => {
+    it('throws when a standalone fn is passed to defineSchema', () => {
+      const createTask = fn({
         params: { title: z.string() },
         returns: z.boolean(),
       })
@@ -1508,7 +1474,7 @@ describe('serialize', () => {
           specs: z.record(z.string(), z.string()).optional(),
         },
         methods: {
-          content: op({ returns: data() }),
+          content: fn({ returns: data() }),
         },
       })
       const schema = defineSchema('test', { A })
@@ -1525,7 +1491,7 @@ describe('serialize', () => {
       })
       const Reader = classDef({
         methods: {
-          readArticle: op({
+          readArticle: fn({
             params: { article: ref(Article) },
             returns: data(Article),
           }),
@@ -1587,11 +1553,11 @@ describe('serialize', () => {
 
     it('extended node inherits methods conceptually but only emits own', () => {
       const Base = classDef({
-        methods: { greet: op({ returns: z.string() }) },
+        methods: { greet: fn({ returns: z.string() }) },
       })
       const Child = classDef({
         inherits: [Base],
-        methods: { farewell: op({ returns: z.string() }) },
+        methods: { farewell: fn({ returns: z.string() }) },
       })
       const schema = defineSchema('test', { Base, Child })
       const ir = serialize(schema)
@@ -1658,7 +1624,7 @@ describe('serialize', () => {
         ],
         props: { weight: z.number() },
         methods: {
-          adjustWeight: op({
+          adjustWeight: fn({
             params: { delta: z.number() },
             returns: z.boolean(),
           }),
@@ -1682,8 +1648,8 @@ describe('serialize', () => {
           { as: 'b', types: [A] },
         ],
         methods: {
-          alpha: op({ returns: z.string() }),
-          beta: op({ returns: z.number() }),
+          alpha: fn({ returns: z.string() }),
+          beta: fn({ returns: z.number() }),
         },
       } as any)
       const schema = defineSchema('test', { A, e1 })
@@ -1701,7 +1667,7 @@ describe('serialize', () => {
           { as: 'b', types: [A] },
         ],
         methods: {
-          internal: op({ returns: z.boolean(), access: 'private' }),
+          internal: fn({ returns: z.boolean(), access: 'private' }),
         },
       } as any)
       const schema = defineSchema('test', { A, e1 })
@@ -1720,7 +1686,7 @@ describe('serialize', () => {
         constraints: { unique: true, noSelf: true },
         props: { score: z.number().default(0) },
         methods: {
-          normalize: op({ returns: z.number() }),
+          normalize: fn({ returns: z.number() }),
         },
       } as any)
       const schema = defineSchema('test', { A, e1 })
@@ -1739,7 +1705,7 @@ describe('serialize', () => {
     it('resolves thunk params for method on node', () => {
       const A: any = classDef(() => ({
         methods: {
-          link: op({
+          link: fn({
             params: () => ({ target: ref(A) }),
             returns: z.boolean(),
           }),
@@ -1754,7 +1720,7 @@ describe('serialize', () => {
     it('resolves thunk for circular ref between two nodes', () => {
       const A: any = classDef(() => ({
         methods: {
-          getB: op({
+          getB: fn({
             params: () => ({ b: ref(B) }),
             returns: z.boolean(),
           }),
@@ -1762,7 +1728,7 @@ describe('serialize', () => {
       }))
       const B = classDef({
         methods: {
-          getA: op({ returns: ref(A) }),
+          getA: fn({ returns: ref(A) }),
         },
       })
       const schema = defineSchema('test', { A, B })
@@ -1842,7 +1808,7 @@ describe('serialize', () => {
           totalCents: z.number().int(),
         },
         methods: {
-          cancel: op({ returns: z.boolean(), access: 'private' }),
+          cancel: fn({ returns: z.boolean(), access: 'private' }),
         },
       })
 
@@ -1859,7 +1825,7 @@ describe('serialize', () => {
           specs: z.record(z.string(), z.string()).optional(),
         },
         methods: {
-          content: op({ returns: data() }),
+          content: fn({ returns: data() }),
         },
       })
 
@@ -1867,7 +1833,7 @@ describe('serialize', () => {
         inherits: [Timestamped],
         props: { email: z.string().email(), name: z.string() },
         methods: {
-          recentOrders: op({
+          recentOrders: fn({
             params: { limit: z.number().int().default(10) },
             returns: z.array(ref(Order)),
             access: 'private',
@@ -1881,7 +1847,7 @@ describe('serialize', () => {
           { as: 'product', types: [Product] },
         ],
         props: { quantity: z.number().int().default(1), unitPriceCents: z.number().int() },
-        methods: { subtotal: op({ returns: z.number().int(), access: 'private' }) },
+        methods: { subtotal: fn({ returns: z.number().int(), access: 'private' }) },
       })
 
       const schema = defineSchema('test', {
@@ -1955,7 +1921,7 @@ describe('serialize', () => {
       const Missing = classDef({})
       const A = classDef({
         methods: {
-          get: op({ returns: ref(Missing) }),
+          get: fn({ returns: ref(Missing) }),
         },
       })
       // Missing is not in defineSchema, so defineSchema should catch it

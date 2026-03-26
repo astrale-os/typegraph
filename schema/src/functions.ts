@@ -1,12 +1,9 @@
 import type { JsonSchema } from './json-schema.js'
 
-/** An operation: a callable with params and returns. Used both as class methods and top-level operations. */
-export interface OperationDecl {
-  /** Operation name. */
+/** A function declaration: a callable with params and returns. Used as class methods. */
+export interface FunctionDecl {
+  /** Function name. */
   name: string
-
-  /** Visibility. */
-  access: 'public' | 'private'
 
   /** Parameters keyed by name. Each value is a JSON Schema for that parameter. */
   params: Record<string, JsonSchema>

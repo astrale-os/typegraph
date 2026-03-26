@@ -1,6 +1,6 @@
 import type { Endpoint, EdgeConstraints } from './endpoints.js'
+import type { FunctionDecl } from './functions.js'
 import type { JsonSchema } from './json-schema.js'
-import type { OperationDecl } from './operations.js'
 
 /** An interface declaration. Cannot be instantiated directly. */
 export interface InterfaceDecl {
@@ -16,7 +16,7 @@ export interface InterfaceDecl {
   properties: Record<string, JsonSchema>
 
   /** Own methods keyed by name (NOT inherited). */
-  methods: Record<string, OperationDecl>
+  methods: Record<string, FunctionDecl>
 
   /**
    * Optional datastore content schema (JSON Schema of type object).
@@ -51,7 +51,7 @@ export interface NodeDecl {
   properties: Record<string, JsonSchema>
 
   /** Own methods keyed by name (NOT inherited). */
-  methods: Record<string, OperationDecl>
+  methods: Record<string, FunctionDecl>
 
   /**
    * Optional datastore content schema (JSON Schema of type object).
@@ -80,7 +80,7 @@ export interface EdgeDecl {
   properties: Record<string, JsonSchema>
 
   /** Own methods on the edge, keyed by name. */
-  methods: Record<string, OperationDecl>
+  methods: Record<string, FunctionDecl>
 
   /** Structural constraints. */
   constraints?: EdgeConstraints

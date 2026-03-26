@@ -1,5 +1,5 @@
+import type { FnDef } from '../../defs/function.js'
 import type { AnyDef } from '../../defs/index.js'
-import type { OpDef } from '../../defs/operation.js'
 import type { SchemaContext } from './context.js'
 
 import { SELF } from '../../defs/ref.js'
@@ -45,12 +45,12 @@ function resolveThunks(name: string, def: AnyDef): void {
       )
     }
   }
-  const methods = def.config.methods as Record<string, OpDef> | undefined
+  const methods = def.config.methods as Record<string, FnDef> | undefined
   if (methods) {
-    for (const [methodName, opDef] of Object.entries(methods)) {
-      if (typeof opDef.config.params === 'function') {
+    for (const [methodName, fnDef] of Object.entries(methods)) {
+      if (typeof fnDef.config.params === 'function') {
         try {
-          ;(opDef.config as { params: unknown }).params = (opDef.config.params as () => unknown)()
+          ;(fnDef.config as { params: unknown }).params = (fnDef.config.params as () => unknown)()
         } catch (e) {
           throw new SchemaValidationError(
             `Failed to resolve param thunk for '${name}.${methodName}': ${String(e)}`,
