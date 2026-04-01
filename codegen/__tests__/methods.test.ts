@@ -329,34 +329,6 @@ describe('method codegen', () => {
     expect(source).not.toMatch(/placed_order:.*ctx:/)
   })
 
-  it('emits createMethodFactory and OperationSelf imports when methods exist', () => {
-    const { source } = generate([ir])
-    expect(source).toContain(
-      "import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runtime'",
-    )
-  })
-
-  it('emits defineMethods factory and per-type wrappers', () => {
-    const { source } = generate([ir])
-    expect(source).toContain(
-      'export const defineMethods = createMethodFactory<typeof schema, GeneratedTypeMap>()',
-    )
-    expect(source).toContain(
-      'export const defineCustomerMethods = defineMethods.withSelf<CustomerNode>()',
-    )
-    expect(source).toContain(
-      'export const defineOrderMethods = defineMethods.withSelf<OrderNode>()',
-    )
-    expect(source).toContain(
-      'export const defineOrderItemMethods = defineMethods.withSelf<OrderItemPayload & OperationSelf>()',
-    )
-  })
-
-  it('emits Method Factory section header', () => {
-    const { source } = generate([ir])
-    expect(source).toContain('Method Factory')
-  })
-
   it('result schema for Node return type uses validators (not z.string())', () => {
     const { source } = generate([ir])
     expect(source).toContain('z.array(validators.Order)')
@@ -418,7 +390,7 @@ describe('method codegen — edge cases', () => {
     expect(source).not.toContain('SimpleMethods')
   })
 
-  it('IR with no methods does not emit factory or createMethodFactory import', () => {
+  it('IR with no methods does not emit method-related code', () => {
     const ir = makeIR({
       classes: [
         {
@@ -439,8 +411,6 @@ describe('method codegen — edge cases', () => {
       ],
     })
     const { source } = generate([ir])
-    expect(source).not.toContain('createMethodFactory')
-    expect(source).not.toContain('Method Factory')
     expect(source).not.toContain('defineMethods')
   })
 

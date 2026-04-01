@@ -219,6 +219,7 @@ export class SerializeContext {
       inheritance: config.inheritance ?? 'default',
     }
     if (returnNullable) fn.returnsNullable = true
+    if (config.stream === true) fn.stream = true
     return fn
   }
 

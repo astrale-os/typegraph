@@ -5,7 +5,6 @@ import { emitBrandedIds } from './emit/branded-ids'
 import { emitCore } from './emit/core'
 import { emitEnums } from './emit/enums'
 import { emitInterfaces } from './emit/interfaces'
-import { emitMethodFactory } from './emit/method-factory'
 import { emitMethodOps } from './emit/method-ops'
 import { emitMethodScaffold } from './emit/method-scaffold'
 import { emitMethods } from './emit/methods'
@@ -51,16 +50,6 @@ export function generate(inputs: SchemaIR[], options?: GenerateOptions): Generat
 
   if (hasMethodOps) {
     parts.push("import { op } from '@astrale-os/kernel-api'")
-
-    // Edge methods with payload need OperationSelf for the self type
-    const hasEdgeMethods = [...model.edgeDefs.values()].some((e) => e.allMethods.length > 0)
-    if (hasEdgeMethods) {
-      parts.push(
-        "import { createMethodFactory, type OperationSelf } from '@astrale-os/kernel-runtime'",
-      )
-    } else {
-      parts.push("import { createMethodFactory } from '@astrale-os/kernel-runtime'")
-    }
   }
   parts.push('')
 
@@ -135,13 +124,6 @@ export function generate(inputs: SchemaIR[], options?: GenerateOptions): Generat
     parts.push('')
     parts.push(bootstrapManifest)
     parts.push('')
-  }
-
-  // Method factory (schema-typed defineMethods + per-type wrappers — after schema + TypeMap)
-  if (hasMethodOps) {
-    parts.push(section('Method Factory'))
-    parts.push('')
-    parts.push(emitMethodFactory(model))
   }
 
   // Schema type unions (SchemaNodeType, SchemaEdgeType, SchemaType)
