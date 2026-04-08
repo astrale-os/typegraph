@@ -8,8 +8,8 @@ export interface FnConfig {
   readonly params?: ParamShape | (() => ParamShape)
   readonly returns: z.ZodType
   readonly static?: boolean
-  /** If true, execute returns an AsyncGenerator instead of a scalar result. */
-  readonly stream?: boolean
+  /** Output mode: 'value' (default) = single result, 'stream' = AsyncGenerator, 'binary' = BinaryResult { contentType, body, status? }. */
+  readonly output?: 'value' | 'stream' | 'binary'
   /** Method inheritance. `'sealed'` = non-overridable, `'abstract'` = no impl, must be implemented by subtype. `'default'` or omitted = impl provided, overridable. */
   readonly inheritance?: MethodInheritance
 }

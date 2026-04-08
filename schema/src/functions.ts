@@ -17,8 +17,8 @@ export interface FunctionDecl {
   /** Whether this is a static (class-level) method with no `self`. */
   static: boolean
 
-  /** If true, execute returns an AsyncGenerator instead of a scalar result. */
-  stream?: boolean
+  /** Output mode: 'value' (default) = single result, 'stream' = AsyncGenerator, 'binary' = BinaryResult. */
+  output?: 'value' | 'stream' | 'binary'
 
   /** Method inheritance. `'sealed'` = non-overridable, `'abstract'` = no impl, `'default'` = impl provided, overridable. */
   inheritance: 'sealed' | 'abstract' | 'default'
