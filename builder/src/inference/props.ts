@@ -2,14 +2,21 @@
 import type { z } from 'zod'
 
 import type { Def } from '../defs/definition.js'
+import type { PropDef } from '../defs/property.js'
 
 /** Extract own props from a def's config */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ExtractProps<D> = D extends { config: { props: infer P } } ? P : {}
 
-/** Infer Zod types in a PropShape to their runtime values */
+/** Infer Zod types in a PropShape to their runtime values (handles both bare Zod and PropDef) */
 export type InferProps<P> = {
-  [K in keyof P]: P[K] extends z.ZodType<infer O> ? O : never
+  [K in keyof P]: P[K] extends PropDef<infer S>
+    ? S extends z.ZodType<infer O>
+      ? O
+      : never
+    : P[K] extends z.ZodType<infer O>
+      ? O
+      : never
 }
 
 // ── Traversal helpers ────────────────────────────────────────────────

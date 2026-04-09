@@ -6,6 +6,13 @@
  */
 export type JsonSchema = Record<string, unknown>
 
+/**
+ * Property declaration in the IR.
+ * A JSON Schema extended with graph-specific metadata.
+ * When `private` is absent or false, the property is public.
+ */
+export type PropertyDecl = JsonSchema & { private?: true }
+
 /** JSON-serializable value type. Used for computed default arguments. */
 export type JsonValue =
   | string

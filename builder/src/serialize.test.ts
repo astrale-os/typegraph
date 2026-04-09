@@ -10,7 +10,8 @@ import type {
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
 
-import { interfaceDef, classDef, fn, ref, data } from './defs/index.js'
+import { interfaceDef, classDef, fn, ref, data, prop as propDef } from './defs/index.js'
+import { collectPrivateProps } from './helpers/props.js'
 import { defineSchema } from './schema/define.js'
 import { serialize } from './serializer/serialize.js'
 
@@ -102,6 +103,19 @@ describe('serialize', () => {
       const ir = serialize(schema)
       const p = prop(findNode(ir, 'A'), 'name')
       expect(p).toEqual({ type: 'string' })
+    })
+
+    it('serializes private prop with private flag', () => {
+      const A = classDef({
+        props: {
+          name: z.string(),
+          secret: propDef(z.string(), { private: true }),
+        },
+      })
+      const schema = defineSchema('test', { A })
+      const ir = serialize(schema)
+      expect(prop(findNode(ir, 'A'), 'name').private).toBeUndefined()
+      expect(prop(findNode(ir, 'A'), 'secret')).toEqual({ type: 'string', private: true })
     })
 
     it('serializes node with integer prop', () => {
@@ -1920,6 +1934,28 @@ describe('serialize', () => {
       })
       // Missing is not in defineSchema, so defineSchema should catch it
       expect(() => defineSchema('test', { A })).toThrow()
+    })
+  })
+
+  // ── collectPrivateProps ────────────────────────────────────────────
+
+  describe('collectPrivateProps', () => {
+    it('child can un-private an inherited private prop', () => {
+      const Parent = interfaceDef({
+        props: {
+          secret: propDef(z.string(), { private: true }),
+          name: z.string(),
+        },
+      })
+      const Child = classDef({
+        inherits: [Parent],
+        props: {
+          secret: z.string(), // re-declared as public
+        },
+      })
+
+      expect(collectPrivateProps(Parent)).toEqual(new Set(['secret']))
+      expect(collectPrivateProps(Child)).toEqual(new Set()) // un-privated
     })
   })
 })

@@ -1,4 +1,5 @@
-export type { Property, PropShape } from './property.js'
+export type { Property, PropShape, PropDef } from './property.js'
+export { prop, isPropDef, normalizeProp } from './property.js'
 export type { DataShape } from './data.js'
 export type { IndexDef } from './indexing.js'
 export type { DefConstraints } from './constraints.js'

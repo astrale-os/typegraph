@@ -8,6 +8,7 @@ import type {
   Endpoint,
   EdgeConstraints,
   JsonSchema,
+  PropertyDecl,
 } from '@astrale/typegraph-schema'
 
 import { z } from 'zod'
@@ -16,8 +17,10 @@ import type { DefConstraints } from '../defs/constraints.js'
 import type { Def, DefConfig } from '../defs/definition.js'
 import type { EndpointCfg } from '../defs/endpoint.js'
 import type { FnDef } from '../defs/function.js'
+import type { Property } from '../defs/property.js'
 import type { Schema } from '../schema/schema.js'
 
+import { normalizeProp } from '../defs/property.js'
 import { getDefRegistration } from '../registry.js'
 import {
   unwrapZod,
@@ -176,18 +179,25 @@ export class SerializeContext {
   }
 
   private serializeProperties(
-    props: Record<string, z.ZodType> | undefined,
+    props: Record<string, Property> | undefined,
     className: string,
-  ): Record<string, JsonSchema> {
+  ): Record<string, PropertyDecl> {
     if (!props) return {}
-    const result: Record<string, JsonSchema> = {}
-    for (const [name, schema] of Object.entries(props)) {
-      result[name] = this.serializeProperty(name, schema, className)
+    const result: Record<string, PropertyDecl> = {}
+    for (const [name, input] of Object.entries(props)) {
+      const normalized = normalizeProp(input)
+      const decl: PropertyDecl = this.serializePropertySchema(name, normalized.schema, className)
+      if (normalized.private) decl.private = true
+      result[name] = decl
     }
     return result
   }
 
-  private serializeProperty(_name: string, schema: z.ZodType, _className: string): JsonSchema {
+  private serializePropertySchema(
+    _name: string,
+    schema: z.ZodType,
+    _className: string,
+  ): JsonSchema {
     const { inner, nullable, defaultValue, hasDefault } = unwrapZod(schema)
     let jsonSchema = this.convertZodSchema(inner)
     if (nullable) jsonSchema = foldNullable(jsonSchema)

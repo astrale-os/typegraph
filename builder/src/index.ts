@@ -7,11 +7,15 @@ export {
   ref,
   SELF,
   data,
+  prop,
+  isPropDef,
+  normalizeProp,
   type RefSchema,
   type SelfDef,
   type DataSelfSchema,
   type DataGrantSchema,
   type DataGrantToken,
+  type PropDef,
 } from './defs/index.js'
 
 // Schema
@@ -33,7 +37,7 @@ export {
   resolveAllMethods,
   type ResolvedMethod,
 } from './helpers/methods.js'
-export { collectAvailableProps } from './helpers/props.js'
+export { collectAvailableProps, collectPrivateProps } from './helpers/props.js'
 
 // Core
 export {
@@ -127,6 +131,7 @@ export type {
   EdgeDecl,
   FunctionDecl,
   JsonSchema,
+  PropertyDecl,
   Endpoint,
   EdgeConstraints,
 } from '@astrale/typegraph-schema'
