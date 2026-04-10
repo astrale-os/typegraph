@@ -21,7 +21,6 @@ import { useState, useEffect } from 'react'
 import {
   useLatencyStore,
   selectIsGraphGenerated,
-  selectScaleInfo,
   selectAvailableScenarios,
   type SelectedScale,
 } from '@/store/latency-store'
@@ -62,8 +61,6 @@ export function LatencyProfiler() {
     error,
     selectedScale,
     generatingGraph,
-    _generationProgress,
-    _generationPhase,
     scaleMetadata,
     scaleStatus,
     statusLoading,
@@ -82,7 +79,6 @@ export function LatencyProfiler() {
   } = useLatencyStore()
 
   const isGraphGenerated = useLatencyStore(selectIsGraphGenerated)
-  const _scaleInfo = useLatencyStore(selectScaleInfo)
   const availableScenarios = useLatencyStore(selectAvailableScenarios)
 
   const [showScenarios, setShowScenarios] = useState(true)

@@ -24,7 +24,7 @@ import { testSchema, type TestSchema } from './fixtures/test-schema'
 function coreNode(
   type: string,
   props: Record<string, unknown>,
-  children?: Record<string, ReturnType<typeof coreNode>>,
+  children?: Record<string, { __type: string; props: Record<string, unknown> }>,
 ) {
   return { __type: type, props, ...(children ? { children } : {}) } as const
 }

@@ -41,7 +41,7 @@ export async function generateScaledGraph(
   const onProgress = options.onProgress
 
   // Helper to add small delay between batches to prevent overwhelming FalkorDB
-  const batchDelay = () => new Promise((resolve) => setTimeout(resolve, 10))
+  const batchDelay = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 10))
 
   console.log(`[graph-gen] Starting ${scale} graph generation with batch size ${batchSize}`)
   console.log(
@@ -131,26 +131,6 @@ export async function generateScaledGraph(
 // =============================================================================
 // DATABASE SETUP
 // =============================================================================
-
-async function clearDatabase(executor: RawExecutor): Promise<void> {
-  // Use smaller batched deletes to avoid crashing FalkorDB
-  // Delete in batches of 1000 to prevent memory issues
-  let deleted = true
-  while (deleted) {
-    const result = await executor.run<{ count: number }>(
-      'MATCH ()-[r]->() WITH r LIMIT 1000 DELETE r RETURN count(r) as count',
-    )
-    deleted = (result[0]?.count ?? 0) > 0
-  }
-
-  deleted = true
-  while (deleted) {
-    const result = await executor.run<{ count: number }>(
-      'MATCH (n) WITH n LIMIT 1000 DELETE n RETURN count(n) as count',
-    )
-    deleted = (result[0]?.count ?? 0) > 0
-  }
-}
 
 async function createIndexes(executor: RawExecutor): Promise<void> {
   // Create indexes for efficient lookups

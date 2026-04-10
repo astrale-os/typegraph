@@ -60,9 +60,9 @@ export function LeafEvaluationList({ leaves }: LeafEvaluationListProps) {
             <InheritancePathViz path={leaf.searchedPath} label="Searched path" />
           )}
 
-          {leaf.nodeRestrictions && leaf.nodeRestrictions.length > 0 && (
+          {leaf.nodeRestriction && leaf.nodeRestriction.length > 0 && (
             <div className="text-[10px] text-slate-500">
-              Node restrictions: {leaf.nodeRestrictions.join(', ')}
+              Node restrictions: {leaf.nodeRestriction.join(', ')}
             </div>
           )}
         </div>

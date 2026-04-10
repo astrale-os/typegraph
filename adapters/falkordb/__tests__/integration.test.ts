@@ -12,7 +12,7 @@ import type { SchemaShape } from '@astrale/typegraph-client'
 import { createGraph, type Graph } from '@astrale/typegraph-client'
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 
-import { falkordb, clearGraph } from '../src'
+import { falkordb, clearGraph, deleteGraph } from '../src'
 
 describe.skip('FalkorDB Adapter Integration', () => {
   const config = {
@@ -50,6 +50,11 @@ describe.skip('FalkorDB Adapter Integration', () => {
 
   afterAll(async () => {
     await graph.close()
+    try {
+      await deleteGraph(config)
+    } catch {
+      // graph may not exist
+    }
   })
 
   beforeEach(async () => {
