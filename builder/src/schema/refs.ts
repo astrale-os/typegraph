@@ -1,110 +1,113 @@
-import type { z } from 'zod'
-
-import type { Def } from '../defs/definition.js'
-import type { FnDef } from '../defs/function.js'
-import type { ParamShape } from '../defs/function.js'
-import type {
-  HasMethods,
-  HasImplementableMethods,
-  ExtractMethodNames,
-} from '../inference/methods.js'
-import type { InferProps } from '../inference/props.js'
+import type { AnyDef } from '../grammar/definition/discriminants.js'
+import type { FnDef } from '../grammar/function/def.js'
 import type { Schema } from './schema.js'
 
-// ── Schema-level type helpers ─────────────────────────────────────────────
+/** Kind segment for refs */
+export type KindSegment = 'interface' | 'class'
 
-/** Get the def for a given key from defs */
-export type DefForKey<S extends Schema, K extends string> = K extends keyof S['defs']
-  ? S['defs'][K]
-  : never
+/** Separator used in ref strings (package-level constant) */
+export const REF_SEPARATOR = '.'
 
-/** Check if a def is abstract (interface) at the type level */
-type IsAbstract<D> = D extends Def<infer C> ? (C extends { abstract: true } ? true : false) : false
+/** A domain-local definition ref: `i.Name` or `c.Name` */
+export type DefRef<K extends KindSegment = KindSegment, N extends string = string> = `${K}.${N}`
 
-/** All concrete def keys that have methods (excludes abstract/interface defs) */
-export type MethodKeys<S extends Schema> = {
-  [K in keyof S['defs'] & string]: IsAbstract<S['defs'][K]> extends true
-    ? never
-    : HasMethods<S['defs'][K]> extends true
-      ? K
-      : never
-}[keyof S['defs'] & string]
+/** A qualified method ref: `i.Name.method` or `c.Name.method` */
+export type MethodRef<
+  K extends KindSegment = KindSegment,
+  N extends string = string,
+  M extends string = string,
+> = `${K}.${N}.${M}`
 
-/** Interface def keys that have implementable (sealed/default) methods */
-export type InterfaceMethodKeys<S extends Schema> = {
-  [K in keyof S['defs'] & string]: IsAbstract<S['defs'][K]> extends true
-    ? HasImplementableMethods<S['defs'][K]> extends true
-      ? K
-      : never
-    : never
-}[keyof S['defs'] & string]
-
-/** Infer params from a builder FnDef (handles thunk params) */
-export type InferFnParams<D> =
-  D extends FnDef<infer C>
-    ? C extends { params: infer P }
-      ? P extends (() => infer R extends ParamShape)
-        ? InferProps<R>
-        : P extends ParamShape
-          ? InferProps<P>
-          : Record<string, never>
-      : Record<string, never>
-    : Record<string, never>
-
-/** Infer return type from a builder FnDef */
-export type InferFnReturn<D> =
-  D extends FnDef<infer C> ? (C extends { returns: z.ZodType<infer R> } ? R : unknown) : unknown
-
-// ── Schema definition references ───────────────────────────────────────────
-
-/**
- * All addressable definitions in a schema: top-level defs + qualified functions.
- * Used for total mappings (e.g., ID assignment) where every definition must be covered.
- */
-export type SchemaRefs<S extends Schema> = SchemaClassRefs<S> | SchemaFnRefs<S>
-
-/** Top-level definition names. */
-export type SchemaClassRefs<S extends Schema> = keyof S['defs'] & string
-
-/** Qualified function refs: "ClassName.methodName" for all defs with methods. */
-export type SchemaFnRefs<S extends Schema> = {
-  [K in MethodKeys<S> & string]: `${K}.${ExtractMethodNames<DefForKey<S, K>>}`
-}[MethodKeys<S> & string]
-
-/**
- * Flat typed map of all schema refs (class names + qualified functions).
- * Every key is a SchemaRefs<S> string, every value is the same string (identity).
- */
-export type SchemaRefsMap<S extends Schema> = {
-  readonly [K in SchemaRefs<S>]: K
+/** Build a DefRef string */
+export function defRef<K extends KindSegment, N extends string>(kind: K, name: N): DefRef<K, N> {
+  return `${kind}${REF_SEPARATOR}${name}` as DefRef<K, N>
 }
 
-// ── Runtime function ───────────────────────────────────────────────────────
+/** Build a MethodRef string */
+export function methodRef<K extends KindSegment, N extends string, M extends string>(
+  kind: K,
+  name: N,
+  method: M,
+): MethodRef<K, N, M> {
+  return `${kind}${REF_SEPARATOR}${name}${REF_SEPARATOR}${method}` as MethodRef<K, N, M>
+}
+
+/** Schema-scoped identity: reverse lookup from def object to its group/name/ref */
+export interface DefIdentity {
+  readonly group: KindSegment
+  readonly name: string
+  readonly ref: DefRef
+}
 
 /**
- * Build a flat typed reference map from a schema.
- *
- * Every `SchemaRefs<S>` key maps to itself — plain strings with full auto-complete.
- *
- * @example
- * ```ts
- * const refs = schemaRefs(BlogSchema)
- * refs.Author                   // 'Author'
- * refs['Author.deactivate']     // 'Author.deactivate'
- * refs['Article.publish']       // 'Article.publish' (inherited)
- * refs.wrote                    // 'wrote'
- * ```
+ * Build a reverse map from def objects to their identity.
+ * Used for schema-scoped lookups (replaces the old global WeakMap registry).
  */
-export function schemaRefs<S extends Schema>(schema: S): SchemaRefsMap<S> {
-  const result: Record<string, string> = {}
+export function buildIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
+  const map = new Map<AnyDef, DefIdentity>()
 
-  for (const name of Object.keys(schema.defs)) {
-    result[name] = name
+  for (const [name, def] of Object.entries(schema.interfaces)) {
+    map.set(def, { group: 'interface', name, ref: defRef('interface', name) })
   }
 
-  for (const key of Object.keys(schema.fns)) {
-    result[key] = key
+  for (const [name, def] of Object.entries(schema.classes)) {
+    map.set(def, { group: 'class', name, ref: defRef('class', name) })
   }
 
-  return result as SchemaRefsMap<S>
+  return map
 }
+
+/**
+ * Build a combined identity map that includes both the schema's own defs and all imports.
+ * Call once, then pass to isKnownDef for O(1) lookups.
+ */
+export function buildFullIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
+  const map = buildIdentityMap(schema)
+  for (const imported of schema.imports ?? []) {
+    const importedMap = buildIdentityMap(imported)
+    for (const [def, identity] of importedMap) {
+      map.set(def, identity)
+    }
+  }
+  return map
+}
+
+/** Check if a def exists in the identity map */
+export function isKnownDef(def: object, identityMap: Map<AnyDef, DefIdentity>): boolean {
+  return identityMap.has(def as AnyDef)
+}
+
+/** Build a flat map of all qualified method refs: `{group}.{name}.{method}` → FnDef */
+export function buildMethodRefs(schema: Schema): Record<string, FnDef> {
+  const fns: Record<string, FnDef> = {}
+
+  const processGroup = (defs: Record<string, AnyDef>, kind: KindSegment) => {
+    for (const [name, def] of Object.entries(defs)) {
+      const methods = def.config.methods as Record<string, FnDef> | undefined
+      if (!methods) continue
+      for (const [methodName, fnDef] of Object.entries(methods)) {
+        fns[methodRef(kind, name, methodName)] = fnDef
+      }
+    }
+  }
+
+  processGroup(schema.interfaces as Record<string, AnyDef>, 'interface')
+  processGroup(schema.classes as Record<string, AnyDef>, 'class')
+
+  return fns
+}
+
+// ── Type-level ref generation ─────────────────────────────────────────
+
+/** All interface DefRefs from a schema */
+export type InterfaceRefs<S extends Schema> = {
+  [K in keyof S['interfaces'] & string]: DefRef<'interface', K>
+}[keyof S['interfaces'] & string]
+
+/** All class DefRefs from a schema */
+export type ClassRefs<S extends Schema> = {
+  [K in keyof S['classes'] & string]: DefRef<'class', K>
+}[keyof S['classes'] & string]
+
+/** All DefRefs from a schema */
+export type AllDefRefs<S extends Schema> = InterfaceRefs<S> | ClassRefs<S>

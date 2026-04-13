@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./grammar": "./src/grammar/index.ts",
+    "./inference": "./src/inference/index.ts",
+    "./serializer": "./src/serializer/index.ts",
+    "./instance": "./src/instance/index.ts",
+    "./schema": "./src/schema/index.ts"
   },
   "scripts": {
     "test": "vitest run",

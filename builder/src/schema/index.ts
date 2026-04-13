@@ -1,16 +1,25 @@
-export { SchemaValidationError } from './schema.js'
-export type { Schema, Named } from './schema.js'
+export { SchemaValidationError } from './error.js'
+export type { Schema } from './schema.js'
 export { defineSchema } from './define.js'
+export { classifyDefs } from './classify.js'
 export {
-  schemaRefs,
-  type SchemaRefs,
-  type SchemaClassRefs,
-  type SchemaFnRefs,
-  type SchemaRefsMap,
-  type DefForKey,
-  type MethodKeys,
-  type InterfaceMethodKeys,
-  type InferFnParams,
-  type InferFnReturn,
+  defRef,
+  methodRef,
+  buildIdentityMap,
+  buildFullIdentityMap,
+  buildMethodRefs,
+  isKnownDef,
+  type DefRef,
+  type MethodRef,
+  type KindSegment,
+  type DefIdentity,
+  type InterfaceRefs,
+  type ClassRefs,
+  type AllDefRefs,
 } from './refs.js'
+export {
+  resolveAllMethods,
+  resolveAllAttributes,
+  resolveAllAttributeKeys,
+} from './resolve/index.js'
 export type { SchemaContext } from './validators/context.js'

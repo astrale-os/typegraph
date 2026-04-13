@@ -1,129 +1,112 @@
-// Builders
-export {
-  def,
-  classDef,
-  interfaceDef,
-  fn,
-  ref,
-  SELF,
-  data,
-  prop,
-  isPropDef,
-  normalizeProp,
-  type RefSchema,
-  type SelfDef,
-  type DataSelfSchema,
-  type DataGrantSchema,
-  type DataGrantToken,
-  type PropDef,
-} from './defs/index.js'
+// ── Builders (the authoring API) ───────────────────────────────────
+export { nodeInterface } from './builders/definition/node-interface.js'
+export { nodeClass } from './builders/definition/node-class.js'
+export { edgeInterface } from './builders/definition/edge-interface.js'
+export { edgeClass } from './builders/definition/edge-class.js'
+export { fn } from './builders/function.js'
+export { ref } from './builders/ref.js'
+export { data } from './builders/data.js'
+export { prop } from './builders/prop.js'
+export { bitmask } from './builders/bitmask.js'
+export { SELF } from './grammar/values/self.js'
 
-// Schema
+// ── Schema (the compiler) ──────────────────────────────────────────
 export { defineSchema } from './schema/define.js'
+export type { Schema } from './schema/schema.js'
+export { SchemaValidationError } from './schema/error.js'
+export type { DefRef, MethodRef } from './schema/refs.js'
 
-// Def registry
-export { registerDef, getDefName, getDefRegistration, hasDefName } from './registry.js'
+// ── Instance (core & seed) ─────────────────────────────────────────
+export { defineCore } from './instance/core/define.js'
+export { defineSeed } from './instance/seed/define.js'
+export { buildCorePath, isCorePath } from './instance/core/path.js'
+export type { CorePath } from './instance/core/path.js'
+export { node } from './instance/core/node.js'
+export { edge } from './instance/core/edge.js'
 
-// Serialization
-export { serialize, type SerializeOptions } from './serializer/index.js'
+// ── Serializer ─────────────────────────────────────────────────────
+export { serialize } from './serializer/serialize.js'
 
-// Refs
-export { schemaRefs } from './schema/refs.js'
-
-// Helpers
-export {
-  collectAllMethodDefs,
-  collectAllMethodNames,
-  resolveAllMethods,
-  type ResolvedMethod,
-} from './helpers/methods.js'
-export { collectAvailableProps, collectPrivateProps } from './helpers/props.js'
-
-// Core
-export {
-  node,
-  edge,
-  kernelRefs,
-  defineCore,
-  CorePath,
-  buildCorePath,
-  isCorePath,
-} from './core/index.js'
-
-// Seed
-export { defineSeed } from './seed/index.js'
-
-// Types
+// ── Model types (public type-level API) ────────────────────────────
+export type { DefConfigBase } from './grammar/definition/base.js'
+export type { NodeInterfaceDef, NodeInterfaceConfig } from './grammar/definition/node-interface.js'
+export type { NodeClassDef, NodeClassConfig } from './grammar/definition/node-class.js'
+export type { EdgeInterfaceDef, EdgeInterfaceConfig } from './grammar/definition/edge-interface.js'
+export type { EdgeClassDef, EdgeClassConfig } from './grammar/definition/edge-class.js'
 export type {
-  PropShape,
-  DataShape,
-  ParamShape,
-  IndexDef,
-  Cardinality,
-  DefType,
-  DefConfig,
-  Def,
-  EndpointCfg,
-  DefConstraints,
-  FnConfig,
-  ConcreteFnConfig,
-  FnDef,
-  MethodInheritance,
   AnyDef,
-} from './defs/index.js'
+  AnyNodeDef,
+  AnyEdgeDef,
+  AnyInterfaceDef,
+  AnyClassDef,
+} from './grammar/definition/discriminants.js'
+export type { FnDef } from './grammar/function/def.js'
+export type { FnConfig, ParamShape } from './grammar/function/config.js'
+export type { AttributeShape, AttributeDef, Property } from './grammar/facets/attributes.js'
+export type { ContentShape } from './grammar/facets/content.js'
+export type { EndpointConfig, Cardinality } from './grammar/facets/endpoints.js'
+export type { DefConstraints } from './grammar/facets/constraints.js'
+export type { IndexDef, IndexType } from './grammar/facets/indexes.js'
+export type { RefSchema } from './grammar/values/ref.js'
+export type { DataSelfSchema, DataGrantSchema } from './grammar/values/data.js'
+export type { SelfDef } from './grammar/values/self.js'
+export type { BitmaskDef } from './grammar/values/bitmask.js'
+export type { MethodInheritance } from './grammar/function/inheritance.js'
+export type { OutputMode } from './grammar/function/output.js'
 
+// ── Inference types (type-level utilities) ─────────────────────────
 export type {
-  ExtractProps,
-  ExtractData,
+  ExtractAttributes,
+  InferAttributes,
+  ExtractFullAttributes,
+  ExtractInherits,
+  ExtractContent,
+  ExtractFullContent,
+  HasContent,
   ExtractMethods,
   AllMethods,
-  ExtractFullProps,
-  ExtractFullData,
-  HasData,
-  InferProps,
   HasMethods,
   ExtractMethodNames,
   ExtractMethodParams,
   ExtractMethodReturns,
   ExtractMethodReturnValue,
-  IsStaticMethod,
   MethodSelf,
-  ExtractNodeInput,
-  ExtractMethodInheritance,
   AllSealedKeys,
   InheritedAbstractKeys,
   InheritedDefaultKeys,
-  AllParentDefaultKeys,
-  HasImplementableMethods,
   ImplementableOwnKeys,
+  HasImplementableMethods,
+  ExtractNodeInput,
+  FilterByKind,
+  SchemaNodeInterfaces,
+  SchemaNodeClasses,
+  SchemaEdgeInterfaces,
+  SchemaEdgeClasses,
+  SchemaFnRefs,
 } from './inference/index.js'
 
-export type { Schema, Named } from './schema/schema.js'
-export { SchemaValidationError } from './schema/schema.js'
-export type {
-  DefForKey,
-  MethodKeys,
-  InterfaceMethodKeys,
-  InferFnParams,
-  InferFnReturn,
-  SchemaRefs,
-  SchemaClassRefs,
-  SchemaFnRefs,
-  SchemaRefsMap,
-} from './schema/refs.js'
+// ── Helpers (runtime introspection) ────────────────────────────────
+export { resolveAllMethods, resolveAllAttributes } from './schema/resolve/index.js'
+export { classifyDefs } from './schema/classify.js'
+export {
+  isNodeInterface,
+  isNodeClass,
+  isEdgeInterface,
+  isEdgeClass,
+} from './grammar/definition/discriminants.js'
 
+// ── Instance types ─────────────────────────────────────────────────
 export type {
   CoreNode,
   CoreEdge,
   PathTree,
-  CoreDef,
+  Core,
   CoreNodeEntry,
   CoreEdgeEntry,
-} from './core/index.js'
+} from './instance/core/types.js'
+export type { SeedDef } from './instance/seed/types.js'
 
-export type { SeedDef } from './seed/index.js'
-
-// Re-export IR types for convenience
+// ── Re-export IR types for convenience ─────────────────────────────
 export type {
   SchemaIR,
   ClassDecl,

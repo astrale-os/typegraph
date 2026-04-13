@@ -1,24 +1,38 @@
-export type { ExtractProps, InferProps, ExtractFullProps } from './props.js'
+export type {
+  ExtractAttributes,
+  InferAttributes,
+  ExtractFullAttributes,
+  ExtractInherits,
+} from './attributes.js'
 
-export type { ExtractData, ExtractFullData, HasData } from './data.js'
+export type { ExtractContent, ExtractFullContent, HasContent } from './content.js'
 
 export type {
   ExtractMethods,
   AllMethods,
   HasMethods,
   ExtractMethodNames,
-  IsStaticMethod,
   ExtractMethodParams,
   ExtractMethodReturns,
   ExtractMethodReturnValue,
   MethodSelf,
-  ExtractMethodInheritance,
+} from './methods.js'
+
+export type {
   AllSealedKeys,
   InheritedAbstractKeys,
   InheritedDefaultKeys,
-  AllParentDefaultKeys,
-  HasImplementableMethods,
   ImplementableOwnKeys,
-} from './methods.js'
+  HasImplementableMethods,
+} from './inheritance.js'
 
 export type { ExtractNodeInput } from './input.js'
+
+export type {
+  FilterByKind,
+  SchemaNodeInterfaces,
+  SchemaNodeClasses,
+  SchemaEdgeInterfaces,
+  SchemaEdgeClasses,
+  SchemaFnRefs,
+} from './schema.js'

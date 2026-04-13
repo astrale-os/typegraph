@@ -1,29 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Def } from '../defs/definition.js'
-import type { ExtractData } from './data.js'
-import type { ExtractProps, ExtractInherits, InferProps } from './props.js'
+import type { AnyDef } from '../grammar/definition/discriminants.js'
+import type { ExtractAttributes, ExtractInherits, InferAttributes } from './attributes.js'
+import type { ExtractContent } from './content.js'
 
-/** Resolve one inherits entry: own props + data + recursive ancestors */
-type ResolveInheritsEntry<H extends Def<any>> = InferProps<ExtractProps<H>> &
-  InferProps<ExtractData<H>> &
+/** Resolve one inherits entry: attributes + content + recursive ancestors */
+type ResolveInheritsEntry<H extends AnyDef> = InferAttributes<ExtractAttributes<H>> &
+  InferAttributes<ExtractContent<H>> &
   CollectInputFromInherits<ExtractInherits<H>>
 
-/** Collect all props AND data from inherits chain (later entries shadow earlier) */
+/** Collect all attributes AND content from inherits chain (later entries shadow earlier) */
 type CollectInputFromInherits<T> = T extends readonly [
-  infer Head extends Def<any>,
-  ...infer Tail extends readonly Def<any>[],
+  infer Head extends AnyDef,
+  ...infer Tail extends readonly AnyDef[],
 ]
   ? Omit<ResolveInheritsEntry<Head>, keyof CollectInputFromInherits<Tail>> &
       CollectInputFromInherits<Tail>
   : unknown
 
-/** Full inferred props AND data — own props shadow inherited */
-export type ExtractNodeInput<D> =
-  D extends Def<any>
-    ? Omit<
-        CollectInputFromInherits<ExtractInherits<D>>,
-        keyof InferProps<ExtractProps<D>> | keyof InferProps<ExtractData<D>>
-      > &
-        InferProps<ExtractProps<D>> &
-        InferProps<ExtractData<D>>
-    : unknown
+/** Full inferred node input: attributes + content, own shadow inherited */
+export type ExtractNodeInput<D> = D extends AnyDef
+  ? Omit<
+      CollectInputFromInherits<ExtractInherits<D>>,
+      keyof InferAttributes<ExtractAttributes<D>> | keyof InferAttributes<ExtractContent<D>>
+    > &
+      InferAttributes<ExtractAttributes<D>> &
+      InferAttributes<ExtractContent<D>>
+  : unknown

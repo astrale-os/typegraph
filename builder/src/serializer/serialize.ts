@@ -1,6 +1,5 @@
 import type { SchemaIR } from '@astrale/typegraph-schema'
-
-import { type z } from 'zod'
+import type { z } from 'zod'
 
 import type { Schema } from '../schema/schema.js'
 
@@ -10,7 +9,6 @@ export interface SerializeOptions {
   /**
    * Named types to hoist into the IR `types` record.
    * Pass Zod schemas that should be shared across multiple properties/params.
-   * These are converted to JSON Schema and referenced via `$ref: '#/types/<name>'`.
    */
   types?: Record<string, z.ZodType>
 }

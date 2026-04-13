@@ -1,30 +1,20 @@
-import type { Domain } from '@astrale/typegraph-schema'
+import type { AnyInterfaceDef, AnyClassDef } from '../grammar/definition/discriminants.js'
+import type { FnDef } from '../grammar/function/def.js'
 
-import type { Def } from '../defs/definition.js'
-import type { FnDef } from '../defs/function.js'
-import type { AnyDef } from '../defs/index.js'
-
-/** A def with its schema-assigned name as a literal type. */
-export type Named<D, K extends string = string> = D & { readonly name: K }
-
-type Definitions<D extends Record<string, AnyDef>> = {
-  readonly [K in keyof D & string]: Named<D[K], K>
-}
-
-export interface Schema<D extends Record<string, AnyDef> = Record<string, Def>> {
-  readonly domain: Domain
-  readonly defs: Definitions<D>
-  readonly fns: Record<string, FnDef>
-}
-
-export class SchemaValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly field: string,
-    public readonly expected?: string,
-    public readonly received?: string,
-  ) {
-    super(message)
-    this.name = 'SchemaValidationError'
-  }
+/**
+ * The rich schema object — two groups (interfaces + classes),
+ * pre-resolved types, ref maps, domain. Produced by `defineSchema`.
+ *
+ * @typeParam I — Record of interface definitions (node-interface | edge-interface)
+ * @typeParam C — Record of class definitions (node-class | edge-class)
+ */
+export interface Schema<
+  I extends Record<string, AnyInterfaceDef> = Record<string, AnyInterfaceDef>,
+  C extends Record<string, AnyClassDef> = Record<string, AnyClassDef>,
+> {
+  readonly domain: string
+  readonly interfaces: { readonly [K in keyof I & string]: I[K] }
+  readonly classes: { readonly [K in keyof C & string]: C[K] }
+  readonly functions: Record<string, FnDef>
+  readonly imports: readonly Schema[]
 }

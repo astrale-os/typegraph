@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-explicit-any
 import type {
   SchemaIR,
   InterfaceDecl,
@@ -13,34 +14,31 @@ import type {
 
 import { z } from 'zod'
 
-import type { DefConstraints } from '../defs/constraints.js'
-import type { Def, DefConfig } from '../defs/definition.js'
-import type { EndpointCfg } from '../defs/endpoint.js'
-import type { FnDef } from '../defs/function.js'
-import type { Property } from '../defs/property.js'
+import type { AnyDef } from '../grammar/definition/discriminants.js'
+import type { Property } from '../grammar/facets/attributes.js'
+import type { DefConstraints } from '../grammar/facets/constraints.js'
+import type { EndpointConfig } from '../grammar/facets/endpoints.js'
+import type { FnDef } from '../grammar/function/def.js'
 import type { Schema } from '../schema/schema.js'
 
-import { normalizeProp } from '../defs/property.js'
-import { getDefRegistration } from '../registry.js'
+import { isEdge } from '../grammar/definition/discriminants.js'
+import { normalizeAttribute } from '../grammar/facets/attributes.js'
+import { buildIdentityMap, type DefIdentity } from '../schema/refs.js'
 import {
   unwrapZod,
   getArrayElement,
   foldNullable,
   mapCardinality,
-  hasRefTarget,
+  hasRefTag,
+  getRefMeta,
+  getDataMeta,
+  hasBitmaskTag,
   cleanJsonSchema,
+  type JsonSchema as InternalJsonSchema,
 } from './helpers.js'
 
-interface ZodRefMeta {
-  __ref_target?: object
-  __ref_data?: boolean
-  __data_self?: boolean
-  __data_grant?: boolean
-  __data_target?: object
-}
-
 export class SerializeContext {
-  private defToName = new Map<object, string>()
+  private identityMap: Map<AnyDef, DefIdentity>
   private zodToTypeName = new WeakMap<z.ZodType, string>()
   private types: Record<string, JsonSchema> = {}
   private imports: Record<string, string> = {}
@@ -49,9 +47,13 @@ export class SerializeContext {
     private schema: Schema,
     options?: { types?: Record<string, z.ZodType> },
   ) {
-    for (const [name, def] of Object.entries(schema.defs)) {
-      if (def && typeof def === 'object' && 'type' in def) {
-        this.defToName.set(def, name)
+    this.identityMap = buildIdentityMap(schema)
+
+    // Register imported schema identities
+    for (const imported of schema.imports ?? []) {
+      const importedMap = buildIdentityMap(imported)
+      for (const [def, identity] of importedMap) {
+        this.identityMap.set(def, identity)
       }
     }
 
@@ -67,10 +69,12 @@ export class SerializeContext {
     const interfaces: Record<string, InterfaceDecl> = {}
     const classes: Record<string, ClassDecl> = {}
 
-    for (const [name, def] of Object.entries(this.schema.defs)) {
-      if (def.config.abstract) {
-        interfaces[name] = this.serializeInterface(name, def)
-      } else if (def.config.endpoints) {
+    for (const [name, def] of Object.entries(this.schema.interfaces)) {
+      interfaces[name] = this.serializeInterface(name, def)
+    }
+
+    for (const [name, def] of Object.entries(this.schema.classes)) {
+      if (isEdge(def)) {
         classes[name] = this.serializeEdge(name, def)
       } else {
         classes[name] = this.serializeNode(name, def)
@@ -84,67 +88,72 @@ export class SerializeContext {
       interfaces,
       classes,
     }
+
     if (Object.keys(this.imports).length > 0) {
       result.imports = this.imports
     }
+
     return result
   }
 
-  private serializeInterface(name: string, def: Def): InterfaceDecl {
+  private serializeInterface(name: string, def: AnyDef): InterfaceDecl {
     const { config } = def
     const result: InterfaceDecl = {
       type: 'interface',
       name,
       extends: this.resolveInherits(config),
-      properties: this.serializeProperties(config.props, name),
+      properties: this.serializeProperties(config.attributes),
       methods: this.serializeMethods(config.methods, name),
     }
-    const data = this.serializeData(config.data)
+    const content = (config as any).content
+    const data = this.serializeData(content)
     if (data) result.data = data
     return result
   }
 
-  private serializeNode(name: string, def: Def): NodeDecl {
+  private serializeNode(name: string, def: AnyDef): NodeDecl {
     const { config } = def
     const result: NodeDecl = {
       type: 'node',
       name,
       implements: this.resolveInherits(config),
-      properties: this.serializeProperties(config.props, name),
+      properties: this.serializeProperties(config.attributes),
       methods: this.serializeMethods(config.methods, name),
     }
-    const data = this.serializeData(config.data)
+    const content = (config as any).content
+    const data = this.serializeData(content)
     if (data) result.data = data
     return result
   }
 
-  private serializeEdge(name: string, def: Def): EdgeDecl {
+  private serializeEdge(name: string, def: AnyDef): EdgeDecl {
     const { config } = def
-    const endpoints = config.endpoints!
+    const edgeDef = def as { from: EndpointConfig; to: EndpointConfig; config: typeof config }
 
     const result: EdgeDecl = {
       type: 'edge',
       name,
       implements: this.resolveInherits(config),
-      endpoints: [this.serializeEndpoint(endpoints[0]), this.serializeEndpoint(endpoints[1])],
-      properties: this.serializeProperties(config.props, name),
+      endpoints: [this.serializeEndpoint(edgeDef.from), this.serializeEndpoint(edgeDef.to)],
+      properties: this.serializeProperties(config.attributes),
       methods: this.serializeMethods(config.methods, name),
     }
 
-    const constraints = this.serializeConstraints(config.constraints)
+    const constraints = this.serializeConstraints((config as any).constraints)
     if (constraints) result.constraints = constraints
     return result
   }
 
-  private resolveInherits(config: DefConfig): string[] {
-    if (!config.inherits) return []
-    return config.inherits.map((e) => this.getDefName(e))
+  private resolveInherits(config: AnyDef['config']): string[] {
+    const inherits = config.inherits as AnyDef[] | undefined
+    if (!inherits) return []
+    return inherits.map((e) => this.getDefName(e))
   }
 
-  private serializeEndpoint(endpoint: EndpointCfg): Endpoint {
+  private serializeEndpoint(endpoint: EndpointConfig): Endpoint {
     const result: Endpoint = {
       name: endpoint.as,
-      types: endpoint.types.map((t) => this.getDefName(t as object)),
+      types: endpoint.types.map((t) => this.getDefName(t as AnyDef)),
     }
     if (endpoint.cardinality) {
       const mapped = mapCardinality(endpoint.cardinality)
@@ -179,25 +188,20 @@ export class SerializeContext {
   }
 
   private serializeProperties(
-    props: Record<string, Property> | undefined,
-    className: string,
+    attrs: Record<string, Property> | undefined,
   ): Record<string, PropertyDecl> {
-    if (!props) return {}
+    if (!attrs) return {}
     const result: Record<string, PropertyDecl> = {}
-    for (const [name, input] of Object.entries(props)) {
-      const normalized = normalizeProp(input)
-      const decl: PropertyDecl = this.serializePropertySchema(name, normalized.schema, className)
+    for (const [name, input] of Object.entries(attrs)) {
+      const normalized = normalizeAttribute(input)
+      const decl: PropertyDecl = this.serializePropertySchema(normalized.schema)
       if (normalized.private) decl.private = true
       result[name] = decl
     }
     return result
   }
 
-  private serializePropertySchema(
-    _name: string,
-    schema: z.ZodType,
-    _className: string,
-  ): JsonSchema {
+  private serializePropertySchema(schema: z.ZodType): JsonSchema {
     const { inner, nullable, defaultValue, hasDefault } = unwrapZod(schema)
     let jsonSchema = this.convertZodSchema(inner)
     if (nullable) jsonSchema = foldNullable(jsonSchema)
@@ -207,25 +211,25 @@ export class SerializeContext {
 
   private serializeMethods(
     methods: Record<string, FnDef> | undefined,
-    className: string,
+    _className: string,
   ): Record<string, FunctionDecl> {
     if (!methods) return {}
     const result: Record<string, FunctionDecl> = {}
     for (const [name, def] of Object.entries(methods)) {
-      result[name] = this.serializeFn(name, def, className)
+      result[name] = this.serializeFn(name, def)
     }
     return result
   }
 
-  private serializeFn(name: string, def: FnDef, _className?: string): FunctionDecl {
+  private serializeFn(name: string, def: FnDef): FunctionDecl {
     const { config } = def
     const { inner: returnInner, nullable: returnNullable } = unwrapZod(config.returns)
 
     const fn: FunctionDecl = {
       name,
-      params: this.serializeParams(config.params, _className, name),
+      params: this.serializeParams(config.params),
       returns: this.convertZodSchema(returnInner),
-      static: config.static === true,
+      static: config.static ?? false,
       inheritance: config.inheritance ?? 'default',
     }
     if (returnNullable) fn.returnsNullable = true
@@ -235,8 +239,6 @@ export class SerializeContext {
 
   private serializeParams(
     params: Record<string, z.ZodType> | (() => Record<string, z.ZodType>) | undefined,
-    _className: string | undefined,
-    _methodName: string,
   ): Record<string, JsonSchema> {
     if (!params) return {}
     const resolved = typeof params === 'function' ? params() : params
@@ -245,15 +247,15 @@ export class SerializeContext {
     for (const [name, schema] of Object.entries(resolved)) {
       const zodSchema = schema as z.ZodType
 
-      if (hasRefTarget(zodSchema)) {
+      if (hasRefTag(zodSchema)) {
         result[name] = this.buildNodeRef(zodSchema)
         continue
       }
 
       const { inner, nullable, defaultValue, hasDefault } = unwrapZod(zodSchema)
 
-      if (hasRefTarget(inner)) {
-        let refSchema: JsonSchema = this.buildNodeRef(inner)
+      if (hasRefTag(inner)) {
+        let refSchema: InternalJsonSchema = this.buildNodeRef(inner)
         if (nullable) refSchema = foldNullable(refSchema)
         if (hasDefault) refSchema = { ...refSchema, default: defaultValue }
         result[name] = refSchema
@@ -268,11 +270,16 @@ export class SerializeContext {
     return result
   }
 
-  private convertZodSchema(schema: z.ZodType): JsonSchema {
-    if (hasRefTarget(schema)) return this.buildNodeRef(schema)
-    if ((schema as unknown as ZodRefMeta).__data_self) return { $dataRef: 'self' }
-    if ((schema as unknown as ZodRefMeta).__data_grant)
-      return { $dataRef: this.getDefName((schema as unknown as ZodRefMeta).__data_target!) }
+  private convertZodSchema(schema: z.ZodType): InternalJsonSchema {
+    if (hasRefTag(schema)) return this.buildNodeRef(schema)
+
+    const dataMeta = getDataMeta(schema)
+    if (dataMeta) {
+      if (dataMeta.kind === 'self') return { $dataRef: 'self' }
+      return { $dataRef: this.getDefName(dataMeta.target as AnyDef) }
+    }
+
+    if (hasBitmaskTag(schema)) return { type: 'integer', format: 'bitmask' }
 
     const typeName = this.zodToTypeName.get(schema)
     if (typeName) return { $ref: `#/types/${typeName}` }
@@ -288,7 +295,7 @@ export class SerializeContext {
     return this.zodToJsonSchemaRaw(schema)
   }
 
-  private zodToJsonSchemaRaw(schema: z.ZodType): JsonSchema {
+  private zodToJsonSchemaRaw(schema: z.ZodType): InternalJsonSchema {
     try {
       const result = z.toJSONSchema(schema) as Record<string, unknown>
       return cleanJsonSchema(result)
@@ -304,29 +311,30 @@ export class SerializeContext {
     return cleanJsonSchema(result)
   }
 
-  private buildNodeRef(schema: z.ZodType): JsonSchema {
-    const result: JsonSchema = {
-      $nodeRef: this.getDefName((schema as unknown as ZodRefMeta).__ref_target!),
+  private buildNodeRef(schema: z.ZodType): InternalJsonSchema {
+    const meta = getRefMeta(schema)
+    if (!meta) return {}
+    const result: InternalJsonSchema = {
+      $nodeRef: this.getDefName(meta.target as AnyDef),
     }
-    if ((schema as unknown as ZodRefMeta).__ref_data) result.includeData = true
+    if (meta.includeData) result.includeData = true
     return result
   }
 
-  private getDefName(def: object): string {
-    const local = this.defToName.get(def)
-    if (local) return local
-
-    const reg = getDefRegistration(def)
-    if (reg) {
-      if (reg.domain && reg.domain !== this.schema.domain) {
-        this.imports[reg.name] = reg.domain
+  private getDefName(def: AnyDef): string {
+    const identity = this.identityMap.get(def)
+    if (identity) {
+      // Check if from imported schema
+      for (const imported of this.schema.imports ?? []) {
+        const importedMap = buildIdentityMap(imported)
+        if (importedMap.has(def)) {
+          this.imports[identity.name] = imported.domain
+          return identity.name
+        }
       }
-      return reg.name
+      return identity.name
     }
 
-    throw new Error(
-      // oxlint-disable-next-line no-explicit-any
-      `Serialization error: referenced def not found in schema and not registered in any schema.`,
-    )
+    throw new Error('Serialization error: referenced def not found in schema or imports')
   }
 }

@@ -1,22 +1,26 @@
-import type { Cardinality, JsonSchema } from '@astrale/typegraph-schema'
+// oxlint-disable typescript/no-explicit-any
 import type { z } from 'zod'
 
-import type { Cardinality as BuilderCardinality } from '../defs/endpoint.js'
+import type { Cardinality } from '../grammar/facets/endpoints.js'
+import type { BITMASK_TAG } from '../grammar/values/bitmask.js'
+import type { DATA_TAG } from '../grammar/values/data.js'
+import type { REF_TAG } from '../grammar/values/ref.js'
 
-// ── Zod introspection helpers ───────────────────────────────────────────────
+// Runtime symbols
+const REF_TAG_RUNTIME = Symbol.for('REF_TAG') as typeof REF_TAG
+const DATA_TAG_RUNTIME = Symbol.for('DATA_TAG') as typeof DATA_TAG
+const BITMASK_TAG_RUNTIME = Symbol.for('BITMASK_TAG') as typeof BITMASK_TAG
 
-// oxlint-disable-next-line no-explicit-any
+// ── Zod introspection ─────────────────────────────────────────────────
+
 export function getZodDef(schema: z.ZodType): Record<string, any> | null {
-  // oxlint-disable-next-line no-explicit-any
   return (schema as any)?._zod?.def ?? (schema as any)?._def ?? null
 }
 
-// oxlint-disable-next-line no-explicit-any
 export function getZodTypeName(def: Record<string, any>): string | undefined {
   return def.typeName ?? def.type
 }
 
-// oxlint-disable-next-line no-explicit-any
 export function getZodInner(def: Record<string, any>): z.ZodType | null {
   return def.innerType ?? def.inner ?? null
 }
@@ -82,6 +86,36 @@ export function getArrayElement(schema: z.ZodType): z.ZodType | null {
   return null
 }
 
+// ── Brand detection (new symbol-based) ────────────────────────────────
+
+export function hasRefTag(schema: z.ZodType): boolean {
+  return schema !== null && typeof schema === 'object' && REF_TAG_RUNTIME in (schema as any)
+}
+
+export function getRefMeta(schema: z.ZodType): { target: object; includeData: boolean } | null {
+  if (!hasRefTag(schema)) return null
+  return (schema as any)[REF_TAG_RUNTIME]
+}
+
+export function hasDataTag(schema: z.ZodType): boolean {
+  return schema !== null && typeof schema === 'object' && DATA_TAG_RUNTIME in (schema as any)
+}
+
+export function getDataMeta(
+  schema: z.ZodType,
+): { kind: 'self' } | { kind: 'grant'; target: object } | null {
+  if (!hasDataTag(schema)) return null
+  return (schema as any)[DATA_TAG_RUNTIME]
+}
+
+export function hasBitmaskTag(schema: z.ZodType): boolean {
+  return schema !== null && typeof schema === 'object' && BITMASK_TAG_RUNTIME in (schema as any)
+}
+
+// ── JSON Schema helpers ───────────────────────────────────────────────
+
+export type JsonSchema = Record<string, unknown>
+
 export function foldNullable(schema: JsonSchema): JsonSchema {
   if (schema.type) {
     const existing = Array.isArray(schema.type) ? schema.type : [schema.type]
@@ -93,7 +127,7 @@ export function foldNullable(schema: JsonSchema): JsonSchema {
   return { anyOf: [schema, { type: 'null' }] }
 }
 
-export function mapCardinality(c: BuilderCardinality): Cardinality | undefined {
+export function mapCardinality(c: Cardinality): { min: number; max: number | null } | undefined {
   switch (c) {
     case '0..1':
       return { min: 0, max: 1 }
@@ -104,10 +138,6 @@ export function mapCardinality(c: BuilderCardinality): Cardinality | undefined {
     case '1..*':
       return { min: 1, max: null }
   }
-}
-
-export function hasRefTarget(schema: z.ZodType): boolean {
-  return schema !== null && typeof schema === 'object' && '__ref_target' in schema
 }
 
 export function cleanJsonSchema(schema: Record<string, unknown>): JsonSchema {
