@@ -17,9 +17,5 @@ export {
   type ClassRefs,
   type AllDefRefs,
 } from './refs.js'
-export {
-  resolveAllMethods,
-  resolveAllAttributes,
-  resolveAllAttributeKeys,
-} from './resolve/index.js'
+export { resolveAllMethods, resolveAllProperties, resolveAllPropertyKeys } from './resolve/index.js'
 export type { SchemaContext } from './validators/context.js'

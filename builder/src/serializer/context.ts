@@ -15,14 +15,14 @@ import type {
 import { z } from 'zod'
 
 import type { AnyDef } from '../grammar/definition/discriminants.js'
-import type { Property } from '../grammar/facets/attributes.js'
 import type { DefConstraints } from '../grammar/facets/constraints.js'
 import type { EndpointConfig } from '../grammar/facets/endpoints.js'
+import type { Property } from '../grammar/facets/properties.js'
 import type { FnDef } from '../grammar/function/def.js'
 import type { Schema } from '../schema/schema.js'
 
 import { isEdge } from '../grammar/definition/discriminants.js'
-import { normalizeAttribute } from '../grammar/facets/attributes.js'
+import { normalizeProperty } from '../grammar/facets/properties.js'
 import { buildIdentityMap, type DefIdentity } from '../schema/refs.js'
 import {
   unwrapZod,
@@ -102,7 +102,7 @@ export class SerializeContext {
       type: 'interface',
       name,
       extends: this.resolveInherits(config),
-      properties: this.serializeProperties(config.attributes),
+      properties: this.serializeProperties(config.properties),
       methods: this.serializeMethods(config.methods, name),
     }
     const content = (config as any).content
@@ -117,7 +117,7 @@ export class SerializeContext {
       type: 'node',
       name,
       implements: this.resolveInherits(config),
-      properties: this.serializeProperties(config.attributes),
+      properties: this.serializeProperties(config.properties),
       methods: this.serializeMethods(config.methods, name),
     }
     const content = (config as any).content
@@ -135,7 +135,7 @@ export class SerializeContext {
       name,
       implements: this.resolveInherits(config),
       endpoints: [this.serializeEndpoint(edgeDef.from), this.serializeEndpoint(edgeDef.to)],
-      properties: this.serializeProperties(config.attributes),
+      properties: this.serializeProperties(config.properties),
       methods: this.serializeMethods(config.methods, name),
     }
 
@@ -193,7 +193,7 @@ export class SerializeContext {
     if (!attrs) return {}
     const result: Record<string, PropertyDecl> = {}
     for (const [name, input] of Object.entries(attrs)) {
-      const normalized = normalizeAttribute(input)
+      const normalized = normalizeProperty(input)
       const decl: PropertyDecl = this.serializePropertySchema(normalized.schema)
       if (normalized.private) decl.private = true
       result[name] = decl

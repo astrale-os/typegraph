@@ -1,5 +1,5 @@
 import type { AnyDef } from '../grammar/definition/discriminants.js'
-import type { ExtractInherits, InferAttributes } from './attributes.js'
+import type { ExtractInherits, InferProperties } from './properties.js'
 
 /** Extract own content from a def's config */
 // biome-ignore lint: empty object type is intentional for fallback
@@ -10,15 +10,15 @@ type CollectAncestorContent<T> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ? InferAttributes<ExtractContent<Head>> &
+  ? InferProperties<ExtractContent<Head>> &
       CollectAncestorContent<ExtractInherits<Head>> &
       CollectAncestorContent<Tail>
   : unknown
 
 /** Full inferred content: own shadow inherited (own keys take precedence) */
 export type ExtractFullContent<D> = D extends AnyDef
-  ? Omit<CollectAncestorContent<ExtractInherits<D>>, keyof InferAttributes<ExtractContent<D>>> &
-      InferAttributes<ExtractContent<D>>
+  ? Omit<CollectAncestorContent<ExtractInherits<D>>, keyof InferProperties<ExtractContent<D>>> &
+      InferProperties<ExtractContent<D>>
   : unknown
 
 /** Check if a def has any content (own or inherited) */

@@ -42,7 +42,7 @@ export type {
 } from './grammar/definition/discriminants.js'
 export type { FnDef } from './grammar/function/def.js'
 export type { FnConfig, ParamShape } from './grammar/function/config.js'
-export type { AttributeShape, AttributeDef, Property } from './grammar/facets/attributes.js'
+export type { PropertyShape, PropertyDef, Property } from './grammar/facets/properties.js'
 export type { ContentShape } from './grammar/facets/content.js'
 export type { EndpointConfig, Cardinality } from './grammar/facets/endpoints.js'
 export type { DefConstraints } from './grammar/facets/constraints.js'
@@ -56,9 +56,9 @@ export type { OutputMode } from './grammar/function/output.js'
 
 // ── Inference types (type-level utilities) ─────────────────────────
 export type {
-  ExtractAttributes,
-  InferAttributes,
-  ExtractFullAttributes,
+  ExtractProperties,
+  InferProperties,
+  ExtractFullProperties,
   ExtractInherits,
   ExtractContent,
   ExtractFullContent,
@@ -86,7 +86,7 @@ export type {
 } from './inference/index.js'
 
 // ── Helpers (runtime introspection) ────────────────────────────────
-export { resolveAllMethods, resolveAllAttributes } from './schema/resolve/index.js'
+export { resolveAllMethods, resolveAllProperties } from './schema/resolve/index.js'
 export { classifyDefs } from './schema/classify.js'
 export {
   isNodeInterface,

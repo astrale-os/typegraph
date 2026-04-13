@@ -1,7 +1,7 @@
 import type { AnyDef } from '../grammar/definition/discriminants.js'
 import type { FnDef } from '../grammar/function/def.js'
-import type { ExtractInherits } from './attributes.js'
 import type { ExtractMethods } from './methods.js'
+import type { ExtractInherits } from './properties.js'
 
 /** Extract own sealed method keys from a def */
 type SealedOwnKeys<D> = {

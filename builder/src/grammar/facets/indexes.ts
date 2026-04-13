@@ -4,11 +4,11 @@ export type IndexType = 'btree' | 'unique' | 'fulltext'
 /** Index definition — shorthand string or explicit config */
 export type IndexDef<K extends string = string> =
   | K
-  | { readonly attribute: K; readonly type: IndexType }
+  | { readonly property: K; readonly type: IndexType }
 
-/** Extract the attribute name from an IndexDef */
-export function indexAttribute<K extends string>(index: IndexDef<K>): K {
-  return typeof index === 'string' ? index : index.attribute
+/** Extract the property name from an IndexDef */
+export function indexProperty<K extends string>(index: IndexDef<K>): K {
+  return typeof index === 'string' ? index : index.property
 }
 
 /** Extract the index type, defaulting to 'btree' */

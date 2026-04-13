@@ -5,8 +5,8 @@ import type { AnyDef } from '../grammar/definition/discriminants.js'
 import type { ParamShape } from '../grammar/function/config.js'
 import type { FnDef } from '../grammar/function/def.js'
 import type { DATA_TAG } from '../grammar/values/data.js'
-import type { ExtractInherits, ExtractFullAttributes } from './attributes.js'
 import type { ExtractFullContent } from './content.js'
+import type { ExtractInherits, ExtractFullProperties } from './properties.js'
 
 /** Extract own methods from a def's config */
 // biome-ignore lint: empty object type is intentional for fallback
@@ -85,7 +85,7 @@ export type ExtractMethodReturnValue<D, M extends string> = MethodReturnValue<
   ExtractMethodReturns<D, M>
 >
 
-/** Self type for a method context — attributes + id (+ from/to for edges) */
+/** Self type for a method context — properties + id (+ from/to for edges) */
 export type MethodSelf<D> = D extends { from: any; to: any }
-  ? ExtractFullAttributes<D> & { readonly id: string; readonly from: string; readonly to: string }
-  : ExtractFullAttributes<D> & { readonly id: string }
+  ? ExtractFullProperties<D> & { readonly id: string; readonly from: string; readonly to: string }
+  : ExtractFullProperties<D> & { readonly id: string }

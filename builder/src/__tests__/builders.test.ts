@@ -16,15 +16,15 @@ import {
 
 describe('definition builders', () => {
   it('nodeInterface creates a branded def with __kind', () => {
-    const I = nodeInterface({ attributes: { name: z.string() } })
+    const I = nodeInterface({ properties: { name: z.string() } })
     expect(I.__kind).toBe('node-interface')
-    expect(I.config.attributes).toHaveProperty('name')
+    expect(I.config.properties).toHaveProperty('name')
   })
 
   it('nodeClass creates a branded def with __kind', () => {
-    const C = nodeClass({ attributes: { name: z.string() } })
+    const C = nodeClass({ properties: { name: z.string() } })
     expect(C.__kind).toBe('node-class')
-    expect(C.config.attributes).toHaveProperty('name')
+    expect(C.config.properties).toHaveProperty('name')
   })
 
   it('edgeInterface creates a branded def with endpoints', () => {
@@ -47,7 +47,7 @@ describe('definition builders', () => {
   })
 
   it('nodeInterface accepts a thunk for forward refs', () => {
-    const I = nodeInterface(() => ({ attributes: { x: z.number() } }))
+    const I = nodeInterface(() => ({ properties: { x: z.number() } }))
     expect(I.__kind).toBe('node-interface')
     // Thunk is stored as-is; resolved later by defineSchema
   })
@@ -95,9 +95,9 @@ describe('data builder', () => {
 })
 
 describe('prop builder', () => {
-  it('creates an AttributeDef with metadata', () => {
+  it('creates an PropertyDef with metadata', () => {
     const p = prop(z.string(), { private: true })
-    expect(p._tag).toBe('AttributeDef')
+    expect(p._tag).toBe('PropertyDef')
     expect(p.private).toBe(true)
   })
 

@@ -15,12 +15,12 @@ import {
 describe('defineSchema', () => {
   it('creates a schema with interfaces and classes groups', () => {
     const Trackable = nodeInterface({
-      attributes: { createdAt: z.string() },
+      properties: { createdAt: z.string() },
     })
 
     const Article = nodeClass({
       inherits: [Trackable],
-      attributes: { title: z.string() },
+      properties: { title: z.string() },
     })
 
     const schema = defineSchema('blog.example', {
@@ -35,7 +35,7 @@ describe('defineSchema', () => {
 
   it('resolves thunks during defineSchema', () => {
     const Node = nodeInterface(() => ({
-      attributes: { name: z.string() },
+      properties: { name: z.string() },
       methods: {
         getName: fn({ returns: z.string() }),
       },
@@ -46,7 +46,7 @@ describe('defineSchema', () => {
       classes: {},
     })
 
-    expect(schema.interfaces.Node.config.attributes).toBeDefined()
+    expect(schema.interfaces.Node.config.properties).toBeDefined()
   })
 
   it('resolves SELF references', () => {
@@ -91,7 +91,7 @@ describe('defineSchema', () => {
   })
 
   it('supports imports', () => {
-    const Base = nodeInterface({ attributes: { id: z.string() } })
+    const Base = nodeInterface({ properties: { id: z.string() } })
     const baseSchema = defineSchema('base.com', {
       interfaces: { Base },
       classes: {},
@@ -212,10 +212,10 @@ describe('schema validation', () => {
     ).toThrow(SchemaValidationError)
   })
 
-  it('validates indexes reference existing attributes', () => {
+  it('validates indexes reference existing properties', () => {
     const Bad = nodeClass({
-      attributes: { name: z.string() },
-      indexes: [{ attribute: 'nonexistent', type: 'btree' }],
+      properties: { name: z.string() },
+      indexes: [{ property: 'nonexistent', type: 'btree' }],
     })
 
     expect(() =>
@@ -226,9 +226,9 @@ describe('schema validation', () => {
     ).toThrow(SchemaValidationError)
   })
 
-  it('accepts valid indexes on own attributes', () => {
+  it('accepts valid indexes on own properties', () => {
     const Good = nodeClass({
-      attributes: { name: z.string() },
+      properties: { name: z.string() },
       indexes: ['name'],
     })
 

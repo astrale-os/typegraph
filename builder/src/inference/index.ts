@@ -1,9 +1,9 @@
 export type {
-  ExtractAttributes,
-  InferAttributes,
-  ExtractFullAttributes,
+  ExtractProperties,
+  InferProperties,
+  ExtractFullProperties,
   ExtractInherits,
-} from './attributes.js'
+} from './properties.js'
 
 export type { ExtractContent, ExtractFullContent, HasContent } from './content.js'
 

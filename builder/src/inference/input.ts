@@ -1,13 +1,13 @@
 import type { AnyDef } from '../grammar/definition/discriminants.js'
-import type { ExtractAttributes, ExtractInherits, InferAttributes } from './attributes.js'
 import type { ExtractContent } from './content.js'
+import type { ExtractProperties, ExtractInherits, InferProperties } from './properties.js'
 
-/** Resolve one inherits entry: attributes + content + recursive ancestors */
-type ResolveInheritsEntry<H extends AnyDef> = InferAttributes<ExtractAttributes<H>> &
-  InferAttributes<ExtractContent<H>> &
+/** Resolve one inherits entry: properties + content + recursive ancestors */
+type ResolveInheritsEntry<H extends AnyDef> = InferProperties<ExtractProperties<H>> &
+  InferProperties<ExtractContent<H>> &
   CollectInputFromInherits<ExtractInherits<H>>
 
-/** Collect all attributes AND content from inherits chain (later entries shadow earlier) */
+/** Collect all properties AND content from inherits chain (later entries shadow earlier) */
 type CollectInputFromInherits<T> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
@@ -16,12 +16,12 @@ type CollectInputFromInherits<T> = T extends readonly [
       CollectInputFromInherits<Tail>
   : unknown
 
-/** Full inferred node input: attributes + content, own shadow inherited */
+/** Full inferred node input: properties + content, own shadow inherited */
 export type ExtractNodeInput<D> = D extends AnyDef
   ? Omit<
       CollectInputFromInherits<ExtractInherits<D>>,
-      keyof InferAttributes<ExtractAttributes<D>> | keyof InferAttributes<ExtractContent<D>>
+      keyof InferProperties<ExtractProperties<D>> | keyof InferProperties<ExtractContent<D>>
     > &
-      InferAttributes<ExtractAttributes<D>> &
-      InferAttributes<ExtractContent<D>>
+      InferProperties<ExtractProperties<D>> &
+      InferProperties<ExtractContent<D>>
   : unknown
