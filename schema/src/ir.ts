@@ -31,12 +31,21 @@ export interface SchemaIR {
 
   /**
    * Cross-domain dependency manifest.
-   * Maps each referenced external name to its source domain.
+   * Maps each referenced external name to its source domain and whether
+   * it is an interface or a class. The `definition` tag is required: the
+   * graph form of a domain is the round-trip source of truth, and without
+   * it a re-serialization cannot distinguish `class implements interface`
+   * from `class extends class` for imported parents.
+   *
    * Absent when the schema is self-contained.
    *
-   * @example { "Node": "astrale.core", "Identity": "astrale.core" }
+   * @example
+   * {
+   *   "Node": { "origin": "astrale.core", "definition": "class" },
+   *   "Identity": { "origin": "astrale.core", "definition": "interface" }
+   * }
    */
-  imports?: Record<string, DomainOrigin>
+  imports?: Record<string, { origin: DomainOrigin; definition: 'interface' | 'class' }>
 
   /**
    * Shared type definitions (JSON Schema).

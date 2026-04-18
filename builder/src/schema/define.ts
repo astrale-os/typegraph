@@ -2,17 +2,19 @@ import type { AnyInterfaceDef, AnyClassDef, AnyDef } from '../grammar/definition
 import type { Schema } from './schema.js'
 
 import { classifyDefs } from './classify.js'
-import { buildFullIdentityMap, buildMethodRefs } from './refs.js'
+import { buildDefDescriptorMap, buildMethodRefs } from './refs.js'
 import { resolveConfigThunks, resolveParamThunks, resolveSelfReferences } from './resolve/index.js'
 import { validateSchema, type SchemaContext } from './validators/index.js'
 
 interface DefineSchemaInput<
   I extends Record<string, AnyInterfaceDef>,
   C extends Record<string, AnyClassDef>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Imports extends readonly Schema<any, any, any>[] = readonly Schema<any, any, any>[],
 > {
   readonly interfaces: I
   readonly classes: C
-  readonly imports?: readonly Schema[]
+  readonly imports?: Imports
 }
 
 /**
@@ -25,10 +27,12 @@ interface DefineSchemaInput<
 export function defineSchema<
   const I extends Record<string, AnyInterfaceDef>,
   const C extends Record<string, AnyClassDef>,
->(domain: string, input: DefineSchemaInput<I, C>): Schema<I, C> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Imports extends readonly Schema<any, any, any>[] = readonly Schema<any, any, any>[],
+>(domain: string, input: DefineSchemaInput<I, C, Imports>): Schema<I, C, Imports> {
   const interfaces = input.interfaces
   const classes = input.classes
-  const imports = input.imports ?? []
+  const imports = (input.imports ?? []) as Imports
 
   // Phase 1: Resolve thunks and self-references
   const allDefs: Record<string, AnyDef> = { ...interfaces, ...classes }
@@ -42,17 +46,17 @@ export function defineSchema<
   classifyDefs(interfaces, classes)
 
   // Phase 3: Build identity map for validation lookups
-  const schema: Schema<I, C> = {
+  const schema: Schema<I, C, Imports> = {
     domain,
     interfaces,
     classes,
     functions: {},
     imports,
   }
-  const identityMap = buildFullIdentityMap(schema)
+  const descriptorMap = buildDefDescriptorMap(schema)
 
   // Phase 4: Validate
-  const ctx: SchemaContext = { domain, interfaces, classes, imports, identityMap }
+  const ctx: SchemaContext = { domain, interfaces, classes, imports, descriptorMap }
   validateSchema(ctx)
 
   // Phase 5: Build method refs

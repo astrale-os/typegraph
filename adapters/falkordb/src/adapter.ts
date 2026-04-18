@@ -13,7 +13,7 @@ import type { FalkorDBConfig } from './types'
 
 import { validateConfig, createConnectionError } from './errors'
 import { retryWithBackoff } from './retry'
-import { transformResults } from './transform'
+import { encodeParamKeys, transformResults } from './transform'
 
 /**
  * FalkorDB QueryParam type (matches internal FalkorDB definition).
@@ -25,10 +25,13 @@ type QueryParams = {
 }
 
 /**
- * Convert unknown params to FalkorDB QueryParam type.
+ * Convert unknown params to FalkorDB QueryParam type. Map keys are
+ * backtick-wrapped where needed so the falkordb client's unquoted map
+ * serialization produces valid Cypher for identifiers that contain `.`,
+ * `:`, etc. (common for domain-qualified property names).
  */
 function toQueryParams(params: Record<string, unknown>): QueryParams {
-  return params as QueryParams
+  return encodeParamKeys(params) as QueryParams
 }
 
 /**

@@ -16,15 +16,20 @@ export type ExtractMethods<D> = D extends {
   ? M
   : {}
 
-/** Collect methods from all ancestors (own + recursive parents) */
-type CollectAncestorMethods<T> = T extends readonly [
+/**
+ * Collect methods from all ancestors via a tail-recursive worklist.
+ *
+ * Visits one def per frame; the def's own `inherits` are prepended to the
+ * worklist so the DAG is flattened without branching recursion. Eligible for
+ * TS tuple tail-call optimization — deep/wide inheritance no longer risks
+ * "Type instantiation is excessively deep".
+ */
+type CollectAncestorMethods<T, Acc = unknown> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ? ExtractMethods<Head> &
-      CollectAncestorMethods<ExtractInherits<Head>> &
-      CollectAncestorMethods<Tail>
-  : unknown
+  ? CollectAncestorMethods<[...ExtractInherits<Head>, ...Tail], Acc & ExtractMethods<Head>>
+  : Acc
 
 /** All methods for a def: own + inherited (own shadows inherited) */
 export type AllMethods<D> = D extends AnyDef

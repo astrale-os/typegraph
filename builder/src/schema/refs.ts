@@ -32,19 +32,19 @@ export function methodRef<K extends KindSegment, N extends string, M extends str
   return `${kind}${REF_SEPARATOR}${name}${REF_SEPARATOR}${method}` as MethodRef<K, N, M>
 }
 
-/** Schema-scoped identity: reverse lookup from def object to its group/name/ref */
-export interface DefIdentity {
+/** Schema-scoped descriptor: reverse lookup from def object to its group/name/ref */
+export interface DefDescriptor {
   readonly group: KindSegment
   readonly name: string
   readonly ref: DefRef
 }
 
 /**
- * Build a reverse map from def objects to their identity.
- * Used for schema-scoped lookups (replaces the old global WeakMap registry).
+ * Build a reverse map from def objects to their descriptor.
+ * Used for schema-scoped lookups.
  */
-export function buildIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
-  const map = new Map<AnyDef, DefIdentity>()
+export function buildDescriptorMap(schema: Schema): Map<AnyDef, DefDescriptor> {
+  const map = new Map<AnyDef, DefDescriptor>()
 
   for (const [name, def] of Object.entries(schema.interfaces)) {
     map.set(def, { group: 'interface', name, ref: defRef('interface', name) })
@@ -58,13 +58,13 @@ export function buildIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
 }
 
 /**
- * Build a combined identity map that includes both the schema's own defs and all imports.
+ * Build a combined descriptor map that includes both the schema's own defs and all imports.
  * Call once, then pass to isKnownDef for O(1) lookups.
  */
-export function buildFullIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
-  const map = buildIdentityMap(schema)
+export function buildDefDescriptorMap(schema: Schema): Map<AnyDef, DefDescriptor> {
+  const map = buildDescriptorMap(schema)
   for (const imported of schema.imports ?? []) {
-    const importedMap = buildIdentityMap(imported)
+    const importedMap = buildDescriptorMap(imported)
     for (const [def, identity] of importedMap) {
       map.set(def, identity)
     }
@@ -72,9 +72,9 @@ export function buildFullIdentityMap(schema: Schema): Map<AnyDef, DefIdentity> {
   return map
 }
 
-/** Check if a def exists in the identity map */
-export function isKnownDef(def: object, identityMap: Map<AnyDef, DefIdentity>): boolean {
-  return identityMap.has(def as AnyDef)
+/** Check if a def exists in the descriptor map */
+export function isKnownDef(def: object, descriptorMap: Map<AnyDef, DefDescriptor>): boolean {
+  return descriptorMap.has(def as AnyDef)
 }
 
 /** Build a flat map of all qualified method refs: `{group}.{name}.{method}` → FnDef */

@@ -15,7 +15,7 @@ export function validateInheritance(ctx: SchemaContext): void {
 
     for (const parent of parents) {
       // Rule 3: Inheritance targets exist
-      if (!isKnownDef(parent, ctx.identityMap)) {
+      if (!isKnownDef(parent, ctx.descriptorMap)) {
         throw new SchemaValidationError(
           `Definition '${name}' inherits from an unknown type`,
           `${name}.inherits`,

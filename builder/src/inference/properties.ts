@@ -25,15 +25,22 @@ export type ExtractInherits<D> = D extends {
   ? I
   : readonly []
 
-/** Collect inferred properties from all ancestors as an intersection */
-type CollectAncestorProperties<T> = T extends readonly [
+/**
+ * Collect inferred properties from all ancestors via a tail-recursive worklist.
+ *
+ * Visits one def per frame; `inherits` are prepended to the worklist so the DAG
+ * is flattened without branching recursion. Intersection accumulates in `Acc`
+ * — eligible for TS tuple tail-call optimization.
+ */
+type CollectAncestorProperties<T, Acc = unknown> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ? InferProperties<ExtractProperties<Head>> &
-      CollectAncestorProperties<ExtractInherits<Head>> &
-      CollectAncestorProperties<Tail>
-  : unknown
+  ? CollectAncestorProperties<
+      [...ExtractInherits<Head>, ...Tail],
+      Acc & InferProperties<ExtractProperties<Head>>
+    >
+  : Acc
 
 /** Full inferred properties: own shadow inherited (own keys take precedence) */
 export type ExtractFullProperties<D> = D extends AnyDef

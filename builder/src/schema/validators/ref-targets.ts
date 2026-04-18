@@ -43,7 +43,7 @@ export function validateRefTargets(ctx: SchemaContext): void {
     if (params && typeof params === 'object' && typeof params !== 'function') {
       for (const [paramName, paramSchema] of Object.entries(params as Record<string, unknown>)) {
         for (const target of extractRefTargets(paramSchema)) {
-          if (!isKnownDef(target, ctx.identityMap)) {
+          if (!isKnownDef(target, ctx.descriptorMap)) {
             throw new SchemaValidationError(
               `'${path}' param '${paramName}' references an unknown def`,
               `${path}.params.${paramName}`,
@@ -55,7 +55,7 @@ export function validateRefTargets(ctx: SchemaContext): void {
       }
     }
     for (const target of extractRefTargets(fnDef.config.returns)) {
-      if (!isKnownDef(target, ctx.identityMap)) {
+      if (!isKnownDef(target, ctx.descriptorMap)) {
         throw new SchemaValidationError(
           `'${path}' return type references an unknown def`,
           `${path}.returns`,

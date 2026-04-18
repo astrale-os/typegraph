@@ -14,7 +14,8 @@ export { SELF } from './grammar/values/self.js'
 export { defineSchema } from './schema/define.js'
 export type { Schema } from './schema/schema.js'
 export { SchemaValidationError } from './schema/error.js'
-export type { DefRef, MethodRef } from './schema/refs.js'
+export type { DefRef, MethodRef, DefDescriptor } from './schema/refs.js'
+export { buildDescriptorMap, buildDefDescriptorMap } from './schema/refs.js'
 
 // ── Instance (core & seed) ─────────────────────────────────────────
 export { defineCore } from './instance/core/define.js'
@@ -42,7 +43,13 @@ export type {
 } from './grammar/definition/discriminants.js'
 export type { FnDef } from './grammar/function/def.js'
 export type { FnConfig, ParamShape } from './grammar/function/config.js'
-export type { PropertyShape, PropertyDef, Property } from './grammar/facets/properties.js'
+export type {
+  PropertyShape,
+  PropertyDef,
+  Property,
+  NormalizedProperty,
+} from './grammar/facets/properties.js'
+export { normalizeProperty, isPropertyDef } from './grammar/facets/properties.js'
 export type { ContentShape } from './grammar/facets/content.js'
 export type { EndpointConfig, Cardinality } from './grammar/facets/endpoints.js'
 export type { DefConstraints } from './grammar/facets/constraints.js'
@@ -93,6 +100,10 @@ export {
   isNodeClass,
   isEdgeInterface,
   isEdgeClass,
+  isAbstract,
+  isConcrete,
+  isEdge,
+  isNode,
 } from './grammar/definition/discriminants.js'
 
 // ── Instance types ─────────────────────────────────────────────────

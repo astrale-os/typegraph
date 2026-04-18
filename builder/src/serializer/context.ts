@@ -23,7 +23,7 @@ import type { Schema } from '../schema/schema.js'
 
 import { isEdge } from '../grammar/definition/discriminants.js'
 import { normalizeProperty } from '../grammar/facets/properties.js'
-import { buildIdentityMap, type DefIdentity } from '../schema/refs.js'
+import { buildDescriptorMap, type DefDescriptor } from '../schema/refs.js'
 import {
   unwrapZod,
   getArrayElement,
@@ -38,22 +38,22 @@ import {
 } from './helpers.js'
 
 export class SerializeContext {
-  private identityMap: Map<AnyDef, DefIdentity>
+  private descriptorMap: Map<AnyDef, DefDescriptor>
   private zodToTypeName = new WeakMap<z.ZodType, string>()
   private types: Record<string, JsonSchema> = {}
-  private imports: Record<string, string> = {}
+  private imports: NonNullable<SchemaIR['imports']> = {}
 
   constructor(
     private schema: Schema,
     options?: { types?: Record<string, z.ZodType> },
   ) {
-    this.identityMap = buildIdentityMap(schema)
+    this.descriptorMap = buildDescriptorMap(schema)
 
-    // Register imported schema identities
+    // Register imported schema descriptors
     for (const imported of schema.imports ?? []) {
-      const importedMap = buildIdentityMap(imported)
-      for (const [def, identity] of importedMap) {
-        this.identityMap.set(def, identity)
+      const importedMap = buildDescriptorMap(imported)
+      for (const [def, descriptor] of importedMap) {
+        this.descriptorMap.set(def, descriptor)
       }
     }
 
@@ -322,17 +322,21 @@ export class SerializeContext {
   }
 
   private getDefName(def: AnyDef): string {
-    const identity = this.identityMap.get(def)
-    if (identity) {
+    const descriptor = this.descriptorMap.get(def)
+    if (descriptor) {
       // Check if from imported schema
       for (const imported of this.schema.imports ?? []) {
-        const importedMap = buildIdentityMap(imported)
-        if (importedMap.has(def)) {
-          this.imports[identity.name] = imported.domain
-          return identity.name
+        const importedMap = buildDescriptorMap(imported)
+        const importedDescriptor = importedMap.get(def)
+        if (importedDescriptor) {
+          this.imports[descriptor.name] = {
+            origin: imported.domain,
+            definition: importedDescriptor.group,
+          }
+          return descriptor.name
         }
       }
-      return identity.name
+      return descriptor.name
     }
 
     throw new Error('Serialization error: referenced def not found in schema or imports')

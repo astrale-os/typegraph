@@ -5,15 +5,21 @@ import type { ExtractInherits, InferProperties } from './properties.js'
 // biome-ignore lint: empty object type is intentional for fallback
 export type ExtractContent<D> = D extends { config: { content: infer C } } ? C : {}
 
-/** Collect inferred content from all ancestors as an intersection */
-type CollectAncestorContent<T> = T extends readonly [
+/**
+ * Collect inferred content from all ancestors via a tail-recursive worklist.
+ *
+ * Visits one def per frame; `inherits` are prepended so the DAG is flattened
+ * without branching recursion. Eligible for TS tuple tail-call optimization.
+ */
+type CollectAncestorContent<T, Acc = unknown> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ? InferProperties<ExtractContent<Head>> &
-      CollectAncestorContent<ExtractInherits<Head>> &
-      CollectAncestorContent<Tail>
-  : unknown
+  ? CollectAncestorContent<
+      [...ExtractInherits<Head>, ...Tail],
+      Acc & InferProperties<ExtractContent<Head>>
+    >
+  : Acc
 
 /** Full inferred content: own shadow inherited (own keys take precedence) */
 export type ExtractFullContent<D> = D extends AnyDef

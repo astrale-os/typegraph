@@ -44,15 +44,14 @@ export function defineCore<
       if (hasChildren) {
         const childPaths: Record<string, unknown> = {}
         walkNodes(children, slugs, nodePath, childPaths)
-        for (const [childKey, childPath] of Object.entries(childPaths)) {
-          Object.defineProperty(nodePath, childKey, {
-            value: childPath,
-            enumerable: true,
-            configurable: false,
-            writable: false,
-          })
-        }
-        result[key] = nodePath
+        // Create an object that acts as both a CorePath (via toString/valueOf)
+        // and a container for child paths (via direct properties).
+        const pathWithChildren = Object.assign(Object.create(null), childPaths)
+        pathWithChildren.toString = () => String(nodePath)
+        pathWithChildren.valueOf = () => String(nodePath)
+        // Tag so isCorePath still works
+        pathWithChildren[Symbol.toPrimitive] = () => String(nodePath)
+        result[key] = pathWithChildren
       } else {
         result[key] = nodePath
       }

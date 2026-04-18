@@ -20,7 +20,7 @@ export function validateEndpoints(ctx: SchemaContext): void {
     for (const endpoint of [from, to]) {
       // Rule 6: Endpoint types exist
       for (const type of endpoint.types) {
-        if (!isKnownDef(type as object, ctx.identityMap)) {
+        if (!isKnownDef(type as object, ctx.descriptorMap)) {
           throw new SchemaValidationError(
             `Definition '${name}' references an unknown type in endpoint '${endpoint.as}'`,
             `${name}.${endpoint.as}`,

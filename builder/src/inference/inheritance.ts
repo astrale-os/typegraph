@@ -12,16 +12,18 @@ type SealedOwnKeys<D> = {
     : never
 }[keyof ExtractMethods<D> & string]
 
-/** Collect sealed method keys recursively from inherits chain */
-type SealedKeysFromInherits<T> = T extends readonly [
+/**
+ * Collect sealed method keys via a tail-recursive worklist.
+ *
+ * Single recursive call per frame — `inherits` of the head get prepended to
+ * the worklist so the DAG is flattened. Union accumulates in `Acc`.
+ */
+type SealedKeysFromInherits<T, Acc = never> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ?
-      | SealedOwnKeys<Head>
-      | SealedKeysFromInherits<ExtractInherits<Head>>
-      | SealedKeysFromInherits<Tail>
-  : never
+  ? SealedKeysFromInherits<[...ExtractInherits<Head>, ...Tail], Acc | SealedOwnKeys<Head>>
+  : Acc
 
 /** All sealed method keys for a def (own + inherited) */
 export type AllSealedKeys<D> = D extends AnyDef
@@ -37,16 +39,13 @@ type AbstractOwnKeys<D> = {
     : never
 }[keyof ExtractMethods<D> & string]
 
-/** Collect abstract method keys from inherits chain */
-type AbstractKeysFromInherits<T> = T extends readonly [
+/** Tail-recursive worklist over the inherits DAG. Union accumulates in `Acc`. */
+type AbstractKeysFromInherits<T, Acc = never> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ?
-      | AbstractOwnKeys<Head>
-      | AbstractKeysFromInherits<ExtractInherits<Head>>
-      | AbstractKeysFromInherits<Tail>
-  : never
+  ? AbstractKeysFromInherits<[...ExtractInherits<Head>, ...Tail], Acc | AbstractOwnKeys<Head>>
+  : Acc
 
 /** Abstract method keys inherited that still need implementation (not overridden by own methods) */
 export type InheritedAbstractKeys<D> = D extends AnyDef
@@ -62,16 +61,13 @@ type DefaultOwnKeys<D> = {
     : never
 }[keyof ExtractMethods<D> & string]
 
-/** Default method keys from inherits chain */
-type DefaultKeysFromInherits<T> = T extends readonly [
+/** Tail-recursive worklist over the inherits DAG. Union accumulates in `Acc`. */
+type DefaultKeysFromInherits<T, Acc = never> = T extends readonly [
   infer Head extends AnyDef,
   ...infer Tail extends readonly AnyDef[],
 ]
-  ?
-      | DefaultOwnKeys<Head>
-      | DefaultKeysFromInherits<ExtractInherits<Head>>
-      | DefaultKeysFromInherits<Tail>
-  : never
+  ? DefaultKeysFromInherits<[...ExtractInherits<Head>, ...Tail], Acc | DefaultOwnKeys<Head>>
+  : Acc
 
 /** Default method keys inherited that are NOT overridden by own methods */
 export type InheritedDefaultKeys<D> = D extends AnyDef
