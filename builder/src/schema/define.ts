@@ -10,7 +10,7 @@ interface DefineSchemaInput<
   I extends Record<string, AnyInterfaceDef>,
   C extends Record<string, AnyClassDef>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Imports extends readonly Schema<any, any, any>[] = readonly Schema<any, any, any>[],
+  Imports extends readonly Schema<any, any, any>[] = readonly [],
 > {
   readonly interfaces: I
   readonly classes: C
@@ -28,7 +28,7 @@ export function defineSchema<
   const I extends Record<string, AnyInterfaceDef>,
   const C extends Record<string, AnyClassDef>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Imports extends readonly Schema<any, any, any>[] = readonly Schema<any, any, any>[],
+  const Imports extends readonly Schema<any, any, any>[] = readonly [],
 >(domain: string, input: DefineSchemaInput<I, C, Imports>): Schema<I, C, Imports> {
   const interfaces = input.interfaces
   const classes = input.classes
